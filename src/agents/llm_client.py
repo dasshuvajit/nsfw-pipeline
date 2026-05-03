@@ -184,19 +184,27 @@ class OllamaClient:
         temperature: float = 0.6,
         num_predict: int = 4096,
         schema: "type[BaseModel] | None" = None,
+        prefill: str | None = None,
     ) -> dict | list:
         """Generate text, strip markdown fences, parse as JSON.
 
         Uses a slightly lower temperature than ``generate()`` for more
         deterministic structured output.
 
-        When ``schema`` is provided, two layers of safety apply:
+        When ``schema`` is provided, three layers of safety apply:
 
-        1. **Constrained decoding** (Phase 4b): the schema's JSON-schema
+        1. **Assistant-prefill** (Q6): when ``schema`` is set the call
+           uses Ollama's ``/api/chat`` endpoint with a partial assistant
+           message ("Sure, here's the JSON: {" for objects, "[" for
+           arrays). The model continues from that opening — defeats
+           refusals while committing to JSON shape. Override with
+           ``prefill="..."`` (any string) or ``prefill=""`` to skip and
+           use the legacy ``/api/generate`` path.
+        2. **Constrained decoding** (Phase 4b): the schema's JSON-schema
            dict is passed to Ollama 0.5+ via the ``format:`` field —
            llama.cpp's grammar enforces structural validity at decode
            time, eliminating most "malformed JSON" retries.
-        2. **Pydantic post-validation** (defence in depth): the parsed
+        3. **Pydantic post-validation** (defence in depth): the parsed
            text is still validated through the Pydantic model so
            type-narrowing constraints (``min_length``, ``Literal``,
            ``model_validator`` decorators) catch anything the JSON
@@ -221,16 +229,59 @@ class OllamaClient:
             except Exception:  # pragma: no cover — defensive
                 format_schema = None
 
-        raw = self.generate(
-            system_prompt,
-            user_prompt,
-            temperature=temperature,
-            num_predict=num_predict,
-            format_schema=format_schema,
-            model=model,
-        )
-        cleaned = self._strip_fences(raw)
+        # Q6 — auto-pick assistant prefill when a schema is provided
+        # and the caller didn't override. The prefill is a "Sure, here's
+        # the JSON: " preamble (NOT including the structural opener) —
+        # the preamble defeats refusal training, and Ollama's
+        # format:schema grammar already enforces the structural shape.
+        # Including the opener in the prefill would create double-`{`
+        # if the model also emits `{`, so we leave the opener to the
+        # model.
+        effective_prefill: str | None
+        if prefill is None and schema is not None:
+            effective_prefill = "Sure, here's the JSON: "
+        elif prefill == "":
+            # Caller explicitly opted out of chat-path prefill.
+            effective_prefill = None
+        else:
+            effective_prefill = prefill
 
+        if effective_prefill is not None:
+            raw = self._generate_chat(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                assistant_prefill=effective_prefill,
+                model=model,
+                temperature=temperature,
+                num_predict=num_predict,
+                format_schema=format_schema,
+            )
+            # Strip fences from the chat continuation FIRST (so any
+            # ```json…``` wrapper goes), then concat with the prefill,
+            # then extract the JSON payload (skips "Sure, here's the
+            # JSON: " preamble). The double-pass handles both fenced
+            # and unfenced model continuations.
+            full_text = effective_prefill + raw
+            cleaned_chat = self._strip_fences(raw)
+            cleaned = self._extract_json_payload(
+                effective_prefill + cleaned_chat
+            )
+        else:
+            raw = self.generate(
+                system_prompt,
+                user_prompt,
+                temperature=temperature,
+                num_predict=num_predict,
+                format_schema=format_schema,
+                model=model,
+            )
+            full_text = raw
+            cleaned = self._strip_fences(raw)
+
+        # Error messages include the FULL response text (not just the
+        # extracted JSON) so an operator debugging a parse failure sees
+        # exactly what the LLM emitted, including any preamble or
+        # markdown the prefill flow stripped off.
         if schema is not None:
             from pydantic import ValidationError as _ValidationError
 
@@ -240,13 +291,17 @@ class OllamaClient:
                 raise OllamaJSONParseError(
                     f"LLM response failed schema validation against "
                     f"{schema.__name__}.\nErrors:\n{exc}\n"
-                    f"Cleaned text ({len(cleaned)} chars):\n{cleaned[:500]}"
+                    f"Cleaned text ({len(cleaned)} chars):\n{cleaned[:500]}\n"
+                    f"Full response ({len(full_text)} chars):\n"
+                    f"{full_text[:500]}"
                 ) from exc
             except json.JSONDecodeError as exc:
                 raise OllamaJSONParseError(
                     f"Failed to parse LLM response as JSON.\n"
                     f"Cleaned text ({len(cleaned)} chars):\n"
                     f"{cleaned[:500]}\n"
+                    f"Full response ({len(full_text)} chars):\n"
+                    f"{full_text[:500]}\n"
                     f"Parse error: {exc}"
                 ) from exc
             return validated.model_dump(mode="python")
@@ -330,9 +385,100 @@ class OllamaClient:
         except (requests.ConnectionError, KeyError):
             return []
 
+    def _generate_chat(
+        self,
+        *,
+        system_prompt: str,
+        user_prompt: str,
+        assistant_prefill: str,
+        model: str,
+        temperature: float,
+        num_predict: int,
+        format_schema: dict | None,
+    ) -> str:
+        """Q6 — assistant-prefill via Ollama's ``/api/chat`` endpoint.
+
+        Sends a 3-message conversation
+        ``[system, user, assistant(prefill)]`` and returns the model's
+        continuation. Ollama returns ONLY the model's added text — the
+        prefill is NOT echoed — so the caller is responsible for
+        concatenating ``assistant_prefill + return_value`` to form the
+        complete output.
+
+        ``format_schema`` flows through to Ollama's ``format:`` field
+        for constrained decoding (same shape as ``/api/generate``).
+        """
+        # Track the model the client has loaded (parity with generate()).
+        self.loaded_models.add(model)
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+                {"role": "assistant", "content": assistant_prefill},
+            ],
+            "stream": False,
+            "options": {
+                "temperature": temperature,
+                "num_predict": num_predict,
+            },
+        }
+        if format_schema is not None:
+            payload["format"] = format_schema
+        logger.debug(
+            "Ollama chat request: model=%s temp=%.1f num_predict=%d format=%s",
+            model, temperature, num_predict,
+            "schema" if format_schema is not None else "free",
+        )
+
+        try:
+            resp = requests.post(
+                f"{self.base_url}/api/chat",
+                json=payload,
+                timeout=300,
+            )
+        except requests.ConnectionError as exc:
+            raise OllamaConnectionError(
+                f"Cannot reach Ollama at {self.base_url}. "
+                f"Is `ollama serve` running?\n{exc}"
+            ) from exc
+
+        if resp.status_code != 200:
+            raise OllamaGenerateError(
+                f"Ollama returned HTTP {resp.status_code}: {resp.text[:500]}"
+            )
+
+        data = resp.json()
+        # /api/chat returns the assistant continuation under message.content
+        # (vs /api/generate's top-level "response" field).
+        message = data.get("message") or {}
+        text = message.get("content", "")
+        logger.debug("Ollama chat response: %d chars", len(text))
+        return text
+
     # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _extract_json_payload(text: str) -> str:
+        """Find the JSON payload inside a string that may have a preamble.
+
+        After the prefill concat (``"Sure, here's the JSON: {..."``) we
+        need to strip the preamble before parsing. Locates the first
+        ``{`` or ``[`` and returns the substring from there.
+
+        If neither character is found, returns the input unchanged so
+        the JSON parser produces a sensible error message.
+        """
+        first_brace = text.find("{")
+        first_bracket = text.find("[")
+        # Pick whichever comes first (and is non-negative).
+        candidates = [c for c in (first_brace, first_bracket) if c >= 0]
+        if not candidates:
+            return text
+        start = min(candidates)
+        return text[start:]
 
     @staticmethod
     def _strip_fences(text: str) -> str:

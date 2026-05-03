@@ -268,6 +268,16 @@ class TestLLMClientSchemaIntegration:
 
         client = OllamaClient(base_url="http://test.invalid")
         monkeypatch.setattr(client, "generate", lambda *a, **kw: raw_response)
+
+        # Q6: schema-aware calls go through /api/chat with assistant
+        # prefill. The prefill is "Sure, here's the JSON: " (no
+        # structural opener), so the chat mock returns the full JSON
+        # the same way generate does — _extract_json_payload skips
+        # the preamble before parsing.
+        monkeypatch.setattr(
+            client, "_generate_chat",
+            lambda *a, **kw: raw_response,
+        )
         return client
 
     def test_schema_validation_happy_path(self, monkeypatch):

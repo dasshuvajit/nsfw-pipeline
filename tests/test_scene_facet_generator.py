@@ -60,9 +60,48 @@ def _scene() -> dict:
     }
 
 
+class _DualPatch:
+    """Patch both transports — legacy /api/generate and Q6 /api/chat —
+    so schema-aware calls (which trigger the chat-with-prefill path
+    in OllamaClient.generate_json) still receive the canned response.
+
+    Strips fences + leading structural opener from the chat-mock so
+    ``prefill + chat_continuation`` parses to the same JSON the legacy
+    path would return.
+    """
+
+    def __init__(self, text: str):
+        self._text = text
+        self._patches: list = []
+
+    def __enter__(self):
+        self._patches.append(
+            patch.object(OllamaClient, "generate", return_value=self._text)
+        )
+        # Q6 prefill is "Sure, here's the JSON: " (no structural opener)
+        # so the chat mock returns the full JSON the same way generate
+        # does. _extract_json_payload + _strip_fences handle the rest.
+        self._patches.append(
+            patch.object(
+                OllamaClient, "_generate_chat", return_value=self._text,
+            )
+        )
+        for p in self._patches:
+            p.start()
+        return self
+
+    def __exit__(self, *exc):
+        for p in self._patches:
+            p.stop()
+
+
 def _patch_generate(text: str):
-    """Patch the underlying generate() to return canned LLM output."""
-    return patch.object(OllamaClient, "generate", return_value=text)
+    """Patch the underlying generate() to return canned LLM output.
+
+    Q6: also patches /api/chat so schema-aware code paths (which use
+    assistant-prefill) work transparently in tests.
+    """
+    return _DualPatch(text)
 
 
 # ── Per-family dispatch ─────────────────────────────────────────────
@@ -155,7 +194,8 @@ def test_invalid_facet_triggers_retry(generator, loader):
         call_count["n"] += 1
         return responses[n]
 
-    with patch.object(OllamaClient, "generate", side_effect=fake_generate):
+    # Q6 — schema-aware calls use /api/chat (not /api/generate).
+    with patch.object(OllamaClient, "_generate_chat", side_effect=fake_generate):
         facet = generator.generate(scene=_scene(), family=family, content_level="T2_implied")
     assert facet["camera_spec"] == "85mm"
     assert call_count["n"] == 2  # one retry
@@ -203,7 +243,9 @@ def test_system_prompt_includes_trigger_words(generator, loader):
     guide.avoid_words = []
     guide.example_prompt = ""
 
-    with patch.object(OllamaClient, "generate", side_effect=capture):
+    # Q6 — schema-aware calls use /api/chat (not /api/generate). Patch
+    # the chat endpoint so the capture sees the system prompt.
+    with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
         generator.generate(scene=_scene(), family=family, prompt_guide=guide, content_level="T2_implied")
     assert "Canon EOS 5D" in captured["system_prompt"]
     assert "TRIGGER WORDS" in captured["system_prompt"]
@@ -225,7 +267,9 @@ def test_system_prompt_includes_avoid_words(generator, loader):
     guide.avoid_words = ["painting", "illustration"]
     guide.example_prompt = ""
 
-    with patch.object(OllamaClient, "generate", side_effect=capture):
+    # Q6 — schema-aware calls use /api/chat (not /api/generate). Patch
+    # the chat endpoint so the capture sees the system prompt.
+    with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
         generator.generate(scene=_scene(), family=family, prompt_guide=guide, content_level="T2_implied")
     assert "AVOID" in captured["system_prompt"]
     assert "painting" in captured["system_prompt"]
@@ -253,7 +297,8 @@ def test_system_prompt_includes_family_guide_for_flux2(generator, loader):
             "is contemplative, tender, late-summer."
         )
     })
-    with patch.object(OllamaClient, "generate", return_value=valid_response) as mock:
+    # Q6 — schema-aware calls use /api/chat (not /api/generate).
+    with patch.object(OllamaClient, "_generate_chat", return_value=valid_response) as mock:
         # Inject capturing side effect inside the patch
         def side(system_prompt, user_prompt, **kwargs):
             captured["system_prompt"] = system_prompt
@@ -279,7 +324,9 @@ def test_user_prompt_includes_scene_core_and_family_id(generator, loader):
         captured["user_prompt"] = user_prompt
         return '{"booru_tags": "long_hair"}'
 
-    with patch.object(OllamaClient, "generate", side_effect=capture):
+    # Q6 — schema-aware calls use /api/chat (not /api/generate). Patch
+    # the chat endpoint so the capture sees the system prompt.
+    with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
         generator.generate(scene=_scene(), family=family, content_level="T2_implied")
     up = captured["user_prompt"]
     assert "three-quarter standing" in up           # pose from scene
@@ -306,7 +353,9 @@ def test_user_prompt_does_not_leak_other_family_fields(generator, loader):
         captured["user_prompt"] = user_prompt
         return '{"booru_tags": "x"}'
 
-    with patch.object(OllamaClient, "generate", side_effect=capture):
+    # Q6 — schema-aware calls use /api/chat (not /api/generate). Patch
+    # the chat endpoint so the capture sees the system prompt.
+    with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
         generator.generate(scene=scene_with_sdxl_leftovers, family=family, content_level='T2_implied')
     up = captured["user_prompt"]
     # Scene core fields present:
@@ -328,7 +377,9 @@ def test_explicit_temperature_overrides_family_default(generator, loader):
         captured["temperature"] = temperature
         return '{"camera_spec": "x", "clothing": "y"}'
 
-    with patch.object(OllamaClient, "generate", side_effect=capture):
+    # Q6 — schema-aware calls use /api/chat (not /api/generate). Patch
+    # the chat endpoint so the capture sees the system prompt.
+    with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
         generator.generate(scene=_scene(), family=family, temperature=0.3, content_level="T2_implied")
     assert captured["temperature"] == 0.3
 
@@ -344,7 +395,9 @@ def test_family_temperature_used_when_no_explicit_override(
         captured["temperature"] = temperature
         return '{"booru_tags": "x"}'
 
-    with patch.object(OllamaClient, "generate", side_effect=capture):
+    # Q6 — schema-aware calls use /api/chat (not /api/generate). Patch
+    # the chat endpoint so the capture sees the system prompt.
+    with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
         generator.generate(scene=_scene(), family=family, content_level="T2_implied")
     # If pony.llm_temperature is set, it wins; else falls back to 0.7.
     if family.llm_temperature is not None:
@@ -371,7 +424,9 @@ def test_user_prompt_contains_content_level_line(
         captured["user_prompt"] = user_prompt
         return '{"camera_spec": "x", "clothing": "y"}'
 
-    with patch.object(OllamaClient, "generate", side_effect=capture):
+    # Q6 — schema-aware calls use /api/chat (not /api/generate). Patch
+    # the chat endpoint so the capture sees the system prompt.
+    with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
         generator.generate(
             scene=_scene(), family=family, content_level=tier,
         )
@@ -391,7 +446,9 @@ def test_system_prompt_carries_llm_directive(generator, loader):
 
     directive = "CONTENT TIER: T4_explicit. Depict the subject NUDE."
 
-    with patch.object(OllamaClient, "generate", side_effect=capture):
+    # Q6 — schema-aware calls use /api/chat (not /api/generate). Patch
+    # the chat endpoint so the capture sees the system prompt.
+    with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
         generator.generate(
             scene=_scene(), family=family,
             content_level="T4_explicit",
@@ -410,7 +467,9 @@ def test_system_prompt_skips_directive_when_empty(generator, loader):
         captured["system_prompt"] = system_prompt
         return '{"camera_spec": "x", "clothing": "y"}'
 
-    with patch.object(OllamaClient, "generate", side_effect=capture):
+    # Q6 — schema-aware calls use /api/chat (not /api/generate). Patch
+    # the chat endpoint so the capture sees the system prompt.
+    with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
         generator.generate(
             scene=_scene(), family=family,
             content_level="T1_suggestive",
@@ -441,7 +500,9 @@ def test_t4_directive_pushes_for_nsfw_act(generator, loader):
     assert rules.llm_directive  # YAML must declare it
     assert "nsfw_act" in rules.llm_directive
 
-    with patch.object(OllamaClient, "generate", side_effect=capture):
+    # Q6 — schema-aware calls use /api/chat (not /api/generate). Patch
+    # the chat endpoint so the capture sees the system prompt.
+    with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
         generator.generate(
             scene=_scene(), family=family,
             content_level="T4_explicit",

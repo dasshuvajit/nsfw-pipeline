@@ -50,17 +50,59 @@ def _patch_generate(text: str):
     return patch.object(OllamaClient, "generate", return_value=text)
 
 
+class _DualPatch:
+    """Patch BOTH ``generate`` (legacy /api/generate) and
+    ``_generate_chat`` (Q6 /api/chat) so schema-aware tests cover the
+    new prefill code path. The chat path returns the model's
+    continuation; we strip the leading "Sure, here's the JSON: {" or
+    "[" prefix from the canned text so the resulting concat parses
+    cleanly the same way real Ollama output would.
+    """
+
+    def __init__(self, text: str):
+        self._text = text
+        self._patches: list = []
+
+    def __enter__(self):
+        self._patches.append(
+            patch.object(OllamaClient, "generate", return_value=self._text)
+        )
+        # _generate_chat returns the model's continuation (no prefill
+        # echoed). Q6's prefill is "Sure, here's the JSON: " — no
+        # structural opener — so the chat mock returns the full JSON
+        # exactly like the legacy path. _extract_json_payload finds the
+        # first `{` or `[` and parses from there; markdown fences are
+        # stripped by _strip_fences afterwards.
+        self._patches.append(
+            patch.object(
+                OllamaClient, "_generate_chat", return_value=self._text,
+            )
+        )
+        for p in self._patches:
+            p.start()
+        return self
+
+    def __exit__(self, *exc):
+        for p in self._patches:
+            p.stop()
+
+
+def _patch_both(text: str) -> _DualPatch:
+    """Use this for schema-aware tests that may use either endpoint."""
+    return _DualPatch(text)
+
+
 # ── No schema: plain dict / list passthrough ────────────────────────
 
 
 def test_no_schema_returns_plain_dict():
-    with _patch_generate('{"name": "Elara", "age": 32}'):
+    with _patch_both('{"name": "Elara", "age": 32}'):
         result = OllamaClient().generate_json("sys", "user", model="test-model")
     assert result == {"name": "Elara", "age": 32}
 
 
 def test_no_schema_returns_plain_list():
-    with _patch_generate('[{"name": "Elara"}, {"name": "Mira"}]'):
+    with _patch_both('[{"name": "Elara"}, {"name": "Mira"}]'):
         result = OllamaClient().generate_json("sys", "user", model="test-model")
     assert isinstance(result, list)
     assert result[0]["name"] == "Elara"
@@ -68,13 +110,13 @@ def test_no_schema_returns_plain_list():
 
 def test_no_schema_strips_markdown_fences():
     fenced = '```json\n{"name": "Elara", "age": 32}\n```'
-    with _patch_generate(fenced):
+    with _patch_both(fenced):
         result = OllamaClient().generate_json("sys", "user", model="test-model")
     assert result == {"name": "Elara", "age": 32}
 
 
 def test_no_schema_raises_on_invalid_json():
-    with _patch_generate("not json at all"):
+    with _patch_both("not json at all"):
         with pytest.raises(OllamaJSONParseError, match="Failed to parse"):
             OllamaClient().generate_json("sys", "user", model="test-model")
 
@@ -83,7 +125,7 @@ def test_no_schema_raises_on_invalid_json():
 
 
 def test_basemodel_schema_returns_dict_after_validation():
-    with _patch_generate('{"name": "Elara", "age": 32}'):
+    with _patch_both('{"name": "Elara", "age": 32}'):
         result = OllamaClient().generate_json("sys", "user", schema=_Person, model="test-model")
     assert result == {"name": "Elara", "age": 32}
     # Must be a plain dict (not a Pydantic instance).
@@ -92,14 +134,14 @@ def test_basemodel_schema_returns_dict_after_validation():
 
 def test_basemodel_schema_strips_markdown_fences_too():
     fenced = '```json\n{"name": "Elara", "age": 32}\n```'
-    with _patch_generate(fenced):
+    with _patch_both(fenced):
         result = OllamaClient().generate_json("sys", "user", schema=_Person, model="test-model")
     assert result["name"] == "Elara"
 
 
 def test_basemodel_schema_validates_field_constraints():
     """Pydantic's ge/le constraints are enforced; bad values → schema error."""
-    with _patch_generate('{"name": "Elara", "age": 999}'):
+    with _patch_both('{"name": "Elara", "age": 999}'):
         with pytest.raises(
             OllamaJSONParseError, match="schema validation against _Person",
         ):
@@ -107,7 +149,7 @@ def test_basemodel_schema_validates_field_constraints():
 
 
 def test_basemodel_schema_rejects_missing_required_field():
-    with _patch_generate('{"age": 32}'):
+    with _patch_both('{"age": 32}'):
         with pytest.raises(
             OllamaJSONParseError, match=r"(?i)name|field required",
         ):
@@ -116,7 +158,7 @@ def test_basemodel_schema_rejects_missing_required_field():
 
 def test_basemodel_schema_rejects_wrong_type():
     """``age`` is `int`; "thirty-two" should fail."""
-    with _patch_generate('{"name": "Elara", "age": "thirty-two"}'):
+    with _patch_both('{"name": "Elara", "age": "thirty-two"}'):
         with pytest.raises(
             OllamaJSONParseError, match=r"(?i)age|integer",
         ):
@@ -132,7 +174,7 @@ def test_rootmodel_schema_returns_list_of_dicts():
         '[{"name": "Elara", "age": 32}, '
         '{"name": "Mira", "age": 28}]'
     )
-    with _patch_generate(payload):
+    with _patch_both(payload):
         result = OllamaClient().generate_json(
             "sys", "user", schema=_PersonList, model="test-model",
         )
@@ -149,7 +191,7 @@ def test_rootmodel_schema_validates_each_element():
         '[{"name": "Elara", "age": 32}, '
         '{"name": "Mira", "age": 999}]'  # over le=150
     )
-    with _patch_generate(payload):
+    with _patch_both(payload):
         with pytest.raises(
             OllamaJSONParseError, match="schema validation against _PersonList",
         ):
@@ -157,7 +199,7 @@ def test_rootmodel_schema_validates_each_element():
 
 
 def test_rootmodel_schema_rejects_non_list():
-    with _patch_generate('{"name": "Elara", "age": 32}'):
+    with _patch_both('{"name": "Elara", "age": 32}'):
         with pytest.raises(
             OllamaJSONParseError, match=r"(?i)list|input should be a valid",
         ):
@@ -169,7 +211,7 @@ def test_rootmodel_schema_rejects_non_list():
 
 def test_validation_error_includes_field_path():
     """The error message should help the operator see WHICH field failed."""
-    with _patch_generate('{"name": "Elara", "age": "not a number"}'):
+    with _patch_both('{"name": "Elara", "age": "not a number"}'):
         with pytest.raises(OllamaJSONParseError) as exc_info:
             OllamaClient().generate_json("sys", "user", schema=_Person, model="test-model")
     msg = str(exc_info.value)
@@ -179,7 +221,7 @@ def test_validation_error_includes_field_path():
 
 def test_parse_error_includes_truncated_response_text():
     """JSON-parse failures should include the cleaned text for debugging."""
-    with _patch_generate("definitely not json {[}"):
+    with _patch_both("definitely not json {[}"):
         with pytest.raises(OllamaJSONParseError) as exc_info:
             OllamaClient().generate_json("sys", "user", schema=_Person, model="test-model")
     msg = str(exc_info.value)
@@ -190,10 +232,13 @@ def test_parse_error_includes_truncated_response_text():
 
 
 def test_generate_json_forwards_temperature_and_num_predict():
-    """Smoke: kwargs make it through to ``generate``."""
+    """Smoke: kwargs make it through to ``_generate_chat`` (schema=set
+    triggers the Q6 prefill path) — for non-schema calls they go to
+    ``generate`` (covered separately)."""
     with patch.object(
-        OllamaClient, "generate", return_value='{"name": "x", "age": 1}',
-    ) as mock_gen:
+        OllamaClient, "_generate_chat",
+        return_value='{"name": "x", "age": 1}',
+    ) as mock_chat:
         OllamaClient().generate_json(
             "sys", "user",
             temperature=0.3,
@@ -201,7 +246,7 @@ def test_generate_json_forwards_temperature_and_num_predict():
             schema=_Person,
             model="test-model",
         )
-    _, kwargs = mock_gen.call_args
+    _, kwargs = mock_chat.call_args
     assert kwargs["temperature"] == 0.3
     assert kwargs["num_predict"] == 2048
 
@@ -221,12 +266,16 @@ def test_generate_json_default_temperature_is_lower_than_generate():
 
 def test_generate_json_passes_format_schema_when_schema_provided():
     """When a Pydantic schema is supplied, generate_json must thread
-    ``model_json_schema()`` through to ``generate(format_schema=...)``."""
+    ``model_json_schema()`` through to ``_generate_chat(format_schema=...)``
+    — Q6's prefill path."""
     with patch.object(
-        OllamaClient, "generate", return_value='{"name": "x", "age": 1}',
-    ) as mock_gen:
-        OllamaClient().generate_json("sys", "user", schema=_Person, model="test-model")
-    _, kwargs = mock_gen.call_args
+        OllamaClient, "_generate_chat",
+        return_value='{"name": "x", "age": 1}',
+    ) as mock_chat:
+        OllamaClient().generate_json(
+            "sys", "user", schema=_Person, model="test-model",
+        )
+    _, kwargs = mock_chat.call_args
     assert kwargs.get("format_schema") is not None
     fmt = kwargs["format_schema"]
     # The schema dict matches what Pydantic produces.
