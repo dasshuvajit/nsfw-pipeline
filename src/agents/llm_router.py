@@ -147,12 +147,19 @@ class LLMRouter:
         return self._registry.get_default_llm().ollama_id
 
     def fallback(self) -> str:
-        """Return the Ollama tag for the registry default.
+        """Return the Ollama tag for the registry's ``fallback_llm``.
 
-        Phase 11 will introduce a separate fallback dimension. For now,
-        ``fallback() == default()``.
+        Q11: the fallback is read from ``llm_models.yaml::fallback_llm``
+        (mirrors ``default_llm`` when absent). Used by
+        :meth:`OllamaClient.generate_json(fallback_model=...)` for the
+        second-chance retry path when the primary model produces
+        un-parseable JSON twice in a row.
         """
-        return self.default()
+        return self._registry.get_fallback_llm().ollama_id
+
+    def resolve_fallback(self):
+        """Return the fallback :class:`LLMRegistryEntry`."""
+        return self._registry.get_fallback_llm()
 
     # ── resolution-display logging ───────────────────────────────────
     def format_resolution_table(

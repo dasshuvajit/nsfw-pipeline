@@ -113,10 +113,15 @@ class LLMRegistryLoader:
 
     def __init__(self, config_path: Path | str | None = None) -> None:
         self.config_path = Path(config_path) if config_path else CONFIG_PATH
-        llms, default_id = _load_registry(self.config_path)
+        llms, default_id, fallback_id = _load_registry(self.config_path)
         self._llms = dict(llms)
         self._default_llm_id = default_id
+        # Q11 — fallback_llm is optional in YAML. When absent it
+        # mirrors default_llm so legacy single-LLM behaviour is the
+        # default; ``LLMRouter.fallback()`` reads this.
+        self._fallback_llm_id = fallback_id or default_id
         self._validate_default()
+        self._validate_fallback()
 
     # ── public API ────────────────────────────────────────────────────
     def get_llm(
@@ -155,6 +160,13 @@ class LLMRegistryLoader:
     def get_default_llm(self) -> LLMRegistryEntry:
         return self.get_llm(self._default_llm_id, require_active=True)
 
+    @property
+    def fallback_llm_id(self) -> str:
+        return self._fallback_llm_id
+
+    def get_fallback_llm(self) -> LLMRegistryEntry:
+        return self.get_llm(self._fallback_llm_id, require_active=True)
+
     def has_llm(self, llm_id: str, *, include_inactive: bool = True) -> bool:
         entry = self._llms.get(llm_id)
         if entry is None:
@@ -180,6 +192,24 @@ class LLMRegistryLoader:
                 f"Set active=true or change default_llm to a different LLM."
             )
 
+    def _validate_fallback(self) -> None:
+        """Q11 — same validation shape as default_llm."""
+        if self._fallback_llm_id not in self._llms:
+            raise LLMRegistryError(
+                f"{self.config_path.name}: fallback_llm "
+                f"{self._fallback_llm_id!r} is not declared under llms:. "
+                f"Add an entry or omit fallback_llm to inherit "
+                f"default_llm. Available: {sorted(self._llms)}."
+            )
+        entry = self._llms[self._fallback_llm_id]
+        if not entry.active:
+            raise LLMRegistryError(
+                f"{self.config_path.name}: fallback_llm "
+                f"{self._fallback_llm_id!r} is marked active=false. "
+                f"Set active=true, change fallback_llm, or omit it "
+                f"(inherits default_llm)."
+            )
+
     def _format_available(self) -> str:
         lines = [f"Available LLMs ({self.config_path.name}):"]
         for entry in self.list_llms(include_inactive=True):
@@ -197,7 +227,7 @@ class LLMRegistryLoader:
 @functools.lru_cache(maxsize=4)
 def _load_registry(
     config_path: Path,
-) -> tuple[dict[str, LLMRegistryEntry], str]:
+) -> tuple[dict[str, LLMRegistryEntry], str, str | None]:
     if not config_path.exists():
         raise LLMRegistryError(f"llm_models.yaml not found at {config_path}")
     with open(config_path) as f:
@@ -213,8 +243,19 @@ def _load_registry(
         raise LLMRegistryError(
             f"{config_path}: expected top-level `default_llm: <id>` string"
         )
+    # Q11 — fallback_llm is optional. None means "mirror default_llm".
+    fallback_raw = data.get("fallback_llm")
+    if fallback_raw is None:
+        fallback_llm: str | None = None
+    elif isinstance(fallback_raw, str) and fallback_raw.strip():
+        fallback_llm = fallback_raw.strip()
+    else:
+        raise LLMRegistryError(
+            f"{config_path}: fallback_llm must be a non-empty string or "
+            f"omitted (got {fallback_raw!r})"
+        )
     llms = {
         llm_id: LLMRegistryEntry.from_dict(llm_id, llm_dict)
         for llm_id, llm_dict in llms_raw.items()
     }
-    return llms, default_llm.strip()
+    return llms, default_llm.strip(), fallback_llm

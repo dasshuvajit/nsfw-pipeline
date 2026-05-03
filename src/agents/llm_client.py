@@ -185,6 +185,7 @@ class OllamaClient:
         num_predict: int = 4096,
         schema: "type[BaseModel] | None" = None,
         prefill: str | None = None,
+        fallback_model: str | None = None,
     ) -> dict | list:
         """Generate text, strip markdown fences, parse as JSON.
 
@@ -195,11 +196,11 @@ class OllamaClient:
 
         1. **Assistant-prefill** (Q6): when ``schema`` is set the call
            uses Ollama's ``/api/chat`` endpoint with a partial assistant
-           message ("Sure, here's the JSON: {" for objects, "[" for
-           arrays). The model continues from that opening — defeats
-           refusals while committing to JSON shape. Override with
-           ``prefill="..."`` (any string) or ``prefill=""`` to skip and
-           use the legacy ``/api/generate`` path.
+           message ("Sure, here's the JSON: "). The model continues
+           from that opening — defeats refusals while format:schema
+           commits to JSON shape. Override with ``prefill="..."`` (any
+           string) or ``prefill=""`` to skip and use the legacy
+           ``/api/generate`` path.
         2. **Constrained decoding** (Phase 4b): the schema's JSON-schema
            dict is passed to Ollama 0.5+ via the ``format:`` field —
            llama.cpp's grammar enforces structural validity at decode
@@ -210,6 +211,17 @@ class OllamaClient:
            ``model_validator`` decorators) catch anything the JSON
            grammar can't enforce.
 
+        ``fallback_model`` (Q11) — when set, an
+        :class:`OllamaJSONParseError` from the primary ``model`` triggers
+        ONE second-chance retry against the fallback Ollama tag. The
+        most common cause for the primary failing is a refusal-shaped
+        output that even constrained-decoding + prefill couldn't
+        prevent; switching to a lower-refusal-floor LLM (Venice in the
+        recommended config) recovers most of those cases. ``None``
+        skips the fallback path entirely (legacy single-model
+        behaviour). Caller resolves the tag via
+        ``router.fallback()`` / ``router.resolve_fallback().ollama_id``.
+
         The returned value is always a plain ``dict`` / ``list`` —
         schema validation does not change the call signature.
 
@@ -218,6 +230,55 @@ class OllamaClient:
         OllamaJSONParseError
             If the response cannot be parsed as JSON after fence
             stripping, or if Pydantic schema validation fails.
+        """
+        try:
+            return self._generate_json_once(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                model=model,
+                temperature=temperature,
+                num_predict=num_predict,
+                schema=schema,
+                prefill=prefill,
+            )
+        except OllamaJSONParseError as primary_exc:
+            # Q11 — second-chance retry against the fallback model
+            # when one is supplied AND it's a different tag. Same-tag
+            # fallback would just retry against the same model, which
+            # is a no-op compared to the in-agent retry-with-nudge
+            # loop already wrapping this call.
+            if fallback_model and fallback_model != model:
+                logger.warning(
+                    "Primary model %r failed JSON parse — retrying once "
+                    "with fallback %r",
+                    model, fallback_model,
+                )
+                return self._generate_json_once(
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    model=fallback_model,
+                    temperature=temperature,
+                    num_predict=num_predict,
+                    schema=schema,
+                    prefill=prefill,
+                )
+            raise primary_exc
+
+    def _generate_json_once(
+        self,
+        *,
+        system_prompt: str,
+        user_prompt: str,
+        model: str,
+        temperature: float,
+        num_predict: int,
+        schema: "type[BaseModel] | None",
+        prefill: str | None,
+    ) -> dict | list:
+        """One attempt of generate_json — primary OR fallback model.
+
+        Same logic as the public :meth:`generate_json` but without
+        the fallback retry loop (caller orchestrates that).
         """
         # Phase 4b — pass the JSON schema to Ollama for constrained
         # decoding when a schema is supplied. Falls back to free-form
@@ -234,9 +295,6 @@ class OllamaClient:
         # the JSON: " preamble (NOT including the structural opener) —
         # the preamble defeats refusal training, and Ollama's
         # format:schema grammar already enforces the structural shape.
-        # Including the opener in the prefill would create double-`{`
-        # if the model also emits `{`, so we leave the opener to the
-        # model.
         effective_prefill: str | None
         if prefill is None and schema is not None:
             effective_prefill = "Sure, here's the JSON: "
@@ -256,11 +314,6 @@ class OllamaClient:
                 num_predict=num_predict,
                 format_schema=format_schema,
             )
-            # Strip fences from the chat continuation FIRST (so any
-            # ```json…``` wrapper goes), then concat with the prefill,
-            # then extract the JSON payload (skips "Sure, here's the
-            # JSON: " preamble). The double-pass handles both fenced
-            # and unfenced model continuations.
             full_text = effective_prefill + raw
             cleaned_chat = self._strip_fences(raw)
             cleaned = self._extract_json_payload(

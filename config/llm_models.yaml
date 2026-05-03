@@ -85,3 +85,12 @@ llms:
 # routing entry in pipeline.yaml::llm.routing applies. Must be the registry
 # id (not the ollama_id) of an active entry above.
 default_llm: cydonia_24b_v43
+
+# Fallback LLM — used by ``OllamaClient.generate_json(fallback_model=...)``
+# when the primary model fails twice in a row (constrained-decoding +
+# Pydantic validation both reject the response). The retry path is opt-in;
+# agents pass ``fallback_model=router.fallback().ollama_id`` per call.
+# Must be a registry id of an active entry above. When omitted (or the
+# same id as default_llm) the fallback dimension collapses — no behaviour
+# change vs single-LLM operation.
+fallback_llm: cydonia_24b_v43
