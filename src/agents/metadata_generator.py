@@ -170,6 +170,12 @@ class MetadataGenerator:
         MetadataGeneratorError
             If the LLM fails to produce valid metadata after one retry.
         """
+        # Agent-level fallback for direct tests; production paths
+        # (engine → router.resolve_role → agent) always pass a tag.
+        if model is None:
+            from src.agents.llm_client import resolve_default_ollama_id
+            model = resolve_default_ollama_id()
+
         guidelines = TAG_GUIDELINES.get(content_level, TAG_GUIDELINES["T2_implied"])
 
         user_prompt = _USER_PROMPT_TEMPLATE.format(
@@ -208,7 +214,7 @@ class MetadataGenerator:
 
     def _attempt(
         self, user_prompt: str, temperature: float | None = None,
-        *, model: str | None = None,
+        *, model: str,
     ) -> dict | None:
         """Single generate_json attempt. Returns validated dict or None."""
         try:

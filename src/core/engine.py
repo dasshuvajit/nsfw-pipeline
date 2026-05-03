@@ -358,10 +358,10 @@ class PipelineEngine:
         # cli_llm_override flows through every agent call site below
         # via the mode constructors (which received the router) and
         # through the engine's direct router lookups (SceneFacetGenerator
-        # in run_phase_a; MetadataGenerator in run_phase_c). No
-        # mutation of ``self.llm_client.model`` needed — every agent
-        # gets its model resolved per-call from the override→routing→
-        # default chain.
+        # in run_phase_a; MetadataGenerator in run_phase_c). Every agent
+        # call gets its model resolved per-call from the override →
+        # routing → default chain — OllamaClient is now a pure transport
+        # with no fallback model state of its own.
 
         pipe_cfg = self.config.get("pipeline", {})
         if style_profile_id is None:

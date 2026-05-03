@@ -266,7 +266,7 @@ class TestLLMClientSchemaIntegration:
     def _patched_client(self, monkeypatch, raw_response: str):
         from src.agents.llm_client import OllamaClient
 
-        client = OllamaClient(base_url="http://test.invalid", model="test")
+        client = OllamaClient(base_url="http://test.invalid")
         monkeypatch.setattr(client, "generate", lambda *a, **kw: raw_response)
         return client
 
@@ -274,7 +274,7 @@ class TestLLMClientSchemaIntegration:
         import json
         client = self._patched_client(monkeypatch, json.dumps(VALID_SERIES_PLAN))
         result = client.generate_json(
-            "sys", "user", schema=SeriesPlan,
+            "sys", "user", schema=SeriesPlan, model="test-model",
         )
         assert isinstance(result, dict)
         assert result["theme"] == VALID_SERIES_PLAN["theme"]
@@ -287,35 +287,35 @@ class TestLLMClientSchemaIntegration:
         import json
         client = self._patched_client(monkeypatch, json.dumps(bad))
         with pytest.raises(OllamaJSONParseError, match="schema validation"):
-            client.generate_json("sys", "user", schema=SeriesPlan)
+            client.generate_json("sys", "user", schema=SeriesPlan, model="test-model")
 
     def test_invalid_json_with_schema_still_raises(self, monkeypatch):
         from src.agents.llm_client import OllamaJSONParseError
 
         client = self._patched_client(monkeypatch, "not json at all {")
         with pytest.raises(OllamaJSONParseError):
-            client.generate_json("sys", "user", schema=SeriesPlan)
+            client.generate_json("sys", "user", schema=SeriesPlan, model="test-model")
 
     def test_no_schema_legacy_path_still_works(self, monkeypatch):
         import json
         client = self._patched_client(
             monkeypatch, json.dumps({"any": "shape", "is": "fine"}),
         )
-        result = client.generate_json("sys", "user")  # no schema kwarg
+        result = client.generate_json("sys", "user", model="test-model")  # no schema kwarg
         assert result == {"any": "shape", "is": "fine"}
 
     def test_fence_stripping_happens_before_schema_validation(self, monkeypatch):
         import json
         wrapped = "```json\n" + json.dumps(VALID_SERIES_PLAN) + "\n```"
         client = self._patched_client(monkeypatch, wrapped)
-        result = client.generate_json("sys", "user", schema=SeriesPlan)
+        result = client.generate_json("sys", "user", schema=SeriesPlan, model="test-model")
         assert result["theme"] == VALID_SERIES_PLAN["theme"]
 
     def test_scene_list_schema_round_trip(self, monkeypatch):
         import json
         payload = [VALID_SCENE, {**VALID_SCENE, "pose": "standing"}]
         client = self._patched_client(monkeypatch, json.dumps(payload))
-        result = client.generate_json("sys", "user", schema=SceneList)
+        result = client.generate_json("sys", "user", schema=SceneList, model="test-model")
         assert isinstance(result, list)
         assert len(result) == 2
         assert result[0]["pose"] == VALID_SCENE["pose"]

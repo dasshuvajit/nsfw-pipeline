@@ -183,6 +183,12 @@ class SceneFacetGenerator:
             If the family's ``prompt_style`` has no facet schema or
             the LLM fails to produce a valid facet after retry.
         """
+        # Agent-level fallback for direct tests; production paths
+        # (engine → router.resolve_facet_family → agent) always pass.
+        if model is None:
+            from src.agents.llm_client import resolve_default_ollama_id
+            model = resolve_default_ollama_id()
+
         prompt_style = family.prompt_style
         if prompt_style not in SCENE_FACET_SCHEMA_BY_STYLE:
             raise SceneFacetGeneratorError(
@@ -249,7 +255,7 @@ class SceneFacetGenerator:
         schema,
         temperature: float,
         *,
-        model: str | None = None,
+        model: str,
     ) -> dict[str, Any] | None:
         """Single generate_json attempt with Pydantic schema validation.
 

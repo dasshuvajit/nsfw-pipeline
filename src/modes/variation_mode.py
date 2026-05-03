@@ -370,7 +370,7 @@ class VariationMode(BaseMode):
         system_prompt: str = _FALLBACK_SYSTEM_PROMPT,
         temperature: float = 0.6,
         *,
-        model: str | None = None,
+        model: str,
     ) -> dict[str, Any] | None:
         try:
             result = self.llm.generate_json(

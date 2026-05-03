@@ -176,6 +176,13 @@ class SeriesPlanner:
         SeriesPlannerError
             If the LLM fails to produce valid JSON after one retry.
         """
+        # Agent-level fallback so direct tests don't have to fabricate a
+        # model string. Production paths (engine → mode → agent) always
+        # pass a router-resolved tag.
+        if model is None:
+            from src.agents.llm_client import resolve_default_ollama_id
+            model = resolve_default_ollama_id()
+
         allowed_poses = content_rules.get("allowed_pose_types", "[]")
         if isinstance(allowed_poses, str):
             allowed_poses = json.loads(allowed_poses)
@@ -232,7 +239,7 @@ class SeriesPlanner:
         system_prompt: str = SYSTEM_PROMPT,
         temperature: float | None = None,
         *,
-        model: str | None = None,
+        model: str,
     ) -> dict | None:
         """Single generate_json attempt. Returns validated dict or None."""
         try:

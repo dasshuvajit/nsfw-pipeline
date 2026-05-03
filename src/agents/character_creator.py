@@ -131,6 +131,12 @@ class CharacterCreator:
         CharacterCreatorError
             If the LLM fails to produce valid JSON after one retry.
         """
+        # Agent-level fallback for direct tests; production paths always
+        # pass a router-resolved tag.
+        if model is None:
+            from src.agents.llm_client import resolve_default_ollama_id
+            model = resolve_default_ollama_id()
+
         gender_hint = f"Preferred gender: {gender}" if gender else "Gender: your choice (female or male)"
         notes = f"Additional guidance: {additional_notes}" if additional_notes else ""
 
@@ -168,7 +174,7 @@ class CharacterCreator:
         )
 
     def _attempt(
-        self, user_prompt: str, *, model: str | None = None,
+        self, user_prompt: str, *, model: str,
     ) -> dict | None:
         """Single generate_json attempt. Returns validated dict or None."""
         try:

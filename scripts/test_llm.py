@@ -154,11 +154,11 @@ def _separator(title: str) -> None:
 # Test functions
 # ---------------------------------------------------------------------------
 
-def test_connectivity(client: OllamaClient) -> bool:
+def test_connectivity(client: OllamaClient, model: str) -> bool:
     """Test 1: Can we reach the Ollama server?"""
     _separator("Test 1: Ollama connectivity")
     print(f"  Server:  {client.base_url}")
-    print(f"  Model:   {client.model}")
+    print(f"  Model:   {model}")
 
     if not client.is_available():
         print("\n  ✗ FAILED — Ollama server not reachable.")
@@ -168,19 +168,19 @@ def test_connectivity(client: OllamaClient) -> bool:
     models = client.list_models()
     print(f"  Available models: {len(models)}")
     for m in models:
-        marker = " ←" if client.model in m else ""
+        marker = " ←" if model in m else ""
         print(f"    - {m}{marker}")
 
-    if not any(client.model in m for m in models):
-        print(f"\n  ⚠ WARNING: configured model {client.model!r} not found.")
-        print(f"    Fix: run `ollama pull {client.model}`")
+    if not any(model in m for m in models):
+        print(f"\n  ⚠ WARNING: configured model {model!r} not found.")
+        print(f"    Fix: run `ollama pull {model}`")
         return False
 
     print("\n  ✓ PASSED")
     return True
 
 
-def test_generate(client: OllamaClient) -> bool:
+def test_generate(client: OllamaClient, model: str) -> bool:
     """Test 2: Basic text generation."""
     _separator("Test 2: generate() — free-form text")
     try:
@@ -190,6 +190,7 @@ def test_generate(client: OllamaClient) -> bool:
             user_prompt="Describe a sunset in one sentence.",
             temperature=0.7,
             num_predict=100,
+            model=model,
         )
         elapsed = time.time() - start
         print(f"  Response ({elapsed:.1f}s):")
@@ -201,7 +202,7 @@ def test_generate(client: OllamaClient) -> bool:
         return False
 
 
-def test_generate_json(client: OllamaClient) -> bool:
+def test_generate_json(client: OllamaClient, model: str) -> bool:
     """Test 3: Structured JSON generation."""
     _separator("Test 3: generate_json() — structured output")
     try:
@@ -215,6 +216,7 @@ def test_generate_json(client: OllamaClient) -> bool:
             ),
             temperature=0.6,
             num_predict=200,
+            model=model,
         )
         elapsed = time.time() - start
         print(f"  Response ({elapsed:.1f}s):")
@@ -233,7 +235,9 @@ def test_generate_json(client: OllamaClient) -> bool:
         return False
 
 
-def test_series_planner(client: OllamaClient, db_path: Path, character_id: str) -> dict | None:
+def test_series_planner(
+    client: OllamaClient, db_path: Path, character_id: str, model: str,
+) -> dict | None:
     """Test 4: Series planner with a real character."""
     _separator("Test 4: SeriesPlanner — series plan for " + character_id)
 
@@ -263,6 +267,7 @@ def test_series_planner(client: OllamaClient, db_path: Path, character_id: str) 
             content_level="T2_implied",
             content_rules=rules,
             previous_themes=[],
+            model=model,
         )
         elapsed = time.time() - start
         print(f"  Response ({elapsed:.1f}s):")
@@ -274,7 +279,9 @@ def test_series_planner(client: OllamaClient, db_path: Path, character_id: str) 
         return None
 
 
-def test_scene_generator(client: OllamaClient, series_plan: dict) -> list | None:
+def test_scene_generator(
+    client: OllamaClient, series_plan: dict, model: str,
+) -> list | None:
     """Test 5: Scene generator from a series plan."""
     _separator("Test 5: SceneGenerator — scenes from plan")
 
@@ -294,6 +301,7 @@ def test_scene_generator(client: OllamaClient, series_plan: dict) -> list | None
             content_level="T2_implied",
             allowed_pose_types=allowed_poses,
             scene_count=5,  # small count for testing
+            model=model,
         )
         elapsed = time.time() - start
         print(f"  Generated {len(scenes)} scenes ({elapsed:.1f}s):")
@@ -314,7 +322,9 @@ def test_scene_generator(client: OllamaClient, series_plan: dict) -> list | None
         return None
 
 
-def test_character_creator(client: OllamaClient) -> dict | None:
+def test_character_creator(
+    client: OllamaClient, model: str,
+) -> dict | None:
     """Test 6: Character creator."""
     _separator("Test 6: CharacterCreator — new identity")
 
@@ -330,6 +340,7 @@ def test_character_creator(client: OllamaClient) -> dict | None:
             existing_characters=[
                 {"name": "char_001", "vibe": "soft elegant", "hair": "long dark brown wavy hair"}
             ],
+            model=model,
         )
         elapsed = time.time() - start
         print(f"  Generated identity ({elapsed:.1f}s):")
@@ -341,7 +352,9 @@ def test_character_creator(client: OllamaClient) -> dict | None:
         return None
 
 
-def test_metadata_generator(client: OllamaClient) -> dict | None:
+def test_metadata_generator(
+    client: OllamaClient, model: str,
+) -> dict | None:
     """Test 7: Metadata generator."""
     _separator("Test 7: MetadataGenerator — set metadata")
 
@@ -358,6 +371,7 @@ def test_metadata_generator(client: OllamaClient) -> dict | None:
             content_level="T2_implied",
             image_count=20,
             style_keywords="beautiful, elegant, aesthetic, soft lighting",
+            model=model,
         )
         elapsed = time.time() - start
         print(f"  Generated metadata ({elapsed:.1f}s):")
@@ -371,7 +385,7 @@ def test_metadata_generator(client: OllamaClient) -> dict | None:
         return None
 
 
-def test_unload(client: OllamaClient) -> bool:
+def test_unload(client: OllamaClient, model: str) -> bool:
     """Test 8: Unload model and verify memory freed."""
     _separator("Test 8: unload_model() — memory release")
 
@@ -381,9 +395,9 @@ def test_unload(client: OllamaClient) -> bool:
     print(f"    Available: {mem_before['available_gb']} GB")
     print(f"    Used:      {mem_before['used_percent']}%")
 
-    print(f"\n  Unloading {client.model} …")
+    print(f"\n  Unloading {model} …")
     start = time.time()
-    client.unload_model()
+    client.unload_model(model)
     elapsed = time.time() - start
 
     mem_after = _get_system_memory()
@@ -433,13 +447,20 @@ def main() -> None:
 
     cfg = _load_config()
     db_path = _resolve_db_path(cfg)
-    client = OllamaClient(model=args.model)
+    client = OllamaClient()
+
+    # Resolve the test model: --model wins, otherwise registry default.
+    if args.model:
+        model = args.model
+    else:
+        from src.agents.llm_client import resolve_default_ollama_id
+        model = resolve_default_ollama_id()
 
     print("=" * 60)
     print("  LLM Integration Test Suite")
     print("=" * 60)
     print(f"  Server:    {client.base_url}")
-    print(f"  Model:     {client.model}")
+    print(f"  Model:     {model}")
     print(f"  DB:        {db_path}")
     print(f"  Character: {args.character}")
     print(f"  Mode:      {'connectivity only' if args.skip_agents else 'full (all agents)'}")
@@ -447,43 +468,43 @@ def main() -> None:
     results: dict[str, bool] = {}
 
     # Test 1: connectivity
-    results["connectivity"] = test_connectivity(client)
+    results["connectivity"] = test_connectivity(client, model)
     if not results["connectivity"]:
         print("\n\nCannot proceed without Ollama connectivity. Exiting.")
         sys.exit(1)
 
     # Test 2: basic generate
-    results["generate"] = test_generate(client)
+    results["generate"] = test_generate(client, model)
 
     # Test 3: generate_json
-    results["generate_json"] = test_generate_json(client)
+    results["generate_json"] = test_generate_json(client, model)
 
     if args.skip_agents:
         # Jump straight to unload
-        results["unload"] = test_unload(client)
+        results["unload"] = test_unload(client, model)
     else:
         # Test 4: series planner
-        plan = test_series_planner(client, db_path, args.character)
+        plan = test_series_planner(client, db_path, args.character, model)
         results["series_planner"] = plan is not None
 
         # Test 5: scene generator (needs a plan)
         if plan:
-            scenes = test_scene_generator(client, plan)
+            scenes = test_scene_generator(client, plan, model)
             results["scene_generator"] = scenes is not None
         else:
             _separator("Test 5: SceneGenerator — SKIPPED (no plan)")
             results["scene_generator"] = False
 
         # Test 6: character creator
-        identity = test_character_creator(client)
+        identity = test_character_creator(client, model)
         results["character_creator"] = identity is not None
 
         # Test 7: metadata generator
-        metadata = test_metadata_generator(client)
+        metadata = test_metadata_generator(client, model)
         results["metadata_generator"] = metadata is not None
 
         # Test 8: unload model
-        results["unload"] = test_unload(client)
+        results["unload"] = test_unload(client, model)
 
     # Summary
     _separator("Summary")

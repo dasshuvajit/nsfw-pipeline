@@ -62,59 +62,44 @@ def _load_llm_config() -> dict:
     return {}
 
 
-def _resolve_default_model() -> str:
-    """Resolve the default Ollama tag via :class:`LLMRegistryLoader`.
+def resolve_default_ollama_id() -> str:
+    """Resolve the registry's ``default_llm`` to its Ollama tag.
 
-    Phase 1 bridge: ``pipeline.yaml::llm.model`` was removed — the default
-    LLM now lives in ``config/llm_models.yaml::default_llm`` (a registry id
-    that resolves to an ``ollama_id``). The registry is loaded lazily so
-    tests that mock OllamaClient without the registry on disk still work.
-
-    Phase 3 removes this entirely when ``OllamaClient.__init__`` drops its
-    ``model`` parameter and ``generate(model=...)`` becomes per-call.
+    Used by agents as a tolerant fallback when a caller invokes the
+    agent's public method without an explicit ``model=``. Production
+    paths (engine → mode → agent) always pass a router-resolved tag;
+    this fallback exists so direct agent tests don't have to fabricate
+    a model string.
     """
-    try:
-        from src.memory.llm_registry import LLMRegistryLoader
+    from src.memory.llm_registry import LLMRegistryLoader
 
-        registry = LLMRegistryLoader()
-        return registry.get_default_llm().ollama_id
-    except Exception as exc:  # pragma: no cover — defensive fallback
-        logger.warning(
-            "LLM registry not available, falling back to hardcoded default: %s",
-            exc,
-        )
-        return "dolphin-mixtral:8x7b"
+    return LLMRegistryLoader().get_default_llm().ollama_id
 
 
 class OllamaClient:
     """Stateless HTTP wrapper around the Ollama ``/api/generate`` endpoint.
+
+    The client is model-agnostic — every call to :meth:`generate` /
+    :meth:`generate_json` / :meth:`unload_model` takes the Ollama tag
+    explicitly. The :class:`src.agents.llm_router.LLMRouter` resolves
+    role/family → tag at the engine boundary; this class is a pure
+    transport.
 
     Parameters
     ----------
     base_url : str | None
         Override the Ollama server URL.  Falls back to
         ``pipeline.yaml → llm.base_url`` then ``http://localhost:11434``.
-    model : str | None
-        Override the model tag. Falls back to the active ``default_llm``
-        from ``config/llm_models.yaml`` (resolved via
-        :class:`LLMRegistryLoader` in :func:`_resolve_default_model`).
-        Phase 3 will remove this parameter when ``generate(model=...)``
-        becomes per-call.
     """
 
-    def __init__(
-        self,
-        base_url: str | None = None,
-        model: str | None = None,
-    ) -> None:
+    def __init__(self, base_url: str | None = None) -> None:
         cfg = _load_llm_config()
         self.base_url = (base_url or cfg.get("base_url", "http://localhost:11434")).rstrip("/")
-        self.model = model or cfg.get("model") or _resolve_default_model()
-        # Phase 3 — track every Ollama tag we've sent a request for so
+        # Track every Ollama tag we've sent a request for so
         # ``unload_all()`` can free each one at end-of-cycle. Populated
-        # by ``generate()`` whenever a call succeeds (or fails — the
-        # model is loaded into Ollama before generation regardless of
-        # whether we got a 200 back).
+        # by ``generate()`` whenever a call fires (the model is loaded
+        # into Ollama before generation regardless of whether we got a
+        # 200 back).
         self.loaded_models: set[str] = set()
 
     # ------------------------------------------------------------------
@@ -126,23 +111,20 @@ class OllamaClient:
         system_prompt: str,
         user_prompt: str,
         *,
+        model: str,
         temperature: float = 0.7,
         num_predict: int = 2048,
         format_schema: dict | None = None,
-        model: str | None = None,
     ) -> str:
         """Send a prompt to Ollama and return the raw text response.
 
-        ``model`` (Phase 3) — Ollama tag for this single call. When
-        ``None``, falls back to the constructor default (``self.model``)
-        — this is the legacy single-model path that older callers rely
-        on. Phase 4+ callers always pass ``model`` explicitly so the
-        LLMRouter can route per-role.
+        ``model`` — Ollama tag for this call (REQUIRED). The router
+        resolves role/family → tag at the engine boundary; this client
+        is a pure transport.
 
         ``format_schema`` (Phase 4b) — when supplied, Ollama 0.5+ uses
         constrained-decoding via llama.cpp grammars to ensure the
-        response matches the JSON schema (model-agnostic at the wire
-        level — works for dolphin-mixtral). Eliminates most "malformed
+        response matches the JSON schema. Eliminates most "malformed
         JSON" retries at the cost of a tiny per-call overhead.
 
         Raises
@@ -152,12 +134,11 @@ class OllamaClient:
         OllamaGenerateError
             If the server returns a non-200 status.
         """
-        target_model = model or self.model
-        # Track every model the client has ever loaded so unload_all()
-        # can free each one at end-of-cycle.
-        self.loaded_models.add(target_model)
+        # Track every model the client has loaded so unload_all() can
+        # free each one at end-of-cycle.
+        self.loaded_models.add(model)
         payload = {
-            "model": target_model,
+            "model": model,
             "system": system_prompt,
             "prompt": user_prompt,
             "stream": False,
@@ -169,7 +150,7 @@ class OllamaClient:
         if format_schema is not None:
             payload["format"] = format_schema
         logger.debug("Ollama request: model=%s temp=%.1f num_predict=%d format=%s",
-                     target_model, temperature, num_predict,
+                     model, temperature, num_predict,
                      "schema" if format_schema is not None else "free")
 
         try:
@@ -199,10 +180,10 @@ class OllamaClient:
         system_prompt: str,
         user_prompt: str,
         *,
+        model: str,
         temperature: float = 0.6,
         num_predict: int = 4096,
         schema: "type[BaseModel] | None" = None,
-        model: str | None = None,
     ) -> dict | list:
         """Generate text, strip markdown fences, parse as JSON.
 
@@ -280,11 +261,10 @@ class OllamaClient:
                 f"Parse error: {exc}"
             ) from exc
 
-    def unload_model(self, model: str | None = None) -> None:
+    def unload_model(self, model: str) -> None:
         """Evict one model from VRAM/unified memory.
 
-        ``model`` (Phase 3) — Ollama tag to unload. When ``None``,
-        unloads ``self.model`` (the constructor default — legacy path).
+        ``model`` — Ollama tag to unload (REQUIRED).
 
         Sends ``keep_alive: 0`` to Ollama, then sleeps 2 seconds so
         macOS unified memory actually frees before ComfyUI loads its
@@ -293,13 +273,12 @@ class OllamaClient:
         Safe to call even if no model is loaded — Ollama treats it as
         a no-op.
         """
-        target = model or self.model
-        logger.info("Unloading LLM model %s from memory …", target)
+        logger.info("Unloading LLM model %s from memory …", model)
         try:
             requests.post(
                 f"{self.base_url}/api/generate",
                 json={
-                    "model": target,
+                    "model": model,
                     "prompt": "",
                     "keep_alive": 0,
                 },
@@ -310,7 +289,7 @@ class OllamaClient:
 
         time.sleep(2)  # Allow memory to free
         # Forget this model so unload_all doesn't double-unload it.
-        self.loaded_models.discard(target)
+        self.loaded_models.discard(model)
         logger.info("LLM model unloaded. 2 s grace period complete.")
 
     def unload_all(self) -> None:

@@ -100,16 +100,17 @@ class BaseMode(ABC):
         role: str,
         *,
         cli_llm_override: str | None,
-    ) -> str | None:
+    ) -> str:
         """Resolve a role to its Ollama tag via the router.
 
-        Returns ``None`` when the mode was constructed without a router
-        (test-only path); callers that pass ``model=None`` to the LLM
-        agent fall back to the client's default. Production paths always
-        return a string.
+        When the mode was constructed without a router (test-only path)
+        this falls back to the registry's ``default_llm`` so the agent
+        always receives a real Ollama tag — :class:`OllamaClient` no
+        longer accepts ``model=None``.
         """
         if self._router is None:
-            return None
+            from src.memory.llm_registry import LLMRegistryLoader
+            return LLMRegistryLoader().get_default_llm().ollama_id
         return self._router.resolve_role(
             role, override=cli_llm_override,
         ).ollama_id

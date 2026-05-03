@@ -38,9 +38,9 @@ def run_llm_with_retry(
     num_predict: int,
     mode_name: str,
     error_factory: Callable[[str], Exception],
+    model: str,
     retry_nudge: str = DEFAULT_RETRY_NUDGE,
     max_retries: int = 1,
-    model: str | None = None,
 ) -> T:
     """Call ``generate_json`` with one retry; validator decides validity.
 
@@ -67,9 +67,9 @@ def run_llm_with_retry(
         Number of extra attempts after the first. Default 1 preserves
         the pre-refactor behaviour (one first try + one retry = two
         total attempts).
-    model : str | None
-        Phase 3 — Ollama tag to use for this call. ``None`` falls back
-        to ``client.model`` (legacy single-model path).
+    model : str
+        Ollama tag to use for this call (REQUIRED). Resolved by the
+        caller via :class:`LLMRouter` (override → routing → default).
     """
     current_user = user
     last_reason = "no LLM attempts made"

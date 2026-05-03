@@ -136,9 +136,13 @@ class TestThemeMode:
             mode.generate_scenes(plan, _ctx_stub(), cli_llm_override=None)
         assert helper.call_args.kwargs["model"] == "test/llm-b:latest"
 
-    def test_no_router_falls_back_to_none(self, fake_client, monkeypatch):
-        """Back-compat: mode without router passes model=None
-        (agent falls back to client.model)."""
+    def test_no_router_falls_back_to_registry_default(
+        self, fake_client, monkeypatch,
+    ):
+        """When the mode is constructed without a router (test path),
+        ``_resolve_role_model`` falls back to the registry's
+        ``default_llm.ollama_id`` so the agent still gets a real
+        Ollama tag (OllamaClient no longer accepts model=None)."""
         from src.modes import theme_mode
         from src.modes.theme_mode import ThemeMode
 
@@ -158,7 +162,10 @@ class TestThemeMode:
                 "variation_axes": ["a"],
             }
             mode.plan(_ctx_stub(), cli_llm_override=None)
-        assert helper.call_args.kwargs["model"] is None
+        # Real registry default is the cydonia ollama_id.
+        from src.memory.llm_registry import LLMRegistryLoader
+        expected = LLMRegistryLoader().get_default_llm().ollama_id
+        assert helper.call_args.kwargs["model"] == expected
 
 
 # ── StyleMode ────────────────────────────────────────────────────────

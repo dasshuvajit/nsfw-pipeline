@@ -55,13 +55,13 @@ def _patch_generate(text: str):
 
 def test_no_schema_returns_plain_dict():
     with _patch_generate('{"name": "Elara", "age": 32}'):
-        result = OllamaClient().generate_json("sys", "user")
+        result = OllamaClient().generate_json("sys", "user", model="test-model")
     assert result == {"name": "Elara", "age": 32}
 
 
 def test_no_schema_returns_plain_list():
     with _patch_generate('[{"name": "Elara"}, {"name": "Mira"}]'):
-        result = OllamaClient().generate_json("sys", "user")
+        result = OllamaClient().generate_json("sys", "user", model="test-model")
     assert isinstance(result, list)
     assert result[0]["name"] == "Elara"
 
@@ -69,14 +69,14 @@ def test_no_schema_returns_plain_list():
 def test_no_schema_strips_markdown_fences():
     fenced = '```json\n{"name": "Elara", "age": 32}\n```'
     with _patch_generate(fenced):
-        result = OllamaClient().generate_json("sys", "user")
+        result = OllamaClient().generate_json("sys", "user", model="test-model")
     assert result == {"name": "Elara", "age": 32}
 
 
 def test_no_schema_raises_on_invalid_json():
     with _patch_generate("not json at all"):
         with pytest.raises(OllamaJSONParseError, match="Failed to parse"):
-            OllamaClient().generate_json("sys", "user")
+            OllamaClient().generate_json("sys", "user", model="test-model")
 
 
 # ── BaseModel schema: validation success ────────────────────────────
@@ -84,7 +84,7 @@ def test_no_schema_raises_on_invalid_json():
 
 def test_basemodel_schema_returns_dict_after_validation():
     with _patch_generate('{"name": "Elara", "age": 32}'):
-        result = OllamaClient().generate_json("sys", "user", schema=_Person)
+        result = OllamaClient().generate_json("sys", "user", schema=_Person, model="test-model")
     assert result == {"name": "Elara", "age": 32}
     # Must be a plain dict (not a Pydantic instance).
     assert isinstance(result, dict)
@@ -93,7 +93,7 @@ def test_basemodel_schema_returns_dict_after_validation():
 def test_basemodel_schema_strips_markdown_fences_too():
     fenced = '```json\n{"name": "Elara", "age": 32}\n```'
     with _patch_generate(fenced):
-        result = OllamaClient().generate_json("sys", "user", schema=_Person)
+        result = OllamaClient().generate_json("sys", "user", schema=_Person, model="test-model")
     assert result["name"] == "Elara"
 
 
@@ -103,7 +103,7 @@ def test_basemodel_schema_validates_field_constraints():
         with pytest.raises(
             OllamaJSONParseError, match="schema validation against _Person",
         ):
-            OllamaClient().generate_json("sys", "user", schema=_Person)
+            OllamaClient().generate_json("sys", "user", schema=_Person, model="test-model")
 
 
 def test_basemodel_schema_rejects_missing_required_field():
@@ -111,7 +111,7 @@ def test_basemodel_schema_rejects_missing_required_field():
         with pytest.raises(
             OllamaJSONParseError, match=r"(?i)name|field required",
         ):
-            OllamaClient().generate_json("sys", "user", schema=_Person)
+            OllamaClient().generate_json("sys", "user", schema=_Person, model="test-model")
 
 
 def test_basemodel_schema_rejects_wrong_type():
@@ -120,7 +120,7 @@ def test_basemodel_schema_rejects_wrong_type():
         with pytest.raises(
             OllamaJSONParseError, match=r"(?i)age|integer",
         ):
-            OllamaClient().generate_json("sys", "user", schema=_Person)
+            OllamaClient().generate_json("sys", "user", schema=_Person, model="test-model")
 
 
 # ── RootModel schema: list-of-models ────────────────────────────────
@@ -134,7 +134,7 @@ def test_rootmodel_schema_returns_list_of_dicts():
     )
     with _patch_generate(payload):
         result = OllamaClient().generate_json(
-            "sys", "user", schema=_PersonList,
+            "sys", "user", schema=_PersonList, model="test-model",
         )
     assert isinstance(result, list)
     assert result == [
@@ -153,7 +153,7 @@ def test_rootmodel_schema_validates_each_element():
         with pytest.raises(
             OllamaJSONParseError, match="schema validation against _PersonList",
         ):
-            OllamaClient().generate_json("sys", "user", schema=_PersonList)
+            OllamaClient().generate_json("sys", "user", schema=_PersonList, model="test-model")
 
 
 def test_rootmodel_schema_rejects_non_list():
@@ -161,7 +161,7 @@ def test_rootmodel_schema_rejects_non_list():
         with pytest.raises(
             OllamaJSONParseError, match=r"(?i)list|input should be a valid",
         ):
-            OllamaClient().generate_json("sys", "user", schema=_PersonList)
+            OllamaClient().generate_json("sys", "user", schema=_PersonList, model="test-model")
 
 
 # ── Error message quality ───────────────────────────────────────────
@@ -171,7 +171,7 @@ def test_validation_error_includes_field_path():
     """The error message should help the operator see WHICH field failed."""
     with _patch_generate('{"name": "Elara", "age": "not a number"}'):
         with pytest.raises(OllamaJSONParseError) as exc_info:
-            OllamaClient().generate_json("sys", "user", schema=_Person)
+            OllamaClient().generate_json("sys", "user", schema=_Person, model="test-model")
     msg = str(exc_info.value)
     assert "_Person" in msg          # which schema
     assert "age" in msg.lower()      # which field
@@ -181,7 +181,7 @@ def test_parse_error_includes_truncated_response_text():
     """JSON-parse failures should include the cleaned text for debugging."""
     with _patch_generate("definitely not json {[}"):
         with pytest.raises(OllamaJSONParseError) as exc_info:
-            OllamaClient().generate_json("sys", "user", schema=_Person)
+            OllamaClient().generate_json("sys", "user", schema=_Person, model="test-model")
     msg = str(exc_info.value)
     assert "definitely not json" in msg
 
@@ -199,6 +199,7 @@ def test_generate_json_forwards_temperature_and_num_predict():
             temperature=0.3,
             num_predict=2048,
             schema=_Person,
+            model="test-model",
         )
     _, kwargs = mock_gen.call_args
     assert kwargs["temperature"] == 0.3
@@ -210,7 +211,7 @@ def test_generate_json_default_temperature_is_lower_than_generate():
     with patch.object(
         OllamaClient, "generate", return_value="{}",
     ) as mock_gen:
-        OllamaClient().generate_json("sys", "user")
+        OllamaClient().generate_json("sys", "user", model="test-model")
     _, kwargs = mock_gen.call_args
     assert kwargs["temperature"] == 0.6  # current default in source
 
@@ -224,7 +225,7 @@ def test_generate_json_passes_format_schema_when_schema_provided():
     with patch.object(
         OllamaClient, "generate", return_value='{"name": "x", "age": 1}',
     ) as mock_gen:
-        OllamaClient().generate_json("sys", "user", schema=_Person)
+        OllamaClient().generate_json("sys", "user", schema=_Person, model="test-model")
     _, kwargs = mock_gen.call_args
     assert kwargs.get("format_schema") is not None
     fmt = kwargs["format_schema"]
@@ -240,7 +241,7 @@ def test_generate_json_omits_format_schema_when_no_schema_provided():
     with patch.object(
         OllamaClient, "generate", return_value='{"k": 1}',
     ) as mock_gen:
-        OllamaClient().generate_json("sys", "user")
+        OllamaClient().generate_json("sys", "user", model="test-model")
     _, kwargs = mock_gen.call_args
     # Either format_schema is absent or explicitly None
     assert kwargs.get("format_schema") is None
@@ -266,6 +267,7 @@ def test_generate_passes_format_to_payload():
     with patch("src.agents.llm_client.requests.post", side_effect=_capture_post):
         OllamaClient().generate(
             "sys", "user",
+            model="test-model",
             format_schema={"type": "object", "properties": {"name": {"type": "string"}}},
         )
     payload = captured["payload"]
@@ -292,6 +294,6 @@ def test_generate_omits_format_when_no_schema():
         return _MockResp()
 
     with patch("src.agents.llm_client.requests.post", side_effect=_capture_post):
-        OllamaClient().generate("sys", "user")
+        OllamaClient().generate("sys", "user", model="test-model")
     payload = captured["payload"]
     assert "format" not in payload

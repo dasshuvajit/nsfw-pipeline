@@ -181,6 +181,12 @@ class SceneGenerator:
         SceneGeneratorError
             If the LLM fails to produce any valid scenes after retry.
         """
+        # Agent-level fallback for direct tests; production paths
+        # (engine → mode → agent) always pass a router-resolved tag.
+        if model is None:
+            from src.agents.llm_client import resolve_default_ollama_id
+            model = resolve_default_ollama_id()
+
         scene_count = max(20, min(30, scene_count))
 
         user_prompt = _USER_PROMPT_TEMPLATE.format(
@@ -228,7 +234,7 @@ class SceneGenerator:
         system_prompt: str = SYSTEM_PROMPT,
         temperature: float | None = None,
         *,
-        model: str | None = None,
+        model: str,
     ) -> list[dict] | None:
         """Single generate_json attempt. Returns validated list or None."""
         try:
