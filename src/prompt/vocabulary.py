@@ -67,6 +67,10 @@ _FIELD_TO_NAMESPACE: dict[str, tuple[str, str]] = {
     "lighting_directive":  ("realism", "lighting"),
     "mood_aesthetic":      ("realism", "mood"),
     "art_style_reference": ("realism", "art_style"),
+    # Q10 (vocab v4) — composition vocab gap-fill (Pony omits, see
+    # SceneFacetPony schema).
+    "realism_angle":       ("realism", "angle"),
+    "realism_framing":     ("realism", "framing"),
     # NSFW namespaces — canonicalizer keys reuse the same field names
     # but the concept tags are NSFW_*-prefixed and gated by tier_min.
     "nsfw_anatomy":  ("nsfw", "anatomy"),

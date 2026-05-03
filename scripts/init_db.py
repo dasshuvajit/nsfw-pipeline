@@ -222,6 +222,12 @@ CREATE TABLE scene_facets (
     -- Gated to T4_explicit at canonicalize time; canonicalizer drops
     -- at T1/T2/T3 even if the LLM emits a tag.
     nsfw_act TEXT,
+    -- Q10 (vocab v4) — composition gap-fill. Camera angle and shot
+    -- size / framing concepts. Pony's schema omits these (booru tags
+    -- carry them implicitly via `low_angle`, `cowboy_shot`, etc.) but
+    -- the DB column accepts NULLs uniformly across families.
+    realism_angle TEXT,
+    realism_framing TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (scene_id, family, llm_id)
 );

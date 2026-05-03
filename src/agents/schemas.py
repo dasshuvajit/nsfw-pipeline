@@ -167,6 +167,20 @@ _REALISM_ENUM_FIELDS = {
         "namespace. Examples: ART_FINE_NUDE, ART_BOUDOIR_NOIR, "
         "ART_OLD_HOLLYWOOD, ART_EDITORIAL_FASHION, ART_CLASSICAL."
     ),
+    # Q10 (vocab v4) — composition gap-fill.
+    "realism_angle": (
+        "Optional camera-angle concept tag from realism.angle namespace. "
+        "Examples: ANGLE_LOW, ANGLE_EYE_LEVEL, ANGLE_HIGH, ANGLE_DUTCH, "
+        "ANGLE_OVER_SHOULDER. Pony omits — booru tagging carries angle "
+        "implicitly via tags like `low_angle`, `from_below`, `from_above`."
+    ),
+    "realism_framing": (
+        "Optional shot-size / framing concept tag from realism.framing "
+        "namespace. Examples: FRAMING_EXTREME_CLOSE_UP, FRAMING_CLOSE_UP, "
+        "FRAMING_MEDIUM_CLOSE, FRAMING_MEDIUM, FRAMING_MEDIUM_WIDE, "
+        "FRAMING_WIDE, FRAMING_EXTREME_WIDE. Pony omits — booru tagging "
+        "carries framing via `close-up`, `cowboy_shot`, `full_body`, etc."
+    ),
 }
 
 _LIGHTING_MOOD_ENUM_FIELDS = {
@@ -237,6 +251,9 @@ class SceneFacetSDXL(BaseModel):
     nsfw_anatomy: str | None = Field(default=None, description=_NSFW_ENUM_FIELDS["nsfw_anatomy"])
     nsfw_posture: str | None = Field(default=None, description=_NSFW_ENUM_FIELDS["nsfw_posture"])
     nsfw_act: str | None = Field(default=None, description=_NSFW_ENUM_FIELDS["nsfw_act"])
+    # Q10 (vocab v4) — composition vocab gap-fill.
+    realism_angle: str | None = Field(default=None, description=_REALISM_ENUM_FIELDS["realism_angle"])
+    realism_framing: str | None = Field(default=None, description=_REALISM_ENUM_FIELDS["realism_framing"])
 
     @model_validator(mode="after")
     def _reject_avoid_words(self) -> "SceneFacetSDXL":
@@ -348,6 +365,9 @@ class SceneFacetIllustrious(BaseModel):
     nsfw_anatomy: str | None = Field(default=None, description=_NSFW_ENUM_FIELDS["nsfw_anatomy"])
     nsfw_posture: str | None = Field(default=None, description=_NSFW_ENUM_FIELDS["nsfw_posture"])
     nsfw_act: str | None = Field(default=None, description=_NSFW_ENUM_FIELDS["nsfw_act"])
+    # Q10 (vocab v4) — composition vocab gap-fill.
+    realism_angle: str | None = Field(default=None, description=_REALISM_ENUM_FIELDS["realism_angle"])
+    realism_framing: str | None = Field(default=None, description=_REALISM_ENUM_FIELDS["realism_framing"])
 
     @model_validator(mode="after")
     def _reject_appended_quality_suffix(self) -> "SceneFacetIllustrious":
@@ -398,6 +418,9 @@ class SceneFacetFluxNatural(BaseModel):
     nsfw_anatomy: str | None = Field(default=None, description=_NSFW_ENUM_FIELDS["nsfw_anatomy"])
     nsfw_posture: str | None = Field(default=None, description=_NSFW_ENUM_FIELDS["nsfw_posture"])
     nsfw_act: str | None = Field(default=None, description=_NSFW_ENUM_FIELDS["nsfw_act"])
+    # Q10 (vocab v4) — composition vocab gap-fill.
+    realism_angle: str | None = Field(default=None, description=_REALISM_ENUM_FIELDS["realism_angle"])
+    realism_framing: str | None = Field(default=None, description=_REALISM_ENUM_FIELDS["realism_framing"])
 
     @model_validator(mode="after")
     def _check_prose_shape(self) -> "SceneFacetFluxNatural":
@@ -469,6 +492,9 @@ class SceneFacetFlux2(BaseModel):
     nsfw_anatomy: str | None = Field(default=None, description=_NSFW_ENUM_FIELDS["nsfw_anatomy"])
     nsfw_posture: str | None = Field(default=None, description=_NSFW_ENUM_FIELDS["nsfw_posture"])
     nsfw_act: str | None = Field(default=None, description=_NSFW_ENUM_FIELDS["nsfw_act"])
+    # Q10 (vocab v4) — composition vocab gap-fill.
+    realism_angle: str | None = Field(default=None, description=_REALISM_ENUM_FIELDS["realism_angle"])
+    realism_framing: str | None = Field(default=None, description=_REALISM_ENUM_FIELDS["realism_framing"])
 
     @model_validator(mode="after")
     def _check_word_count_band(self) -> "SceneFacetFlux2":

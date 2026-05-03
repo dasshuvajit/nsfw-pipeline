@@ -53,6 +53,10 @@ _FACET_FIELDS: tuple[str, ...] = (
     "nsfw_anatomy",
     "nsfw_posture",
     "nsfw_act",
+    # Q10 (vocab v4) — composition vocab gap-fill (Pony's schema
+    # omits these but the DB column accepts NULLs uniformly).
+    "realism_angle",
+    "realism_framing",
 )
 
 

@@ -27,7 +27,7 @@
 #   3. Bump ``version:`` at the top.
 #   4. Re-run regression suite — fixtures pin the byte-stable output.
 
-version: 3
+version: 4
 
 realism:
   # ── Lighting ─────────────────────────────────────────────────────────
@@ -373,6 +373,88 @@ realism:
       flux:        "A melancholic and wistful mood, gaze drifting away into the middle distance, quiet sadness underneath the composure"
       chroma:      "melancholic wistful mood, distant gaze, quiet sadness"
       flux2:       "A melancholic and wistful atmosphere, the gaze drifting away into the middle distance, a quiet sadness humming underneath the composure"
+
+  # ── Camera angle (Q10, vocab v4) ─────────────────────────────────────
+  # Pony omits this namespace — booru tags carry angle implicitly via
+  # tags like `low_angle`, `from_below`, `from_above` on the model side.
+  angle:
+    ANGLE_LOW:
+      sdxl:        "low angle, looking up, hero shot framing"
+      illustrious: "low angle, looking up, low_angle"
+      flux:        "Shot from a low angle, the camera looking up at the subject for a hero-shot framing"
+      chroma:      "low angle, looking up, hero shot"
+      flux2:       "Captured from a low angle with the camera tilted up at the subject, giving a hero-shot framing that emphasises stature"
+    ANGLE_EYE_LEVEL:
+      sdxl:        "eye level, neutral angle, level framing"
+      illustrious: "eye level, neutral_angle, level_framing"
+      flux:        "Shot at eye level, the camera neutral to the subject's gaze for a balanced framing"
+      chroma:      "eye level, neutral camera angle"
+      flux2:       "Captured at eye level with the camera neutral and parallel to the subject's gaze, giving a balanced and intimate framing"
+    ANGLE_HIGH:
+      sdxl:        "high angle, looking down, slight overhead perspective"
+      illustrious: "high angle, looking down, from_above"
+      flux:        "Shot from a high angle, the camera tilted down toward the subject for a slight overhead perspective"
+      chroma:      "high angle, looking down, slight overhead view"
+      flux2:       "Captured from a high angle with the camera tilted down toward the subject, slight overhead perspective compressing the scene"
+    ANGLE_DUTCH:
+      sdxl:        "dutch angle, tilted horizon, dynamic framing"
+      illustrious: "dutch angle, tilted_horizon, dutch_tilt"
+      flux:        "Shot with a dutch angle, the horizon tilted off-axis for a dynamic, slightly off-balance framing"
+      chroma:      "dutch angle, tilted horizon, dynamic framing"
+      flux2:       "Captured with a deliberate dutch angle, the horizon tilted off-axis to give the scene a dynamic, slightly off-balance feel"
+    ANGLE_OVER_SHOULDER:
+      sdxl:        "over-the-shoulder POV, partial figure in foreground"
+      illustrious: "over_the_shoulder, pov, looking_at_viewer"
+      flux:        "Shot over the subject's shoulder for a POV-leaning framing, with a partial figure in the foreground guiding the eye into the scene"
+      chroma:      "over-the-shoulder POV, partial foreground figure"
+      flux2:       "Captured over the subject's shoulder for a POV-style framing, with a partial figure in the foreground guiding the viewer's eye into the rest of the composition"
+
+  # ── Framing / shot size (Q10, vocab v4) ──────────────────────────────
+  # Pony omits this namespace — booru tags carry framing via `close-up`,
+  # `cowboy_shot`, `full_body`, etc. on the model side.
+  framing:
+    FRAMING_EXTREME_CLOSE_UP:
+      sdxl:        "extreme close-up, face fills the frame, eye-level macro"
+      illustrious: "extreme close-up, face_fills_frame, macro_detail"
+      flux:        "Extreme close-up framing, the subject's face filling the frame with macro-level intimacy"
+      chroma:      "extreme close-up, face fills the frame"
+      flux2:       "Captured in extreme close-up, the subject's face filling the frame with macro-level intimacy revealing every micro-detail"
+    FRAMING_CLOSE_UP:
+      sdxl:        "close-up, head and shoulders, intimate framing"
+      illustrious: "close-up, head_and_shoulders, portrait_crop"
+      flux:        "Close-up framing, head and shoulders in frame for an intimate portrait crop"
+      chroma:      "close-up, head-and-shoulders framing"
+      flux2:       "Captured in close-up framing, the subject's head and shoulders filling the frame for an intimate portrait crop"
+    FRAMING_MEDIUM_CLOSE:
+      sdxl:        "medium close-up, chest and up, half-bust framing"
+      illustrious: "medium close-up, chest_up, half_bust"
+      flux:        "Medium close-up framing, chest and up in frame, half-bust portrait crop"
+      chroma:      "medium close-up, chest-and-up framing"
+      flux2:       "Captured in medium close-up framing, chest and up in frame for a half-bust portrait crop"
+    FRAMING_MEDIUM:
+      sdxl:        "medium shot, waist up, balanced portrait framing"
+      illustrious: "medium shot, waist_up, half_body"
+      flux:        "Medium shot, waist up in frame, balanced portrait framing with comfortable headroom"
+      chroma:      "medium shot, waist-up framing"
+      flux2:       "Captured in a medium shot, waist up in frame for a balanced portrait framing with comfortable headroom and natural breathing space"
+    FRAMING_MEDIUM_WIDE:
+      sdxl:        "medium wide shot, three-quarter body, cowboy shot framing"
+      illustrious: "medium wide shot, three_quarter_body, cowboy_shot"
+      flux:        "Medium-wide shot, three-quarter-body framing — the classic cowboy-shot crop above the knees"
+      chroma:      "medium-wide, three-quarter body framing"
+      flux2:       "Captured in a medium-wide shot, three-quarter body in frame for a cowboy-shot style crop just above the knees"
+    FRAMING_WIDE:
+      sdxl:        "wide shot, full body in frame, environment-aware framing"
+      illustrious: "wide shot, full_body, environment_aware"
+      flux:        "Wide shot, full body in frame with the surrounding environment visible for spatial context"
+      chroma:      "wide shot, full body, environment-aware framing"
+      flux2:       "Captured in a wide shot with the subject's full body in frame and the surrounding environment visible for spatial context, the body language reading clearly against the location"
+    FRAMING_EXTREME_WIDE:
+      sdxl:        "extreme wide, full environment, subject small in frame"
+      illustrious: "extreme wide, environment_dominant, subject_small"
+      flux:        "Extreme wide framing, the environment dominating the frame with the subject reduced to a small figure within the larger setting"
+      chroma:      "extreme wide, environment-dominant framing"
+      flux2:       "Captured in an extreme wide framing, the environment dominating the composition with the subject reduced to a small figure inside the larger setting, evoking scale and place"
 
 # ── NSFW / adult vocabulary (tier-gated) ─────────────────────────────
 # Concepts gated by ``tier_min:``. The canonicalizer drops a concept
