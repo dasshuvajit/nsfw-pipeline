@@ -85,6 +85,40 @@ families:
     example_prompt: >-
       1girl, long hair, looking at viewer, soft window light, 85mm lens,
       shallow depth of field, cinematic, photorealistic, detailed skin
+    # Q8 — tier-stratified few-shot examples. SceneFacetGenerator picks
+    # the closest-tier example at compose time so the LLM sees a
+    # same-tier exemplar (T4 facets get T4 examples, etc.).
+    examples:
+      - tier: T2_implied
+        scene:
+          pose: standing relaxed
+          camera: medium shot
+          lighting: soft window light
+          environment_detail: minimalist bedroom by the window
+          mood_note: calm and contemplative
+        expected_facet:
+          camera_spec: "85mm f/1.8, shallow depth of field, soft natural bokeh"
+          clothing: "ivory silk slip, lace trim at neckline"
+      - tier: T3_artnude
+        scene:
+          pose: reclined on side, three-quarter view
+          camera: close-up
+          lighting: golden hour rim light from the window
+          environment_detail: linen sheets on a low platform bed
+          mood_note: intimate and unhurried
+        expected_facet:
+          camera_spec: "85mm f/1.4, very shallow depth of field, smooth bokeh, fine skin detail"
+          clothing: "draped sheer linen sheet, partially covering"
+      - tier: T4_explicit
+        scene:
+          pose: lying back, one knee raised
+          camera: medium close-up, slightly above
+          lighting: warm overhead practical, soft shadow
+          environment_detail: rumpled white sheets in a low-key bedroom
+          mood_note: sultry and direct
+        expected_facet:
+          camera_spec: "50mm f/1.4, shallow depth of field, sharp eyes, anatomically accurate skin"
+          clothing: "nude, partially draped white sheet at hip"
 
   # ── Pony V6 (CyberRealistic Pony, Pony Realism) ───────────────────────
   # MANDATORY 6-tier prefix + BREAK — verified against AstraliteHeart's
@@ -159,6 +193,37 @@ families:
     example_prompt: >-
       1girl, long_hair, looking_at_viewer, soft_lighting, indoor,
       detailed_skin, source_anime
+    examples:
+      - tier: T2_implied
+        scene:
+          pose: standing relaxed
+          camera: medium shot
+          lighting: soft window light
+          environment_detail: minimalist bedroom
+          mood_note: calm
+        expected_facet:
+          booru_tags: "1girl, long_hair, looking_at_viewer, soft_lighting, lingerie, lace_trim, standing, indoors, detailed_skin"
+          source_tag: "source_photograph"
+      - tier: T3_artnude
+        scene:
+          pose: reclined on side
+          camera: close-up
+          lighting: golden hour rim light
+          environment_detail: linen sheets
+          mood_note: intimate
+        expected_facet:
+          booru_tags: "1girl, long_hair, looking_at_viewer, lying, sheet, partially_clothed, golden_hour, soft_skin, breasts, detailed_skin"
+          source_tag: "source_photograph"
+      - tier: T4_explicit
+        scene:
+          pose: lying back, one knee raised
+          camera: medium close-up
+          lighting: warm overhead light
+          environment_detail: rumpled white sheets
+          mood_note: sultry
+        expected_facet:
+          booru_tags: "1girl, long_hair, looking_at_viewer, lying, on_back, knee_up, nude, breasts, anatomically_correct, detailed_skin, intimate, mature_female"
+          source_tag: "source_photograph"
 
   # ── Illustrious XL (Perfection Realistic ILXL, etc.) ──────────────────
   # Quality SUFFIX, not prefix. String is "masterpiece, best quality,
@@ -224,6 +289,37 @@ families:
       sharp_focus, photorealistic, cinematic_light,
       shallow_depth_of_field, masterpiece, best quality, amazing quality,
       very aesthetic, newest
+    examples:
+      - tier: T2_implied
+        scene:
+          pose: standing relaxed
+          camera: medium shot
+          lighting: soft window light
+          environment_detail: minimalist studio
+          mood_note: calm
+        expected_facet:
+          booru_tags: "1girl, long_hair, looking_at_viewer, lingerie, lace_trim, standing, indoors, soft_lighting, detailed_skin, sharp_focus, photorealistic, cinematic_light, shallow_depth_of_field"
+          scene_prose: "A confident woman in delicate lace lingerie stands in a minimalist studio, soft natural light from the window catching her features."
+      - tier: T3_artnude
+        scene:
+          pose: reclined on side
+          camera: close-up
+          lighting: golden hour
+          environment_detail: linen sheets
+          mood_note: intimate
+        expected_facet:
+          booru_tags: "1girl, long_hair, looking_at_viewer, lying, sheet, partially_covered, golden_hour, soft_skin, breasts, detailed_skin, photorealistic, intimate"
+          scene_prose: "A woman reclines on her side under a draped linen sheet, golden hour light spilling across the bed and her skin in soft warm tones."
+      - tier: T4_explicit
+        scene:
+          pose: lying back
+          camera: medium close-up
+          lighting: warm overhead
+          environment_detail: rumpled sheets
+          mood_note: sultry
+        expected_facet:
+          booru_tags: "1girl, long_hair, looking_at_viewer, lying, on_back, knee_up, nude, breasts, anatomically_correct, detailed_skin, intimate, photorealistic, mature_female"
+          scene_prose: "A woman lies on rumpled white sheets, one knee raised, looking directly at the camera with a sultry expression under a warm overhead practical light."
 
   # ── Flux.1 Dev / Schnell (vanilla) ────────────────────────────────────
   # CFG-distilled: negatives are ignored (FluxGuidance takes over).
@@ -263,6 +359,34 @@ families:
       texture and a sharp jawline. The room has warm tones with a
       cinematic depth of field, creating an intimate and elegant
       atmosphere.
+    examples:
+      - tier: T2_implied
+        scene:
+          pose: standing relaxed
+          camera: medium shot
+          lighting: soft window light
+          environment_detail: modern loft
+          mood_note: calm and elegant
+        expected_facet:
+          scene_prose: "A confident woman in cream silk lingerie stands in a modern loft apartment, soft window light from the left catching her features. The room has warm tones, creating an intimate and elegant atmosphere with a cinematic shallow depth of field."
+      - tier: T3_artnude
+        scene:
+          pose: reclined on side
+          camera: close-up
+          lighting: golden hour
+          environment_detail: linen sheets on a low platform bed
+          mood_note: intimate and unhurried
+        expected_facet:
+          scene_prose: "A woman reclines on her side on linen sheets, half-draped under a sheer cotton wrap, golden hour light pouring through the window and warming her skin. The mood is intimate and unhurried with a soft cinematic depth of field."
+      - tier: T4_explicit
+        scene:
+          pose: lying back, knee raised
+          camera: medium close-up
+          lighting: warm overhead practical
+          environment_detail: rumpled white sheets
+          mood_note: sultry and direct
+        expected_facet:
+          scene_prose: "A woman lies on rumpled white sheets, one knee raised, looking directly into the camera with a sultry expression. Warm overhead practical light pools across her skin and the bedding, creating a soft natural shadow and an intimate close-up framing."
 
   # ── FLUX.2 Klein 9B (distilled, Qwen3-8B text encoder, 32-ch VAE) ─────
   # Step-distilled + guidance-distilled from FLUX.2-[dev] 32B. No
@@ -322,6 +446,40 @@ families:
       left, warm tungsten at 3200 K, rakes across her collarbone,
       leaving the opposite cheek in deep shadow. Air feels still,
       faintly smoky.
+    examples:
+      - tier: T2_implied
+        scene:
+          pose: standing against a wall
+          camera: medium shot
+          lighting: warm tungsten key from left
+          environment_detail: loft studio with charcoal walls
+          mood_note: calm and elegant
+        expected_facet:
+          scene_prose: "A confident woman in her late twenties stands against a matte charcoal wall in a loft studio. She wears a cream silk slip dress with visible weave texture. A single hard key light at camera left, warm tungsten at 3200 K, rakes across her collarbone, leaving the opposite cheek in deep shadow."
+          subject_focus: "Woman, late 20s, cream silk slip"
+          lighting_directive: "Hard tungsten key light at camera-left at chest height, warm 3200 K colour, leaving deep chiaroscuro on the unlit half"
+      - tier: T3_artnude
+        scene:
+          pose: reclined on side
+          camera: close-up
+          lighting: golden hour rim
+          environment_detail: linen sheets on a low platform bed
+          mood_note: intimate and unhurried
+        expected_facet:
+          scene_prose: "A woman reclines on her side on a low platform bed, draped in a sheer linen sheet that partially covers her form. Golden hour light pours through a tall window from the right, warming her skin and casting long soft shadows across the linen. The atmosphere is intimate and unhurried."
+          subject_focus: "Woman, reclined, partially covered by linen sheet"
+          lighting_directive: "Warm golden hour rim light from camera-right, soft late-day quality, shallow shadow"
+      - tier: T4_explicit
+        scene:
+          pose: lying back
+          camera: medium close-up
+          lighting: warm overhead practical
+          environment_detail: rumpled white sheets
+          mood_note: sultry and direct
+        expected_facet:
+          scene_prose: "A woman lies on her back on rumpled white cotton sheets, one knee raised, the other extended. She looks directly into the camera with a sultry, level gaze. A single warm overhead practical light spills across her exposed skin and the white bedding, creating a soft natural shadow and an intimate close-up frame."
+          subject_focus: "Woman, lying back, knee raised, direct gaze"
+          lighting_directive: "Warm overhead practical light directly above, soft natural shadow under the chin and knee, intimate close-up"
     guide:
       structure_order: [subject, setting, details, lighting, atmosphere]
       target_words: [30, 80]
@@ -378,3 +536,31 @@ families:
       window light illuminating her features, realistic skin texture
       with natural pores, a cinematic depth of field, warm and elegant
       atmosphere.
+    examples:
+      - tier: T2_implied
+        scene:
+          pose: standing relaxed
+          camera: medium shot
+          lighting: soft window light
+          environment_detail: modern loft
+          mood_note: calm
+        expected_facet:
+          scene_prose: "A confident woman in cream silk lingerie stands in a modern loft, soft natural window light catching her features, warm tones, intimate atmosphere. f/1.8. 85mm. photorealistic. natural skin texture."
+      - tier: T3_artnude
+        scene:
+          pose: reclined on side
+          camera: close-up
+          lighting: golden hour
+          environment_detail: linen sheets
+          mood_note: intimate
+        expected_facet:
+          scene_prose: "A woman reclines on her side draped in a sheer linen sheet, golden hour light from the window catching her skin in warm tones. f/1.4. 85mm. photorealistic. natural skin texture."
+      - tier: T4_explicit
+        scene:
+          pose: lying back
+          camera: medium close-up
+          lighting: warm overhead
+          environment_detail: rumpled white sheets
+          mood_note: sultry
+        expected_facet:
+          scene_prose: "A woman lies on rumpled white sheets, one knee raised, looking directly at the camera with a sultry expression, warm overhead practical light. f/1.4. 50mm. photorealistic. anatomically accurate skin."

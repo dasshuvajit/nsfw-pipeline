@@ -138,6 +138,12 @@ class FamilyConfig:
     # leading window. Empty list means "no intro" (default for every
     # family).
     structure_intro: list[str] = field(default_factory=list)
+    # Q8 — tier-stratified few-shot examples. Each entry has
+    # ``tier`` (T1-T4), ``scene`` (input scene-core dict), and
+    # ``expected_facet`` (canonical output). The SceneFacetGenerator
+    # picks the closest-tier example at compose time. When empty,
+    # falls back to the legacy ``example_prompt`` string.
+    examples: list[dict] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, fam_id: str, d: dict) -> "FamilyConfig":
@@ -189,6 +195,41 @@ class FamilyConfig:
             raise FamilyLoaderError(
                 f"family {fam_id!r}: structure_intro must be a list[str]"
             )
+        # Q8 — parse tier-stratified examples. Each entry must have
+        # tier / scene / expected_facet keys. Validate the tier value
+        # at load time so a typo in YAML fails fast.
+        raw_examples = d.get("examples") or []
+        if not isinstance(raw_examples, list):
+            raise FamilyLoaderError(
+                f"family {fam_id!r}: examples must be a list (got "
+                f"{type(raw_examples).__name__})"
+            )
+        examples: list[dict] = []
+        valid_tiers = {
+            "T1_suggestive", "T2_implied", "T3_artnude", "T4_explicit",
+        }
+        for i, ex in enumerate(raw_examples):
+            if not isinstance(ex, dict):
+                raise FamilyLoaderError(
+                    f"family {fam_id!r}: examples[{i}] must be a dict"
+                )
+            missing = {"tier", "scene", "expected_facet"} - ex.keys()
+            if missing:
+                raise FamilyLoaderError(
+                    f"family {fam_id!r}: examples[{i}] missing keys "
+                    f"{sorted(missing)}"
+                )
+            if ex["tier"] not in valid_tiers:
+                raise FamilyLoaderError(
+                    f"family {fam_id!r}: examples[{i}].tier must be one "
+                    f"of {sorted(valid_tiers)}; got {ex['tier']!r}"
+                )
+            examples.append({
+                "tier": ex["tier"],
+                "scene": dict(ex["scene"] or {}),
+                "expected_facet": dict(ex["expected_facet"] or {}),
+            })
+
         return cls(
             id=fam_id,
             prompt_style=d["prompt_style"],
@@ -215,6 +256,7 @@ class FamilyConfig:
             guide=guide,
             adult_anchor=anchor,
             structure_intro=intro,
+            examples=examples,
         )
 
 

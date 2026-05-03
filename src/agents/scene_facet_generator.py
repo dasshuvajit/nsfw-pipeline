@@ -169,6 +169,74 @@ _SCHEMA_BODY_BY_STYLE: dict[str, str] = {
 }
 
 
+# Q8 — tier preference order for few-shot example selection. When the
+# active content_level has no exact match, pick the closest neighbour:
+# T4 falls back to T3 → T2; T1 falls back to T2 → T3 (skip T4 — too
+# explicit for T1). Encoded as a per-tier list of acceptable examples
+# in priority order.
+_TIER_PREFERENCE: dict[str, list[str]] = {
+    "T1_suggestive": ["T1_suggestive", "T2_implied", "T3_artnude"],
+    "T2_implied":    ["T2_implied", "T1_suggestive", "T3_artnude"],
+    "T3_artnude":    ["T3_artnude", "T4_explicit", "T2_implied"],
+    "T4_explicit":   ["T4_explicit", "T3_artnude", "T2_implied"],
+}
+
+_FEW_SHOT_MAX = 2  # Render at most 2 examples to keep the prompt tight.
+
+
+def _render_few_shot_block(
+    examples: list[dict],
+    content_level: str,
+) -> str:
+    """Format a tier-stratified few-shot block for the system prompt.
+
+    Picks up to :data:`_FEW_SHOT_MAX` examples whose ``tier`` is in the
+    preference order for ``content_level``. Falls back to taking the
+    first N examples when ``content_level`` is unknown — keeps the
+    block useful even on legacy callers.
+
+    Returns an empty string when ``examples`` is empty so the caller
+    can append unconditionally.
+    """
+    if not examples:
+        return ""
+
+    pref = _TIER_PREFERENCE.get(
+        content_level, ["T2_implied", "T3_artnude", "T4_explicit",
+                        "T1_suggestive"],
+    )
+
+    # Bucket examples by tier for fast lookup.
+    by_tier: dict[str, list[dict]] = {}
+    for ex in examples:
+        by_tier.setdefault(ex["tier"], []).append(ex)
+
+    selected: list[dict] = []
+    for tier in pref:
+        if tier in by_tier:
+            for ex in by_tier[tier]:
+                if len(selected) >= _FEW_SHOT_MAX:
+                    break
+                selected.append(ex)
+        if len(selected) >= _FEW_SHOT_MAX:
+            break
+
+    if not selected:
+        return ""
+
+    import json as _json
+    lines = ["\nFEW-SHOT EXAMPLES (input scene → expected facet):"]
+    for i, ex in enumerate(selected, start=1):
+        scene_str = _json.dumps(ex["scene"], indent=2)
+        facet_str = _json.dumps(ex["expected_facet"], indent=2)
+        lines.append(
+            f"\nExample {i} (tier={ex['tier']}):\n"
+            f"INPUT scene:\n{scene_str}\n"
+            f"EXPECTED facet:\n{facet_str}"
+        )
+    return "\n".join(lines)
+
+
 class SceneFacetGeneratorError(Exception):
     """Any error during facet generation."""
 
@@ -419,6 +487,18 @@ class SceneFacetGenerator:
                     f"\nEXAMPLE prompt for the target model:\n"
                     f"{prompt_guide.example_prompt}"
                 )
+
+        # Q8 — render tier-stratified few-shot examples when the family
+        # has any. Picks the best-fit example by tier, then formats it
+        # as an "INPUT scene → EXPECTED facet" block. Family-level
+        # only for now; per-model overrides land in a future cleanup.
+        if getattr(family, "examples", None):
+            example_block = _render_few_shot_block(
+                family.examples, content_level,
+            )
+            if example_block:
+                parts.append(example_block)
+
         if family.guide:
             g = family.guide
             lo, hi = g["target_words"]

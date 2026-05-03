@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import logging
 import re
+from typing import Any
 
 from pydantic import (
     BaseModel,
@@ -599,5 +600,54 @@ class CharacterSchema(BaseModel):
         v = v.strip().lower()
         if not v:
             raise ValueError("gender must be a non-empty string")
+        return v
+
+
+# ── Few-shot example (Q8) ───────────────────────────────────────────
+
+
+class FewShotExample(BaseModel):
+    """Tier-stratified few-shot example for the SceneFacetGenerator.
+
+    Each family in ``config/families.yaml`` declares an ``examples:``
+    list with at least 3 entries covering both T2 and T4 — the
+    SceneFacetGenerator's system prompt selects the example whose
+    ``tier`` matches the active ``content_level`` so the LLM sees a
+    same-tier exemplar instead of the legacy single-prompt boilerplate.
+
+    Per-model YAMLs may extend or override (``prompt.extend.examples``
+    appends; ``prompt.override.examples`` replaces) — same merge
+    semantics as ``trigger_words`` / ``avoid_words``.
+
+    Fields:
+      * ``tier`` — content-level this example targets.
+      * ``scene`` — the model-agnostic scene core that drives the
+        facet (pose, camera, lighting, environment, mood). Free-shape
+        dict so families can illustrate the fields they care about.
+      * ``expected_facet`` — the canonical output for that scene; the
+        renderer formats it so the LLM sees "input → expected output".
+    """
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    tier: str = Field(
+        description="One of T1_suggestive / T2_implied / T3_artnude / "
+        "T4_explicit.",
+    )
+    scene: dict[str, Any] = Field(
+        description="Input scene-core dict the example illustrates.",
+    )
+    expected_facet: dict[str, Any] = Field(
+        description="Canonical facet output for the example scene.",
+    )
+
+    @field_validator("tier")
+    @classmethod
+    def _validate_tier(cls, v: str) -> str:
+        valid = {"T1_suggestive", "T2_implied", "T3_artnude", "T4_explicit"}
+        if v not in valid:
+            raise ValueError(
+                f"tier must be one of {sorted(valid)}; got {v!r}"
+            )
         return v
 
