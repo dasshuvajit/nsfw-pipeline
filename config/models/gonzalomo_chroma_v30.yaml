@@ -1,0 +1,51 @@
+id: gonzalomo_chroma_v30
+display_name: GonzaLomo Chroma v3.0
+filename: gonzalomoChroma_v30.gguf
+architecture: chroma
+family: chroma
+# Author settings (Civitai #2182526): steps 8-14, sampler euler|dpmpp_2m,
+# scheduler simple|beta. Picked euler+beta to match the chroma family
+# default so a caller can swap between chroma checkpoints without retuning.
+# CFG 1.15 is the midpoint of Chroma1-HD's trained-for range (1.0-1.3);
+# lodestones/Chroma Discussion #47 shows artefacts above ~1.5. Do NOT
+# raise to match the older chroma_v10HD's 3.8 without retesting.
+default_sampler: euler
+default_scheduler: beta
+default_steps: 12
+default_cfg: 1.15
+default_clip_skip: null
+# GonzaLomo is a Chroma1-HD merge that already bakes in several LoRAs.
+# Stacking additional LoRAs at render time needs chroma/base.json to grow
+# lora_loader_N nodes, which it does not have today - so supports_lora
+# stays false to mirror chroma_v10HD. Flip true + extend the template if
+# custom LoRA stacking is wanted later.
+supports_ipadapter: false
+supports_lora: false
+# Chroma family shares one VAE + one T5 encoder across all checkpoints;
+# reused verbatim from chroma_v10HD.yaml.
+vae_filename: ae.safetensors
+text_encoder: t5xxl_fp16.safetensors
+# Chroma1-HD native 1024 sweet spot per lodestones/Chroma1-HD model card.
+resolution_portrait: [896, 1152]
+resolution_square: [1024, 1024]
+resolution_landscape: [1152, 896]
+# License: GonzaLomo inherits Apache 2.0 from the Chroma1-HD base; the
+# Civitai page adds no restrictions. Commercial-safe under the same gate
+# that drops flux2_klein_9b when pipeline.yaml::compliance.commercial_mode
+# is true.
+license: apache_2.0
+commercial_use: true
+active: true
+notes: >-
+  GonzaLomo Chroma v3.0 - Chroma1-HD merge with multiple baked-in LoRAs;
+  author reports sharper image and better detail vs earlier versions.
+  GGUF quantised (level implicit in file header, auto-detected by
+  UnetLoaderGGUF). Retrained Chroma base supports CFG but is trained
+  for low CFG only (1.0-1.3); values above ~1.5 produce artefacts.
+  Steps 8-14 per author, sweet spot 12. Natural-language prose with
+  art direction up front works best (the chroma family's flux_natural
+  composer handles this already).
+
+prompt:
+  extend: {}
+  override: {}

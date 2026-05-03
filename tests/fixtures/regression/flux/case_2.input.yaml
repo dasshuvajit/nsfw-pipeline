@@ -1,0 +1,19 @@
+description: "T2 — close-up loft interior, prose-heavy"
+family: flux
+content_level: T2_implied
+audience: null
+character:
+  base_prompt: "Mira, twenty-eight, raven-black hair to her shoulders, green eyes, slender frame."
+  negative_prompt: ""
+scene:
+  pose: "seated"
+  camera: "close-up portrait"
+  camera_angle: "eye-level"
+  lighting: "north-facing window light"
+  environment_detail: "minimalist loft"
+  composition_intent: "close-up"
+  scene_prose: "Mira sits on a low bench in a minimalist loft, an open silk robe slipping from one shoulder. North-facing window light wraps softly around her face. Shot on a 50mm at f/1.8 with Kodak Portra 400 emulation."
+style_profile:
+  base_style_keywords: "editorial, film grain, muted palette"
+  base_negative_prompt: ""
+trigger_words: []

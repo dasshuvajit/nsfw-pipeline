@@ -1,0 +1,20 @@
+description: "T3 — reclining art-nude with prose detail, landscape override"
+family: illustrious
+content_level: T3_artnude
+audience: patreon
+character:
+  base_prompt: "1girl, copper hair, freckles, lithe"
+  negative_prompt: ""
+scene:
+  pose: "reclining on chaise"
+  camera: "wide shot"
+  camera_angle: "slightly above"
+  lighting: "single tungsten key"
+  environment_detail: "studio backdrop"
+  composition_intent: "wide"
+  booru_tags: "lying_on_back, completely_nude, art_nude, soft_shadows, feet_together"
+  scene_prose: "She lies on a velvet chaise; the single tungsten key carves slow shadows across her form, classical-painting calm."
+style_profile:
+  base_style_keywords: "best quality, masterpiece, fine art nude"
+  base_negative_prompt: "cartoon, watermark"
+trigger_words: []

@@ -1,0 +1,19 @@
+description: "T3 — flux2 prose, reclining art-nude, landscape override"
+family: flux2
+content_level: T3_artnude
+audience: patreon
+character:
+  base_prompt: "A thirty-year-old woman named Ariadne — copper-red hair, freckles across the shoulders, lithe figure."
+  negative_prompt: ""
+scene:
+  pose: "reclining on a velvet chaise"
+  camera: "wide shot"
+  camera_angle: "slightly above"
+  lighting: "single tungsten key from camera-left"
+  environment_detail: "a warm-grey studio sweep"
+  composition_intent: "wide"
+  scene_prose: "Ariadne lies on a velvet chaise against a warm-grey studio sweep. A single tungsten key from camera-left carves long, classical-painting shadows across her form. Tasteful art-nude framing; the atmosphere is still, painterly, quiet."
+style_profile:
+  base_style_keywords: "fine art nude photography, classical chiaroscuro, tasteful framing"
+  base_negative_prompt: ""
+trigger_words: []

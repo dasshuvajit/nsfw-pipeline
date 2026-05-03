@@ -1,0 +1,11 @@
+expected:
+  prompt_text: Mira, twenty-eight, raven-black hair, green eyes, slender. Mira sits on a low bench, an
+    open silk robe slipping from one shoulder. North-facing window light wraps softly around her face.
+    Editorial. muted palette. film grain. f/1.8. 35mm. photorealistic. natural skin texture.
+  prompt_token_count: 82
+  negative_prompt: ''
+  ratio: square
+  resolution:
+  - 1280
+  - 1280
+  reason: weighted:T2_implied|family=chroma|intent=close-up

@@ -1,0 +1,11 @@
+expected:
+  prompt_text: score_9, score_8_up, score_7_up, score_6_up, score_5_up, score_4_up, BREAK,  source_photographic,
+    1girl, brunette, hazel eyes, athletic body, long_hair, brown_hair, hazel_eyes, athletic_body, looking_at_viewer,
+    parted_lips, sundress, outdoors, detailed background
+  prompt_token_count: 85
+  negative_prompt: lowres, jpeg artifacts
+  ratio: portrait_23
+  resolution:
+  - 832
+  - 1216
+  reason: override:portrait_23

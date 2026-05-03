@@ -1,0 +1,20 @@
+description: "T3 — reclining art-nude, landscape pose-override, Patreon audience"
+family: sdxl
+content_level: T3_artnude
+audience: patreon
+character:
+  base_prompt: "ariadne, 30yo, copper red hair, freckles, lithe figure"
+  negative_prompt: ""
+scene:
+  pose: "reclining on a chaise"
+  camera: "wide shot"
+  camera_angle: "slightly above"
+  lighting: "single tungsten key, deep shadows"
+  environment_detail: "studio with warm-grey backdrop"
+  composition_intent: "wide"
+  camera_spec: "35mm f/2.0, fine art photography"
+  clothing: "tasteful nude, pose conceals"
+style_profile:
+  base_style_keywords: "fine art nude photography, classical chiaroscuro"
+  base_negative_prompt: "cartoonish, watermark"
+trigger_words: []

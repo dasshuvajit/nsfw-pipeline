@@ -1,0 +1,20 @@
+description: "T2 — close-up loft interior, mixed tags + prose"
+family: illustrious
+content_level: T2_implied
+audience: null
+character:
+  base_prompt: "1girl, raven hair, green eyes, slim"
+  negative_prompt: ""
+scene:
+  pose: "seated"
+  camera: "close-up"
+  camera_angle: "eye-level"
+  lighting: "soft window light"
+  environment_detail: "minimalist loft"
+  composition_intent: "close-up"
+  booru_tags: "looking_to_the_side, silk_robe, indoors, parted_lips"
+  scene_prose: "Soft afternoon light from a tall window catches her shoulder; the loft behind her dissolves into out-of-focus warmth."
+style_profile:
+  base_style_keywords: "best quality, detailed face, cinematic lighting"
+  base_negative_prompt: "deformed hands, plastic skin"
+trigger_words: []

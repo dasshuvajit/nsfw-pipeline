@@ -1,0 +1,35 @@
+id: lustify_v7
+display_name: Lustify SDXL NSFW v7
+filename: lustifySDXLNSFW_ggwpV7.safetensors
+architecture: sdxl
+family: sdxl
+default_sampler: dpmpp_2m_sde
+default_scheduler: exponential
+default_steps: 30
+default_cfg: 3.5
+default_clip_skip: null
+supports_ipadapter: true
+supports_lora: true
+vae_filename: null
+text_encoder: null
+resolution_portrait: [768, 1152]
+resolution_square: [1024, 1024]
+resolution_landscape: [1152, 768]
+active: true
+notes: >-
+  Peak NSFW community favourite. Use for full-level renders. Responds
+  poorly to overlong keyword lists; exponential scheduler at 30 steps,
+  cfg 3.5.
+
+prompt:
+  extend:
+    trigger_words:
+      - shot on Canon EOS 5D
+      - glamour photography
+      - film grain
+    negative_prompt: ""
+    avoid_words:
+      - anime
+      - cartoon
+  override:
+    max_tokens: 60

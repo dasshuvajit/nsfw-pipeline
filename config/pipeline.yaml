@@ -1,0 +1,192 @@
+# =============================================================================
+# NSFW Content Generation Pipeline — Default Configuration
+# Source: ARCHITECTURE.md Appendix B
+# =============================================================================
+# All weights/thresholds in this file are starting defaults. Phase 2 instructs
+# us to replace mode_weights and content_level_weights with REAL data from
+# the posts table once enough engagement signals are collected.
+# =============================================================================
+
+pipeline:
+  runs_per_day: 3
+  output_dir: "output"
+  db_path: "nsfw_pipeline.db"
+  # Fallback model when a character row has no model_id and no --model
+  # override is passed. Must match an id under config/models/*.yaml.
+  default_model_id: "juggernaut_ragnarok"
+  # Fallback archetype for non-character modes (theme/style/niche/
+  # variation). Must match a key under profiles: in
+  # config/style_profiles.yaml.
+  default_style_profile_id: "golden_hour_natural"
+
+execution:
+  mode: supervised           # manual|supervised|automated
+  pause_after_dryrun: true
+  pause_after_filter: true
+
+mode_weights:
+  character: 0.60            # Update with real data from Phase 2
+  theme: 0.20
+  niche: 0.10
+  style: 0.05
+  variation: 0.05
+
+content_level_weights:
+  # Sale-tier distribution: bias toward the two tiers DA Premium Gallery
+  # actually sells (T2/T3); T1 and T4 are rarer.
+  T1_suggestive: 0.10
+  T2_implied:    0.35
+  T3_artnude:    0.45
+  T4_explicit:   0.10
+
+aspect_ratio_weights:
+  # T1/T2 share the "tasteful" distribution (more variety).
+  # T3/T4 skew portrait — full-body nudes and explicit framing sell tall.
+  T1_suggestive:
+    portrait_23: 0.45
+    portrait_916: 0.20
+    square: 0.25
+    landscape: 0.10
+  T2_implied:
+    portrait_23: 0.45
+    portrait_916: 0.20
+    square: 0.25
+    landscape: 0.10
+  T3_artnude:
+    portrait_23: 0.55
+    portrait_916: 0.20
+    square: 0.20
+    landscape: 0.05
+  T4_explicit:
+    portrait_23: 0.55
+    portrait_916: 0.20
+    square: 0.20
+    landscape: 0.05
+
+generation:
+  batch_size: 1
+
+set_builder:
+  min_images: 10
+  max_images: 25
+  quality_cutoff: 0.55       # Minimum composite score
+
+scoring:
+  # Phase G — human-preference scorers. Both ship OFF by default; flip
+  # to true after installing the heavyweight packages (see
+  # ``requirements.txt``) and downloading model weights. With both
+  # disabled the composite collapses back to the legacy 4-signal
+  # formula (aesthetic+blur+face+resolution) — verified by
+  # ``CompositeWeights.legacy()`` in ``src/scoring/image_scorer.py``.
+  use_hps_v2: false           # ~600MB weights, research-only license
+  use_image_reward: false     # ~400MB weights, Apache-2.0
+  # Phase-G composite weights (used when at least one Phase-G scorer is
+  # enabled). When a per-image signal is None (predictor disabled or
+  # graceful-fallback fired), its weight is redistributed across the
+  # remaining signals so the composite always lands in [0, 1].
+  composite_weights:
+    hps_v2:       0.30
+    image_reward: 0.25
+    aesthetic:    0.20         # LAION CLIP — kept as the cheap floor
+    face:         0.10
+    blur:         0.10
+    resolution:   0.05
+  # Legacy weights (active when both Phase-G flags are off). Sum = 1.0.
+  legacy_weights:
+    aesthetic_weight:  0.40
+    blur_weight:       0.25
+    face_weight:       0.25
+    resolution_weight: 0.10
+
+dedup:
+  prompt_similarity_threshold: 0.9
+  scene_structural_threshold: 0.75  # Cross-level dedup
+
+llm:
+  base_url: "http://localhost:11434"
+  unload_after_phase: true
+  keep_alive_seconds: 0
+
+  # The default LLM for the project lives in config/llm_models.yaml under
+  # `default_llm:`. Override per-command with the --llm <id> flag. List
+  # available ids with `python scripts/list_models.py`.
+
+  # Per-role routing — fires ONLY when --llm is omitted on the CLI. When
+  # --llm is specified it overrides every role for that one command run.
+  # Empty by default ({}): every role uses default_llm. Uncomment the block
+  # below to opt in to per-family quality optimisation. All values must be
+  # registry IDs from config/llm_models.yaml (NOT raw Ollama strings — the
+  # router resolves to the Ollama tag at call time so editing the tag in
+  # the registry propagates everywhere automatically).
+  routing: {}
+    # series_planner:    cydonia_24b_v43      # creative direction
+    # scene_generator:   cydonia_24b_v43      # 25-scene batch generation
+    # scene_facet_generator:
+    #   default:          cydonia_24b_v43     # SDXL/Pony/Illustrious tags
+    #   flux_natural:     magnum_v4_22b       # Claude-Opus prose
+    #   flux2_prose:      magnum_v4_22b       # BFL 5-anchor prose
+    # metadata_generator: venice_24b           # 2.2% refusal floor
+    # character_creator:  cydonia_24b_v43
+
+comfyui:
+  base_url: "http://127.0.0.1:8188"
+  # Where ComfyUI writes its rendered images on disk. Used by ComfyUIClient
+  # to resolve the file paths returned by /history/{prompt_id}. NOT in
+  # Appendix B — added because the install location varies per machine
+  # (this dev box runs ComfyUI from ~/AI/apps/ComfyUI). Edit this for your
+  # own install. ~ is expanded by Path.expanduser().
+  output_dir: "~/AI/apps/ComfyUI/output"
+  # ComfyUI's LoadImage node reads from this directory (NOT from the
+  # project tree). IPAdapter renders need the reference image copied here
+  # before each render. Sibling of output_dir on standard installs. Edit
+  # this for your install. ~ is expanded by Path.expanduser().
+  input_dir: "~/AI/apps/ComfyUI/input"
+  render_timeout_seconds: 300
+  max_retry_per_image: 3
+  workflow_dir: "config/comfyui_workflows"
+
+# NOTE: the old model_lanes: block was removed on 2026-04-08 when the
+# model_registry SQLite table landed. The registry is now the single
+# source of truth for "which checkpoints exist + their capabilities".
+# See docs/COMFYUI_WORKFLOWS.md and `python scripts/list_models.py`.
+
+watermark:
+  enabled: true
+  text: "@YourDAHandle"
+  position: "bottom-right"         # bottom-right|bottom-left|top-right|top-left
+  opacity: 0.3                     # 0.0 = invisible, 1.0 = fully opaque
+
+postprocess:
+  # Post-render ESRGAN upscale (4×-UltraSharp model, downscaled to 1.4×
+  # of the source). Templates ship for sdxl / pony / illustrious only —
+  # flux / chroma / flux2 already render natively at 1024+ so a post-hoc
+  # upscale gives marginal returns and isn't templated. The Upscaler
+  # validates template existence at construction so flipping this to
+  # ``true`` for an untemplated family fails fast with a clear error.
+  # NOTE: this is pure ESRGAN, not denoise-based hires-fix — no
+  # re-sampling through the source model.
+  upscale_enabled: false
+  face_refine_enabled: false       # Requires {family}/face_detail.json template (not yet built)
+  upscale_model: "4x-UltraSharp.pth"
+  face_denoise: 0.35
+
+variation_mode:
+  axis_weights:
+    pose: 0.40
+    camera: 0.30
+    lighting: 0.20
+    expression: 0.10
+  multi_base:
+    enabled: false
+    max_bases: 3
+    min_source_quality: 0.7
+
+# Compliance gate. When commercial_mode is true the model registry
+# refuses to register any model whose YAML declares
+# ``commercial_use: false`` (e.g. the FLUX NCL-licensed FLUX.2 Klein 9B
+# tier). Pipeline output feeds paid platforms (DA Premium, Patreon,
+# Fanvue); non-commercial licenses would be an actionable violation.
+# Leave this false for personal / research / non-commercial runs; flip
+# it to true only when every selected model is commercially licensed.
+compliance:
+  commercial_mode: false

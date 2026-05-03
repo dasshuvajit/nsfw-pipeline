@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Database
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Generated outputs (do not commit images/sets)
+output/soft/*
+output/full/*
+!output/soft/.gitkeep
+!output/full/.gitkeep
+
+# Models (large binaries — fetched separately)
+models/*
+!models/.gitkeep
+!models/README.md
+
+# Character reference images / generated identities
+characters/*
+!characters/.gitkeep
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Runtime lock file
+/tmp/nsfw_pipeline.lock

@@ -1,0 +1,20 @@
+description: "T1 — three-quarter portrait, golden-hour balcony, DA audience"
+family: sdxl
+content_level: T1_suggestive
+audience: deviantart
+character:
+  base_prompt: "elara, 32yo, brunette wavy hair, hazel eyes, athletic build"
+  negative_prompt: ""
+scene:
+  pose: "three-quarter standing"
+  camera: "85mm portrait"
+  camera_angle: "eye-level"
+  lighting: "golden hour rim light"
+  environment_detail: "balcony at sunset overlooking a coastal city"
+  composition_intent: "medium"
+  camera_spec: "Sony A7R IV, 85mm f/1.4, shallow depth of field"
+  clothing: "ivory silk slip dress"
+style_profile:
+  base_style_keywords: "cinematic, soft skin, photoreal, natural color grading"
+  base_negative_prompt: "low contrast, washed out"
+trigger_words: []

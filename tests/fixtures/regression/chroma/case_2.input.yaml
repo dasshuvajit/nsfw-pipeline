@@ -1,0 +1,19 @@
+description: "T2 — close-up loft, period-style realism tail"
+family: chroma
+content_level: T2_implied
+audience: null
+character:
+  base_prompt: "Mira, twenty-eight, raven-black hair, green eyes, slender."
+  negative_prompt: ""
+scene:
+  pose: "seated"
+  camera: "close-up"
+  camera_angle: "eye-level"
+  lighting: "north-facing window light"
+  environment_detail: "minimalist loft"
+  composition_intent: "close-up"
+  scene_prose: "Mira sits on a low bench, an open silk robe slipping from one shoulder. North-facing window light wraps softly around her face."
+style_profile:
+  base_style_keywords: "editorial. muted palette. film grain."
+  base_negative_prompt: ""
+trigger_words: []

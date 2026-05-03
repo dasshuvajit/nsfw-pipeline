@@ -1,0 +1,24 @@
+# flux/base.json is hand-authored with semantic top-level keys — no
+# numeric-ID rename step is required. Included for parity with
+# sdxl_base.yaml.
+#
+# Semantic IDs present in config/comfyui_workflows/flux/base.json:
+#
+#   load_unet        UnetLoaderGGUF       fluxedUpFluxNSFW_71Q8GGUF.gguf
+#   load_clip        DualCLIPLoader       t5xxl_fp16 + clip_l, type=flux
+#   lora_loader_0    LoraLoader           optional slot 0 (stripped if unused)
+#   lora_loader_1    LoraLoader           optional slot 1 (stripped if unused)
+#   model_sampling   ModelSamplingFlux    max_shift=1.15, base_shift=0.5
+#   load_vae         VAELoader            ae.safetensors
+#   positive_prompt  CLIPTextEncode
+#   flux_guidance    FluxGuidance         style_profile.cfg → guidance
+#   negative_prompt  CLIPTextEncode       ignored at KSampler cfg=1.0
+#   empty_latent     EmptySD3LatentImage
+#   ksampler         KSampler             cfg hardcoded to 1.0
+#   vae_decode       VAEDecode
+#   save_image       SaveImage
+#
+# WorkflowBuilder._build_flux() handles the 2-LoRA Appendix A cap and
+# strips unused lora_loader_N nodes at build time. supports_lora=1 in
+# model_registry; activate LoRAs by setting style_profiles.lora_stack
+# to a JSON list of {"name", "strength"} entries.

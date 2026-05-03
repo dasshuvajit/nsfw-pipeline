@@ -1,0 +1,27 @@
+# PLACEHOLDER — sdxl/face_detail.json is a Phase 4 workflow, not yet built.
+#
+# When the face-detail workflow lands, fill in the left-hand numeric IDs
+# from a fresh ComfyUI API export and run:
+#
+#     python scripts/rename_workflow_nodes.py \
+#         --input raw_export.json \
+#         --map config/workflow_node_maps/sdxl_face_detail.yaml \
+#         --output config/comfyui_workflows/sdxl/face_detail.json
+#
+# Expected semantic IDs (subject to revision when the workflow is
+# actually built — see docs/COMFYUI_WORKFLOWS.md → "sdxl/face_detail.json"
+# for the target node graph). The face-detail pass uses the impact-pack
+# FaceDetailer node to re-sample just the face region of an already
+# rendered image:
+#
+#   "load_image": load_image                 # LoadImage — the rendered source
+#   "load_checkpoint": load_checkpoint       # same checkpoint as base render
+#   "ultralytics_face_detector": ultralytics_face_detector  # bbox/segm_detector
+#   "sam_loader": sam_loader                 # SAMLoader for mask refinement
+#   "positive_prompt": positive_prompt       # reuses the original prompt
+#   "negative_prompt": negative_prompt
+#   "face_detailer": face_detailer           # FaceDetailer (impact-pack)
+#   "save_image": save_image
+#
+# Intentionally empty — running the rename tool against this file will
+# exit 3, the correct failure mode for a placeholder.

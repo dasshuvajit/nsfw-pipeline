@@ -1,0 +1,20 @@
+description: "T1 — booru tags + source_tag, full-body standing, DA audience"
+family: pony
+content_level: T1_suggestive
+audience: deviantart
+character:
+  base_prompt: "1girl, brunette, hazel eyes, athletic body"
+  negative_prompt: ""
+scene:
+  pose: "full body standing"
+  camera: "medium shot"
+  camera_angle: "eye-level"
+  lighting: "golden hour"
+  environment_detail: "rooftop balcony, sunset"
+  composition_intent: "full-body"
+  booru_tags: "long_hair, brown_hair, hazel_eyes, athletic_body, looking_at_viewer, parted_lips, sundress, outdoors"
+  source_tag: "source_photographic"
+style_profile:
+  base_style_keywords: "best quality, masterpiece, detailed background"
+  base_negative_prompt: "lowres, jpeg artifacts"
+trigger_words: []

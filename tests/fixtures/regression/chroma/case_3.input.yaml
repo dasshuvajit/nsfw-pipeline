@@ -1,0 +1,19 @@
+description: "T3 — reclining art-nude, period realism tail, landscape override"
+family: chroma
+content_level: T3_artnude
+audience: patreon
+character:
+  base_prompt: "Ariadne, thirty, copper-red hair, freckles, lithe figure."
+  negative_prompt: ""
+scene:
+  pose: "reclining on chaise"
+  camera: "wide shot"
+  camera_angle: "slightly above"
+  lighting: "single tungsten key"
+  environment_detail: "warm-grey studio backdrop"
+  composition_intent: "wide"
+  scene_prose: "Ariadne lies on a velvet chaise against a warm-grey studio sweep. A single tungsten key from camera-left carves long shadows across her form, classical chiaroscuro."
+style_profile:
+  base_style_keywords: "fine art nude. classical chiaroscuro. tasteful framing."
+  base_negative_prompt: ""
+trigger_words: []

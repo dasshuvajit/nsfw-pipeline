@@ -1,0 +1,20 @@
+description: "T2 — booru-heavy close-up portrait, no audience"
+family: pony
+content_level: T2_implied
+audience: null
+character:
+  base_prompt: "1girl, raven_hair, green_eyes, slim_body"
+  negative_prompt: ""
+scene:
+  pose: "seated"
+  camera: "close-up"
+  camera_angle: "eye-level"
+  lighting: "soft window light"
+  environment_detail: "loft interior, plant in background"
+  composition_intent: "close-up"
+  booru_tags: "long_hair, black_hair, green_eyes, slender, parted_lips, looking_to_the_side, silk_robe, indoors"
+  source_tag: "source_photographic"
+style_profile:
+  base_style_keywords: "best quality, detailed face, soft lighting"
+  base_negative_prompt: "deformed hands"
+trigger_words: []

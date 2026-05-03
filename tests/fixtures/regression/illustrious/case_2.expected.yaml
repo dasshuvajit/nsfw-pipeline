@@ -1,0 +1,12 @@
+expected:
+  prompt_text: 1girl, raven hair, green eyes, slim, looking_to_the_side, silk_robe, indoors, parted_lips,
+    Soft afternoon light from a tall window catches her shoulder; the loft behind her dissolves into out-of-focus
+    warmth., best quality, detailed face, cinematic lighting, masterpiece, amazing quality, very aesthetic,
+    newest
+  prompt_token_count: 73
+  negative_prompt: deformed hands, plastic skin
+  ratio: square
+  resolution:
+  - 1024
+  - 1024
+  reason: weighted:T2_implied|family=illustrious|intent=close-up

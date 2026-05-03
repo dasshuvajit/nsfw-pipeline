@@ -1,0 +1,322 @@
+"""Mode 2 — Theme-based pipeline.
+
+ARCHITECTURE.md Section 8:
+  - IPAdapter OFF (no character identity lock)
+  - Category from ``theme_categories`` table (weighted random)
+  - Subject comes from the LLM theme plan, not the character registry
+
+The theme mode:
+  1. ``plan(ctx)`` — selects a theme category via weighted random from
+     the DB, then calls the LLM to generate a specific theme within that
+     category. Validates the theme is not too vague and not repeated in
+     recent memory.
+  2. ``generate_scenes(series_plan, ctx)`` — calls ``SceneGenerator``
+     with the plan. No character identity lock; the LLM invents subjects
+     for each scene.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import random
+import sqlite3
+from pathlib import Path
+from typing import Any
+
+from typing import TYPE_CHECKING
+
+from src.agents.llm_client import OllamaClient
+from src.core.generation_context import GenerationContext
+from src.modes._llm_helpers import run_llm_with_retry, validate_scene_list
+from src.modes.base_mode import BaseMode
+
+if TYPE_CHECKING:
+    from src.agents.llm_router import LLMRouter
+
+logger = logging.getLogger(__name__)
+
+
+_PLAN_SYSTEM_PROMPT = """\
+You are a creative director for a professional adult photography studio.
+You plan cohesive image sets around a specific theme category.
+
+Your output is ALWAYS a single JSON object with NO extra text, NO markdown fences, NO commentary.
+
+You must respect the content level and allowed pose types provided — never exceed them.
+"""
+
+_PLAN_USER_TEMPLATE = """\
+Plan a cohesive themed image set for the following theme category.
+
+Theme category: {category_name}
+  Description: {category_description}
+
+Style profile: {style_name}
+  Keywords: {style_keywords}
+
+Content level: {content_level}
+Allowed pose types: {allowed_pose_types}
+
+Previous themes to AVOID repeating (last 5 series in this category):
+{previous_themes}
+
+Generate a JSON object with exactly these fields:
+{{
+  "theme": "<specific evocative theme within this category — NOT just the category name>",
+  "mood": "<emotional tone that fits the theme>",
+  "environment": "<primary setting/location — be specific: 'rain-soaked Tokyo alley at night' not 'outdoor'>",
+  "variation_axes": ["<axis1>", "<axis2>", "<axis3>", "<axis4>"],
+  "subject_description": "<brief description of the type of subject/model for this set — be specific>"
+}}
+
+The theme must be SPECIFIC (not vague like "beauty" or "nature").
+The subject_description should describe what kind of person appears in the set.
+Variation_axes should be 3-5 dimensions the scenes will vary across.
+
+Return ONLY the JSON object."""
+
+_SCENE_SYSTEM_PROMPT = """\
+You are a professional scene director for an adult photography studio.
+You generate diverse, specific scene descriptions for themed image sets.
+
+Your output is ALWAYS a JSON array of scene objects with NO extra text, NO markdown fences, NO commentary.
+
+You must respect the content level and allowed pose types provided — never exceed them.
+Every scene must be visually distinct from the others.
+"""
+
+_SCENE_USER_TEMPLATE = """\
+Generate {scene_count} unique scene descriptions for this themed image set.
+
+Series plan:
+  Theme: {theme}
+  Mood: {mood}
+  Environment: {environment}
+  Subject: {subject_description}
+  Variation axes: {variation_axes}
+
+Content level: {content_level}
+Allowed pose types: {allowed_pose_types}
+
+Each scene must be a JSON object with exactly these fields:
+{{
+  "variation_axis": "<which variation axis this scene explores>",
+  "pose": "<specific pose — MUST be one of the allowed pose types or a close variant>",
+  "camera": "<shot type: close-up, medium shot, three-quarter, full body, upper body, side profile>",
+  "camera_angle": "<angle: eye level, low angle, high angle, slightly above, over the shoulder>",
+  "lighting": "<specific lighting description>",
+  "environment_detail": "<specific detail within the environment>",
+  "mood_note": "<emotional note for this scene>",
+  "expression": "<facial expression>",
+  "subject_detail": "<specific appearance detail for the subject in THIS scene>"
+}}
+
+Rules:
+- Every scene must use a DIFFERENT combination of pose + camera + lighting
+- Spread scenes evenly across all variation axes
+- The subject should feel like the same person across scenes (consistent general appearance)
+- Environment details should vary but belong to the same location
+
+Return ONLY the JSON array of {scene_count} scene objects."""
+
+
+class ThemeModeError(Exception):
+    """Error in theme mode planning."""
+
+
+class ThemeMode(BaseMode):
+    """Mode 2: theme-based image sets without character identity lock."""
+
+    PLAN_TEMPERATURE = 0.7
+    SCENE_TEMPERATURE = 0.7
+
+    def __init__(
+        self,
+        llm_client: OllamaClient,
+        router: "LLMRouter | None" = None,
+    ) -> None:
+        super().__init__(llm_client, router)
+
+    @property
+    def name(self) -> str:
+        return "theme"
+
+    def plan(
+        self,
+        ctx: GenerationContext,
+        *,
+        cli_llm_override: str | None = None,
+    ) -> dict[str, Any]:
+        """Select theme category -> LLM generates specific theme plan."""
+        # Pick a weighted-random theme category
+        category = self._select_category(ctx.db_path)
+        logger.info("ThemeMode: selected category %r (%s)", category["id"], category["name"])
+
+        # Load recent themes in this category to avoid repetition
+        previous_themes = self._load_recent_themes(ctx.db_path, category["id"])
+
+        allowed_poses = ctx.content_rules.allowed_pose_types
+        user_prompt = _PLAN_USER_TEMPLATE.format(
+            category_name=category["name"],
+            category_description=category.get("description", ""),
+            style_name=ctx.style_profile["name"],
+            style_keywords=ctx.style_profile["base_style_keywords"],
+            content_level=ctx.content_level,
+            allowed_pose_types=json.dumps(allowed_poses),
+            previous_themes="\n".join(f"  - {t}" for t in previous_themes) or "  (none)",
+        )
+
+        plan_sys = ctx.augment_system_prompt(_PLAN_SYSTEM_PROMPT)
+        planner_model = self._resolve_role_model(
+            "series_planner", cli_llm_override=cli_llm_override,
+        )
+        plan = self._generate_plan(
+            user_prompt, plan_sys, ctx.family.llm_temperature,
+            model=planner_model,
+        )
+
+        # Attach category metadata
+        plan["category_id"] = category["id"]
+        plan["category_name"] = category["name"]
+        plan.setdefault("subject_description", "")
+
+        logger.info(
+            "ThemeMode: plan — theme=%r, mood=%r, subject=%r",
+            plan["theme"], plan["mood"], plan.get("subject_description", ""),
+        )
+        return plan
+
+    def generate_scenes(
+        self,
+        series_plan: dict[str, Any],
+        ctx: GenerationContext,
+        *,
+        cli_llm_override: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Generate scenes — LLM creates subjects per scene (no character lock)."""
+        allowed_poses = ctx.content_rules.allowed_pose_types
+
+        user_prompt = _SCENE_USER_TEMPLATE.format(
+            scene_count=25,
+            theme=series_plan["theme"],
+            mood=series_plan["mood"],
+            environment=series_plan["environment"],
+            subject_description=series_plan.get("subject_description", "a model"),
+            variation_axes=json.dumps(series_plan.get("variation_axes", [])),
+            content_level=ctx.content_level,
+            allowed_pose_types=json.dumps(allowed_poses),
+        )
+
+        scene_sys = ctx.augment_system_prompt(_SCENE_SYSTEM_PROMPT)
+        scene_gen_model = self._resolve_role_model(
+            "scene_generator", cli_llm_override=cli_llm_override,
+        )
+        scenes = self._generate_scenes(
+            user_prompt, scene_sys, ctx.family.llm_temperature,
+            model=scene_gen_model,
+        )
+        logger.info("ThemeMode: %d scenes generated", len(scenes))
+        return scenes
+
+    # ---- internal helpers ------------------------------------------------
+
+    _VAGUE_THEMES: frozenset[str] = frozenset(
+        {"beauty", "nature", "elegance", "photography", "art", "model"}
+    )
+    _PLAN_REQUIRED: frozenset[str] = frozenset(
+        {"theme", "mood", "environment", "variation_axes"}
+    )
+    _SCENE_REQUIRED: frozenset[str] = frozenset(
+        {"variation_axis", "pose", "camera", "camera_angle",
+         "lighting", "environment_detail", "mood_note"}
+    )
+
+    def _validate_plan(self, result: Any) -> dict[str, Any] | None:
+        if not isinstance(result, dict):
+            return None
+        if self._PLAN_REQUIRED - result.keys():
+            return None
+        theme = (result.get("theme") or "").lower().strip()
+        if theme in self._VAGUE_THEMES:
+            logger.warning("ThemeMode: rejected vague theme %r", result["theme"])
+            return None
+        return result
+
+    def _generate_plan(
+        self,
+        user_prompt: str,
+        system_prompt: str = _PLAN_SYSTEM_PROMPT,
+        temperature: float | None = None,
+        *,
+        model: str | None = None,
+    ) -> dict[str, Any]:
+        return run_llm_with_retry(
+            self.llm,
+            system=system_prompt,
+            user=user_prompt,
+            validator=self._validate_plan,
+            temperature=temperature if temperature is not None else self.PLAN_TEMPERATURE,
+            num_predict=2048,
+            mode_name="ThemeMode plan",
+            error_factory=ThemeModeError,
+            model=model,
+        )
+
+    def _generate_scenes(
+        self,
+        user_prompt: str,
+        system_prompt: str = _SCENE_SYSTEM_PROMPT,
+        temperature: float | None = None,
+        *,
+        model: str | None = None,
+    ) -> list[dict[str, Any]]:
+        return run_llm_with_retry(
+            self.llm,
+            system=system_prompt,
+            user=user_prompt,
+            validator=validate_scene_list(set(self._SCENE_REQUIRED)),
+            temperature=temperature if temperature is not None else self.SCENE_TEMPERATURE,
+            num_predict=8192,
+            mode_name="ThemeMode scenes",
+            error_factory=ThemeModeError,
+            model=model,
+        )
+
+    @staticmethod
+    def _select_category(db_path: Path) -> dict[str, Any]:
+        """Weighted random selection from YAML theme categories.
+
+        ``db_path`` is retained for signature compatibility but unused —
+        theme categories live in ``config/categories.yaml``.
+        """
+        from src.memory.categories_loader import CategoriesLoader
+
+        categories = CategoriesLoader().theme_categories()
+        if not categories:
+            raise ThemeModeError("No theme categories in config/categories.yaml")
+        weights = [c.weight for c in categories]
+        chosen = random.choices(categories, weights=weights, k=1)[0]
+        return {
+            "id": chosen.id,
+            "name": chosen.name,
+            "weight": chosen.weight,
+            "description": chosen.description,
+        }
+
+    @staticmethod
+    def _load_recent_themes(db_path: Path, category_id: str) -> list[str]:
+        """Load last 5 themes for series in theme mode."""
+        conn = sqlite3.connect(str(db_path))
+        try:
+            rows = conn.execute(
+                """
+                SELECT theme FROM series
+                WHERE mode = 'theme' AND status != 'aborted'
+                ORDER BY created_at DESC
+                LIMIT 5
+                """,
+            ).fetchall()
+            return [r[0] for r in rows if r[0]]
+        finally:
+            conn.close()

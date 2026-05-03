@@ -1,0 +1,30 @@
+id: pony_realism_v23_ultra
+display_name: Pony Realism V2.3 ULTRA
+filename: ponyRealism_V23ULTRA.safetensors
+architecture: pony
+family: pony
+default_sampler: dpmpp_2m_sde
+default_scheduler: karras
+default_steps: 30
+default_cfg: 6.5
+default_clip_skip: 2
+supports_ipadapter: true
+supports_lora: true
+vae_filename: null
+text_encoder: null
+resolution_portrait: [896, 1152]
+resolution_square: [1024, 1024]
+resolution_landscape: [1152, 896]
+active: true
+notes: >-
+  Pony Realism V2.3 ULTRA — experimental variant with more natural
+  lighting and enhanced skin detail. AVOID dpmpp_2m. Keep individual
+  prompt weights <= 1.5. No model-specific embeddings. Phase 3
+  structure_intro pins the realism vocabulary in the leading window.
+
+prompt:
+  extend:
+    trigger_words: []
+    avoid_words: [anime, cartoon, 3d render]
+  override:
+    structure_intro: ["source_photograph", "photo (medium)", "realistic"]

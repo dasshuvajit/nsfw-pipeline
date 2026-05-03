@@ -1,0 +1,19 @@
+description: "T1 — flux2 prose, BFL 5-anchor structure, three-quarter portrait"
+family: flux2
+content_level: T1_suggestive
+audience: deviantart
+character:
+  base_prompt: "A thirty-two-year-old woman named Elara — wavy brunette hair, hazel eyes, athletic build."
+  negative_prompt: ""
+scene:
+  pose: "three-quarter standing"
+  camera: "85mm portrait crop"
+  camera_angle: "eye-level"
+  lighting: "warm golden-hour rim light from camera-right"
+  environment_detail: "a rooftop balcony overlooking a coastal city at sunset"
+  composition_intent: "medium"
+  scene_prose: "Elara stands on the rooftop balcony of a coastal apartment in an ivory silk slip dress. The horizon glows orange behind her; warm golden-hour rim light skims her hair while a softer fill from the open city below opens the shadows. The atmosphere is calm, summer-evening, contemplative."
+style_profile:
+  base_style_keywords: "cinematic, natural color grading, soft skin texture"
+  base_negative_prompt: ""
+trigger_words: []

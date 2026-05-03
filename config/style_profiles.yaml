@@ -1,0 +1,197 @@
+# Style profiles — aesthetic intent (2026-04 Phase A overhaul).
+#
+# A profile describes WHAT the image should look / feel like (palette,
+# lighting, lens character, mood). It no longer describes HOW to render
+# it (sampler / scheduler / steps / cfg / LoRA stack) — those live with
+# the model in ``config/models/*.yaml`` and are resolved by
+# ``StyleProfileForWorkflow`` from ``model.default_sampler`` etc.
+#
+# Why the split:
+#   - Buyers on DeviantArt search for an aesthetic archetype
+#     ("Boudoir Noir", "Old Hollywood Glamour") — not render-tuning.
+#   - Fusing tuning with aesthetic locked one checkpoint per profile,
+#     which blocked mixing (e.g. applying the Boudoir Noir look on
+#     Chroma vs. Juggernaut).
+#   - Render tuning is measured per checkpoint; it belongs next to
+#     the checkpoint, not the aesthetic.
+#
+# Characters still reference a profile via ``characters.style_profile_id``.
+# The model comes from ``images.model_id`` (or ``--model`` CLI override).
+#
+# Archetypes are the top-10 DA NSFW realism segments surfaced in the
+# 2026-04 market research. If you add one, also update the theme /
+# niche / style ``aesthetic_affinity`` lists in
+# ``config/categories.yaml`` so planners can prefer compatible archetypes.
+
+profiles:
+  boudoir_noir:
+    name: Boudoir Noir
+    description: >-
+      Dark intimate bedroom, low-key chiaroscuro, warm shadow. Shadows
+      do most of the compositional work — hard single-source light,
+      deep blacks, warm skin against cool wall tones.
+    base_style_keywords: >-
+      low-key lighting, chiaroscuro, warm shadow, deep blacks, 85mm,
+      f/1.4, film grain, editorial grade, intimate mood
+    base_negative_prompt: >-
+      flat lighting, harsh overhead light, bright outdoor, cheap
+      studio, washed out, overexposed, fluorescent
+    palette_hint: deep crimson, amber, charcoal, warm shadow
+    lighting_hint: single-source hard-shadow, window slat, bedside lamp
+    suited_tiers: [T2_implied, T3_artnude, T4_explicit]
+    suited_families: [sdxl, chroma, flux, flux2]
+
+  old_hollywood_glamour:
+    name: Old Hollywood Glamour
+    description: >-
+      Vintage studio glam — satin, fur, feather, marcel waves.
+      B&W or softly desaturated colour, butterfly / paramount key
+      lighting, deep studio shadow tail.
+    base_style_keywords: >-
+      vintage studio portrait, butterfly lighting, satin, marcel waves,
+      silver grey tones, classic Hollywood glamour, 85mm portrait lens,
+      soft film grain
+    base_negative_prompt: >-
+      modern urban, neon, cyberpunk, casualwear, digital cleanliness,
+      harsh saturated colour
+    palette_hint: silver grey, champagne, ivory, soft sepia
+    lighting_hint: butterfly key + fill + tail, high-contrast studio
+    suited_tiers: [T1_suggestive, T2_implied, T3_artnude]
+    suited_families: [sdxl, illustrious, chroma, flux2]
+
+  golden_hour_natural:
+    name: Golden-Hour Natural
+    description: >-
+      Outdoor sunrise / sunset, warm rim-light, soft haze. The
+      DA best-seller — lifestyle framing, natural environment, fill
+      from sky bounce.
+    base_style_keywords: >-
+      golden hour, warm rim-light, haze, natural outdoor, 50mm lens,
+      shallow depth of field, lifestyle editorial, soft glow
+    base_negative_prompt: >-
+      studio flash, fluorescent, low-key, neon, indoor window-less,
+      harsh midday sun
+    palette_hint: honey, peach, warm ochre, sky blue
+    lighting_hint: warm sunset rim-light + sky bounce fill
+    suited_tiers: [T1_suggestive, T2_implied, T3_artnude]
+    suited_families: [sdxl, flux, chroma, flux2]
+
+  cinematic_wet_set:
+    name: Cinematic Wet-Set
+    description: >-
+      Rain, shower, steam, neon reflection — cinematic mood. Water
+      droplets, wet hair, moody light-through-glass, high-contrast
+      specular highlights.
+    base_style_keywords: >-
+      wet hair, water droplets, rain window, steam, neon reflection,
+      cinematic mood, high contrast specular, 85mm anamorphic feel
+    base_negative_prompt: >-
+      dry studio, flat diffused, pastel, cheerful outdoor, mid-day sun
+    palette_hint: deep teal, neon magenta, wet-skin highlight, ink blue
+    lighting_hint: neon edge-light, rain-window silhouette, wet-specular
+    suited_tiers: [T2_implied, T3_artnude, T4_explicit]
+    suited_families: [sdxl, chroma, flux, flux2]
+
+  fine_art_figurative:
+    name: Fine-Art Figurative
+    description: >-
+      Classical figurative nude. Painterly light, single soft key,
+      sculptural pose, gallery-grade. References Weston / Mapplethorpe /
+      Ritts lineage — body as subject, not spectacle.
+    base_style_keywords: >-
+      fine art nude, classical figurative, painterly lighting, single
+      key light, sculptural pose, gallery print, muted neutrals, fine
+      film grain, monochrome optional
+    base_negative_prompt: >-
+      pornographic, cheap, plastic, anime, cartoon, over-saturated,
+      amateur lighting
+    palette_hint: warm greys, sepia, ivory, charcoal
+    lighting_hint: rembrandt or split, single soft source, no fill
+    suited_tiers: [T2_implied, T3_artnude]
+    suited_families: [sdxl, flux, chroma, illustrious, flux2]
+
+  vintage_pinup_kodachrome:
+    name: Vintage Pin-Up Kodachrome
+    description: >-
+      1950s/60s Kodachrome pin-up — playful, cheesecake, warm
+      saturated film tones. Studio backdrop or retro environment,
+      hand-on-hip confident poses, warm skin / cool highlight split.
+    base_style_keywords: >-
+      1950s pin-up, kodachrome, warm film tones, vintage studio,
+      polka dot, retro swimsuit, playful cheesecake pose, 35mm film
+    base_negative_prompt: >-
+      modern digital clean, cyberpunk, neon, urban grit, dark moody
+    palette_hint: kodachrome red, teal, cream, golden yellow
+    lighting_hint: warm studio key + strong fill, catchlight-heavy
+    suited_tiers: [T1_suggestive, T2_implied]
+    suited_families: [sdxl, chroma]
+
+  editorial_fashion_nude:
+    name: Editorial Fashion Nude
+    description: >-
+      Vogue-grade editorial — high-key, architectural minimalism,
+      fashion-photographer restraint. Clean cyc or couture
+      interior, beauty-dish or soft-box key, elongated poses.
+    base_style_keywords: >-
+      editorial fashion, Vogue style, high-key minimalism, beauty dish,
+      clean cyc, architectural minimalism, elongated pose, 85mm
+      beauty lens, couture grade
+    base_negative_prompt: >-
+      cluttered, amateur, noisy, grainy film, retro, rustic, low-key
+    palette_hint: ivory, warm grey, blush, champagne
+    lighting_hint: beauty dish key + large soft fill, clean highlight
+    suited_tiers: [T2_implied, T3_artnude]
+    suited_families: [sdxl, flux, chroma, flux2]
+
+  moody_bw:
+    name: Moody B&W
+    description: >-
+      High-contrast film B&W — fine-art framing, deep shadow,
+      specular highlight, printed-gallery mood. Works across every
+      tier because luminance alone carries the aesthetic.
+    base_style_keywords: >-
+      black and white photography, high contrast, silver gelatin print
+      feel, deep shadow, fine-art composition, film grain, 85mm prime,
+      analogue feel
+    base_negative_prompt: >-
+      saturated colour, HDR, cartoon, digital-clean, washed out,
+      anime
+    palette_hint: monochrome — pure black, charcoal, silver, paper white
+    lighting_hint: single hard source + deep shadow, no fill
+    suited_tiers: [T1_suggestive, T2_implied, T3_artnude, T4_explicit]
+    suited_families: [sdxl, flux, chroma, illustrious, flux2]
+
+  fantasy_castlecore:
+    name: Fantasy Castlecore
+    description: >-
+      Medieval / gothic costume inside castle, ruin, or forest.
+      Velvet, brocade, armor fragment, candlelit interiors — tasteful
+      nudity carried by environment and costume styling.
+    base_style_keywords: >-
+      medieval fantasy, gothic castle, velvet brocade, candlelit stone
+      interior, mossy ruin, warm firelight, painterly fantasy, fine-art
+      renaissance lighting
+    base_negative_prompt: >-
+      modern urban, cyberpunk, neon, office, beachwear, sportswear
+    palette_hint: deep emerald, burgundy, gold leaf, stone grey
+    lighting_hint: candlelight key + cool ambient fill, painterly
+    suited_tiers: [T1_suggestive, T2_implied, T3_artnude]
+    suited_families: [sdxl, illustrious, flux, flux2]
+
+  neo_noir_neon:
+    name: Neo-Noir Neon
+    description: >-
+      Cyberpunk / modern noir — neon signage, rain-slick street,
+      venetian-blind shadows, magenta / cyan edge-light. Urban
+      intimacy, moody, cinematic grade.
+    base_style_keywords: >-
+      neo noir, neon edge-light, rain-slick city, venetian blinds,
+      magenta cyan split-tone, moody cinematic grade, 35mm anamorphic,
+      urban intimacy
+    base_negative_prompt: >-
+      rustic, pastoral, daylight, warm golden hour, sunny beach,
+      vintage film
+    palette_hint: neon magenta, electric cyan, wet asphalt black, gold
+    lighting_hint: neon sign key + rain window fill + hard shadow slats
+    suited_tiers: [T2_implied, T3_artnude, T4_explicit]
+    suited_families: [sdxl, chroma, flux]

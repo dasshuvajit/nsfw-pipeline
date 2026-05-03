@@ -1,0 +1,34 @@
+id: cyberrealistic_pony_v170
+display_name: CyberRealistic Pony V17.0
+filename: cyberrealisticPony_v170.safetensors
+architecture: pony
+family: pony
+default_sampler: dpmpp_sde
+default_scheduler: karras
+default_steps: 30
+default_cfg: 5.0
+default_clip_skip: 2
+supports_ipadapter: true
+supports_lora: true
+vae_filename: null
+text_encoder: null
+resolution_portrait: [896, 1152]
+resolution_square: [1024, 1024]
+resolution_landscape: [1152, 896]
+active: true
+notes: >-
+  CyberRealistic Pony V17.0 — same family as V16.0, more polished.
+  Uses the Pony family 6-tier score prefix (auto-prepended) + the
+  CyberRealistic negative TI embedding.
+
+prompt:
+  extend:
+    trigger_words:
+      - "embedding:CyberRealisticPony_POSV1"
+    negative_embeddings:
+      - CyberRealistic_Negative_PONY_V2-neg
+    avoid_words: [anime, cartoon, 3d render]
+  override:
+    # Phase 3c — pin the photoreal vocabulary in the leading window
+    # right after the 6-tier score chain.
+    structure_intro: ["source_photograph", "photo (medium)", "realistic"]

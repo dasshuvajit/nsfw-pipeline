@@ -1,0 +1,132 @@
+{
+  "397": {
+    "inputs": {
+      "samples": [
+        "ksampler",
+        0
+      ],
+      "vae": [
+        "730",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "398": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "397",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image - ... u know: that very shiet ;)"
+    }
+  },
+  "730": {
+    "inputs": {
+      "vae_name": "flux_vae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "731": {
+    "inputs": {
+      "unet_name": "chroma-unlocked-v48-detail-calibrated.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model"
+    }
+  },
+  "732": {
+    "inputs": {
+      "clip_name": "t5xxl_fp16.safetensors",
+      "type": "chroma",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP"
+    }
+  },
+  "empty_latent": {
+    "inputs": {
+      "width": 864,
+      "height": 1536,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "Empty Latent Image"
+    }
+  },
+  "positive_prompt": {
+    "inputs": {
+      "text": "young woman wearing a red dress with deep neckline and big natural cleavage, one breast out with visible pierced nipple, narrow waist, one hands lifts the dress, visible pussy and trimmed pubic hair, very wide hips, black choker, black stockings, city street, cinematic dramatic light, Golden hour at sunset",
+      "clip": [
+        "732",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "negative_prompt": {
+    "inputs": {
+      "text": "ugly, bad, wrong, low quality",
+      "clip": [
+        "732",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "ksampler": {
+    "inputs": {
+      "eta": 0.5,
+      "sampler_name": "multistep/res_2m",
+      "scheduler": "bong_tangent",
+      "steps": 40,
+      "steps_to_run": -1,
+      "denoise": 1,
+      "cfg": 4.5,
+      "seed": 3,
+      "sampler_mode": "standard",
+      "bongmath": true,
+      "model": [
+        "731",
+        0
+      ],
+      "positive": [
+        "positive_prompt",
+        0
+      ],
+      "negative": [
+        "negative_prompt",
+        0
+      ],
+      "latent_image": [
+        "empty_latent",
+        0
+      ]
+    },
+    "class_type": "ClownsharKSampler_Beta",
+    "_meta": {
+      "title": "ClownsharKSampler"
+    }
+  }
+}

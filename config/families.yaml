@@ -1,0 +1,380 @@
+# Model-family prompting rules (ARCHITECTURE.md §6 / ARCHITECTURE.md §14).
+#
+# Every per-model YAML in config/models/*.yaml references one of these
+# via its `family:` key. The PromptBuilder + scene_generator read this
+# file at startup to decide:
+#   - which composer to run (prompt_style)
+#   - what quality prefix/suffix to inject
+#   - whether negatives, weighting, clip_skip are meaningful
+#   - what the LLM system-prompt hints should say
+#
+# Research sources (verified 2025–2026):
+#   - Pony V6: AstraliteHeart model card → 6-tier score prefix + source_*
+#     tag is mandatory, clip_skip=2.
+#   - Illustrious XL: OnomaAI model card → quality suffix is
+#     "masterpiece, best quality, amazing quality, very aesthetic, newest".
+#     Some LLMs hallucinate a typo here — always double-check sources.
+#   - Flux.1 Dev/Schnell: Black Forest Labs docs → CFG-distilled, negatives
+#     are no-ops, T5 encoder window is 512 (Dev) / 256 (Schnell).
+#   - Chroma (lodestones HF): Flux-schnell fork re-trained WITH CFG, so
+#     negatives DO work. T5 window is 256 (inherits from Schnell).
+
+families:
+  # ── SDXL (Juggernaut, Lustify, Jib, MOP, Gonzalomo Photo) ──────────────
+  sdxl:
+    prompt_style: sdxl_keywords
+    quality_prefix: []
+    quality_suffix: []
+    # Phase D — 7-axis negative taxonomy. Per-model YAMLs can extend or
+    # override individual axes via prompt.extend.negative_axes.{axis}.
+    # Tokens here are bucketed from the pre-Phase-D flat string; token
+    # set is preserved so the flattened form matches byte-for-byte at
+    # the set level (order may differ; assembler dedups case-insensitive).
+    negative_axes:
+      anatomy:
+        - bad anatomy
+        - distorted face
+        - extra limbs
+        - deformed hands
+        - extra fingers
+        - missing fingers
+        - disfigured
+        - mutation
+        - poorly drawn face
+        - poorly drawn hands
+      medium:
+        - cartoon
+      skin:
+        - oversharpened
+        - plastic skin
+      quality:
+        - blurry
+        - low quality
+        - unrealistic lighting
+        - noise
+        - artifacts
+        - low resolution
+        - out of frame
+        - cropped badly
+        - duplicate
+        - ugly
+      watermark:
+        - watermark
+        - text
+        - logo
+      safety: []
+      censor: []
+    supports_negative_prompt: true
+    supports_weighting: true
+    clip_skip: 1
+    max_tokens: 77
+    tokenizer_id: clip
+    structure_rules: >-
+      Comma-separated descriptive keywords. Subject first, then scene,
+      lighting, camera/lens, style. Light prose fragments are fine; avoid
+      run-on sentences. Camera names (85mm f/2.8, bokeh) help realism.
+    # Realism-fine-tuned SDXL checkpoints (Juggernaut / CyberRealistic /
+    # RealVis) were trained AWAY from anime quality tokens. Leaving
+    # these in a prompt measurably degrades realism (softer skin, glossy
+    # plastic feel, painted faces). Strip them in the composer.
+    avoid_words: [masterpiece, "best quality", 8k, 4k, absurdres]
+    llm_temperature: 0.7
+    llm_hint: >-
+      Write scene fields as short descriptive noun phrases that stitch
+      cleanly into a comma-separated keyword list.
+    example_prompt: >-
+      1girl, long hair, looking at viewer, soft window light, 85mm lens,
+      shallow depth of field, cinematic, photorealistic, detailed skin
+
+  # ── Pony V6 (CyberRealistic Pony, Pony Realism) ───────────────────────
+  # MANDATORY 6-tier prefix + BREAK — verified against AstraliteHeart's
+  # V6 model card. 3-tier prefixes (score_9, score_8_up, score_7_up) are
+  # OUTDATED and produce visibly worse quality.
+  pony:
+    prompt_style: pony_danbooru
+    quality_prefix:
+      - score_9
+      - score_8_up
+      - score_7_up
+      - score_6_up
+      - score_5_up
+      - score_4_up
+      - BREAK
+    quality_suffix: []
+    negative_axes:
+      anatomy:
+        - bad anatomy
+        - bad hands
+        - imperfect eyes
+        - skewed eyes
+        - unnatural face
+        - unnatural body
+        - extra limb
+        - missing limbs
+      medium: []
+      skin: []
+      quality:
+        - score_6
+        - score_5
+        - score_4
+        - (worst quality:1.2)
+        - (low quality:1.2)
+        - (normal quality:1.2)
+        - lowres
+        - ugly
+        - error
+      watermark:
+        - signature
+        - watermark
+      safety: []
+      censor: []
+    supports_negative_prompt: true
+    supports_weighting: true
+    clip_skip: 2
+    max_tokens: 77
+    tokenizer_id: clip
+    # Pony's BREAK token splits the prompt into two CLIP windows; each
+    # window gets its own 75-token budget. The tokenizer respects this
+    # when ``break_marker="BREAK"`` is passed to ``fit_to_budget``.
+    break_marker: BREAK
+    structure_rules: >-
+      Booru-style tags, comma-separated. The 6-tier score prefix is
+      prepended automatically — do NOT include score_* in your output.
+      Include a source tag (source_anime, source_pony, source_furry, or
+      source_cartoon) when relevant. CLIP skip is 2.
+    avoid_words: [masterpiece, "best quality", "amazing quality", newest]
+    # Booru tags want predictable structure — lower temp keeps the LLM
+    # from freelancing and breaking tag conventions.
+    llm_temperature: 0.4
+    # Pony tag conventions don't say "adult woman" verbatim — booru
+    # tagging uses ``1woman`` / ``mature`` / ``adult`` distinct tokens.
+    # _positive_age_safety_scan inserts the keyword form for Pony.
+    adult_anchor:
+      keyword: "1woman, mature, adult"
+      prose: "An adult woman with mature features."
+    llm_hint: >-
+      Use Danbooru-style tags (e.g. 1girl, long_hair, looking_at_viewer).
+      Underscores between multi-word tags. No prose sentences. Do NOT
+      include score_* tags — the composer adds them.
+    example_prompt: >-
+      1girl, long_hair, looking_at_viewer, soft_lighting, indoor,
+      detailed_skin, source_anime
+
+  # ── Illustrious XL (Perfection Realistic ILXL, etc.) ──────────────────
+  # Quality SUFFIX, not prefix. String is "masterpiece, best quality,
+  # amazing quality, very aesthetic, newest" — the token is "aesthetic",
+  # not "aware". Long negatives are strongly recommended.
+  illustrious:
+    prompt_style: illustrious_tags
+    quality_prefix: []
+    quality_suffix:
+      - masterpiece
+      - "best quality"
+      - "amazing quality"
+      - "very aesthetic"
+      - newest
+    negative_axes:
+      anatomy:
+        - bad anatomy
+        - bad hands
+        - extra digits
+      medium: []
+      skin: []
+      quality:
+        - lowres
+        - worst quality
+        - bad quality
+        - jpeg artifacts
+        - unfinished
+        - displeasing
+        - chromatic aberration
+        - error
+        - multiple views
+        - fewer
+        - extra
+        - missing
+        - scan
+      watermark:
+        - text
+        - watermark
+        - signature
+        - username
+      safety: []
+      censor: []
+    supports_negative_prompt: true
+    supports_weighting: true
+    clip_skip: 1
+    max_tokens: 77
+    tokenizer_id: clip
+    structure_rules: >-
+      Hybrid: Danbooru-style tags first (1girl, character_name, attire),
+      then short descriptive phrases for pose/environment/lighting.
+      Quality suffix is appended automatically. Responds strongly to
+      long negative prompts — do not shorten.
+    avoid_words: [score_9, score_8_up, score_7_up]
+    # Hybrid tag + prose family — medium temp balances tag consistency
+    # with a bit of prose variety.
+    llm_temperature: 0.5
+    llm_hint: >-
+      Combine Danbooru tags with short descriptive phrases. Tags use
+      underscores for multi-word (looking_at_viewer). Phrases are
+      natural English. Do NOT emit Pony score_* tags.
+    example_prompt: >-
+      1girl, long_hair, looking_at_viewer, soft_lighting, detailed_skin,
+      sharp_focus, photorealistic, cinematic_light,
+      shallow_depth_of_field, masterpiece, best quality, amazing quality,
+      very aesthetic, newest
+
+  # ── Flux.1 Dev / Schnell (vanilla) ────────────────────────────────────
+  # CFG-distilled: negatives are ignored (FluxGuidance takes over).
+  # T5-XXL encoder window is 512 on Dev. No weighting syntax.
+  flux:
+    prompt_style: flux_natural
+    quality_prefix: []
+    quality_suffix: []
+    # CFG-distilled — negatives are no-ops; axes stay empty.
+    negative_axes:
+      anatomy: []
+      medium: []
+      skin: []
+      quality: []
+      watermark: []
+      safety: []
+      censor: []
+    supports_negative_prompt: false
+    supports_weighting: false
+    clip_skip: 1
+    max_tokens: 512
+    tokenizer_id: t5
+    structure_rules: >-
+      Natural-language prose only. One to three complete sentences.
+      Subject first, then action, environment, lighting, camera. No
+      tags, no score_*, no weighting syntax, no negative prompt.
+    avoid_words: [score_9, score_8_up, score_7_up, masterpiece, "best quality"]
+    # Prose family — higher temp gives richer, more varied sentences
+    # while staying grammatical.
+    llm_temperature: 0.8
+    llm_hint: >-
+      Emit scene fields as natural-English phrases that flow into a
+      paragraph (e.g. "soft natural window light", not "soft_lighting").
+    example_prompt: >-
+      A confident woman standing in a modern loft apartment with soft
+      window light illuminating her features. She has realistic skin
+      texture and a sharp jawline. The room has warm tones with a
+      cinematic depth of field, creating an intimate and elegant
+      atmosphere.
+
+  # ── FLUX.2 Klein 9B (distilled, Qwen3-8B text encoder, 32-ch VAE) ─────
+  # Step-distilled + guidance-distilled from FLUX.2-[dev] 32B. No
+  # FluxGuidance node, cfg must be 1.0, sampler=euler scheduler=simple
+  # steps=4 — these are contract, not preference. Negatives ignored.
+  # LoRAs from FLUX.1 are architecturally INCOMPATIBLE (different attn
+  # dims + encoder). Prose-only prompting per BFL Klein 9B guide:
+  # Subject → Setting → Details → Lighting → Atmosphere, 30–80 words.
+  # License: FLUX NCL (non-commercial only for the 9B tier).
+  flux2:
+    prompt_style: flux2_prose
+    quality_prefix: []
+    quality_suffix: []
+    # Klein 9B is distilled — no FluxGuidance, negatives ignored.
+    negative_axes:
+      anatomy: []
+      medium: []
+      skin: []
+      quality: []
+      watermark: []
+      safety: []
+      censor: []
+    supports_negative_prompt: false
+    supports_weighting: false
+    clip_skip: 1
+    max_tokens: 512
+    # Klein 9B uses Qwen3-8B as its text encoder; Qwen3 tokenizer files
+    # are large to ship for token-counting alone. The heuristic
+    # (words × 1.4) is approximate but Klein is distilled / no
+    # FluxGuidance, so a tight cap matters less here than for CLIP.
+    tokenizer_id: heuristic
+    structure_rules: >-
+      Prose only, single paragraph, 30–80 words. Five anchors in order:
+      subject → setting → details → lighting → atmosphere. No tags, no
+      weighting syntax, no BREAK. Word order matters — subject and
+      lighting belong near the front. Lighting is the highest-impact
+      lever; be explicit about direction, colour temperature, quality.
+    avoid_words:
+      - masterpiece
+      - "best quality"
+      - 8k
+      - 4k
+      - absurdres
+      - score_9
+      - score_8_up
+    llm_temperature: 0.8
+    llm_hint: >-
+      Emit scene fields as natural-English prose ready to stitch into a
+      BFL-ordered paragraph (subject, setting, details, lighting,
+      atmosphere). Never use weighting like (word:1.3) or tag
+      underscores. Keep the lighting clause specific — name the key
+      direction, colour temperature, and whether it is hard or soft.
+    example_prompt: >-
+      A confident woman in her late twenties stands against a matte
+      charcoal wall in a loft studio. She wears a cream silk slip dress
+      with visible weave texture. A single hard key light at camera
+      left, warm tungsten at 3200 K, rakes across her collarbone,
+      leaving the opposite cheek in deep shadow. Air feels still,
+      faintly smoky.
+    guide:
+      structure_order: [subject, setting, details, lighting, atmosphere]
+      target_words: [30, 80]
+      lighting_is_critical: true
+
+  # ── Chroma (Flux-schnell fork, re-trained with CFG) ───────────────────
+  # Same composer as flux BUT supports negatives (Chroma restored CFG).
+  # T5 window is 256 (Schnell-derived), not 512.
+  chroma:
+    prompt_style: flux_natural
+    quality_prefix: []
+    quality_suffix: []
+    negative_axes:
+      anatomy:
+        - bad anatomy
+        - bad hands
+        - deformed
+        - mutation
+        - extra limbs
+        - missing limbs
+      medium: []
+      skin: []
+      quality:
+        - blurry
+        - low quality
+        - ugly
+      watermark:
+        - watermark
+        - signature
+        - text
+      safety: []
+      censor: []
+    supports_negative_prompt: true
+    supports_weighting: false
+    clip_skip: 1
+    max_tokens: 256
+    tokenizer_id: t5
+    structure_rules: >-
+      Same prose style as Flux but shorter — stay under ~200 words.
+      Chroma supports negative prompts (unlike vanilla Schnell).
+    avoid_words: [score_9, score_8_up, masterpiece, "best quality"]
+    # "period" = append realism tail as period-separated fragments:
+    #   ". f/1.8. 35mm. photorealistic. natural skin texture."
+    # The lodestones HF card + top Chroma Civitai workflows consistently
+    # use this shape; comma-joining the tail degrades realism.
+    realism_tail_style: period
+    # Slightly lower than Flux — Chroma's 256 T5 window rewards more
+    # concise, consistent phrasing.
+    llm_temperature: 0.75
+    llm_hint: >-
+      Natural-English phrases, concise. Same as Flux but shorter.
+    example_prompt: >-
+      A confident woman standing in a modern loft apartment with soft
+      window light illuminating her features, realistic skin texture
+      with natural pores, a cinematic depth of field, warm and elegant
+      atmosphere.

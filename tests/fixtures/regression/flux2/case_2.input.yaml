@@ -1,0 +1,19 @@
+description: "T2 — flux2 prose, close-up loft, square-leaning composition"
+family: flux2
+content_level: T2_implied
+audience: null
+character:
+  base_prompt: "A twenty-eight-year-old woman named Mira — raven-black hair to her shoulders, green eyes, slender frame."
+  negative_prompt: ""
+scene:
+  pose: "seated on a low bench"
+  camera: "close-up portrait"
+  camera_angle: "eye-level"
+  lighting: "north-facing window light from camera-left"
+  environment_detail: "a minimalist loft interior with a single fern"
+  composition_intent: "close-up"
+  scene_prose: "Mira sits on a low bench in a minimalist loft. An open silk robe slips loosely from one shoulder. North-facing window light from camera-left wraps softly around her face; a single potted fern blurs warmly in the background. The atmosphere is quiet, intimate, late-afternoon."
+style_profile:
+  base_style_keywords: "editorial, film grain, muted palette"
+  base_negative_prompt: ""
+trigger_words: []

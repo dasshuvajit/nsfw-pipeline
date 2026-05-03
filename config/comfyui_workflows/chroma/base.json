@@ -1,0 +1,112 @@
+{
+  "load_unet": {
+    "class_type": "UnetLoaderGGUF",
+    "inputs": {
+      "unet_name": "Chroma1-HD-Q8_0.gguf"
+    }
+  },
+  "model_sampling": {
+    "class_type": "ModelSamplingAuraFlow",
+    "inputs": {
+      "shift": 1.0,
+      "model": ["load_unet", 0]
+    }
+  },
+  "load_clip": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "t5xxl_fp16.safetensors",
+      "type": "chroma"
+    }
+  },
+  "t5_tokenizer": {
+    "class_type": "T5TokenizerOptions",
+    "inputs": {
+      "min_padding": 0,
+      "min_length": 0,
+      "clip": ["load_clip", 0]
+    }
+  },
+  "positive_prompt": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "",
+      "clip": ["t5_tokenizer", 0]
+    }
+  },
+  "negative_prompt": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "",
+      "clip": ["t5_tokenizer", 0]
+    }
+  },
+  "load_vae": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    }
+  },
+  "empty_latent": {
+    "class_type": "EmptySD3LatentImage",
+    "inputs": {
+      "width": 1152,
+      "height": 1152,
+      "batch_size": 1
+    }
+  },
+  "random_noise": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": 0
+    }
+  },
+  "sampler_select": {
+    "class_type": "KSamplerSelect",
+    "inputs": {
+      "sampler_name": "euler"
+    }
+  },
+  "beta_scheduler": {
+    "class_type": "BetaSamplingScheduler",
+    "inputs": {
+      "model": ["model_sampling", 0],
+      "steps": 26,
+      "alpha": 0.6,
+      "beta": 0.6
+    }
+  },
+  "cfg_guider": {
+    "class_type": "CFGGuider",
+    "inputs": {
+      "model": ["model_sampling", 0],
+      "positive": ["positive_prompt", 0],
+      "negative": ["negative_prompt", 0],
+      "cfg": 3.8
+    }
+  },
+  "sampler_advanced": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": ["random_noise", 0],
+      "guider": ["cfg_guider", 0],
+      "sampler": ["sampler_select", 0],
+      "sigmas": ["beta_scheduler", 0],
+      "latent_image": ["empty_latent", 0]
+    }
+  },
+  "vae_decode": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["sampler_advanced", 0],
+      "vae": ["load_vae", 0]
+    }
+  },
+  "save_image": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "chroma",
+      "images": ["vae_decode", 0]
+    }
+  }
+}

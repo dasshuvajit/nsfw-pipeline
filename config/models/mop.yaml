@@ -1,0 +1,26 @@
+id: mop
+display_name: MOP
+filename: mopMixtureOfPerverts_v71DMD.safetensors
+architecture: sdxl
+family: sdxl
+default_sampler: dpmpp_2m
+default_scheduler: karras
+default_steps: 24
+default_cfg: 5.0
+default_clip_skip: null
+supports_ipadapter: true
+supports_lora: true
+vae_filename: null
+text_encoder: null
+resolution_portrait: [768, 1152]
+resolution_square: [1024, 1024]
+resolution_landscape: [1152, 768]
+active: true
+notes: Generic SDXL model.
+
+prompt:
+  extend:
+    trigger_words: []
+    negative_prompt: ""
+    avoid_words: []
+  override: {}

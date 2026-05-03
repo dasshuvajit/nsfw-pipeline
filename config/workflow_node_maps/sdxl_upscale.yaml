@@ -1,0 +1,26 @@
+# PLACEHOLDER — sdxl/upscale.json is a Phase 4 workflow, not yet built.
+#
+# When the upscale workflow lands, this file documents the semantic IDs
+# that src/render/workflow_builder.py will inject into. Fill in the
+# left-hand numeric IDs from a fresh ComfyUI API export and run:
+#
+#     python scripts/rename_workflow_nodes.py \
+#         --input raw_export.json \
+#         --map config/workflow_node_maps/sdxl_upscale.yaml \
+#         --output config/comfyui_workflows/sdxl/upscale.json
+#
+# Expected semantic IDs (subject to revision when the workflow is
+# actually built — see docs/COMFYUI_WORKFLOWS.md → "sdxl/upscale.json"
+# for the target node graph):
+#
+#   "load_image": load_image                 # LoadImage — the rendered source
+#   "upscale_model_loader": upscale_model_loader  # UpscaleModelLoader (4x-UltraSharp)
+#   "image_upscale_with_model": image_upscale_with_model
+#   "vae_encode_for_inpaint": vae_encode     # optional tile-diffusion re-pass
+#   "ksampler_tiled": ksampler_tiled         # low-denoise re-sample
+#   "vae_decode": vae_decode
+#   "save_image": save_image
+#
+# Intentionally empty until the template exists — running the rename
+# tool against this file will exit 3 ("no entries in map") which is
+# the correct failure mode for a placeholder.

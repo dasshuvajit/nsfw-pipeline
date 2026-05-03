@@ -1,0 +1,418 @@
+# Categories — pure static lookup lists used by the planning modes.
+#
+# ARCHITECTURE.md §5 (content tiers) + §§8/9/10 (theme/style/niche modes).
+#
+# Previously seeded into four SQLite tables (theme_categories,
+# style_categories, niche_clusters, content_level_rules). Moved here
+# because:
+#   - These rows are immutable once seeded; runtime never writes them.
+#   - YAML makes it much easier to diff and version-control the
+#     taxonomy.
+#   - One file instead of four seed arrays drops ~150 lines from
+#     init_db.py.
+#
+# Weights are used by weighted-random selection in the mode planners.
+# Active rows only (no need for an `active` flag — deleted entries
+# just disappear from the list).
+#
+# ── 2026-04 Phase A overhaul ─────────────────────────────────────────
+# Themes + niches rewritten against DeviantArt Premium Gallery
+# top-sellers (22-source market research). Generic "studio /
+# outdoor / fantasy" buckets retired — they don't map to what buyers
+# actually search for. `aesthetic_affinity:` on every theme / style /
+# niche points into `config/style_profiles.yaml` archetype ids so
+# the planner can prefer compatible archetypes.
+# Content-level rules rekeyed to the 4-tier scheme (T1_suggestive,
+# T2_implied, T3_artnude, T4_explicit).
+
+# ── Theme categories (Mode 2 — ThemeMode) ────────────────────────────
+themes:
+  - id: boudoir_lingerie
+    name: Boudoir Lingerie
+    weight: 1.0
+    description: Intimate bedroom / studio boudoir in lingerie or silk.
+    variations: [silk robe, lace bodysuit, vintage stockings]
+    aesthetic_affinity: [boudoir_noir, old_hollywood_glamour]
+    suited_tiers: [T1_suggestive, T2_implied]
+
+  - id: implied_nude_fineart
+    name: Implied Nude Fine-Art
+    weight: 1.0
+    description: Fine-art implied nude — drapery, negative space, sculptural.
+    variations: [drapery, silhouette, sheet-wrapped]
+    aesthetic_affinity: [fine_art_figurative, moody_bw, editorial_fashion_nude]
+    suited_tiers: [T2_implied, T3_artnude]
+
+  - id: old_hollywood
+    name: Old Hollywood Glamour
+    weight: 0.9
+    description: Vintage studio glam, satin, fur, classic B&W portraiture.
+    variations: [silver satin, feather boa, vintage bob]
+    aesthetic_affinity: [old_hollywood_glamour, moody_bw]
+    suited_tiers: [T1_suggestive, T2_implied]
+
+  - id: wet_set_cinematic
+    name: Cinematic Wet-Set
+    weight: 0.8
+    description: Rain, shower, neon reflections — cinematic mood.
+    variations: [rainy window, steam shower, neon wet street]
+    aesthetic_affinity: [cinematic_wet_set, neo_noir_neon]
+    suited_tiers: [T2_implied, T3_artnude, T4_explicit]
+
+  - id: vintage_pinup
+    name: Vintage Pin-Up Kodachrome
+    weight: 0.8
+    description: 50s/60s Kodachrome pin-up — playful, retro, warm film tones.
+    variations: [polka-dot bikini, cheesecake pose, diner booth]
+    aesthetic_affinity: [vintage_pinup_kodachrome, old_hollywood_glamour]
+    suited_tiers: [T1_suggestive, T2_implied]
+
+  - id: golden_hour
+    name: Golden-Hour Natural
+    weight: 1.0
+    description: Outdoor sunset / sunrise warm rim-light — the DA best-seller.
+    variations: [beach dune, rooftop terrace, wildflower field]
+    aesthetic_affinity: [golden_hour_natural]
+    suited_tiers: [T1_suggestive, T2_implied, T3_artnude]
+
+  - id: fantasy_castlecore
+    name: Fantasy Castlecore
+    weight: 0.5
+    description: Medieval / gothic costume in castle / ruin setting.
+    variations: [velvet gown, armor fragment, stone arch]
+    aesthetic_affinity: [fantasy_castlecore, moody_bw]
+    suited_tiers: [T1_suggestive, T2_implied, T3_artnude]
+
+  - id: dark_boudoir_neonoir
+    name: Dark Boudoir / Neo-Noir
+    weight: 0.8
+    description: Low-key chiaroscuro boudoir + neon accents.
+    variations: [venetian blinds, neon sign glow, leather chaise]
+    aesthetic_affinity: [boudoir_noir, neo_noir_neon]
+    suited_tiers: [T2_implied, T3_artnude, T4_explicit]
+
+  - id: editorial_fashion_nude
+    name: Editorial Fashion Nude
+    weight: 0.7
+    description: Vogue-style editorial — fashion-grade, high-key, minimalist.
+    variations: [cream paper cyc, architectural minimalism, monochrome set]
+    aesthetic_affinity: [editorial_fashion_nude, old_hollywood_glamour]
+    suited_tiers: [T2_implied, T3_artnude]
+
+  - id: fine_art_studio_nude
+    name: Fine-Art Studio Nude
+    weight: 0.6
+    description: Classical figurative nude — single key light, gallery-grade.
+    variations: [rembrandt split-light, sculptural pose, torn backdrop]
+    aesthetic_affinity: [fine_art_figurative, moody_bw]
+    suited_tiers: [T3_artnude]
+
+# ── Style categories (Mode 3 — StyleMode) ────────────────────────────
+# lighting_bias + color_bias are consumed by StyleMode's LLM plan
+# template at style_mode.py:51,52,156,157 — do not remove.
+styles:
+  - id: cinematic
+    name: Cinematic
+    weight: 1.0
+    description: Dramatic lighting, shallow DOF, film-like grading
+    lighting_bias: dramatic key + fill
+    color_bias: film-grade tones
+    aesthetic_affinity: [cinematic_wet_set, neo_noir_neon, boudoir_noir]
+  - id: soft_aesthetic
+    name: Soft Aesthetic
+    weight: 1.0
+    description: Dreamy, gentle lighting, pastel tones
+    lighting_bias: soft diffused
+    color_bias: warm pastels
+    aesthetic_affinity: [golden_hour_natural, vintage_pinup_kodachrome]
+  - id: high_contrast
+    name: High Contrast
+    weight: 0.7
+    description: Strong shadows, bold lighting
+    lighting_bias: hard directional
+    color_bias: saturated
+    aesthetic_affinity: [boudoir_noir, neo_noir_neon]
+  - id: dark_moody
+    name: Dark & Moody
+    weight: 0.7
+    description: Low key, shadows, mysterious
+    lighting_bias: low key rim light
+    color_bias: desaturated cool
+    aesthetic_affinity: [boudoir_noir, moody_bw, neo_noir_neon]
+  - id: luxury_editorial
+    name: Luxury Editorial
+    weight: 0.8
+    description: Fashion magazine feel
+    lighting_bias: studio beauty light
+    color_bias: neutral elegant
+    aesthetic_affinity: [editorial_fashion_nude, old_hollywood_glamour]
+  - id: fine_art
+    name: Fine Art
+    weight: 0.6
+    description: Painterly, artistic composition
+    lighting_bias: rembrandt or split
+    color_bias: muted earth tones
+    aesthetic_affinity: [fine_art_figurative, moody_bw]
+
+# ── Niche clusters (Mode 4 — NicheMode) ──────────────────────────────
+niches:
+  - id: boudoir_bridal
+    name: Bridal Boudoir
+    keywords: [bridal, veil, garter, white lace, wedding boudoir]
+    weight: 1.0
+    aesthetic_affinity: [boudoir_noir, old_hollywood_glamour]
+  - id: artistic_athleticwear
+    name: Artistic Athleticwear
+    keywords: [yogawear, athletic, sculpted, studio sport, fine-art fitness]
+    weight: 0.7
+    aesthetic_affinity: [editorial_fashion_nude, fine_art_figurative]
+  - id: pinup_retro
+    name: Retro Pin-Up
+    keywords: [pinup, kodachrome, 1950s, cheesecake, vintage swimsuit]
+    weight: 0.9
+    aesthetic_affinity: [vintage_pinup_kodachrome, old_hollywood_glamour]
+  - id: implied_silhouette
+    name: Implied Silhouette
+    keywords: [silhouette, backlit, negative space, shadow play]
+    weight: 0.8
+    aesthetic_affinity: [fine_art_figurative, moody_bw]
+  - id: wet_hair_rain
+    name: Wet Hair / Rain
+    keywords: [rain, wet hair, shower, water droplets, steam]
+    weight: 0.9
+    aesthetic_affinity: [cinematic_wet_set, neo_noir_neon]
+  - id: latex_editorial
+    name: Latex Editorial
+    keywords: [latex, vinyl, editorial fashion, high-fashion kink]
+    weight: 0.6
+    aesthetic_affinity: [editorial_fashion_nude, neo_noir_neon]
+  - id: maternity_artistic
+    name: Artistic Maternity
+    keywords: [maternity, bump, flowing fabric, fine-art pregnancy]
+    weight: 0.4
+    aesthetic_affinity: [fine_art_figurative, golden_hour_natural]
+  - id: poolside_golden_hour
+    name: Poolside Golden Hour
+    keywords: [poolside, golden hour, water reflection, resort]
+    weight: 1.0
+    aesthetic_affinity: [golden_hour_natural, vintage_pinup_kodachrome]
+  - id: noir_detective
+    name: Noir Detective
+    keywords: [noir, trench coat, neon sign, rain window, femme fatale]
+    weight: 0.7
+    aesthetic_affinity: [neo_noir_neon, boudoir_noir]
+  - id: fine_art_figurative
+    name: Fine-Art Figurative
+    keywords: [classical pose, painterly, gallery nude, sculptural]
+    weight: 0.8
+    aesthetic_affinity: [fine_art_figurative, moody_bw]
+
+# ── Content-tier rules (ARCHITECTURE.md §5) ──────────────────────────
+# Key = content_level string. The render path looks these up by the
+# tier name; callers never iterate over the whole dict.
+#
+# Platform allow-list (DA policy matrix April 2026):
+#   T1 → [deviantart_public, fanvue, patreon_stylized]
+#   T2 → [deviantart_public, deviantart_premium, fanvue]
+#   T3 → [deviantart_premium, fanvue]
+#   T4 → [fanvue]
+content_levels:
+  T1_suggestive:
+    allowed_pose_types:
+      - standing relaxed
+      - sitting elegantly
+      - leaning gently
+      - looking over shoulder
+      - walking gracefully
+      - hand on hip
+      - arms crossed
+      - hair flip
+      - profile pose
+    scene_constraints:
+      framing: "editorial fashion framing; NO nudity, NO sheer see-through"
+      mood_range: [glamorous, confident, playful, elegant, cinematic]
+      environment: "any — indoor, outdoor, studio"
+    # llm_directive (Phase A) — surfaces tier-specific creative
+    # guidance to the SceneFacetGenerator system prompt. Where
+    # boost_keywords is a post-composition append, llm_directive shapes
+    # what the LLM actually produces. Read by ContentLevelLoader and
+    # injected verbatim into the facet generator's system prompt.
+    llm_directive: |
+      CONTENT TIER: T1_suggestive (DA-public-gallery safe).
+      TASTEFUL EDITORIAL — NO nudity, NO sheer or see-through fabric.
+      Subject is fully clothed in lingerie / swimwear / fashion editorial.
+      Scene mood is glamorous, confident, cinematic. Do NOT pick any
+      `nsfw_*` enum tag from the vocabulary menu — those are gated to
+      T3+ and the canonicalizer will drop them.
+    prompt_boost_keywords:
+      - lingerie
+      - swimwear
+      - fashion editorial
+      - confident
+      - glamorous
+      - cinematic
+      - editorial beauty
+    prompt_suppress_keywords:
+      - nude
+      - topless
+      - nipples
+      - explicit
+      - raw
+    platform_allowlist: [deviantart_public, fanvue, patreon_stylized]
+    description: >-
+      Suggestive: lingerie, swimwear, revealing outfit — NO nudity.
+      Safest tier for DA public gallery + Patreon (stylized only).
+
+  T2_implied:
+    allowed_pose_types:
+      - standing relaxed
+      - sitting elegantly
+      - leaning gently
+      - looking over shoulder
+      - walking gracefully
+      - reclining softly
+      - hand on hip
+      - arms crossed
+      - chin on hand
+      - profile pose
+    scene_constraints:
+      framing: "implied nude — drapery / silhouette / pose hides nipples + genitalia"
+      mood_range: [elegant, soft, aesthetic, dreamy, serene]
+      environment: "neutral or artistic"
+    llm_directive: |
+      CONTENT TIER: T2_implied (DA public + DA Premium acceptable).
+      IMPLIED NUDE — drapery, silhouette, or pose hides nipples and
+      genitalia. The subject reads as nude but no anatomy is visible.
+      Mood is elegant, soft, aesthetic, dreamy. Do NOT pick any
+      `nsfw_*` enum tag — those are gated to T3+. Scene_prose may
+      reference the suggestion of nudity (e.g. "draped in silk
+      revealing one shoulder") but never describe explicit anatomy.
+    prompt_boost_keywords:
+      - implied nude
+      - artistic
+      - fine art
+      - sculptural
+      - drapery
+      - graceful
+      - tasteful
+      - beauty
+    prompt_suppress_keywords:
+      - explicit
+      - raw
+      - aggressive
+      - spread
+      - nipples
+      - genitalia
+    platform_allowlist: [deviantart_public, deviantart_premium, fanvue]
+    description: >-
+      Implied nude — no visible nipples or genitalia. DA public gallery
+      (with fine-art framing) and DA Premium Gallery both acceptable.
+
+  T3_artnude:
+    allowed_pose_types:
+      - standing confident
+      - reclining expressive
+      - classical contrapposto
+      - kneeling graceful
+      - seated figurative
+      - arched back
+      - stretching
+      - lounging
+      - looking back over shoulder
+      - side profile figurative
+    scene_constraints:
+      framing: "full artistic nude; fine-art / gallery framing"
+      mood_range: [contemplative, intimate, reverent, sensual, cinematic]
+      environment: any
+    llm_directive: |
+      CONTENT TIER: T3_artnude (DA Premium / Fanvue paywalled).
+      FINE-ART NUDE — depict the subject NUDE with anatomically
+      correct natural body. This is gallery-print figure work, not
+      explicit. Tasteful but unambiguous nudity: visible breasts /
+      thighs / glutes are part of the artistic framing. Subject is
+      always an adult woman with mature features. Scene_prose MUST
+      describe the nude form directly (e.g. "her bare shoulders catch
+      the window light" / "natural skin texture across her hip").
+      REQUIRED: pick exactly one `nsfw_anatomy` tag from the vocabulary
+      menu. Pick a `nsfw_posture` tag when the pose is reclining or
+      kneeling. Do NOT pick `nsfw_act` tags (T4-only). Mood is
+      contemplative, intimate, reverent.
+    # Phase D — boost_keywords reduced to []. Tier directive above
+    # drives the LLM; appending soft adjectives at sanitizer time was
+    # decorative and did not actually push toward anatomy.
+    prompt_boost_keywords: []
+    prompt_suppress_keywords:
+      - explicit
+      - graphic
+      - spread
+      - cartoonish
+    platform_allowlist: [deviantart_premium, fanvue]
+    description: >-
+      Full artistic nude, fine-art framing. DA Premium Gallery / Fanvue
+      only.
+
+  T4_explicit:
+    allowed_pose_types:
+      - standing confident
+      - reclining expressive
+      - arched back
+      - kneeling
+      - dynamic pose
+      - lounging
+      - intimate pose
+      - bold pose
+    scene_constraints:
+      framing: "explicit; NEVER surfaced outside paywall"
+      mood_range: [intense, passionate, bold, provocative, raw]
+      environment: any
+    llm_directive: |
+      CONTENT TIER: T4_explicit (Fanvue-paywalled ONLY).
+      ARTISTIC NUDE PHOTOGRAPHY — the product is sellable explicit
+      adult fine-art for a paywalled platform.
+
+      DEFAULT STATE: the subject (always an adult woman, 18+, mature
+      features) is FULLY NUDE — front-facing, with breasts and
+      nipples visible, vulva / labia visible, full body bare. This
+      is the dominant case, not the exception. Clothing or drapery
+      appears ONLY when the scene's locked core fields explicitly
+      call for it (e.g. lingerie scene, partial draping for a
+      classical pose) — and even then, partial nudity is preferred
+      over full coverage. Topless, bottomless, and partial-nude
+      framings are valid intermediate states; full-nude is the
+      default to aim for.
+
+      ANATOMY MUST BE VISIBLE AND DESCRIBED: scene_prose names the
+      anatomy that's visible — bare breasts with natural nipples,
+      visible vulva / mons / labia, bare hips and thighs and glutes.
+      Use the vocabulary library's family-shaped phrasing — the
+      composer translates concept tags into the right wording for
+      each model family.
+
+      DO NOT euphemise. Do NOT default to "draped" / "veiled" /
+      "shadow hides her form" / "implied nude" — those belong to T2.
+      At T4 the body is the composition. Tasteful framing means
+      compositional craft (lighting, pose, mood), NOT covering up.
+
+      REQUIRED: pick exactly one `nsfw_anatomy` tag AND exactly one
+      `nsfw_act` tag from the vocabulary menu. Strongly prefer
+      anatomy tags that maximise visible nudity (`NSFW_FULL_FRONTAL`,
+      `NSFW_FULL_NUDE`, `NSFW_VULVA_VISIBLE`, `NSFW_NIPPLES_VISIBLE`)
+      over partial ones (`NSFW_BARE_CHEST`, `NSFW_HIPS_THIGHS`)
+      unless the scene's pose makes a partial framing more natural.
+      Optionally pick a `nsfw_posture` tag when the pose calls for it.
+
+      Mood is intense, passionate, bold, raw, sensual, intimate.
+      Partnered scenes (when `nsfw_act` is partnered) carry mutual
+      consent and tender intimacy between two adults.
+    # Phase D — boost_keywords reduced to []. The tier directive above
+    # is the LLM-side push; appending "bold, intense, sensual" at
+    # sanitizer time was decorative and didn't actually drive nudity.
+    prompt_boost_keywords: []
+    prompt_suppress_keywords:
+      - childlike
+      - innocent
+      - cute
+    platform_allowlist: [fanvue]
+    description: >-
+      Explicit / graphic. Fanvue-gated ONLY — must never surface on
+      DA public or Premium Gallery.

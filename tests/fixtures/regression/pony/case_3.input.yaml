@@ -1,0 +1,20 @@
+description: "T3 — reclining nude art, landscape override, Patreon"
+family: pony
+content_level: T3_artnude
+audience: patreon
+character:
+  base_prompt: "1girl, copper_hair, freckles, lithe"
+  negative_prompt: ""
+scene:
+  pose: "reclining on chaise"
+  camera: "wide shot"
+  camera_angle: "above"
+  lighting: "single tungsten key"
+  environment_detail: "studio, warm grey backdrop"
+  composition_intent: "wide"
+  booru_tags: "lying_on_chaise_lounge, completely_nude, soft_shadow, on_back, feet_together, art_nude"
+  source_tag: "source_photographic"
+style_profile:
+  base_style_keywords: "best quality, masterpiece, fine art photography"
+  base_negative_prompt: "cartoon, anime"
+trigger_words: []

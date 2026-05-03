@@ -1,0 +1,19 @@
+description: "T1 — chroma prose with period-joined realism tail, three-quarter"
+family: chroma
+content_level: T1_suggestive
+audience: deviantart
+character:
+  base_prompt: "Elara, a thirty-two-year-old woman with wavy brunette hair, hazel eyes, athletic build."
+  negative_prompt: ""
+scene:
+  pose: "three-quarter standing"
+  camera: "85mm portrait"
+  camera_angle: "eye-level"
+  lighting: "golden-hour rim light"
+  environment_detail: "balcony overlooking a coastal city at sunset"
+  composition_intent: "medium"
+  scene_prose: "Elara stands on a sunset balcony in an ivory silk slip dress. The warm rim light catches the texture of her hair while she gazes toward the horizon."
+style_profile:
+  base_style_keywords: "cinematic. natural color grading. soft skin texture."
+  base_negative_prompt: ""
+trigger_words: []

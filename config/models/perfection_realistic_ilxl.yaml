@@ -1,0 +1,36 @@
+id: perfection_realistic_ilxl
+display_name: Perfection Realistic ILXL v7.0
+filename: perfectionRealisticILXL_70.safetensors
+architecture: illustrious
+family: illustrious
+default_sampler: dpmpp_3m_sde
+default_scheduler: simple
+default_steps: 24
+default_cfg: 4.0
+default_clip_skip: null
+supports_ipadapter: true
+supports_lora: true
+vae_filename: null
+text_encoder: null
+resolution_portrait: [832, 1216]
+resolution_square: [1024, 1024]
+resolution_landscape: [1216, 832]
+active: true
+notes: >-
+  Illustrious XL NSFW realism merge. SDXL-compatible node graph
+  (CheckpointLoaderSimple + KSampler), native 1024². Creator
+  recommends dpmpp_3m_sde + simple (NOT normal) at steps=24, cfg=4.
+  Supports up to 2 LoRAs; IPAdapter SDXL-compatible. Quality suffix
+  (masterpiece, best quality, amazing quality, very aesthetic, newest)
+  is injected by the family composer — do NOT put it in trigger_words.
+
+prompt:
+  extend:
+    trigger_words: []
+    negative_prompt: ""
+    avoid_words: [anime, cartoon]
+  override:
+    example_prompt: >-
+      1girl, long_hair, looking_at_viewer, soft_lighting, detailed_skin,
+      sharp_focus, photorealistic, cinematic_light, shallow_depth_of_field,
+      masterpiece, best quality, amazing quality, very aesthetic, newest

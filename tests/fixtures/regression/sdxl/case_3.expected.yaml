@@ -1,0 +1,11 @@
+expected:
+  prompt_text: ariadne, 30yo, copper red hair, freckles, lithe figure, reclining on a chaise, wide shot,
+    slightly above, single tungsten key, deep shadows, studio with warm-grey backdrop, 35mm f/2.0, photography,
+    tasteful nude, pose conceals, fine art nude photography, classical chiaroscuro
+  prompt_token_count: 75
+  negative_prompt: cartoonish, watermark
+  ratio: landscape
+  resolution:
+  - 1216
+  - 832
+  reason: override:landscape

@@ -1,0 +1,20 @@
+description: "T1 — illustrious tag+prose hybrid, three-quarter, DA audience"
+family: illustrious
+content_level: T1_suggestive
+audience: deviantart
+character:
+  base_prompt: "1girl, brunette, hazel eyes, athletic"
+  negative_prompt: ""
+scene:
+  pose: "three-quarter standing"
+  camera: "85mm portrait"
+  camera_angle: "eye-level"
+  lighting: "golden hour"
+  environment_detail: "balcony at sunset"
+  composition_intent: "medium"
+  booru_tags: "looking_at_viewer, parted_lips, sundress, outdoors"
+  scene_prose: "She stands on a sunset balcony, the warm rim light catching her hair as she gazes at the horizon."
+style_profile:
+  base_style_keywords: "best quality, ultra-detailed, photorealistic skin texture"
+  base_negative_prompt: "lowres, blurry"
+trigger_words: []

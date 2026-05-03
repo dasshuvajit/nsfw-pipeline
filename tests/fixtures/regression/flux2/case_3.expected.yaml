@@ -1,0 +1,13 @@
+expected:
+  prompt_text: A thirty-year-old woman named Ariadne — copper-red hair, freckles across the shoulders,
+    lithe figure. Ariadne lies on a velvet chaise against a warm-grey studio sweep. A single tungsten
+    key from camera-left carves long, classical-painting shadows across her form. Tasteful art-nude framing;
+    the atmosphere is still, painterly, quiet. Fine art nude photography, classical chiaroscuro, tasteful
+    framing.
+  prompt_token_count: 77
+  negative_prompt: ''
+  ratio: landscape
+  resolution:
+  - 1728
+  - 1152
+  reason: override:landscape

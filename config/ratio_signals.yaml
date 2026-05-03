@@ -1,0 +1,107 @@
+# Aspect-ratio scoring signals — additive bonuses applied on top of
+# pipeline.yaml::aspect_ratio_weights[content_level]. Loaded by
+# ``RatioSelector.from_config`` (or passed directly into the
+# RatioSelector constructor).
+#
+# Final ratio score:
+#
+#   score(ratio) = base_weights[content_level][ratio]
+#                + audience_bonus[audience][ratio]
+#                + composition_bonus[intent][ratio]
+#                + pose_signal_bonus[ratio]    # +0.15 if a keyword matches
+#                + family_quality_bonus[family][ratio]
+#
+#   clamp to [clamp.min, clamp.max], drop ≤0, weighted random draw.
+#
+# Hard pose overrides (full-body → portrait_23, reclining → landscape)
+# short-circuit the score and live in ``ratio_selector._check_override``.
+
+# Per-ratio scene-text keyword list. When any keyword appears in the
+# joined scene text (pose + camera + camera_angle + environment_detail),
+# that ratio gets +0.15 (= ``pose_signal_bump``). One bump per ratio
+# per scene — multiple keyword matches don't stack.
+signals:
+  portrait_23:
+    - full body
+    - standing
+    - kneeling
+    - three-quarter
+    - medium shot
+    - upper body
+  square:
+    - close-up
+    - face
+    - portrait
+    - macro
+    - studio
+  landscape:
+    - reclining
+    - lying
+    - wide shot
+    - panorama
+    - establishing
+
+pose_signal_bump: 0.15
+
+# Audience tuning. DeviantArt's grid favors classic 2:3 portraits;
+# Patreon's mobile feed rewards 9:16 vertical scrolls. Numbers here are
+# tuned by inspection of front-page samples — refine after Phase G
+# scoring data accumulates.
+audience_bonus:
+  deviantart:
+    portrait_23:  0.10
+    portrait_916: 0.00
+    square:       0.05
+    landscape:   -0.05
+  patreon:
+    portrait_23:  0.05
+    portrait_916: 0.10
+    square:       0.05
+    landscape:    0.00
+  either:         {}   # no bonus — same as audience omitted
+
+# Composition-intent bonus. The scene_generator emits one of the four
+# values; the selector translates intent → ratio bias. "full-body" still
+# triggers the hard override too — this bonus only fires when override
+# is bypassed.
+composition_bonus:
+  close-up:
+    square:       0.20
+    portrait_23:  0.05
+  medium:
+    portrait_23:  0.10
+    portrait_916: 0.05
+  full-body:
+    portrait_23:  0.20
+    portrait_916: 0.15
+  wide:
+    landscape:    0.20
+    square:       0.05
+
+# Per-family quality bias. SDXL/Pony/Illustrious all degrade visibly on
+# 9:16 (UNet was trained on a 1024² grid); Flux/Chroma handle every
+# ratio cleanly thanks to their wider training distribution; Flux.2
+# slightly favors portrait per the BFL Klein 9B guide.
+family_quality_bonus:
+  sdxl:
+    portrait_23:   0.05
+    portrait_916: -0.10
+  pony:
+    portrait_23:   0.05
+    portrait_916: -0.05
+  illustrious:
+    portrait_23:   0.05
+    portrait_916: -0.05
+  flux:        {}
+  chroma:      {}
+  flux2:
+    portrait_23:   0.05
+
+# Score clamps applied AFTER all bonuses sum, BEFORE the weighted draw.
+# A small floor (0.05) prevents zero-collapse when several negative
+# bonuses pile up; the cap (2.0) prevents any single axis from
+# dominating selection. To hard-exclude a ratio for a content level,
+# omit it from ``aspect_ratio_weights`` in pipeline.yaml entirely.
+clamp:
+  min: 0.05
+  max: 2.0

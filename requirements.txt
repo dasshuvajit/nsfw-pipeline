@@ -1,0 +1,58 @@
+# =============================================================================
+# NSFW Content Generation Pipeline — Python Dependencies
+# Target: Python 3.11+, macOS (Mac M4 Pro, MPS backend)
+# =============================================================================
+# Phase 0/1 needs only the "Core" group below — the rest can be installed
+# incrementally as later phases come online (see PROJECT_GUIDE.md).
+# =============================================================================
+
+# ----- Core (Phase 0/1) ------------------------------------------------------
+# Config + DB + HTTP wrappers used by every script.
+PyYAML>=6.0.1            # config/pipeline.yaml loading
+requests>=2.31.0         # ComfyUI + Ollama HTTP clients
+psutil>=5.9.8            # Memory preflight check before render phase
+pydantic>=2.7.0          # LLM JSON contract validation (series plan + scene list)
+
+# ----- Image / Scoring (Phase 1, Step 17) -----------------------------------
+# image_scorer.py: aesthetic + blur + face confidence.
+Pillow>=10.2.0
+opencv-python>=4.9.0.80          # Laplacian blur detection
+numpy>=1.26.0
+# Aesthetic predictor backbone: CLIP ViT-L/14 via open_clip_torch, plus
+# the LAION improved-aesthetic-predictor v2 MLP head. The MLP weights
+# (sac+logos+ava1-l14-linearMSE.pth) are downloaded separately into
+# models/aesthetic/ — see PROJECT_GUIDE.md → "Setting up the image scorer".
+torch>=2.2.0
+torchvision>=0.17.0
+open-clip-torch>=2.24.0
+# T5 tokenizer for token-budget enforcement on flux/chroma families.
+# Pulls google/t5-v1_1-base SentencePiece vocab on first call (cached
+# under ~/.cache/huggingface). Same vocab as T5-XXL/Schnell so token
+# counts match the actual encoders.
+transformers>=4.40.0
+# Face detection: insightface buffalo_l via onnxruntime. buffalo_l is
+# auto-downloaded by insightface on first use to ~/.insightface/models/.
+insightface>=0.7.3
+onnxruntime>=1.17.0
+
+# ----- Phase G — human-preference scoring (optional, OFF by default) --------
+# These ship OFF in pipeline.yaml::scoring (use_hps_v2 / use_image_reward).
+# Install only when you intend to flip those flags on. Both pull their own
+# CLIP-H/14 weights (~3.5GB combined VRAM at score time) and ~1GB of model
+# files cached under ~/.cache/. Leaving them uninstalled is fine — the
+# scorer logs a one-time WARNING and falls back to the legacy 4-signal
+# composite.
+#   hpsv2          → Human Preference Score v2 (research-only license).
+#   image-reward   → ImageReward, Apache-2.0.
+# hpsv2>=1.2.0
+# image-reward>=1.5
+
+# ----- Prompt dedup (Phase 3, Step 34) --------------------------------------
+# Cross-level scene similarity via sentence embeddings.
+# sentence-transformers>=2.5.0
+
+# ----- Scheduler (Phase 5, Step 59) -----------------------------------------
+# schedule>=1.2.1
+
+# ----- Dev / Test ------------------------------------------------------------
+pytest>=8.0.0

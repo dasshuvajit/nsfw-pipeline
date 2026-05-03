@@ -1,0 +1,11 @@
+expected:
+  prompt_text: mira, 28yo, raven black hair, green eyes, slender frame, seated, close-up portrait, eye-level,
+    soft window light, north-facing, minimalist loft interior, 50mm f/1.8, kodak portra 400 emulation,
+    open silk robe, intimate framing, editorial, film grain, muted palette
+  prompt_token_count: 71
+  negative_prompt: extra fingers, deformed hands
+  ratio: square
+  resolution:
+  - 1024
+  - 1024
+  reason: weighted:T2_implied|family=sdxl|intent=close-up

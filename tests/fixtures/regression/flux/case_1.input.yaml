@@ -1,0 +1,19 @@
+description: "T1 — flux natural prose, T5 tokenizer, three-quarter portrait"
+family: flux
+content_level: T1_suggestive
+audience: deviantart
+character:
+  base_prompt: "Elara, a thirty-two-year-old woman with wavy brunette hair, hazel eyes, and an athletic build."
+  negative_prompt: ""
+scene:
+  pose: "three-quarter standing pose"
+  camera: "85mm portrait crop"
+  camera_angle: "eye-level"
+  lighting: "golden-hour rim light from camera-right"
+  environment_detail: "a coastal-city balcony at sunset"
+  composition_intent: "medium"
+  scene_prose: "Elara stands on a sunset balcony in an ivory silk slip dress, the warm rim light catching her hair as she gazes toward the horizon. Shot on a Sony A7R IV with an 85mm at f/1.4."
+style_profile:
+  base_style_keywords: "cinematic, soft skin, photoreal, natural color grading"
+  base_negative_prompt: ""
+trigger_words: []

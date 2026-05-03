@@ -1,0 +1,33 @@
+id: juggernaut_ragnarok
+display_name: Juggernaut XL Ragnarok
+filename: juggernautXL_ragnarokBy.safetensors
+architecture: sdxl
+family: sdxl
+default_sampler: dpmpp_2m_sde
+default_scheduler: karras
+default_steps: 35
+default_cfg: 4.0
+default_clip_skip: null
+supports_ipadapter: true
+supports_lora: true
+vae_filename: null
+text_encoder: null
+resolution_portrait: [768, 1152]
+resolution_square: [1024, 1024]
+resolution_landscape: [1152, 768]
+active: true
+notes: Juggernaut variant — dpmpp_2m_sde/35/4.0 for optimal skin textures.
+
+prompt:
+  extend:
+    trigger_words:
+      - photograph
+      - skin textures
+      - highlighted skin
+      - film grain
+    negative_prompt: ""
+    avoid_words:
+      - anime
+      - cartoon
+      - 3d render
+  override: {}

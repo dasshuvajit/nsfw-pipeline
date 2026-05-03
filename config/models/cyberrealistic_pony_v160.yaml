@@ -1,0 +1,37 @@
+id: cyberrealistic_pony_v160
+display_name: CyberRealistic Pony V16.0
+filename: cyberrealisticPony_v160.safetensors
+architecture: pony
+family: pony
+default_sampler: dpmpp_sde
+default_scheduler: karras
+default_steps: 30
+default_cfg: 5.0
+default_clip_skip: 2
+supports_ipadapter: true
+supports_lora: true
+vae_filename: null
+text_encoder: null
+resolution_portrait: [896, 1152]
+resolution_square: [1024, 1024]
+resolution_landscape: [1152, 896]
+active: true
+notes: >-
+  CyberRealistic Pony V16.0 — Danbooru tags + CyberRealistic TI
+  embeddings. The family composer prepends the mandatory 6-tier Pony
+  score prefix; do NOT include score_* in trigger_words.
+
+prompt:
+  extend:
+    trigger_words:
+      - "embedding:CyberRealisticPony_POSV1"
+    negative_embeddings:
+      - CyberRealistic_Negative_PONY_V2-neg
+    avoid_words: [anime, cartoon, 3d render]
+  override:
+    # Phase 3c — pin the photoreal vocabulary in the leading window
+    # right after the 6-tier score chain. The CyberRealistic Pony
+    # finetunes are tuned for source_photograph realism; pinning these
+    # tokens stops them drifting out of the body when the LLM is
+    # creative.
+    structure_intro: ["source_photograph", "photo (medium)", "realistic"]

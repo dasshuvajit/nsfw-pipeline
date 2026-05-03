@@ -1,0 +1,544 @@
+# Prompt vocabulary library — abstract concept → per-family phrasing.
+#
+# The LLM (SceneFacetGenerator) emits abstract enum tags from this
+# library (e.g. ``LIGHT_REMBRANDT``, ``CAMERA_85MM_F14``); the
+# canonicalizer in src/prompt/vocabulary.py translates them to
+# family-specific phrasing at PromptBuilder compose time.
+#
+# Schema:
+#   realism.<namespace>.<CONCEPT_TAG>:                     # always-on
+#     <family>: "<family-shaped phrase>"
+#   nsfw.<namespace>.<CONCEPT_TAG>:                        # tier-gated
+#     tier_min: T<n>_<tier>
+#     phrasing:
+#       <family>: "<family-shaped phrase>"
+#
+# Tier values must match content_levels.py:
+#   T1_suggestive / T2_implied / T3_artnude / T4_explicit
+#
+# Family keys must match config/families.yaml:
+#   sdxl / pony / illustrious / flux / chroma / flux2
+#
+# Adding a new concept:
+#   1. Add the concept tag under realism.<namespace> (or nsfw.<namespace>).
+#   2. Provide phrasing for every applicable family. Pony omits camera /
+#      lens / film_stock / art_style (booru tagging vocabulary doesn't
+#      carry these as-is — they're implicit in source_photograph + scene_prose).
+#   3. Bump ``version:`` at the top.
+#   4. Re-run regression suite — fixtures pin the byte-stable output.
+
+version: 3
+
+realism:
+  # ── Lighting ─────────────────────────────────────────────────────────
+  lighting:
+    LIGHT_REMBRANDT:
+      sdxl:        "rembrandt lighting, triangle of light on cheek, dramatic shadow"
+      pony:        "rembrandt_lighting, dramatic_shadow, side_lit"
+      illustrious: "rembrandt_lighting, dramatic shadow, chiaroscuro"
+      flux:        "Rembrandt lighting with a soft triangle of light on the unlit cheek and a deep shadow on the rest of the face"
+      chroma:      "Rembrandt lighting, dramatic chiaroscuro shadow"
+      flux2:       "Rembrandt key light from camera-left at 45 degrees, soft triangle of light on the cheek opposite the key, deep chiaroscuro on the unlit half of the face"
+    LIGHT_BUTTERFLY:
+      sdxl:        "butterfly lighting, paramount lighting, soft shadow under nose"
+      pony:        "butterfly_lighting, paramount_lighting"
+      illustrious: "butterfly_lighting, paramount lighting"
+      flux:        "Butterfly lighting from directly above the camera, casting a small symmetric shadow under the nose"
+      chroma:      "butterfly lighting, paramount, glamour studio key"
+      flux2:       "Butterfly lighting with the key directly above and slightly forward of the subject, a small symmetric shadow falling under the nose"
+    LIGHT_GOLDEN_HOUR:
+      sdxl:        "golden hour lighting, warm late afternoon sun, long shadows"
+      pony:        "golden_hour, warm_lighting, sunset_glow"
+      illustrious: "golden_hour, warm sunset light, long_shadows"
+      flux:        "Warm golden-hour sunlight streaming in low across the scene, long shadows, amber and honey tones"
+      chroma:      "golden hour sun, warm honey light, low angle, long shadows"
+      flux2:       "Late golden-hour sunlight streaming in horizontally from camera-right, warm amber-honey colour temperature around 2800 K, long soft shadows"
+    LIGHT_LOW_KEY_NOIR:
+      sdxl:        "low-key lighting, deep shadows, single source, film noir, high contrast"
+      pony:        "low_key_lighting, deep_shadows, film_noir, high_contrast"
+      illustrious: "low_key, deep_shadow, single_light_source, noir"
+      flux:        "Low-key noir lighting with one hard key from the side, deep shadows swallowing most of the frame, only the highlight side of the face emerging from the dark"
+      chroma:      "low-key noir lighting, deep shadow, single hard key, high contrast"
+      flux2:       "Low-key noir lighting from a single hard key at camera-left, the rest of the scene falling into deep shadow, high-contrast cinematic feel"
+    LIGHT_SOFT_FILL:
+      sdxl:        "soft fill lighting, large softbox, even illumination, diffused"
+      pony:        "soft_lighting, softbox, diffused_light"
+      illustrious: "soft_lighting, softbox, diffused"
+      flux:        "Soft, even fill lighting from a large softbox, gentle diffused illumination with minimal shadows"
+      chroma:      "soft fill lighting, large softbox, gentle diffuse light"
+      flux2:       "Soft fill lighting from a large softbox at camera-front, gentle diffused illumination with very minimal shadow falloff"
+    LIGHT_RIM_BACK:
+      sdxl:        "rim lighting from behind, edge light separating subject, hair light"
+      pony:        "rim_light, backlight, edge_light, hair_light"
+      illustrious: "backlight, rim_lighting, hair_light"
+      flux:        "Bright rim light from behind the subject, a halo of edge light separating them from the background"
+      chroma:      "rim light from behind, edge light, hair backlight"
+      flux2:       "Hard rim light from behind and slightly above the subject, edge of light tracing the silhouette and hair, separating subject from background"
+    LIGHT_OVERCAST:
+      sdxl:        "overcast natural light, soft diffused daylight, even tonality"
+      pony:        "overcast_lighting, soft_diffused_daylight"
+      illustrious: "overcast, soft daylight, even_lighting"
+      flux:        "Soft overcast daylight, the entire sky acting as one giant softbox, even cool light with minimal shadows"
+      chroma:      "overcast daylight, soft cool light, even tonality"
+      flux2:       "Overcast soft daylight, the cloud layer acting as a vast diffuser, cool 6500 K colour temperature with very even shadow tonality"
+    LIGHT_NEON_NIGHT:
+      sdxl:        "neon lighting, vibrant rim of magenta and cyan, urban night, mixed colour temperatures"
+      pony:        "neon_lights, magenta_glow, cyan_highlights, night_scene"
+      illustrious: "neon_lighting, magenta_and_cyan, night_city"
+      flux:        "Saturated neon lighting at night, magenta and cyan rim accents bouncing off skin and fabric, urban evening atmosphere"
+      chroma:      "neon night lighting, magenta and cyan rims, urban evening"
+      flux2:       "Saturated neon-night lighting, magenta key from camera-left and cyan rim from camera-right, mixed warm and cool colour temperatures, urban evening atmosphere"
+    LIGHT_WINDOW_SIDE:
+      sdxl:        "side-lit window light, natural daylight from the left, soft falloff"
+      pony:        "window_light, side_lit, natural_daylight"
+      illustrious: "window_light, side_lit, natural_daylight, soft_falloff"
+      flux:        "Soft natural daylight pouring through a tall window from the left, gentle falloff into shadow on the right side of the subject's face"
+      chroma:      "window light from the side, natural daylight, soft falloff"
+      flux2:       "Soft window light from camera-left, natural overcast daylight at roughly 5200 K, gentle falloff across the face into shadow on the right"
+    LIGHT_SPLIT:
+      sdxl:        "split lighting, half face in shadow, classic theatrical contrast"
+      pony:        "split_lighting, half_shadow, theatrical_contrast"
+      illustrious: "split_lighting, dramatic_half_shadow, theatrical"
+      flux:        "Split lighting with a hard edge running vertically down the centre of the face, one half brightly lit and the other deep in shadow"
+      chroma:      "split lighting, half face in shadow, dramatic theatrical edge"
+      flux2:       "Split lighting from a hard key at camera-left at 90 degrees, the rim of the face dividing into one fully-lit half and one deep-shadow half"
+    LIGHT_CANDLELIGHT:
+      sdxl:        "candlelight, warm low-key glow, flickering shadows, intimate"
+      pony:        "candlelight, warm_glow, flickering_shadow, intimate"
+      illustrious: "candlelight, warm_low_light, flickering"
+      flux:        "Warm candlelight as the only light source, a low-key intimate glow with soft flickering shadows dancing across the scene"
+      chroma:      "candlelight, warm low-key glow, flickering, intimate"
+      flux2:       "Warm candlelight from camera-front at roughly 1900 K, low-key intimate glow with subtle flickering shadows, very shallow falloff into surrounding darkness"
+    LIGHT_BLUE_HOUR:
+      sdxl:        "blue hour twilight, cool ambient light, soft cyan and indigo tones"
+      pony:        "blue_hour, twilight, cool_ambient_light, indigo_tones"
+      illustrious: "blue_hour, twilight, cool_tones, ambient"
+      flux:        "Twilight blue-hour ambient light, cool cyan and indigo tones suffusing the scene with no hard key source"
+      chroma:      "blue hour twilight, cool ambient cyan-indigo light"
+      flux2:       "Blue-hour twilight ambient light at roughly 8000 K, cool cyan and indigo tones, no hard key, a soft directionless glow from the open sky"
+
+  # ── Camera bodies ────────────────────────────────────────────────────
+  # Pony omits camera/lens/film_stock — booru tagging carries them as
+  # source_photograph + scene_prose, not as separate token sequences.
+  camera:
+    CAMERA_SONY_A7RV:
+      sdxl:        "shot on Sony A7R V, full frame, ultra detailed sensor"
+      illustrious: "sony a7r5, full_frame_sensor, ultra_detailed"
+      flux:        "Shot on a Sony A7R V full-frame mirrorless body"
+      chroma:      "shot on Sony A7R V, full-frame mirrorless"
+      flux2:       "Captured on a Sony A7R V full-frame mirrorless body"
+    CAMERA_CANON_R5:
+      sdxl:        "shot on Canon EOS R5, full frame"
+      illustrious: "canon eos r5, full_frame"
+      flux:        "Shot on a Canon EOS R5 full-frame mirrorless body"
+      chroma:      "shot on Canon EOS R5, full-frame"
+      flux2:       "Captured on a Canon EOS R5 full-frame mirrorless body"
+    CAMERA_FUJI_XT5:
+      sdxl:        "shot on Fujifilm X-T5, APS-C"
+      illustrious: "fujifilm x-t5, aps-c sensor"
+      flux:        "Shot on a Fujifilm X-T5 APS-C body, classic Fuji colour science"
+      chroma:      "shot on Fujifilm X-T5, classic Fuji colour science"
+      flux2:       "Captured on a Fujifilm X-T5 APS-C body, with the camera's classic Fuji colour science"
+    CAMERA_HASSELBLAD_X2D:
+      sdxl:        "shot on Hasselblad X2D, medium format, ultra fine detail"
+      illustrious: "hasselblad medium_format, ultra fine detail"
+      flux:        "Shot on a Hasselblad X2D medium-format body, exquisite tonal range and ultra-fine detail"
+      chroma:      "shot on Hasselblad X2D, medium format, fine detail"
+      flux2:       "Captured on a Hasselblad X2D medium-format body, exquisite tonal range, ultra-fine resolved detail across the frame"
+    CAMERA_LEICA_M11:
+      sdxl:        "shot on Leica M11, rangefinder character, classic look"
+      illustrious: "leica m11, rangefinder, classic_render"
+      flux:        "Shot on a Leica M11 rangefinder, that distinctive Leica look with creamy out-of-focus areas"
+      chroma:      "shot on Leica M11, rangefinder character"
+      flux2:       "Captured on a Leica M11 rangefinder body, the classic Leica look with creamy out-of-focus rendering and slight micro-contrast lift"
+    CAMERA_PHASE_ONE_IQ4:
+      sdxl:        "shot on Phase One IQ4, medium format digital, 150 megapixel detail"
+      illustrious: "phase_one iq4, medium_format_digital, ultra_high_resolution"
+      flux:        "Shot on a Phase One IQ4 medium-format digital body, 150-megapixel sensor delivering exquisite detail and tonal range"
+      chroma:      "shot on Phase One IQ4, medium format digital, very fine detail"
+      flux2:       "Captured on a Phase One IQ4 medium-format digital back, 150-megapixel sensor capturing extraordinary tonal range and ultra-fine resolved detail"
+    CAMERA_PENTAX_67_FILM:
+      sdxl:        "shot on Pentax 67, medium format film camera, vintage character"
+      illustrious: "pentax_67, medium_format_film, vintage_character"
+      flux:        "Shot on a Pentax 67 medium-format film camera, the distinctive 6×7 negative providing rich tonal depth and a vintage character"
+      chroma:      "shot on Pentax 67, medium format film, vintage tonal feel"
+      flux2:       "Captured on a Pentax 67 medium-format film body, 6×7 negative giving rich tonal depth and a slightly vintage character to the rendering"
+
+  # ── Lens specs ───────────────────────────────────────────────────────
+  lens:
+    LENS_85MM_F14:
+      sdxl:        "85mm f/1.4 lens, shallow depth of field, smooth bokeh"
+      illustrious: "85mm f/1.4, shallow_dof, smooth_bokeh"
+      flux:        "Shot on an 85mm f/1.4 lens, shallow depth of field with smooth, creamy bokeh"
+      chroma:      "85mm f/1.4 lens, shallow DoF, smooth bokeh"
+      flux2:       "Captured with an 85mm f/1.4 portrait lens, shallow depth of field, smooth creamy bokeh in the out-of-focus areas"
+    LENS_50MM_F18:
+      sdxl:        "50mm f/1.8 lens, natural human perspective"
+      illustrious: "50mm f/1.8, natural_perspective"
+      flux:        "Shot on a 50mm f/1.8 lens, the natural human perspective focal length"
+      chroma:      "50mm f/1.8 lens, natural perspective"
+      flux2:       "Captured with a 50mm f/1.8 prime, the natural human-eye perspective, mild depth-of-field separation"
+    LENS_35MM_F2:
+      sdxl:        "35mm f/2 lens, documentary perspective, slight context"
+      illustrious: "35mm f/2, documentary_framing"
+      flux:        "Shot on a 35mm f/2 lens, documentary-style framing with mild environmental context"
+      chroma:      "35mm f/2 lens, documentary framing"
+      flux2:       "Captured with a 35mm f/2 documentary prime, modest environmental context preserved around the subject"
+    LENS_135MM_F2:
+      sdxl:        "135mm f/2 lens, beauty portrait compression, very shallow DoF"
+      illustrious: "135mm f/2, telephoto_compression, shallow_dof"
+      flux:        "Shot on a 135mm f/2 telephoto lens, classic beauty portrait compression with very shallow depth of field"
+      chroma:      "135mm f/2 lens, beauty compression, shallow DoF"
+      flux2:       "Captured with a 135mm f/2 telephoto prime, classic beauty-portrait compression and very shallow depth-of-field separation"
+    LENS_24MM_F18:
+      sdxl:        "24mm f/1.8 wide angle lens, environmental context"
+      illustrious: "24mm wide_angle, environmental_context"
+      flux:        "Shot on a 24mm f/1.8 wide-angle lens, ample environmental context surrounding the subject"
+      chroma:      "24mm f/1.8 wide-angle, environmental context"
+      flux2:       "Captured with a 24mm f/1.8 wide-angle prime, the environment framing the subject prominently"
+    LENS_100MM_MACRO:
+      sdxl:        "100mm macro lens f/2.8, extreme close-up detail, shallow DoF"
+      illustrious: "100mm macro f/2.8, extreme_detail, close_up"
+      flux:        "Shot on a 100mm macro lens at f/2.8, extreme close-up rendering of skin, eyes, and surface detail with very shallow depth of field"
+      chroma:      "100mm macro lens f/2.8, extreme detail close-up, shallow DoF"
+      flux2:       "Captured with a 100mm f/2.8 macro lens, extreme close-up rendering of skin pore and eye detail, very shallow depth-of-field separation"
+    LENS_70_200_F28:
+      sdxl:        "70-200mm telephoto zoom f/2.8, classic editorial compression"
+      illustrious: "70_200mm telephoto, f/2.8, editorial_compression"
+      flux:        "Shot on a 70-200mm f/2.8 telephoto zoom, classic editorial compression isolating the subject against a softly blurred background"
+      chroma:      "70-200mm telephoto zoom f/2.8, editorial compression, soft background"
+      flux2:       "Captured with a 70-200mm f/2.8 telephoto zoom, classic editorial compression, the subject isolated against a softly blurred background"
+
+  # ── Film stocks ──────────────────────────────────────────────────────
+  film_stock:
+    FILM_PORTRA_400:
+      sdxl:        "Kodak Portra 400 colour science, fine film grain, warm skin tones"
+      illustrious: "kodak portra 400, film_grain, warm_skin_tones"
+      flux:        "Kodak Portra 400 colour science, fine film grain, slightly warm and flattering skin tones"
+      chroma:      "Kodak Portra 400 film, fine grain, warm skin tones"
+      flux2:       "Kodak Portra 400 colour science with very fine film grain, gently warm and flattering skin tones, slight halation in the highlights"
+    FILM_FUJI_PROVIA:
+      sdxl:        "Fujifilm Provia 100F colour, neutral cool palette, fine grain"
+      illustrious: "fuji_provia, neutral_cool_palette, fine_grain"
+      flux:        "Fujifilm Provia 100F colour science, neutral cool palette with fine grain"
+      chroma:      "Fujifilm Provia 100F film, neutral palette, fine grain"
+      flux2:       "Fujifilm Provia 100F colour palette, neutrally cool tonal balance and very fine film grain"
+    FILM_CINESTILL_800T:
+      sdxl:        "Cinestill 800T tungsten film, halation around lights, urban night look"
+      illustrious: "cinestill_800t, tungsten_balanced, halation"
+      flux:        "Cinestill 800T tungsten-balanced film, characteristic red halation around bright light sources, urban night look"
+      chroma:      "Cinestill 800T tungsten film, halation glow around lights"
+      flux2:       "Cinestill 800T tungsten-balanced film, characteristic red-orange halation glowing around the brightest light sources"
+    FILM_TRIX_400:
+      sdxl:        "Kodak Tri-X 400 black and white, classic grain, high contrast"
+      illustrious: "kodak_trix_400, black_and_white, classic_grain"
+      flux:        "Kodak Tri-X 400 black and white film, classic high-contrast monochrome with prominent grain"
+      chroma:      "Kodak Tri-X 400 B&W film, classic grain, high contrast"
+      flux2:       "Kodak Tri-X 400 monochrome film stock, classic prominent grain structure and high-contrast tonality"
+    FILM_DIGITAL_RAW:
+      sdxl:        "RAW digital photograph, clean files, neutral colour"
+      illustrious: "raw_photograph, digital, neutral_colour"
+      flux:        "Clean RAW digital photograph, neutral colour science with no film emulation"
+      chroma:      "RAW digital photograph, neutral colour, clean files"
+      flux2:       "Clean RAW digital photograph straight from the sensor, neutral colour science with no film emulation applied"
+    FILM_VELVIA_50:
+      sdxl:        "Fujifilm Velvia 50, saturated colour palette, fine grain, slide film"
+      illustrious: "fuji_velvia_50, saturated_colour, fine_grain"
+      flux:        "Fujifilm Velvia 50 slide film, distinctively saturated colour palette with very fine grain, rich greens and reds"
+      chroma:      "Fujifilm Velvia 50 slide film, saturated rich colour, fine grain"
+      flux2:       "Fujifilm Velvia 50 slide film stock, distinctively saturated colour palette with very fine grain, deep greens and rich reds"
+    FILM_KODAK_VISION3:
+      sdxl:        "Kodak Vision3 cinema film, cinematic colour grading, soft halation"
+      illustrious: "kodak_vision3, cinematic_colour, soft_halation"
+      flux:        "Kodak Vision3 cinema film stock, cinematic colour grading with soft halation in the highlights"
+      chroma:      "Kodak Vision3 cinema film, cinematic colour grade, soft halation"
+      flux2:       "Kodak Vision3 cinema film stock, cinematic colour grading with characteristic soft halation glowing around the brightest highlights"
+
+  # ── Art style references ─────────────────────────────────────────────
+  art_style:
+    ART_FINE_NUDE:
+      sdxl:        "fine art nude photography, gallery quality, sculptural composition"
+      illustrious: "fine_art_nude, gallery_quality, sculptural"
+      flux:        "Fine art nude photography in the tradition of gallery printmaking, with a sculptural composition emphasising form and tonal range"
+      chroma:      "fine art nude photograph, gallery quality, sculptural"
+      flux2:       "Fine art nude photography composition in the gallery-print tradition, sculptural figure study emphasising form, tonal range, and lighting over story"
+    ART_BOUDOIR_NOIR:
+      sdxl:        "boudoir noir photography, low key, intimate, vintage Hollywood"
+      illustrious: "boudoir_noir, low_key, intimate, vintage_hollywood"
+      flux:        "Boudoir noir photography, low-key intimate atmosphere with vintage Hollywood character"
+      chroma:      "boudoir noir, low-key intimate, vintage Hollywood feel"
+      flux2:       "Boudoir-noir photographic style, low-key intimate atmosphere, with vintage Hollywood character in the lighting, wardrobe, and tonal range"
+    ART_OLD_HOLLYWOOD:
+      sdxl:        "Old Hollywood glamour photography, polished, timeless, Helmut Newton-esque"
+      illustrious: "old_hollywood, glamour, polished, timeless"
+      flux:        "Old Hollywood glamour photography, polished and timeless, in the editorial tradition of Helmut Newton"
+      chroma:      "Old Hollywood glamour, polished, timeless, editorial"
+      flux2:       "Old Hollywood glamour photography style, polished and timeless presentation, in the high-editorial tradition of Helmut Newton"
+    ART_EDITORIAL_FASHION:
+      sdxl:        "editorial fashion photography, magazine spread, Vogue-esque, deliberate composition"
+      illustrious: "editorial_fashion, magazine_spread, vogue_style"
+      flux:        "Editorial fashion photography for a magazine spread, Vogue-esque deliberate composition and styling"
+      chroma:      "editorial fashion photography, magazine spread, Vogue-style"
+      flux2:       "Editorial fashion photography composition for a high-end magazine spread, Vogue-esque deliberate composition, considered styling and wardrobe choices"
+    ART_CLASSICAL:
+      sdxl:        "classical figure study, painterly composition, Renaissance-inspired"
+      illustrious: "classical_figure, painterly_composition, renaissance"
+      flux:        "Classical figure study composition, painterly arrangement reminiscent of Renaissance masters"
+      chroma:      "classical figure study, painterly, Renaissance composition"
+      flux2:       "Classical figure-study composition, painterly arrangement reminiscent of Renaissance masters, balanced light against deep tonal background"
+    ART_HELMUT_NEWTON:
+      sdxl:        "Helmut Newton style, high-fashion provocative editorial, hard light, urban cool"
+      illustrious: "helmut_newton_style, fashion_editorial, hard_light, provocative"
+      flux:        "Helmut Newton-esque high-fashion editorial style, provocative composition, hard directional light, urban-cool atmosphere"
+      chroma:      "Helmut Newton style, high-fashion editorial, provocative, hard light"
+      flux2:       "Helmut Newton-esque high-fashion editorial composition, provocative styling and pose, hard directional studio light, urban-cool atmosphere"
+    ART_HERB_RITTS_BW:
+      sdxl:        "Herb Ritts black and white style, sculptural figure, sun and shadow"
+      illustrious: "herb_ritts_style, black_and_white, sculptural, sun_shadow"
+      flux:        "Herb Ritts-esque black-and-white photography style, sculptural figure work, dramatic interplay of sun and shadow"
+      chroma:      "Herb Ritts B&W style, sculptural figure, sun and shadow"
+      flux2:       "Herb Ritts-esque black-and-white photography style, sculptural figure composition, dramatic interplay of hard sunlight and deep shadow"
+    ART_IRVING_PENN_MINIMALISM:
+      sdxl:        "Irving Penn style, minimalist composition, plain backdrop, formal portrait"
+      illustrious: "irving_penn_style, minimalist, plain_backdrop, formal_portrait"
+      flux:        "Irving Penn-esque minimalist style, formal portrait composition against a plain neutral backdrop, careful tonal control"
+      chroma:      "Irving Penn style, minimalist plain backdrop, formal portrait"
+      flux2:       "Irving Penn-esque minimalist composition, formal portrait against a plain neutral backdrop, careful tonal control and quiet authority"
+    # vocab_version 3 — explicit nude-photography aesthetic anchor.
+    # Pairs with NSFW_FULL_FRONTAL / NSFW_FULL_NUDE at T4_explicit
+    # to signal "this is artistic nude photography of an adult woman,
+    # not provocative cheesecake — the body is the composition".
+    ART_NUDE_PHOTOGRAPHY:
+      sdxl:        "artistic nude photography, fine-art nude, bare body study, sculptural figure work, gallery print"
+      illustrious: "artistic_nude_photography, fine_art_nude, bare_body_study, sculptural"
+      flux:        "Artistic nude photography in the fine-art tradition, the bare body composed as a sculptural figure study, gallery-print quality"
+      chroma:      "artistic nude photography, fine-art nude bare body study, sculptural figure work, gallery print"
+      flux2:       "Artistic nude photography in the fine-art tradition, the bare body composed as a sculptural figure study with controlled lighting and pose, gallery-print quality"
+
+  # ── Mood / aesthetic ─────────────────────────────────────────────────
+  mood:
+    MOOD_INTIMATE:
+      sdxl:        "intimate, contemplative, quiet, vulnerable"
+      pony:        "intimate, contemplative, quiet_mood"
+      illustrious: "intimate, contemplative, quiet"
+      flux:        "An intimate and contemplative mood, quiet and vulnerable in feel"
+      chroma:      "intimate contemplative mood, quiet, vulnerable"
+      flux2:       "An intimate and contemplative atmosphere, the subject feeling quiet and emotionally vulnerable, the viewer drawn close"
+    MOOD_CONFIDENT:
+      sdxl:        "confident, poised, self-assured, bold gaze"
+      pony:        "confident_pose, poised, self_assured, bold_gaze"
+      illustrious: "confident, poised, self_assured"
+      flux:        "A confident and poised mood, self-assured posture with a bold gaze toward the camera"
+      chroma:      "confident poised mood, self-assured, bold gaze"
+      flux2:       "A confident and poised atmosphere, self-assured posture and a bold direct gaze toward the camera"
+    MOOD_PLAYFUL:
+      sdxl:        "playful, joyful, light-hearted, candid"
+      pony:        "playful_mood, joyful, light_hearted"
+      illustrious: "playful, joyful, light_hearted"
+      flux:        "A playful and joyful mood, light-hearted and candid in feel"
+      chroma:      "playful joyful mood, light-hearted, candid"
+      flux2:       "A playful and joyful atmosphere, light-hearted and candid in feel, captured in a slightly informal moment"
+    MOOD_PENSIVE:
+      sdxl:        "pensive, thoughtful, melancholic, soft gaze away from camera"
+      pony:        "pensive, thoughtful, looking_away"
+      illustrious: "pensive, thoughtful, melancholic"
+      flux:        "A pensive and thoughtful mood, slightly melancholic, with a soft gaze drifting away from the camera"
+      chroma:      "pensive thoughtful mood, slight melancholy, soft gaze"
+      flux2:       "A pensive and thoughtful atmosphere with a touch of melancholy, soft unfocused gaze drifting away from the camera"
+    MOOD_DEFIANT:
+      sdxl:        "defiant, intense, direct gaze, strong posture"
+      pony:        "defiant, intense_gaze, strong_pose"
+      illustrious: "defiant, intense, strong_pose"
+      flux:        "A defiant and intense mood, direct unflinching gaze and strong upright posture"
+      chroma:      "defiant intense mood, direct gaze, strong posture"
+      flux2:       "A defiant and intense atmosphere, direct unflinching gaze, strong upright posture, the subject confronting the viewer"
+    MOOD_SENSUAL:
+      sdxl:        "sensual, slow, languid, soft gaze, intimate atmosphere"
+      pony:        "sensual_pose, languid, soft_gaze, intimate"
+      illustrious: "sensual, languid, soft_gaze, intimate"
+      flux:        "A sensual and languid mood, slow softness in posture and gaze, deeply intimate atmosphere"
+      chroma:      "sensual languid mood, slow softness, intimate atmosphere"
+      flux2:       "A sensual and languid atmosphere, slow softness in posture and gaze, deeply intimate quiet between subject and viewer"
+    MOOD_SERENE:
+      sdxl:        "serene, calm, quiet, balanced, peaceful expression"
+      pony:        "serene_pose, calm, quiet_mood, peaceful"
+      illustrious: "serene, calm, quiet_mood, peaceful"
+      flux:        "A serene and calm mood, balanced and peaceful in expression, quiet stillness throughout the scene"
+      chroma:      "serene calm mood, balanced, peaceful expression"
+      flux2:       "A serene and calm atmosphere, balanced peaceful expression, quiet stillness suffusing the entire scene"
+    MOOD_MELANCHOLIC:
+      sdxl:        "melancholic, wistful, distant gaze, quiet sadness"
+      pony:        "melancholic, wistful, distant_gaze, quiet_sadness"
+      illustrious: "melancholic, wistful, distant_gaze"
+      flux:        "A melancholic and wistful mood, gaze drifting away into the middle distance, quiet sadness underneath the composure"
+      chroma:      "melancholic wistful mood, distant gaze, quiet sadness"
+      flux2:       "A melancholic and wistful atmosphere, the gaze drifting away into the middle distance, a quiet sadness humming underneath the composure"
+
+# ── NSFW / adult vocabulary (tier-gated) ─────────────────────────────
+# Concepts gated by ``tier_min:``. The canonicalizer drops a concept
+# when the active content_level is below the gate. T4 explicit-act
+# vocabulary is intentionally NOT shipped in this initial release —
+# it lives in a Phase 4-bis follow-up after Phase 5 model refresh.
+nsfw:
+  anatomy:
+    NSFW_BREAST_NATURAL:
+      tier_min: T3_artnude
+      phrasing:
+        sdxl:        "natural breasts, soft contour, anatomical accuracy"
+        pony:        "natural_breasts, anatomically_correct"
+        illustrious: "natural breasts, anatomically_correct"
+        flux:        "Natural breast contour with anatomically accurate proportions"
+        chroma:      "natural breasts, soft contour, anatomical accuracy"
+        flux2:       "Natural breast contour with anatomically accurate proportion and weight"
+    NSFW_HIPS_THIGHS:
+      tier_min: T3_artnude
+      phrasing:
+        sdxl:        "natural hip and thigh contour, anatomically correct"
+        pony:        "natural_hips, natural_thighs, anatomically_correct"
+        illustrious: "natural_hips, natural_thighs"
+        flux:        "Natural hip and thigh contour, anatomically correct proportions"
+        chroma:      "natural hip and thigh contour, anatomically correct"
+        flux2:       "Natural hip and thigh contour with anatomically correct proportion"
+    NSFW_GLUTES:
+      tier_min: T3_artnude
+      phrasing:
+        sdxl:        "natural glute contour, anatomically correct"
+        pony:        "natural_glutes, anatomically_correct"
+        illustrious: "natural glutes, anatomically_correct"
+        flux:        "Natural glute contour, anatomically correct proportions"
+        chroma:      "natural glute contour, anatomically correct"
+        flux2:       "Natural glute contour with anatomically correct proportion"
+    # Phase 4-bis-extension (vocab_version 3) — explicit anatomy tags
+    # for T4_explicit. The Phase 4a anatomy tags above are tasteful
+    # area-references (visible at T3); these are the explicit-detail
+    # tags the LLM picks at T4 to signal "this anatomy is rendered
+    # in clear detail, not just suggested".
+    NSFW_NIPPLES_VISIBLE:
+      tier_min: T4_explicit
+      phrasing:
+        sdxl:        "bare breasts with visible nipples and natural areolas, anatomically correct"
+        pony:        "topless, bare_breasts, visible_nipples, natural_areola, nude"
+        illustrious: "bare_breasts, visible_nipples, natural_areola, anatomically_correct"
+        flux:        "Bare breasts with visible nipples and natural areolas, rendered with anatomical accuracy and natural skin tone"
+        chroma:      "bare breasts with visible nipples and natural areolas, anatomically correct, natural skin tone"
+        flux2:       "Bare breasts visible to the camera with clearly rendered nipples and natural areolas, anatomically correct proportion, natural skin tone with subtle subsurface scattering"
+    NSFW_VULVA_VISIBLE:
+      tier_min: T4_explicit
+      phrasing:
+        sdxl:        "visible vulva and natural labia, anatomically correct, fine-art nude framing"
+        pony:        "pussy, vulva, natural_labia, nude, fully_nude, anatomically_correct"
+        illustrious: "visible_vulva, natural_labia, nude, anatomically_correct"
+        flux:        "Vulva and natural labia visible to the camera, anatomically correct, fine-art nude framing with tasteful composition"
+        chroma:      "vulva and natural labia visible, anatomically correct, fine-art nude framing"
+        flux2:       "Vulva and natural labia visible to the camera with anatomically correct rendering, fine-art nude framing, tasteful compositional control over the lighting and pose"
+    NSFW_FULL_FRONTAL:
+      tier_min: T4_explicit
+      phrasing:
+        sdxl:        "full frontal nude, complete nudity, breasts and vulva visible, anatomically correct"
+        pony:        "full_frontal, complete_nude, fully_nude, nude, breasts_visible, pussy_visible, anatomically_correct"
+        illustrious: "full_frontal_nude, complete_nudity, breasts_visible, vulva_visible, anatomically_correct"
+        flux:        "Full frontal nude with complete nudity rendered for the camera — bare breasts and visible vulva, anatomically correct, fine-art framing"
+        chroma:      "full frontal nude, complete nudity, bare breasts and visible vulva, anatomically correct, fine-art framing"
+        flux2:       "Full-frontal nude composition with complete nudity rendered for the camera — bare breasts with visible nipples and visible vulva, anatomically correct proportion, fine-art framing with tasteful lighting"
+    NSFW_FULL_NUDE:
+      tier_min: T4_explicit
+      phrasing:
+        sdxl:        "fully nude, complete nudity, bare body, no clothing, anatomically correct"
+        pony:        "completely_nude, fully_nude, nude, no_clothing, anatomically_correct"
+        illustrious: "fully_nude, complete_nudity, no_clothing, anatomically_correct"
+        flux:        "Fully nude with complete nudity, no clothing or drapery, the subject's bare body rendered with anatomical accuracy"
+        chroma:      "fully nude, complete nudity, no clothing, bare body anatomically correct"
+        flux2:       "Fully nude composition with complete nudity, no clothing or drapery anywhere on the subject, the bare body rendered with anatomically correct proportions and natural skin tones"
+    NSFW_BARE_CHEST:
+      tier_min: T4_explicit
+      phrasing:
+        sdxl:        "topless, bare chest with breasts and nipples visible, anatomically correct"
+        pony:        "topless, bare_chest, breasts_visible, nipples_visible, anatomically_correct"
+        illustrious: "topless, bare_chest, breasts_visible, anatomically_correct"
+        flux:        "Topless with bare chest exposed, breasts and nipples visible, anatomically correct rendering"
+        chroma:      "topless, bare chest, breasts and nipples visible, anatomically correct"
+        flux2:       "Topless framing with bare chest exposed, breasts and nipples clearly visible, anatomically correct proportion, natural skin tone with subsurface scattering"
+
+  posture:
+    NSFW_RECLINED_NUDE:
+      tier_min: T3_artnude
+      phrasing:
+        sdxl:        "reclining nude pose, classical figure study composition"
+        pony:        "reclining_nude, classical_pose, figure_study"
+        illustrious: "reclining_nude, classical_figure_study"
+        flux:        "Reclining nude pose, classical figure study composition"
+        chroma:      "reclining nude pose, classical figure study"
+        flux2:       "Reclining nude pose, classical figure-study composition with the subject lying along a horizontal axis"
+    NSFW_KNEELING_NUDE:
+      tier_min: T3_artnude
+      phrasing:
+        sdxl:        "kneeling nude pose, classical figure study"
+        pony:        "kneeling_nude, classical_pose, figure_study"
+        illustrious: "kneeling_nude, classical_figure_study"
+        flux:        "Kneeling nude pose, classical figure study composition"
+        chroma:      "kneeling nude pose, classical figure study"
+        flux2:       "Kneeling nude pose, classical figure-study composition with the subject vertically oriented at the kneeling axis"
+    NSFW_INTIMATE:
+      tier_min: T4_explicit
+      phrasing:
+        sdxl:        "intimate explicit pose, anatomically correct"
+        pony:        "intimate_pose, explicit, anatomically_correct"
+        illustrious: "intimate_pose, explicit, anatomically_correct"
+        flux:        "Intimate explicit pose, anatomically correct proportions, tasteful framing"
+        chroma:      "intimate explicit pose, anatomically correct, tasteful framing"
+        flux2:       "Intimate explicit pose, anatomically correct proportions, tasteful framing of the subject"
+
+  # Phase 4-bis (vocab_version 2) — T4 explicit-act vocabulary.
+  # Tier-gated to T4_explicit; canonicalizer drops below tier. Pony's
+  # booru_tags field already carries explicit-act vocabulary natively
+  # via danbooru tags, but we provide phrasing here for cross-family
+  # consistency (sibling Pony realism finetunes can opt into the
+  # structured tag if the LLM emits one). All phrasings are
+  # anatomically focused and tastefully worded — the explicit content
+  # is communicated, not editorialised.
+  act:
+    NSFW_T4_EMBRACE_NUDE:
+      tier_min: T4_explicit
+      phrasing:
+        sdxl:        "explicit nude embrace, anatomically correct, intimate physical contact"
+        pony:        "nude_embrace, explicit, intimate_contact, anatomically_correct"
+        illustrious: "nude_embrace, explicit, intimate_contact"
+        flux:        "An explicit nude embrace between adult partners, anatomically correct, intimate physical contact rendered tastefully"
+        chroma:      "explicit nude embrace, intimate physical contact, anatomically correct"
+        flux2:       "An explicit nude embrace between two adult subjects, anatomically correct proportions and intimate physical contact rendered with tasteful but unambiguous framing"
+    NSFW_T4_KISS_PASSIONATE:
+      tier_min: T4_explicit
+      phrasing:
+        sdxl:        "passionate kiss, intimate close embrace, explicit adult encounter"
+        pony:        "passionate_kiss, intimate_embrace, explicit_encounter"
+        illustrious: "passionate_kiss, intimate_embrace, explicit"
+        flux:        "A passionate adult kiss in close intimate embrace, the bodies pressed together in an explicit but tender encounter"
+        chroma:      "passionate adult kiss, close intimate embrace, explicit encounter"
+        flux2:       "A passionate adult kiss in close intimate embrace, the two subjects' bodies pressed together in an explicit but tender encounter"
+    NSFW_T4_SOLO_TOUCH:
+      tier_min: T4_explicit
+      phrasing:
+        sdxl:        "solo intimate self-touch, explicit, anatomically correct"
+        pony:        "solo_self_touch, explicit, intimate, anatomically_correct"
+        illustrious: "solo_self_touch, explicit, intimate"
+        flux:        "Solo intimate self-touch by an adult subject, explicit and anatomically correct, contemplative atmosphere"
+        chroma:      "solo intimate self-touch, explicit, anatomically correct, contemplative"
+        flux2:       "Solo intimate self-touch by an adult subject, explicit and anatomically correct, contemplative atmosphere with quiet introspection"
+    NSFW_T4_PARTNERED_INTIMATE:
+      tier_min: T4_explicit
+      phrasing:
+        sdxl:        "partnered intimate explicit encounter, two adults, anatomically correct"
+        pony:        "partnered_intimate, explicit, two_adults, anatomically_correct"
+        illustrious: "partnered_intimate, explicit, two_adults"
+        flux:        "A partnered intimate encounter between two adult subjects, explicit and anatomically correct, tender atmosphere"
+        chroma:      "partnered intimate explicit encounter, two adults, anatomically correct, tender"
+        flux2:       "A partnered intimate encounter between two adult subjects, explicit and anatomically correct, tender atmosphere with mutual attention"
+    NSFW_T4_AFTERGLOW:
+      tier_min: T4_explicit
+      phrasing:
+        sdxl:        "post-intimate afterglow, languid bodies entwined, explicit nude tableau"
+        pony:        "afterglow, languid_pose, entwined_bodies, post_intimate_nude"
+        illustrious: "afterglow, languid, entwined_bodies, post_intimate"
+        flux:        "A post-intimate afterglow scene, languid adult bodies entwined together, explicit nude tableau with a quiet contemplative mood"
+        chroma:      "post-intimate afterglow, languid entwined bodies, explicit nude, quiet mood"
+        flux2:       "A post-intimate afterglow scene, languid adult bodies entwined together, explicit nude tableau with a quiet contemplative atmosphere settling over the room"

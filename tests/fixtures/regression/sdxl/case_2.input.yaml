@@ -1,0 +1,20 @@
+description: "T2 — close-up window light, square framing, no audience hint"
+family: sdxl
+content_level: T2_implied
+audience: null
+character:
+  base_prompt: "mira, 28yo, raven black hair, green eyes, slender frame"
+  negative_prompt: "extra fingers, deformed hands"
+scene:
+  pose: "seated"
+  camera: "close-up portrait"
+  camera_angle: "eye-level"
+  lighting: "soft window light, north-facing"
+  environment_detail: "minimalist loft interior"
+  composition_intent: "close-up"
+  camera_spec: "50mm f/1.8, kodak portra 400 emulation"
+  clothing: "open silk robe, intimate framing"
+style_profile:
+  base_style_keywords: "editorial, film grain, muted palette"
+  base_negative_prompt: "plastic skin, oversharpened"
+trigger_words: []
