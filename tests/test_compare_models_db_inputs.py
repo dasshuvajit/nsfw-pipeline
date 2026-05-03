@@ -351,3 +351,95 @@ def test_argparse_rejects_two_input_modes_at_once():
     )
     assert result.returncode != 0
     assert "not allowed with argument" in result.stderr
+
+
+# ── F3: --llm filter coverage ───────────────────────────────────────
+
+
+def _seed_two_llms(db_path: Path) -> None:
+    """Seed one series, one scene, two prompts under different llm_ids."""
+    conn = sqlite3.connect(str(db_path))
+    conn.execute(
+        "INSERT INTO series (id, mode, content_level, style_profile_id, "
+        "theme, target_count, status) VALUES "
+        "('ser_two', 'character', 'T2_implied', 'golden_hour_natural', "
+        "'test', 1, 'planned')"
+    )
+    conn.execute(
+        "INSERT INTO scenes (id, series_id, variation_axis, aspect_ratio, "
+        "content_level) VALUES "
+        "('sc_two_000', 'ser_two', 'pose', 'portrait_23', 'T2_implied')"
+    )
+    for i, llm_id in enumerate(("cydonia_24b_v43", "magnum_v4_22b")):
+        conn.execute(
+            "INSERT INTO prompts (id, series_id, scene_id, model_id, llm_id, "
+            "prompt_text, negative_prompt, prompt_hash, content_level, "
+            "status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'T2_implied', 'pending')",
+            (f"p_{i}", "ser_two", "sc_two_000", "lustify_v7", llm_id,
+             f"prompt from {llm_id}", "neg", f"hash_{i}"),
+        )
+    conn.commit()
+    conn.close()
+
+
+class TestLlmFilter:
+    """Dedicated coverage for the compare_models --llm filter (F3).
+
+    With two LLMs' prompts on the same (series, model), --llm should
+    return only the one matching set.
+    """
+
+    def test_llm_filter_returns_only_matching_rows(
+        self, compare_module, fresh_db,
+    ):
+        _seed_two_llms(fresh_db)
+        out = compare_module._resolve_db_prompts_per_model(
+            db_path=fresh_db,
+            series_id="ser_two",
+            scene_id=None,
+            model_ids=["lustify_v7"],
+            llm_id="cydonia_24b_v43",
+        )
+        assert len(out["lustify_v7"]) == 1
+        assert out["lustify_v7"][0]["prompt_text"] == "prompt from cydonia_24b_v43"
+
+    def test_llm_filter_other_llm(
+        self, compare_module, fresh_db,
+    ):
+        _seed_two_llms(fresh_db)
+        out = compare_module._resolve_db_prompts_per_model(
+            db_path=fresh_db,
+            series_id="ser_two",
+            scene_id=None,
+            model_ids=["lustify_v7"],
+            llm_id="magnum_v4_22b",
+        )
+        assert len(out["lustify_v7"]) == 1
+        assert out["lustify_v7"][0]["prompt_text"] == "prompt from magnum_v4_22b"
+
+    def test_no_llm_filter_returns_all(
+        self, compare_module, fresh_db,
+    ):
+        _seed_two_llms(fresh_db)
+        out = compare_module._resolve_db_prompts_per_model(
+            db_path=fresh_db,
+            series_id="ser_two",
+            scene_id=None,
+            model_ids=["lustify_v7"],
+            llm_id=None,
+        )
+        # 2 prompts (one per LLM) when filter omitted.
+        assert len(out["lustify_v7"]) == 2
+
+    def test_scene_id_path_with_llm_filter(
+        self, compare_module, fresh_db,
+    ):
+        _seed_two_llms(fresh_db)
+        out = compare_module._resolve_db_prompts_per_model(
+            db_path=fresh_db,
+            series_id=None,
+            scene_id="sc_two_000",
+            model_ids=["lustify_v7"],
+            llm_id="cydonia_24b_v43",
+        )
+        assert len(out["lustify_v7"]) == 1

@@ -574,3 +574,99 @@ def test_main_scene_id_path_resolves_series_and_filters(
     call = fake_engine.run_phase_b.call_args
     assert call.kwargs["series_id"] == "ser_seed"   # resolved from scene
     assert call.kwargs["scene_ids"] == ["ser_seed_sc_000"]
+
+
+# ── F3: --llm flag coverage ─────────────────────────────────────────
+
+
+class TestLlmFlag:
+    """Dedicated coverage for the render_prompts --llm flag (F3).
+
+    Verifies strict-ambiguity check (plan §3.5b) when DB has prompts
+    and --llm is omitted, plus filter behaviour when --llm is specified.
+    """
+
+    def _common(self, render_module, fresh_db, monkeypatch, fake_engine):
+        monkeypatch.setattr(
+            render_module, "_load_config",
+            lambda: {
+                "pipeline": {"default_model_id": "lustify_v7"},
+                "execution": {"mode": "manual"},
+                "compliance": {"commercial_mode": False},
+            },
+        )
+        monkeypatch.setattr(
+            render_module, "PipelineEngine", lambda **kw: fake_engine,
+        )
+
+    def test_strict_ambiguity_omitted_llm_with_seeded_prompts_exits_2(
+        self, render_module, fresh_db, capsys, monkeypatch,
+    ):
+        # Seed prompts with the default cydonia_24b_v43 llm_id (the
+        # _seed_series_with_prompts helper does this).
+        _seed_series_with_prompts(fresh_db, models=["lustify_v7"])
+
+        fake_engine = MagicMock()
+        fake_engine.db_path = fresh_db
+        self._common(render_module, fresh_db, monkeypatch, fake_engine)
+
+        # Omit --llm — should hit the strict-ambiguity check.
+        monkeypatch.setattr(
+            sys, "argv",
+            _argv("--series-id", "ser_seed", "--models", "lustify_v7"),
+        )
+        rc = render_module.main()
+        assert rc == 2
+        captured = capsys.readouterr()
+        assert "has prompts from LLM(s)" in captured.err
+        assert "cydonia_24b_v43" in captured.err
+        assert "Specify --llm" in captured.err
+
+    def test_invalid_llm_exits_2(
+        self, render_module, fresh_db, capsys, monkeypatch,
+    ):
+        _seed_series_with_prompts(fresh_db, models=["lustify_v7"])
+        fake_engine = MagicMock()
+        fake_engine.db_path = fresh_db
+        self._common(render_module, fresh_db, monkeypatch, fake_engine)
+        monkeypatch.setattr(
+            sys, "argv",
+            _argv(
+                "--series-id", "ser_seed",
+                "--models", "lustify_v7",
+                "--llm", "not_a_real_llm_id",
+            ),
+        )
+        rc = render_module.main()
+        assert rc == 2
+        captured = capsys.readouterr()
+        assert "not_a_real_llm_id" in captured.err
+        assert "Available LLMs" in captured.err
+
+    def test_valid_llm_threads_to_run_phase_b(
+        self, render_module, fresh_db, monkeypatch,
+    ):
+        _seed_series_with_prompts(fresh_db, models=["lustify_v7"])
+        fake_engine = MagicMock()
+        fake_engine.db_path = fresh_db
+        fake_engine.run_phase_b.return_value = _canned_phase_b_result(
+            "lustify_v7"
+        )
+        fake_engine.run_phase_c.return_value = _canned_phase_c_result(
+            "lustify_v7"
+        )
+        self._common(render_module, fresh_db, monkeypatch, fake_engine)
+
+        monkeypatch.setattr(
+            sys, "argv",
+            _argv(
+                "--series-id", "ser_seed",
+                "--models", "lustify_v7",
+                "--llm", "cydonia_24b_v43",
+            ),
+        )
+        rc = render_module.main()
+        assert rc == 0
+        # cli_llm_override threaded to run_phase_b.
+        _, kwargs = fake_engine.run_phase_b.call_args
+        assert kwargs["cli_llm_override"] == "cydonia_24b_v43"

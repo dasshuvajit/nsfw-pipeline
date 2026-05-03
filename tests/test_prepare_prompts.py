@@ -384,3 +384,101 @@ def test_main_passes_regen_flags_through(
     assert kwargs["series_id_existing"] == "ser_existing"
     assert kwargs["regen_facets"] == ["sdxl", "pony"]
     assert kwargs["regen_prompts"] == ["lustify_v7"]
+
+
+# ── F3: --llm flag coverage ─────────────────────────────────────────
+
+
+class TestLlmFlag:
+    """Dedicated coverage for the --llm flag (F3).
+
+    Verifies the CLI threads cli_llm_override into engine.run_phase_a
+    on the happy path, and exits with helpful error on invalid id.
+    """
+
+    def _common_monkeypatch(self, prepare_module, monkeypatch, fake_engine):
+        monkeypatch.setattr(
+            prepare_module, "_load_config",
+            lambda: {
+                "pipeline": {
+                    "default_model_id": "lustify_v7",
+                    "default_style_profile_id": "golden_hour_natural",
+                },
+                "execution": {"mode": "manual"},
+                "compliance": {"commercial_mode": False},
+            },
+        )
+        monkeypatch.setattr(
+            prepare_module, "PipelineEngine", lambda **kw: fake_engine,
+        )
+        monkeypatch.setattr(
+            prepare_module, "_load_style_profile",
+            lambda db, sid: {"id": sid, "base_negative_prompt": ""},
+        )
+        monkeypatch.setattr(
+            prepare_module, "build_context",
+            lambda **kw: MagicMock(execution_mode="manual"),
+        )
+        monkeypatch.setattr(
+            prepare_module, "ContentLevelLoader",
+            lambda db: MagicMock(load=lambda lvl: MagicMock()),
+        )
+
+    def test_valid_llm_threads_cli_override_into_run_phase_a(
+        self, prepare_module, monkeypatch,
+    ):
+        fake_engine = MagicMock()
+        fake_engine.db_path = Path("/tmp/_test.db")
+        fake_engine.execution_mode = "manual"
+        fake_engine._commercial_mode = False
+        fake_engine.mode_selector.select.return_value = "character"
+        fake_engine.run_phase_a.return_value = _make_canned_result()
+        self._common_monkeypatch(prepare_module, monkeypatch, fake_engine)
+        monkeypatch.setattr(
+            sys, "argv",
+            _argv("--models", "lustify_v7", "--llm", "cydonia_24b_v43"),
+        )
+
+        rc = prepare_module.main()
+        assert rc == 0
+        # run_phase_a should have received cli_llm_override.
+        _, kwargs = fake_engine.run_phase_a.call_args
+        assert kwargs["cli_llm_override"] == "cydonia_24b_v43"
+
+    def test_invalid_llm_exits_2_with_help(
+        self, prepare_module, monkeypatch, capsys,
+    ):
+        fake_engine = MagicMock()
+        self._common_monkeypatch(prepare_module, monkeypatch, fake_engine)
+        monkeypatch.setattr(
+            sys, "argv",
+            _argv("--models", "lustify_v7", "--llm", "not_a_real_llm_id"),
+        )
+
+        rc = prepare_module.main()
+        assert rc == 2
+        captured = capsys.readouterr()
+        assert "not_a_real_llm_id" in captured.err
+        assert "Available LLMs" in captured.err
+        # Engine never invoked when --llm fails validation.
+        fake_engine.run_phase_a.assert_not_called()
+
+    def test_no_llm_threads_none_to_run_phase_a(
+        self, prepare_module, monkeypatch,
+    ):
+        """--llm omitted → cli_llm_override=None → routing/default chain."""
+        fake_engine = MagicMock()
+        fake_engine.db_path = Path("/tmp/_test.db")
+        fake_engine.execution_mode = "manual"
+        fake_engine._commercial_mode = False
+        fake_engine.mode_selector.select.return_value = "character"
+        fake_engine.run_phase_a.return_value = _make_canned_result()
+        self._common_monkeypatch(prepare_module, monkeypatch, fake_engine)
+        monkeypatch.setattr(
+            sys, "argv", _argv("--models", "lustify_v7"),
+        )
+
+        rc = prepare_module.main()
+        assert rc == 0
+        _, kwargs = fake_engine.run_phase_a.call_args
+        assert kwargs["cli_llm_override"] is None
