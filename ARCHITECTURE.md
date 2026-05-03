@@ -3,13 +3,25 @@
 > **Platform:** Mac M4 Pro, 48 GB unified RAM  
 > **Target:** DeviantArt, Patreon  
 > **Stack:** Python 3.11, SQLite, ComfyUI, Ollama 0.5+
-> **Last sync:** 2026-05-03 (Multi-LLM upgrade — `LLMRegistryLoader` +
-> `LLMRouter` + `cli_llm_override` plumbed through `run_cycle` /
+> **Last sync:** 2026-05-04 (Multi-LLM cleanup + quality lifts — F1-F4
+> + Q6-Q11 shipped. Per-role routing now fires for every agent (not
+> just facet generator); `OllamaClient` is a pure transport with
+> per-call model required; constrained decoding wired for Scene/
+> Metadata/Character generators; Pattern A persona + assistant-prefill
+> via `/api/chat`; booru-tag persona for Pony/Illustrious; registry-
+> aware fallback LLM with second-chance retry; vocabulary v4 added
+> `realism.angle` + `realism.framing` namespaces; tier-stratified
+> few-shot examples — every family ships ≥3 T2+T4-covering examples.
+> 1176 tests passing. See PROJECT_GUIDE.md §16 for the multi-LLM
+> workflow.)
+>
+> Prior sync: 2026-05-03 (Multi-LLM upgrade foundation — `LLMRegistryLoader`
+> + `LLMRouter` + `cli_llm_override` plumbed through `run_cycle` /
 > `run_phase_a` / `run_phase_b`. Schema bumped: `scene_facets` PK
 > extends to `(scene_id, family, llm_id)`; `prompts` UNIQUE extends
 > to `(scene_id, model_id, llm_id)`. Output paths gain `<llm_id>`
 > segment so two LLMs A/B-rendering the same series don't overwrite
-> each other. See PROJECT_GUIDE.md §16 for the workflow.)
+> each other.)
 >
 > Prior sync: 2026-05-02 (NSFW-output-path fix — `SceneFacetGenerator`
 > now sees `content_level` + tier-specific `llm_directive` from
