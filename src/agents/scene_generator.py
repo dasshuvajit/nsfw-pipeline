@@ -44,7 +44,7 @@ import logging
 from pydantic import ValidationError
 
 from src.agents.llm_client import OllamaClient, OllamaJSONParseError
-from src.agents.schemas import Scene
+from src.agents.schemas import Scene, SceneList
 
 logger = logging.getLogger(__name__)
 
@@ -237,6 +237,7 @@ class SceneGenerator:
                 user_prompt,
                 temperature=temperature if temperature is not None else self.TEMPERATURE,
                 num_predict=8192,
+                schema=SceneList,
                 model=model,
             )
         except OllamaJSONParseError as exc:

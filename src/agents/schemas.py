@@ -503,3 +503,75 @@ SCENE_FACET_SCHEMA_BY_STYLE: dict[str, type[BaseModel]] = {
     "flux_natural":     SceneFacetFluxNatural,
     "flux2_prose":      SceneFacetFlux2,
 }
+
+
+# ── Metadata (output of MetadataGenerator) ──────────────────────────
+
+
+class MetadataSchema(BaseModel):
+    """LLM-generated post metadata for a finished image set.
+
+    Bound to ``MetadataGenerator.REQUIRED_FIELDS = {title, description,
+    tags}``. Constrained decoding via Ollama ``format:`` enforces the
+    shape at the wire; Pydantic post-validation catches per-field
+    constraints (length bands + tag count + non-empty strings).
+
+    The bands are deliberately wide so the LLM has room — the goal is
+    to reject obvious failures (single-word title, empty description,
+    no tags) without rejecting reasonable creative output.
+    """
+
+    model_config = ConfigDict(extra="allow", str_strip_whitespace=True)
+
+    title: str = Field(min_length=4, max_length=120)
+    description: str = Field(min_length=20, max_length=600)
+    tags: list[str] = Field(min_length=3, max_length=25)
+
+    @field_validator("tags")
+    @classmethod
+    def _filter_blank_tags(cls, v: list[str]) -> list[str]:
+        cleaned = [t.strip() for t in v if isinstance(t, str) and t.strip()]
+        if len(cleaned) < 3:
+            raise ValueError(
+                "tags must contain at least 3 non-empty strings after "
+                "stripping"
+            )
+        return cleaned
+
+
+# ── Character bible (output of CharacterCreator) ────────────────────
+
+
+class CharacterSchema(BaseModel):
+    """LLM-generated character identity (the "bible").
+
+    Bound to ``CharacterCreator.REQUIRED_FIELDS`` — fields that
+    bootstrap_character.py needs to write a valid ``identity.json``.
+    Additional bootstrap-only fields (``locked_features``,
+    ``allowed_shift_axes``, ``reference_image_path``) are added by the
+    CLI tool, not the LLM.
+
+    All face / hair / body fields require min_length=8 to reject
+    one-word descriptors like "pretty" or "blonde" — see ARCHITECTURE.md
+    Section 12 (be specific and visual).
+    """
+
+    model_config = ConfigDict(extra="allow", str_strip_whitespace=True)
+
+    gender: str = Field(min_length=1)  # LLM may emit non-binary descriptors; trust it
+    age_appearance: str = Field(min_length=4, max_length=60)
+    face: str = Field(min_length=8, max_length=300)
+    hair: str = Field(min_length=8, max_length=200)
+    body_type: str = Field(min_length=4, max_length=120)
+    distinguishing_features: str = Field(min_length=4, max_length=200)
+    vibe: str = Field(min_length=4, max_length=80)
+
+    @field_validator("gender")
+    @classmethod
+    def _normalise_gender(cls, v: str) -> str:
+        # Lowercase; trim; reject empties.
+        v = v.strip().lower()
+        if not v:
+            raise ValueError("gender must be a non-empty string")
+        return v
+

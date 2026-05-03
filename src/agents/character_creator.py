@@ -21,6 +21,7 @@ from __future__ import annotations
 import logging
 
 from src.agents.llm_client import OllamaClient, OllamaJSONParseError
+from src.agents.schemas import CharacterSchema
 
 logger = logging.getLogger(__name__)
 
@@ -176,6 +177,7 @@ class CharacterCreator:
                 user_prompt,
                 temperature=self.TEMPERATURE,
                 num_predict=2048,
+                schema=CharacterSchema,
                 model=model,
             )
         except OllamaJSONParseError as exc:

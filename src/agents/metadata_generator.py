@@ -23,6 +23,7 @@ from __future__ import annotations
 import logging
 
 from src.agents.llm_client import OllamaClient, OllamaJSONParseError
+from src.agents.schemas import MetadataSchema
 
 logger = logging.getLogger(__name__)
 
@@ -216,6 +217,7 @@ class MetadataGenerator:
                 user_prompt,
                 temperature=temperature if temperature is not None else self.TEMPERATURE,
                 num_predict=2048,
+                schema=MetadataSchema,
                 model=model,
             )
         except OllamaJSONParseError as exc:
