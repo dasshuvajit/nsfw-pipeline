@@ -208,8 +208,8 @@ def test_main_unique_collision_returns_2_with_hint(
     fake_engine._commercial_mode = False
     fake_engine.mode_selector.select.return_value = "character"
     fake_engine.run_phase_a.side_effect = sqlite3.IntegrityError(
-        "UNIQUE constraint failed: prompts.scene_id, prompts.model_id, "
-        "prompts.llm_id"
+        "UNIQUE constraint failed: prompts.scene_id, prompts.target_kind, "
+        "prompts.model_id, prompts.llm_id"
     )
 
     monkeypatch.setattr(

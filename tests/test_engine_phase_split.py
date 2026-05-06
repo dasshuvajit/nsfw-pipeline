@@ -23,7 +23,7 @@ What this covers (per the plan + Phase 3 task list):
   * `run_phase_b` missing prompts raises with helpful message.
   * `run_phase_b` missing series raises.
   * `_load_series_for_retarget` round-trips llm_series_plan JSON.
-  * `_delete_prompts_for_model` returns count.
+  * `_delete_prompts_for_target` returns count.
 """
 
 from __future__ import annotations
@@ -518,7 +518,7 @@ def test_load_series_for_retarget_round_trips_llm_series_plan(
     assert len(loaded_scenes) == 2
 
 
-def test_delete_prompts_for_model_returns_count(engine, fresh_db):
+def test_delete_prompts_for_target_returns_count(engine, fresh_db):
     plan = _series_plan()
     scenes = _scenes(3)
     _patch_mode_with_canned_data(engine, plan, scenes)
@@ -532,19 +532,21 @@ def test_delete_prompts_for_model_returns_count(engine, fresh_db):
             style_profile_id="golden_hour_natural",
         )
 
-    n = engine._delete_prompts_for_model(
+    n = engine._delete_prompts_for_target(
         result["series_id"], "lustify_v7", engine._default_llm_id,
+        target_kind="model",
     )
     assert n == 3
 
     # Second delete is a no-op.
-    n2 = engine._delete_prompts_for_model(
+    n2 = engine._delete_prompts_for_target(
         result["series_id"], "lustify_v7", engine._default_llm_id,
+        target_kind="model",
     )
     assert n2 == 0
 
 
-def test_delete_prompts_for_model_leaves_other_models_intact(
+def test_delete_prompts_for_target_leaves_other_models_intact(
     engine, fresh_db,
 ):
     plan = _series_plan()
@@ -561,8 +563,9 @@ def test_delete_prompts_for_model_leaves_other_models_intact(
         )
 
     # Delete only lustify_v7's prompts.
-    engine._delete_prompts_for_model(
+    engine._delete_prompts_for_target(
         result["series_id"], "lustify_v7", engine._default_llm_id,
+        target_kind="model",
     )
 
     conn = sqlite3.connect(str(fresh_db))

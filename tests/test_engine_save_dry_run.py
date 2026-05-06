@@ -87,6 +87,12 @@ def _make_ctx(model_id: str = "lustify_v7") -> MagicMock:
     ctx.content_level = "T2_implied"
     ctx.character_id = None
     ctx.model_id = model_id
+    # target_kind is read by _save_prompts_for_target post-Phase 2
+    # rename. The dry-run path is always model-kind.
+    ctx.target_kind = "model"
+    # family.id is the family-kind fallback for target_id resolution;
+    # never reached when target_kind='model' but defensive.
+    ctx.family.id = "sdxl"
     return ctx
 
 
@@ -279,10 +285,20 @@ def test_save_dry_run_duplicate_scene_model_pair_raises(
 
 
 def test_save_dry_run_rejects_null_model_id(engine, fresh_db: Path) -> None:
-    """model_id NOT NULL — explicit None would crash the INSERT."""
-    ctx = _make_ctx(model_id=None)  # ctx.model_id is None …
-    # … and prompt has no model_id either → INSERT tries to bind None.
-    with pytest.raises(sqlite3.IntegrityError, match=r"(?i)null"):
+    """model_id NOT NULL — explicit None must crash before the INSERT.
+
+    Post-Phase 2 (family-level prompt-prep feature): the rename to
+    ``_save_prompts_for_target`` adds a defensive ``ValueError`` that
+    fires before the SQL INSERT when target_id cannot be resolved
+    (per-prompt key absent AND ctx.model_id None AND ctx.target_kind
+    is 'model'). This is preferable to letting SQLite raise a generic
+    NOT NULL — the message names the offending prompt id.
+    """
+    ctx = _make_ctx(model_id=None)
+    ctx.model_id = None  # explicit; _make_ctx default is overridden
+    # prompt also has no model_id → target_id resolves to None →
+    # ValueError before INSERT.
+    with pytest.raises(ValueError, match="cannot resolve target_id"):
         engine._save_dry_run(
             series_id="s",
             ctx=ctx,

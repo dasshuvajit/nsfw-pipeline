@@ -434,7 +434,7 @@ class PipelineEngine:
         # series_planner role is representative of the whole cycle when
         # --llm override is set; with routing it may differ per agent
         # but the prompts row's llm_id is whatever was used at
-        # _save_prompts_for_model time.
+        # _save_prompts_for_target time.
         cycle_llm_id = self._llm_router.resolve_role(
             "series_planner", override=cli_llm_override,
         ).id
@@ -739,10 +739,13 @@ class PipelineEngine:
                     n, family.id, facet_llm_id, len(scene_ids),
                 )
 
-            # Optional regen-prompts for this model.
+            # Optional regen-prompts for this model. Family-kind
+            # regen takes a different code path (separate flag
+            # --regen-family-prompts) and is wired in Phase 3.
             if regen_prompts and model_id in regen_prompts:
-                n = self._delete_prompts_for_model(
+                n = self._delete_prompts_for_target(
                     series_id, model_id, facet_llm_id,
+                    target_kind="model",
                 )
                 logger.info(
                     "regen_prompts: deleted %d existing prompts for "
@@ -893,11 +896,12 @@ class PipelineEngine:
             # Persist prompts for this (model, llm) pair. The llm_id
             # matches the facet that fed the composer — same resolution
             # path so the prompt and its facet always co-locate.
-            self._save_prompts_for_model(
+            self._save_prompts_for_target(
                 series_id=series_id,
                 ctx=model_ctx,
                 prompts=prompts_for_model,
                 llm_id=facet_llm_id,
+                target_kind="model",
             )
             prompts_created_total += len(prompts_for_model)
             models_completed.append(model_id)
@@ -1822,7 +1826,8 @@ class PipelineEngine:
         Composition wrapper kept for back-compat with callers (and
         ``test_engine_save_dry_run.py``). Calls
         :meth:`_save_series_and_scenes` then
-        :meth:`_save_prompts_for_model`.
+        :meth:`_save_prompts_for_target` (always with
+        target_kind='model' — dry-run is a model-level path).
         """
         self._save_series_and_scenes(
             series_id=series_id,
@@ -1832,11 +1837,12 @@ class PipelineEngine:
             style_profile_id=style_profile_id,
             target_count=len(prompts),
         )
-        self._save_prompts_for_model(
+        self._save_prompts_for_target(
             series_id=series_id,
             ctx=ctx,
             prompts=prompts,
             llm_id=self._default_llm_id,
+            target_kind="model",
         )
         logger.info(
             "Saved to DB: series=%s, %d scenes, %d prompts (status=dry_run)",
@@ -1856,8 +1862,9 @@ class PipelineEngine:
         """Persist a fresh series row + its scenes (model-agnostic).
 
         Used by :meth:`run_phase_a` for new-series creation. Prompts
-        are persisted separately via :meth:`_save_prompts_for_model`
-        (one call per model in the multi-model fan-out).
+        are persisted separately via :meth:`_save_prompts_for_target`
+        (one call per (target_kind, target_id) in the per-target
+        fan-out).
         """
         conn = sqlite3.connect(str(self.db_path))
         try:
@@ -1921,25 +1928,33 @@ class PipelineEngine:
         finally:
             conn.close()
 
-    def _save_prompts_for_model(
+    def _save_prompts_for_target(
         self,
         *,
         series_id: str,
         ctx: GenerationContext,
         prompts: list[dict[str, Any]],
         llm_id: str,
+        target_kind: str = "model",
     ) -> None:
-        """Insert one (model, llm) pair's prompts for a series.
+        """Insert one (target_kind, target_id, llm) batch of prompts.
 
-        Called once per (model, llm) tuple in :meth:`run_phase_a`'s
-        fan-out. The UNIQUE(scene_id, model_id, llm_id) constraint
+        Called once per target tuple in :meth:`run_phase_a`'s fan-out.
+        The UNIQUE(scene_id, target_kind, model_id, llm_id) constraint
         protects against accidental double-insert; re-roll requires
-        explicit :meth:`_delete_prompts_for_model` first.
+        explicit :meth:`_delete_prompts_for_target` first.
 
-        Each prompt dict's ``model_id`` key wins over ``ctx.model_id``
-        when present (multi-model loop sets it explicitly). ``llm_id``
-        is method-level (not per-prompt) because every prompt in this
-        call comes from the same LLM resolution.
+        ``target_kind`` discriminates the row:
+          * ``'model'`` — `model_id` column carries an image-model id
+            (validated against ``config/models/*.yaml``). Per-prompt
+            ``model_id`` key wins over ``ctx.model_id`` when present
+            (multi-model loop sets it explicitly).
+          * ``'family'`` — `model_id` column carries a family id
+            (validated against ``config/families.yaml``). Falls back
+            to ``ctx.family.id`` when the per-prompt key is absent.
+
+        ``llm_id`` is method-level (not per-prompt) because every
+        prompt in this call comes from the same LLM resolution.
         """
         # Phase 4a — capture the active vocabulary version at insert time
         # so readers can answer "which vocab produced this prompt?" after
@@ -1953,19 +1968,39 @@ class PipelineEngine:
         try:
             conn.execute("PRAGMA foreign_keys = ON")
             for prompt in prompts:
+                # target_id resolution per D2: per-prompt key wins,
+                # else ctx.model_id (model-kind) or ctx.family.id
+                # (family-kind). Defensive assert before INSERT —
+                # NULL would trip the schema NOT NULL constraint.
+                target_id = prompt.get("model_id")
+                if target_id is None:
+                    target_id = (
+                        ctx.model_id
+                        if ctx.target_kind == "model"
+                        else ctx.family.id
+                    )
+                if target_id is None:
+                    raise ValueError(
+                        f"_save_prompts_for_target: cannot resolve "
+                        f"target_id for prompt {prompt.get('id')!r} "
+                        f"(target_kind={target_kind!r}, "
+                        f"ctx.target_kind={ctx.target_kind!r})"
+                    )
                 conn.execute(
                     """
                     INSERT INTO prompts (
-                        id, series_id, scene_id, model_id, llm_id,
-                        prompt_text, negative_prompt, prompt_hash,
-                        content_level, vocab_version, status
-                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?)
+                        id, series_id, scene_id, target_kind, model_id,
+                        llm_id, prompt_text, negative_prompt,
+                        prompt_hash, content_level, vocab_version,
+                        status
+                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
                     """,
                     (
                         prompt["id"],
                         series_id,
                         prompt.get("scene_id"),
-                        prompt.get("model_id") or ctx.model_id,
+                        target_kind,
+                        target_id,
                         llm_id,
                         prompt["prompt_text"],
                         prompt["negative_prompt"],
@@ -1979,16 +2014,23 @@ class PipelineEngine:
         finally:
             conn.close()
 
-    def _delete_prompts_for_model(
-        self, series_id: str, model_id: str, llm_id: str,
+    def _delete_prompts_for_target(
+        self,
+        series_id: str,
+        target_id: str,
+        llm_id: str,
+        target_kind: str = "model",
     ) -> int:
-        """DELETE all prompts for one (series, model, llm) triple.
+        """DELETE all prompts for one (series, target_kind, target_id, llm).
 
-        Used by :meth:`run_phase_a` when ``regen_prompts`` includes
-        the model_id — clears the way for fresh INSERTs without
-        tripping the UNIQUE(scene_id, model_id, llm_id) constraint.
-        Other LLMs' prompts on the same (series, model) are untouched
-        so a Cydonia regen doesn't blow away Magnum's parallel data.
+        Used by :meth:`run_phase_a` when ``regen_prompts`` /
+        ``regen_family_prompts`` includes the target_id — clears the
+        way for fresh INSERTs without tripping
+        UNIQUE(scene_id, target_kind, model_id, llm_id). Other LLMs'
+        prompts on the same (series, target) are untouched so a
+        Cydonia regen doesn't blow away Magnum's parallel data, and
+        family-kind regen never touches model-kind rows (and vice
+        versa).
 
         Returns the number of rows deleted.
         """
@@ -1997,8 +2039,9 @@ class PipelineEngine:
             conn.execute("PRAGMA foreign_keys = ON")
             cur = conn.execute(
                 "DELETE FROM prompts "
-                "WHERE series_id = ? AND model_id = ? AND llm_id = ?",
-                (series_id, model_id, llm_id),
+                "WHERE series_id = ? AND target_kind = ? "
+                "AND model_id = ? AND llm_id = ?",
+                (series_id, target_kind, target_id, llm_id),
             )
             conn.commit()
             return cur.rowcount
