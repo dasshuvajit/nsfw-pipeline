@@ -95,17 +95,31 @@ def _parse_csv(value: str | None) -> list[str]:
 
 
 def _resolve_models(args_models: str | None, config: dict[str, Any]) -> list[str]:
-    """``--models a,b`` → list; empty → ``[pipeline.default_model_id]``."""
+    """``--models a,b`` → list; empty + no default → ``[]``.
+
+    Post family-level prompt-prep (2026-05): when both ``--models``
+    and ``--families`` are absent, this returns ``[]`` rather than
+    raising. The post-parse validator in ``main()`` enforces "at
+    least one of models/families non-empty" — that path emits a
+    clearer error pointing at both flags.
+    """
     parsed = _parse_csv(args_models)
     if parsed:
         return parsed
     default_id = config.get("pipeline", {}).get("default_model_id")
-    if not default_id:
-        raise EngineError(
-            "No --models given and pipeline.default_model_id is unset in "
-            "config/pipeline.yaml. Pass --models explicitly."
-        )
-    return [default_id]
+    if default_id:
+        return [default_id]
+    return []
+
+
+def _resolve_families(args_families: str | None) -> list[str]:
+    """``--families flux,pony`` → list; empty → ``[]``.
+
+    There is no ``pipeline.default_family_id`` (out of scope for the
+    initial family-level feature). The user explicitly opts in by
+    passing ``--families``; absence means "model-mode only".
+    """
+    return _parse_csv(args_families)
 
 
 def _build_baseline_ctx(
@@ -113,15 +127,25 @@ def _build_baseline_ctx(
     engine: PipelineEngine,
     args: argparse.Namespace,
     models: list[str],
+    families: list[str],
     style_profile: dict[str, Any],
     style_profile_id: str,
 ) -> Any:
     """Build the baseline GenerationContext that ``run_phase_a`` uses
     for series-level concerns (planning + scene generation).
 
-    The per-model loop inside ``run_phase_a`` rebuilds a fresh ctx
-    per model_id — the baseline only matters for the new-series path
-    (it's ignored on re-target).
+    The per-target loop inside ``run_phase_a`` rebuilds a fresh ctx
+    per (target_kind, target_id) — the baseline only matters for the
+    new-series path (it's ignored on re-target).
+
+    **The baseline ctx is always model-kind** even in family-only
+    invocations (verifier patch B1 — `run_phase_a:621,647-654` reads
+    `ctx.model_config.filename` / `ctx.model_config.family` BEFORE
+    the per-target loop fires). When `--families` is supplied without
+    `--models`, we pick the first model registered to the first
+    family as a baseline planning checkpoint. The per-family loop
+    inside `run_phase_a` then rebuilds family-kind ctx for prompt
+    generation.
     """
     # Mode resolution: --mode wins; else weighted-random via ModeSelector
     # (the engine's selector, configured from pipeline.yaml::mode_weights).
@@ -148,10 +172,34 @@ def _build_baseline_ctx(
                     f"--character {args.character!r} not found in DB: {exc}"
                 ) from exc
 
-    # Baseline ctx uses the FIRST model in --models (but the per-model
+    # Baseline ctx uses the FIRST model in --models (but the per-target
     # loop in run_phase_a rebuilds per iteration, so this is mostly
-    # cosmetic for new-series + plan/scene-gen).
-    baseline_model_id = models[0]
+    # cosmetic for new-series + plan/scene-gen). When --models is
+    # empty (family-only invocation), fall back to the first model
+    # registered to the first --families entry — keeps the baseline
+    # ctx model-kind so the planning hop has a concrete model_config.
+    if models:
+        baseline_model_id = models[0]
+    elif families:
+        from src.memory.model_registry import ModelRegistryLoader
+        loader = ModelRegistryLoader(
+            engine.db_path, commercial_mode=engine._commercial_mode,
+        )
+        first_family_models = loader.list_models(family=families[0])
+        if not first_family_models:
+            raise EngineError(
+                f"--families {families[0]!r} has no registered models in "
+                f"config/models/*.yaml — can't pick a baseline checkpoint "
+                f"for the planning hop. Add a model with "
+                f"family: {families[0]!r} or pass --models explicitly."
+            )
+        baseline_model_id = first_family_models[0].id
+    else:
+        # Should be unreachable — main() validates at least one of
+        # models / families is non-empty before calling here.
+        raise EngineError(
+            "_build_baseline_ctx requires non-empty models or families"
+        )
     if baseline_character and baseline_character.get("model_id"):
         # If the character has its own preferred model, use that as
         # baseline (matches run_cycle behavior).
@@ -182,6 +230,8 @@ def _print_summary(
     """Stdout-friendly summary of what Phase A produced."""
     series_id = result.get("series_id", "?")
     status = result.get("status", "?")
+    models_completed = result.get("models_completed", []) or []
+    families_completed = result.get("families_completed", []) or []
     print()
     print(f"Phase A complete in {elapsed:.1f}s — status: {status}")
     print(f"  Series:           {series_id}{' (re-targeted)' if re_target else ' (new)'}")
@@ -189,15 +239,28 @@ def _print_summary(
           + (" (reused from existing series)" if re_target else ""))
     print(f"  Facets created:   {result.get('facets_created', 0)}")
     print(f"  Prompts inserted: {result.get('prompts_created', 0)}")
-    print(f"  Models completed: {', '.join(result.get('models_completed', []))}")
+    if models_completed:
+        print(f"  Models completed: {', '.join(models_completed)}")
+    if families_completed:
+        print(f"  Families completed: {', '.join(families_completed)}")
     if status == "complete":
         print()
         print("Next:")
-        models_csv = ",".join(result.get("models_completed", []))
-        print(
-            f"  python scripts/render_prompts.py --series-id {series_id} "
-            f"--models {models_csv}"
-        )
+        if models_completed:
+            print(
+                f"  python scripts/render_prompts.py --series-id {series_id} "
+                f"--models {','.join(models_completed)}"
+            )
+        if families_completed:
+            # Family-kind renders need an explicit checkpoint via
+            # --render-with-model. Suggest "<one of your models>" as
+            # a placeholder; the user picks per family.
+            for fam in families_completed:
+                print(
+                    f"  python scripts/render_prompts.py --series-id "
+                    f"{series_id} --families {fam} "
+                    f"--render-with-model <a model in '{fam}' family>"
+                )
 
 
 def main() -> int:
@@ -237,9 +300,25 @@ def main() -> int:
         default=None,
         help=(
             "Comma-separated model ids to fan out across "
-            "(e.g. 'lustify_v7,chroma_v10HD'). Default: "
-            "[pipeline.default_model_id]. Sibling-family models share "
-            "scene_facets rows."
+            "(e.g. 'lustify_v7,chroma_v10HD'). Per-model rules apply "
+            "(trigger words, avoid words, negative_embeddings, "
+            "lora_stack). Sibling-family models share scene_facets "
+            "rows. Default when neither --models nor --families is "
+            "given: [pipeline.default_model_id]."
+        ),
+    )
+    parser.add_argument(
+        "--families",
+        default=None,
+        help=(
+            "Comma-separated family ids to fan out across "
+            "(e.g. 'flux,pony,sdxl,illustrious,chroma,flux2'). "
+            "Family-level prompt prep — only family-level rules "
+            "apply, NO per-model trigger words / avoid words / "
+            "negative_embeddings / lora_stack. Render the resulting "
+            "prompts with `render_prompts --families <F> "
+            "--render-with-model <M>`. May be combined with --models "
+            "to prepare both kinds in one invocation."
         ),
     )
     parser.add_argument(
@@ -264,9 +343,23 @@ def main() -> int:
         "--regen-prompts",
         default=None,
         help=(
-            "Comma-separated model ids whose prompts on this series "
-            "should be DELETEd before re-composing. Required when "
-            "re-running with the same model on the same series."
+            "Comma-separated MODEL ids whose model-kind prompts on "
+            "this series should be DELETEd before re-composing. "
+            "Required when re-running with the same model on the same "
+            "series. Does NOT affect family-kind prompts (see "
+            "--regen-family-prompts)."
+        ),
+    )
+    parser.add_argument(
+        "--regen-family-prompts",
+        default=None,
+        help=(
+            "Comma-separated FAMILY ids whose family-kind prompts on "
+            "this series should be DELETEd before re-composing. "
+            "Required when re-running with the same family on the "
+            "same series. Does NOT affect model-kind prompts (see "
+            "--regen-prompts) — kept distinct so a typo can't "
+            "accidentally cross-delete."
         ),
     )
     parser.add_argument(
@@ -296,9 +389,37 @@ def main() -> int:
 
     try:
         config = _load_config()
-        models = _resolve_models(args.models, config)
+        # Resolve targets — both flags optional, but at least one
+        # must produce a non-empty list (post-parse validation
+        # below). _resolve_models falls back to
+        # pipeline.default_model_id ONLY when --models is empty AND
+        # --families is also empty (kept here as the
+        # "implicit-default" path; explicit --families opts out).
+        families = _resolve_families(args.families)
+        if families and not args.models:
+            # User explicitly chose family-mode; do NOT pull in the
+            # pipeline default model. Only apply the implicit default
+            # when both flags are absent.
+            models: list[str] = []
+        else:
+            models = _resolve_models(args.models, config)
+        if not models and not families:
+            print(
+                "ERROR: pass --models <model_ids> or --families "
+                "<family_ids> (or both). At least one is required.\n"
+                "    --models lustify_v7,chroma_v10HD   # model-level\n"
+                "    --families flux,pony               # family-level\n"
+                "    --models X --families Y            # both\n"
+                "If neither is set, pipeline.default_model_id is used "
+                "as a fallback when configured.",
+                file=sys.stderr,
+            )
+            return 2
         regen_facets = _parse_csv(args.regen_facets) or None
         regen_prompts = _parse_csv(args.regen_prompts) or None
+        regen_family_prompts = (
+            _parse_csv(args.regen_family_prompts) or None
+        )
 
         # Validate --llm at the CLI boundary. Engine will also validate
         # via the router but failing here gives a tighter feedback loop
@@ -337,25 +458,29 @@ def main() -> int:
             engine=engine,
             args=args,
             models=models,
+            families=families,
             style_profile=style_profile,
             style_profile_id=style_profile_id,
         )
 
         re_target = args.series_id is not None
         logger.info(
-            "prepare_prompts: %s, models=%s",
+            "prepare_prompts: %s, models=%s, families=%s",
             f"re-target series={args.series_id}" if re_target else "new series",
-            ",".join(models),
+            ",".join(models) or "-",
+            ",".join(families) or "-",
         )
 
         start = time.time()
         try:
             result = engine.run_phase_a(
                 ctx,
-                models=models,
+                models=models or None,
+                families=families or None,
                 series_id_existing=args.series_id,
                 regen_facets=regen_facets,
                 regen_prompts=regen_prompts,
+                regen_family_prompts=regen_family_prompts,
                 style_profile=style_profile,
                 style_profile_id=style_profile_id,
                 cli_llm_override=args.llm,
@@ -363,12 +488,21 @@ def main() -> int:
         except sqlite3.IntegrityError as exc:
             if "UNIQUE" in str(exc).upper():
                 target_series = args.series_id or "<this series>"
+                # Build a remediation hint that mentions BOTH kinds
+                # since the failed INSERT could be model-kind OR
+                # family-kind.
+                hints: list[str] = []
+                if models:
+                    hints.append(f"  --regen-prompts {','.join(models)}")
+                if families:
+                    hints.append(
+                        f"  --regen-family-prompts {','.join(families)}"
+                    )
                 print(
-                    f"\nERROR: prompts for one or more of "
-                    f"[{', '.join(models)}] already exist on series "
-                    f"{target_series}.\n"
+                    f"\nERROR: prompts for one or more targets already "
+                    f"exist on series {target_series}.\n"
                     f"To re-roll, re-run with:\n"
-                    f"  --regen-prompts {','.join(models)}",
+                    + "\n".join(hints),
                     file=sys.stderr,
                 )
                 return 2

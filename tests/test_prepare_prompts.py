@@ -75,11 +75,34 @@ class TestResolveModels:
         config = {"pipeline": {"default_model_id": "default_x"}}
         assert prepare_module._resolve_models("", config) == ["default_x"]
 
-    def test_no_models_no_default_raises(self, prepare_module):
-        from src.core.engine import EngineError
+    def test_no_models_no_default_returns_empty(self, prepare_module):
+        """Post family-level prompt-prep (2026-05): _resolve_models
+        returns [] when no flag and no default. The post-parse
+        validator in main() emits the helpful "pass --models or
+        --families" error — _resolve_models itself stays silent so
+        --families-only invocations don't trip a stale error path."""
         config = {"pipeline": {}}
-        with pytest.raises(EngineError, match="default_model_id is unset"):
-            prepare_module._resolve_models(None, config)
+        assert prepare_module._resolve_models(None, config) == []
+
+
+class TestResolveFamilies:
+    """Family-level prompt-prep (2026-05): symmetric helper to
+    _resolve_models. Default is always [] — there's no
+    pipeline.default_family_id (out of scope)."""
+
+    def test_none_returns_empty(self, prepare_module):
+        assert prepare_module._resolve_families(None) == []
+
+    def test_empty_returns_empty(self, prepare_module):
+        assert prepare_module._resolve_families("") == []
+
+    def test_single_family(self, prepare_module):
+        assert prepare_module._resolve_families("flux") == ["flux"]
+
+    def test_multi_family(self, prepare_module):
+        assert prepare_module._resolve_families("flux,pony,sdxl") == [
+            "flux", "pony", "sdxl",
+        ]
 
 
 # ── main() exit-code paths (mocked engine) ─────────────────────────
@@ -129,6 +152,7 @@ def _make_canned_result(
     series_id: str = "ser_test",
     models: list[str] | None = None,
     status: str = "complete",
+    families: list[str] | None = None,
 ) -> dict:
     return {
         "series_id": series_id,
@@ -136,7 +160,8 @@ def _make_canned_result(
         "scenes_created": 5,
         "facets_created": 5,
         "prompts_created": 10,
-        "models_completed": models or ["lustify_v7"],
+        "models_completed": models if models is not None else ["lustify_v7"],
+        "families_completed": families or [],
     }
 
 
@@ -482,3 +507,201 @@ class TestLlmFlag:
         assert rc == 0
         _, kwargs = fake_engine.run_phase_a.call_args
         assert kwargs["cli_llm_override"] is None
+
+
+# ── Family-level prompt prep (2026-05) ──────────────────────────────
+
+
+class TestFamiliesFlag:
+    """Dedicated coverage for the --families flag (Phase 4, family-
+    level prompt-prep feature).
+
+    Verifies the CLI threads families= into engine.run_phase_a, plays
+    nicely with --models (both can coexist), enforces "at least one
+    target" post-parse, and prints the right "Next: --families …
+    --render-with-model …" suggestion.
+    """
+
+    def _common_monkeypatch(self, prepare_module, monkeypatch, fake_engine):
+        monkeypatch.setattr(
+            prepare_module, "_load_config",
+            lambda: {
+                "pipeline": {
+                    "default_model_id": "lustify_v7",
+                    "default_style_profile_id": "golden_hour_natural",
+                },
+                "execution": {"mode": "manual"},
+                "compliance": {"commercial_mode": False},
+            },
+        )
+        monkeypatch.setattr(
+            prepare_module, "PipelineEngine", lambda **kw: fake_engine,
+        )
+        monkeypatch.setattr(
+            prepare_module, "_load_style_profile",
+            lambda db, sid: {"id": sid, "base_negative_prompt": ""},
+        )
+        monkeypatch.setattr(
+            prepare_module, "build_context",
+            lambda **kw: MagicMock(execution_mode="manual"),
+        )
+        monkeypatch.setattr(
+            prepare_module, "ContentLevelLoader",
+            lambda db: MagicMock(load=lambda lvl: MagicMock()),
+        )
+        # _build_baseline_ctx falls back to first model in family when
+        # only --families is supplied; stub the registry lookup so we
+        # don't need a real DB.
+        from src.memory.model_registry import ModelRegistryLoader
+        fake_loader = MagicMock()
+        fake_loader.list_models.return_value = [
+            MagicMock(id="flux_nsfw_71q8")
+        ]
+        monkeypatch.setattr(
+            prepare_module, "ModelRegistryLoader",
+            lambda *a, **kw: fake_loader, raising=False,
+        )
+        # ModelRegistryLoader is imported INSIDE _build_baseline_ctx
+        # (lazy import). Monkeypatch the actual class so that import
+        # picks up the stub.
+        monkeypatch.setattr(
+            "src.memory.model_registry.ModelRegistryLoader",
+            lambda *a, **kw: fake_loader,
+        )
+
+    def test_families_only_threads_to_run_phase_a(
+        self, prepare_module, monkeypatch,
+    ):
+        """--families flux (no --models) → run_phase_a sees
+        families=['flux'] and models=None."""
+        fake_engine = MagicMock()
+        fake_engine.db_path = Path("/tmp/_fam_test.db")
+        fake_engine.execution_mode = "manual"
+        fake_engine._commercial_mode = False
+        fake_engine.mode_selector.select.return_value = "theme"
+        fake_engine.run_phase_a.return_value = _make_canned_result(
+            models=[], families=["flux"],
+        )
+        self._common_monkeypatch(prepare_module, monkeypatch, fake_engine)
+        monkeypatch.setattr(
+            sys, "argv", _argv("--families", "flux"),
+        )
+
+        rc = prepare_module.main()
+        assert rc == 0
+        _, kwargs = fake_engine.run_phase_a.call_args
+        assert kwargs["families"] == ["flux"]
+        # In family-only mode, the implicit pipeline.default_model_id
+        # fallback is suppressed.
+        assert kwargs["models"] is None
+
+    def test_models_and_families_coexist(
+        self, prepare_module, monkeypatch,
+    ):
+        """--models X --families Y → run_phase_a gets BOTH lists."""
+        fake_engine = MagicMock()
+        fake_engine.db_path = Path("/tmp/_test.db")
+        fake_engine.execution_mode = "manual"
+        fake_engine._commercial_mode = False
+        fake_engine.mode_selector.select.return_value = "character"
+        fake_engine.run_phase_a.return_value = _make_canned_result(
+            models=["lustify_v7"], families=["flux"],
+        )
+        self._common_monkeypatch(prepare_module, monkeypatch, fake_engine)
+        monkeypatch.setattr(
+            sys, "argv",
+            _argv("--models", "lustify_v7", "--families", "flux"),
+        )
+
+        rc = prepare_module.main()
+        assert rc == 0
+        _, kwargs = fake_engine.run_phase_a.call_args
+        assert kwargs["models"] == ["lustify_v7"]
+        assert kwargs["families"] == ["flux"]
+
+    def test_neither_models_nor_families_with_no_default_exits_2(
+        self, prepare_module, monkeypatch, capsys,
+    ):
+        """Both flags omitted AND pipeline.default_model_id is absent
+        → exit 2 with the helpful "pass --models or --families"
+        error."""
+        fake_engine = MagicMock()
+        # Override config to drop default_model_id.
+        monkeypatch.setattr(
+            prepare_module, "_load_config",
+            lambda: {
+                "pipeline": {
+                    "default_style_profile_id": "golden_hour_natural",
+                },
+                "execution": {"mode": "manual"},
+                "compliance": {"commercial_mode": False},
+            },
+        )
+        monkeypatch.setattr(
+            prepare_module, "PipelineEngine", lambda **kw: fake_engine,
+        )
+        monkeypatch.setattr(
+            sys, "argv", _argv(),  # no --models, no --families
+        )
+
+        rc = prepare_module.main()
+        assert rc == 2
+        captured = capsys.readouterr()
+        assert "pass --models" in captured.err
+        assert "--families" in captured.err
+        fake_engine.run_phase_a.assert_not_called()
+
+    def test_regen_family_prompts_threads_through(
+        self, prepare_module, monkeypatch,
+    ):
+        """--regen-family-prompts threads to run_phase_a as a
+        separate kwarg from --regen-prompts."""
+        fake_engine = MagicMock()
+        fake_engine.db_path = Path("/tmp/_test.db")
+        fake_engine.execution_mode = "manual"
+        fake_engine._commercial_mode = False
+        fake_engine.mode_selector.select.return_value = "theme"
+        fake_engine.run_phase_a.return_value = _make_canned_result(
+            models=[], families=["flux"],
+        )
+        self._common_monkeypatch(prepare_module, monkeypatch, fake_engine)
+        monkeypatch.setattr(
+            sys, "argv",
+            _argv(
+                "--families", "flux",
+                "--series-id", "ser_existing",
+                "--regen-family-prompts", "flux",
+            ),
+        )
+
+        rc = prepare_module.main()
+        assert rc == 0
+        _, kwargs = fake_engine.run_phase_a.call_args
+        assert kwargs["regen_family_prompts"] == ["flux"]
+        # --regen-prompts not passed → None
+        assert kwargs["regen_prompts"] is None
+
+    def test_summary_prints_render_with_model_hint(
+        self, prepare_module, monkeypatch, capsys,
+    ):
+        """When families_completed is non-empty, the 'Next:' summary
+        suggests --families F --render-with-model <pick>."""
+        fake_engine = MagicMock()
+        fake_engine.db_path = Path("/tmp/_test.db")
+        fake_engine.execution_mode = "manual"
+        fake_engine._commercial_mode = False
+        fake_engine.mode_selector.select.return_value = "theme"
+        fake_engine.run_phase_a.return_value = _make_canned_result(
+            series_id="ser_xyz", models=[], families=["flux"],
+        )
+        self._common_monkeypatch(prepare_module, monkeypatch, fake_engine)
+        monkeypatch.setattr(
+            sys, "argv", _argv("--families", "flux"),
+        )
+
+        rc = prepare_module.main()
+        assert rc == 0
+        captured = capsys.readouterr()
+        assert "Families completed: flux" in captured.out
+        assert "--families flux" in captured.out
+        assert "--render-with-model" in captured.out
