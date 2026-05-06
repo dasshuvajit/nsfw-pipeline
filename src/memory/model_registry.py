@@ -144,9 +144,13 @@ class ModelPromptGuide:
     The merge collapses family defaults with the per-model ``prompt:``
     block (``extend:`` appends, ``override:`` replaces) so callers can
     treat this as the single source of truth.
+
+    ``model_id`` is ``None`` for family-level guides (built via
+    :meth:`ModelRegistryLoader.get_family_only_prompt_guide`) — those
+    omit per-model overlay fields entirely.
     """
 
-    model_id: str
+    model_id: str | None
     prompt_style: str
     max_prompt_tokens: int | None
     trigger_words: list[str] = field(default_factory=list)
@@ -323,6 +327,77 @@ class ModelRegistryLoader:
             negative_axes={
                 axis: list(tokens)
                 for axis, tokens in (merged.get("negative_axes") or {}).items()
+            },
+        )
+
+    def get_family_only_prompt_guide(
+        self, family_id: str,
+    ) -> ModelPromptGuide:
+        """Return a family-level prompt guide — no per-model overlay.
+
+        Used by ``GenerationContext.build_family_context`` for family-mode
+        prompt preparation (`prepare_prompts --families <family_id>`).
+        Built by passing ``raw_prompt=None`` to
+        :func:`src.core.merge_overrides.merge_prompt_config`, which
+        returns a clean family-only dict with no per-model
+        ``trigger_words`` / ``avoid_words`` / ``negative_embeddings``
+        / ``example_prompt`` / ``llm_hint`` / ``structure_rules`` overlay.
+
+        The resulting :class:`ModelPromptGuide` carries:
+          * ``model_id=None`` — no per-model id; the family is the
+            target.
+          * ``prompt_style`` and ``max_prompt_tokens`` — from family.
+          * ``quality_prefix`` / ``quality_suffix`` — from family
+            (no per-model append).
+          * ``negative_axes`` — family-level only (no per-model
+            anatomy/medium/skin axes appended).
+          * ``trigger_words`` / ``avoid_words`` /
+            ``negative_embeddings`` — empty lists (purely per-model
+            constructs).
+          * ``example_prompt`` / ``llm_hint`` / ``structure_rules`` —
+            None (purely per-model overrides; the family's own
+            ``llm_hint``/``structure_rules`` flow through directly
+            via the ``family`` arg downstream).
+
+        Raises ``FamilyNotFound`` if ``family_id`` is not in
+        ``config/families.yaml``.
+        """
+        family = self._family_loader.get_family(family_id)
+        merged = merge_prompt_config(family, None)
+
+        # Per the docstring: per-model overlay fields are deliberately
+        # blanked even if merge_prompt_config would have populated them
+        # from family defaults (none today, but defensive).
+        return ModelPromptGuide(
+            model_id=None,
+            prompt_style=merged["prompt_style"],
+            max_prompt_tokens=(
+                None if merged.get("max_tokens") is None
+                else int(merged["max_tokens"])
+            ),
+            trigger_words=[],
+            avoid_words=[],
+            structure_rules=None,
+            base_negative_prompt=(
+                merged.get("negative_prompt") or None
+            ),
+            example_prompt=None,
+            quality_prefix=list(merged.get("quality_prefix") or []),
+            quality_suffix=list(merged.get("quality_suffix") or []),
+            llm_hint=None,
+            supports_negative_prompt=bool(
+                merged.get("supports_negative_prompt", True)
+            ),
+            supports_weighting=bool(
+                merged.get("supports_weighting", True)
+            ),
+            notes=None,
+            negative_embeddings=[],
+            negative_axes={
+                axis: list(tokens)
+                for axis, tokens in (
+                    merged.get("negative_axes") or {}
+                ).items()
             },
         )
 

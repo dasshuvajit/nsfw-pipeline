@@ -144,18 +144,36 @@ CREATE TABLE scenes (
 -- ============================================================
 -- PROMPTS
 -- ============================================================
--- model_id is a YAML id (config/models/*.yaml) validated at startup
--- by ModelRegistryLoader — no SQL FK. llm_id is a YAML id
--- (config/llm_models.yaml) validated at startup by LLMRegistryLoader.
--- UNIQUE(scene_id, model_id, llm_id) enforces "one prompt per
--- (scene, image-model, generating-LLM)" so the same scene can be
--- re-prompted by a different LLM without colliding. Re-rolling for the
--- same (scene, model, llm) requires explicit DELETE first
--- (`prepare_prompts --regen-prompts <model> --llm <id>`).
+-- llm_id is a YAML id (config/llm_models.yaml) validated at startup
+-- by LLMRegistryLoader.
+--
+-- target_kind discriminates between two preparation modes:
+--   * 'model'  — model-level prompt; per-model trigger words /
+--                avoid words / negative_embeddings / lora_stack /
+--                structure_intro all applied. model_id holds an id
+--                from config/models/*.yaml validated by
+--                ModelRegistryLoader.
+--   * 'family' — family-level prompt; ONLY family-level rules from
+--                config/families.yaml applied. model_id holds a
+--                FAMILY id (sdxl/pony/illustrious/flux/chroma/flux2)
+--                — `model_id` does double duty here for shape
+--                preservation. Validated by FamilyLoader.
+--
+-- UNIQUE(scene_id, target_kind, model_id, llm_id) enforces "one
+-- prompt per (scene, target_kind, target_id, generating-LLM)" so the
+-- same scene can carry both family-level and model-level prompts
+-- without colliding, plus per-LLM A/B comparison on top.
+-- Re-rolling for the same (scene, target_kind, target_id, llm)
+-- requires explicit DELETE first (`prepare_prompts --regen-prompts X
+-- --llm Y` for model-kind, `--regen-family-prompts X --llm Y` for
+-- family-kind).
 CREATE TABLE prompts (
     id TEXT PRIMARY KEY,
     series_id TEXT NOT NULL REFERENCES series(id),
     scene_id TEXT REFERENCES scenes(id),
+    target_kind TEXT NOT NULL DEFAULT 'model' CHECK (target_kind IN (
+        'model','family'
+    )),
     model_id TEXT NOT NULL,
     llm_id TEXT NOT NULL,
     prompt_text TEXT NOT NULL,
@@ -175,7 +193,7 @@ CREATE TABLE prompts (
     )),
     render_attempts INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (scene_id, model_id, llm_id)
+    UNIQUE (scene_id, target_kind, model_id, llm_id)
 );
 
 -- ============================================================
@@ -360,6 +378,7 @@ CREATE INDEX idx_prompts_hash ON prompts(prompt_hash);
 CREATE INDEX idx_prompts_status ON prompts(status);
 CREATE INDEX idx_prompts_model ON prompts(model_id);
 CREATE INDEX idx_prompts_llm ON prompts(llm_id);
+CREATE INDEX idx_prompts_target_kind ON prompts(target_kind);
 CREATE INDEX idx_scene_facets_scene ON scene_facets(scene_id);
 CREATE INDEX idx_scene_facets_llm ON scene_facets(llm_id);
 CREATE INDEX idx_memory_hash ON generation_memory(content_hash);
