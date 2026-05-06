@@ -43,6 +43,8 @@ class Exporter:
         model_id: str | None = None,
         style_profile_id: str | None = None,
         llm_id: str | None = None,
+        target_id: str | None = None,
+        target_kind: str = "model",
     ) -> Path:
         """Export the set and return the export directory path.
 
@@ -61,20 +63,37 @@ class Exporter:
         series_plan : dict | None
             The series plan for the manifest.
         model_id : str | None
-            Which model produced these images.
+            Which model checkpoint produced these images. For
+            family-kind renders, this is the chosen
+            ``--render-with-model`` checkpoint.
         style_profile_id : str | None
             Which style profile was used.
         llm_id : str | None
             Which generating LLM produced the prompts these renders came
-            from. When set, exports land under
-            ``output_root / content_level / series_id / llm_id`` so
-            multi-LLM A/B series don't overwrite each other on disk.
-            None preserves the legacy single-LLM path for back-compat.
+            from. When set, exports land under the per-LLM segment.
+        target_id : str | None
+            Discriminator segment between ``llm_id`` and ``images/``.
+            Equals ``model_id`` for model-kind renders, ``family_id``
+            for family-kind renders. Falls back to ``model_id`` when
+            ``None`` so model-kind callers needn't pass it explicitly.
+        target_kind : str
+            ``'model'`` (default) or ``'family'``. Recorded in the
+            manifest JSON for forensic reproducibility.
+
+        Symmetric path shape (model-kind and family-kind alike):
+        ``output_root / content_level / series_id / llm_id / target_id /``.
+        ``llm_id`` is omitted when ``None`` (no per-LLM segment); when
+        omitted but ``target_id`` is set, the path collapses to
+        ``output_root / content_level / series_id / target_id /``.
         """
+        # Resolve the target_id segment — defaults to model_id for
+        # model-kind callers that don't explicitly pass it.
+        effective_target_id = target_id or model_id
+        export_dir = self.output_root / content_level / series_id
         if llm_id:
-            export_dir = self.output_root / content_level / series_id / llm_id
-        else:
-            export_dir = self.output_root / content_level / series_id
+            export_dir = export_dir / llm_id
+        if effective_target_id:
+            export_dir = export_dir / effective_target_id
         images_dir = export_dir / "images"
         preview_dir = export_dir / "preview"
 
@@ -117,6 +136,8 @@ class Exporter:
             "series_id": series_id,
             "content_level": content_level,
             "model_id": model_id,
+            "target_kind": target_kind,
+            "target_id": effective_target_id,
             "llm_id": llm_id,
             "style_profile_id": style_profile_id,
             "series_plan": series_plan,

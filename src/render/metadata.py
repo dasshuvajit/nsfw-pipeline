@@ -97,20 +97,32 @@ def build_pipeline_metadata(
     structured_facet: Mapping[str, Any] | None = None,
     extra: Mapping[str, Any] | None = None,
     llm_id: str | None = None,
+    target_kind: str = "model",
+    render_model_id: str | None = None,
 ) -> str:
     """Build the ``nsfw_pipeline`` JSON chunk content.
 
     Carries the fields A1111 format can't represent: structured facet
     enum tags, vocab_version (for cross-version reproduction), scene
-    linkage, content_level, and the generating LLM (``llm_id``) so a
-    forensic reader can answer "which LLM produced this prompt?" from
-    the PNG alone. Returned as a JSON string ready to insert via
-    ``PngInfo.add_text``.
+    linkage, content_level, the generating LLM (``llm_id``), and the
+    target_kind / render_model_id pair so a forensic reader can
+    answer "which LLM produced this prompt? was the prompt
+    family-level or model-level? which checkpoint actually rendered?"
+    from the PNG alone. Returned as a JSON string ready to insert
+    via ``PngInfo.add_text``.
+
+    For family-kind renders (``target_kind='family'``), ``model_id``
+    holds the family id (e.g. 'flux') and ``render_model_id`` holds
+    the actual checkpoint that produced the PNG (e.g.
+    'flux_nsfw_71q8'). For model-kind, the two collapse —
+    ``render_model_id`` may be ``None`` and readers use ``model_id``.
     """
     payload: dict[str, Any] = {
         "vocab_version": vocab_version,
         "family": family,
         "model_id": model_id,
+        "target_kind": target_kind,
+        "render_model_id": render_model_id,
         "llm_id": llm_id,
         "scene_id": scene_id,
         "series_id": series_id,

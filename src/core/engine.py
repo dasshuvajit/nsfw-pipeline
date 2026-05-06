@@ -41,7 +41,11 @@ from src.agents.scene_facet_generator import (
     SceneFacetGeneratorError,
 )
 from src.core.content_level import ContentLevelLoader
-from src.core.generation_context import GenerationContext, build_context
+from src.core.generation_context import (
+    GenerationContext,
+    build_context,
+    build_family_context,
+)
 from src.core.mode_selector import ModeSelector
 from src.core.ratio_selector import (
     RatioSelector,
@@ -483,24 +487,34 @@ class PipelineEngine:
             elapsed_seconds=elapsed,
             llm_id=ctx_state.get("llm_id", self._default_llm_id),
             cli_llm_override=cli_llm_override,
+            target_kind=ctx_state.get("target_kind", "model"),
+            target_id=ctx_state.get("target_id"),
         )
 
     def _load_prompts_for_summary(
-        self, series_id: str, model_id: str, llm_id: str,
+        self,
+        series_id: str,
+        model_id: str,
+        llm_id: str,
+        target_kind: str = "model",
     ) -> list[dict[str, Any]]:
         """Cheap helper used by ``run_cycle`` dry-run path to read
         prompts back from the DB after Phase A persists them.
 
-        Filters by ``llm_id`` so multi-LLM data on the same series
-        doesn't silently merge into the dry-run summary.
+        Filters by ``target_kind`` + ``llm_id`` so multi-target /
+        multi-LLM data on the same series doesn't silently merge into
+        the dry-run summary. ``run_cycle`` always passes
+        ``target_kind='model'`` (the scheduler entry path is model-only
+        — see Plan §D10/B2).
         """
         conn = sqlite3.connect(str(self.db_path))
         conn.row_factory = sqlite3.Row
         try:
             rows = conn.execute(
                 "SELECT * FROM prompts "
-                "WHERE series_id = ? AND model_id = ? AND llm_id = ?",
-                (series_id, model_id, llm_id),
+                "WHERE series_id = ? AND target_kind = ? "
+                "AND model_id = ? AND llm_id = ?",
+                (series_id, target_kind, model_id, llm_id),
             ).fetchall()
             return [dict(r) for r in rows]
         finally:
@@ -515,46 +529,61 @@ class PipelineEngine:
         self,
         ctx: GenerationContext,
         *,
-        models: list[str],
+        models: list[str] | None = None,
+        families: list[str] | None = None,
         series_id_existing: str | None = None,
         regen_facets: list[str] | None = None,
         regen_prompts: list[str] | None = None,
+        regen_family_prompts: list[str] | None = None,
         style_profile: dict[str, Any] | None = None,
         style_profile_id: str | None = None,
         cli_llm_override: str | None = None,
     ) -> dict[str, Any]:
-        """Phase A — LLM planning + per-model prompt persistence.
+        """Phase A — LLM planning + per-target prompt persistence.
 
-        Two callers today:
+        Three caller patterns today:
           1. ``run_cycle`` → ``models=[ctx.model_id]`` (single-model
              behavior identical to pre-refactor).
-          2. ``prepare_prompts.py`` (new in Phase 4) → multi-model
+          2. ``prepare_prompts.py --models X,Y`` → multi-model
              fan-out, optional re-target via ``series_id_existing``.
+          3. ``prepare_prompts.py --families F,G`` (2026-05) →
+             family-level prompt prep with no per-model overlay
+             (no trigger words / avoid words / negative embeddings /
+             lora_stack). Both kinds may coexist in one invocation.
 
         Internal flow:
-          - **Preflight** (always, baseline ctx).
+          - **Preflight** (always, baseline ctx — must be model-kind).
           - **If new series**: SeriesPlanner.plan + SceneGenerator.generate
             + assign IDs + assign initial aspect ratios. Persist series
             and scenes rows once.
           - **If re-target**: load series + scenes from DB; reuse
             ``series.llm_series_plan`` JSON for niche `keyword_cluster`
             and variation `source_mode/character_id` lookups.
-          - **For each model in models**:
-              - Build per-model ctx (look up model → entry → family →
-                prompt_guide).
+          - **For each target in targets** (normalized list of
+            (target_kind, target_id) tuples; families first then
+            models when both supplied):
+              - Build per-target ctx: ``build_context(model_id=...)``
+                for model-kind, ``build_family_context(family_id=...)``
+                for family-kind. Family-kind ctx has no per-model
+                overlay (no trigger_words, etc.).
               - If ``regen_facets`` includes this family: bulk-DELETE
                 its facet rows across the series's scenes.
               - For each scene: call ``SceneFacetGenerator`` if the
                 facet row is missing, else reuse the persisted facet.
-              - If ``regen_prompts`` includes this model: DELETE its
-                existing prompts for this series before composing.
+                Facet rows are family-keyed and shared across
+                model-kind and family-kind invocations on the same
+                family — efficient.
+              - If ``regen_prompts`` (model-kind) /
+                ``regen_family_prompts`` (family-kind) includes this
+                target_id: DELETE its existing prompts for this
+                series before composing.
               - For each scene: merge facet into scene → PromptBuilder
-                → sanitize → assemble negative → prompts table INSERT.
+                → sanitize → assemble negative → prompts table INSERT
+                with target_kind discriminator.
               - In supervised mode, call ``Supervisor.approve_plan``
-                once per model (one human review per model is the
-                natural unit).
-          - **Single LLM unload at end** (regardless of how many models
-            ran).
+                once per target.
+          - **Single LLM unload at end** (regardless of how many
+            targets ran).
 
         Skips ``run_log`` writes — Phase A is not a render run. The
         prompts table itself records what was generated.
@@ -563,9 +592,22 @@ class PipelineEngine:
         -------
         dict
             ``{series_id, status, scenes_created, facets_created,
-              prompts_created, models}``. ``status`` is "complete" or
-            "aborted" (supervisor rejected one model).
+              prompts_created, models_completed, families_completed}``.
+            ``status`` is "complete" or "aborted" (supervisor rejected
+            one target).
         """
+        # Build targets list — families first, then models (preserves
+        # CLI order semantics). At least one must be non-empty.
+        models = models or []
+        families = families or []
+        if not models and not families:
+            raise EngineError(
+                "run_phase_a requires at least one of models / families"
+            )
+        targets: list[tuple[str, str]] = (
+            [("family", f) for f in families]
+            + [("model", m) for m in models]
+        )
         # ── 1. Resolve series_id + load-or-generate series + scenes ─
         is_new_series = series_id_existing is None
         if is_new_series:
@@ -681,23 +723,41 @@ class PipelineEngine:
         facets_created_total = 0
         prompts_created_total = 0
         models_completed: list[str] = []
+        families_completed: list[str] = []
 
-        for model_id in models:
-            # Per-model ctx (model_config + family + prompt_guide vary).
+        for target_kind, target_id in targets:
+            # Per-target ctx — model-kind uses build_context (existing
+            # path with full per-model overlay); family-kind uses
+            # build_family_context (no per-model overlay; family-only
+            # ModelPromptGuide). The baseline ctx is always model-kind
+            # (D3 invariant); per-target ctx may differ.
             try:
-                model_ctx = build_context(
-                    mode=ctx.mode,
-                    content_level=ctx.content_level,
-                    execution_mode=ctx.execution_mode,
-                    style_profile=style_profile,
-                    content_rules=ctx.content_rules,
-                    db_path=self.db_path,
-                    model_id=model_id,
-                    commercial_mode=self._commercial_mode,
-                )
+                if target_kind == "model":
+                    model_ctx = build_context(
+                        mode=ctx.mode,
+                        content_level=ctx.content_level,
+                        execution_mode=ctx.execution_mode,
+                        style_profile=style_profile,
+                        content_rules=ctx.content_rules,
+                        db_path=self.db_path,
+                        model_id=target_id,
+                        commercial_mode=self._commercial_mode,
+                    )
+                else:  # target_kind == "family"
+                    model_ctx = build_family_context(
+                        family_id=target_id,
+                        mode=ctx.mode,
+                        content_level=ctx.content_level,
+                        execution_mode=ctx.execution_mode,
+                        style_profile=style_profile,
+                        content_rules=ctx.content_rules,
+                        db_path=self.db_path,
+                        commercial_mode=self._commercial_mode,
+                    )
             except Exception as exc:
                 raise EngineError(
-                    f"Could not build context for model {model_id!r}: {exc}"
+                    f"Could not build context for {target_kind} "
+                    f"{target_id!r}: {exc}"
                 ) from exc
 
             # Carry over character from baseline ctx.
@@ -712,7 +772,10 @@ class PipelineEngine:
             # registry id (`facet_llm_id`) is what gets stamped on every
             # facet + prompt row; the ollama tag (`facet_ollama_id`) is
             # what OllamaClient.generate consumes. With --llm override,
-            # both flow from a single registry lookup.
+            # both flow from a single registry lookup. Note: family-kind
+            # and model-kind invocations on the same family share facet
+            # rows (PK is (scene_id, family.id, llm_id) — independent
+            # of target_kind).
             facet_llm_entry = self._llm_router.resolve_facet_family(
                 family.prompt_style, override=cli_llm_override,
             )
@@ -720,11 +783,15 @@ class PipelineEngine:
             facet_ollama_id = facet_llm_entry.ollama_id
 
             logger.info(
-                "Model %s (family=%s, llm=%s): facets + prompts …",
-                model_id, family.id, facet_llm_id,
+                "%s %s (family=%s, llm=%s): facets + prompts …",
+                target_kind.capitalize(), target_id, family.id,
+                facet_llm_id,
             )
 
-            # Optional regen-facets for this family.
+            # Optional regen-facets for this family. Facets are
+            # family-keyed (independent of target_kind), so regen-facets
+            # applies to both kinds equally — one DELETE clears the
+            # shared facet row.
             if regen_facets and family.id in regen_facets:
                 scene_ids = [s["id"] for s in scenes]
                 n = delete_facets_for_family(
@@ -739,18 +806,24 @@ class PipelineEngine:
                     n, family.id, facet_llm_id, len(scene_ids),
                 )
 
-            # Optional regen-prompts for this model. Family-kind
-            # regen takes a different code path (separate flag
-            # --regen-family-prompts) and is wired in Phase 3.
-            if regen_prompts and model_id in regen_prompts:
+            # Optional regen-prompts. Model-kind uses --regen-prompts;
+            # family-kind uses --regen-family-prompts. The two flags
+            # are kept distinct so a typo can't accidentally
+            # cross-delete (model-prep deleting family rows, etc.).
+            regen_list = (
+                regen_prompts if target_kind == "model"
+                else regen_family_prompts
+            )
+            if regen_list and target_id in regen_list:
                 n = self._delete_prompts_for_target(
-                    series_id, model_id, facet_llm_id,
-                    target_kind="model",
+                    series_id, target_id, facet_llm_id,
+                    target_kind=target_kind,
                 )
                 logger.info(
-                    "regen_prompts: deleted %d existing prompts for "
-                    "(%s, %s, %s)",
-                    n, series_id, model_id, facet_llm_id,
+                    "regen_%s_prompts: deleted %d existing prompts for "
+                    "(%s, %s, %s, %s)",
+                    target_kind, n, series_id, target_kind, target_id,
+                    facet_llm_id,
                 )
 
             # Per-scene: ensure facet + compose prompt.
@@ -759,7 +832,7 @@ class PipelineEngine:
             if isinstance(mode_obj, NicheMode):
                 extra_keywords = mode_obj.get_prompt_keywords(series_plan)
 
-            prompts_for_model: list[dict[str, Any]] = []
+            prompts_for_target: list[dict[str, Any]] = []
             for scene in scenes:
                 scene_id = scene["id"]
 
@@ -870,58 +943,64 @@ class PipelineEngine:
                     )
                     prompt_dict["scene_id"] = scene_id
                     prompt_dict["id"] = (
-                        f"{series_id}_{model_id}_prompt_"
-                        f"{len(prompts_for_model):03d}"
+                        f"{series_id}_{target_id}_prompt_"
+                        f"{len(prompts_for_target):03d}"
                     )
                     prompt_dict["content_level"] = model_ctx.content_level
-                    prompt_dict["model_id"] = model_id
-                    prompts_for_model.append(prompt_dict)
+                    # `model_id` column carries the target_id —
+                    # model-id for model-kind, family-id for family-kind.
+                    prompt_dict["model_id"] = target_id
+                    prompts_for_target.append(prompt_dict)
                 except Exception as exc:
                     logger.warning(
-                        "Failed to build prompt for scene %s model %s: %s",
-                        scene_id, model_id, exc,
+                        "Failed to build prompt for scene %s %s %s: %s",
+                        scene_id, target_kind, target_id, exc,
                     )
 
-            # Within-model dedup (different models compose to different
-            # text by design, so cross-model dedup wouldn't fire even if
-            # the deduplicator ran across all model prompts).
-            prompts_for_model = self.deduplicator.deduplicate(
-                prompts_for_model, scenes, model_ctx,
+            # Within-target dedup (different targets compose to different
+            # text by design, so cross-target dedup wouldn't fire even
+            # if the deduplicator ran across all prompts).
+            prompts_for_target = self.deduplicator.deduplicate(
+                prompts_for_target, scenes, model_ctx,
             )
             logger.info(
-                "Model %s: %d prompts after dedup", model_id,
-                len(prompts_for_model),
+                "%s %s: %d prompts after dedup",
+                target_kind.capitalize(), target_id,
+                len(prompts_for_target),
             )
 
-            # Persist prompts for this (model, llm) pair. The llm_id
-            # matches the facet that fed the composer — same resolution
-            # path so the prompt and its facet always co-locate.
+            # Persist prompts for this (target_kind, target_id, llm)
+            # tuple. The llm_id matches the facet that fed the composer
+            # — same resolution path so prompt and facet co-locate.
             self._save_prompts_for_target(
                 series_id=series_id,
                 ctx=model_ctx,
-                prompts=prompts_for_model,
+                prompts=prompts_for_target,
                 llm_id=facet_llm_id,
-                target_kind="model",
+                target_kind=target_kind,
             )
-            prompts_created_total += len(prompts_for_model)
-            models_completed.append(model_id)
+            prompts_created_total += len(prompts_for_target)
+            if target_kind == "model":
+                models_completed.append(target_id)
+            else:
+                families_completed.append(target_id)
 
-            # Supervised pause once per model.
+            # Supervised pause once per target.
             if model_ctx.execution_mode == "supervised" and not self.dry_run:
                 approved = self.supervisor.approve_plan(
                     mode=model_ctx.mode,
                     content_level=model_ctx.content_level,
                     character_id=model_ctx.character_id,
-                    model_id=model_id,
+                    model_id=target_id,
                     series_plan=series_plan,
                     scenes=scenes,
-                    prompts=prompts_for_model,
+                    prompts=prompts_for_target,
                 )
                 if not approved:
                     self._update_series_status(series_id, "aborted")
                     logger.info(
-                        "Plan rejected by supervisor for model %s. "
-                        "Aborting Phase A.", model_id,
+                        "Plan rejected by supervisor for %s %s. "
+                        "Aborting Phase A.", target_kind, target_id,
                     )
                     # Free every LLM the cycle has loaded — multiple
                     # tags may be live when per-role routing is active.
@@ -935,6 +1014,7 @@ class PipelineEngine:
                         "facets_created": facets_created_total,
                         "prompts_created": prompts_created_total,
                         "models_completed": models_completed,
+                        "families_completed": families_completed,
                     }
 
         # ── 5. Unload every LLM the cycle loaded ────────────────────
@@ -952,6 +1032,7 @@ class PipelineEngine:
             "facets_created": facets_created_total,
             "prompts_created": prompts_created_total,
             "models_completed": models_completed,
+            "families_completed": families_completed,
         }
 
     # ═══════════════════════════════════════════════════════════════
@@ -966,34 +1047,69 @@ class PipelineEngine:
         scene_ids: list[str] | None = None,
         template_override: str | None = None,
         cli_llm_override: str | None = None,
+        target_kind: str = "model",
+        render_model_id: str | None = None,
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-        """Phase B — render every (scene × prompt) for a (series, model).
+        """Phase B — render every (scene × prompt) for a (series, target).
+
+        Two render modes since the family-level prompt-prep feature
+        (2026-05):
+
+        * ``target_kind='model'`` (default) — renders the model-kind
+          prompts for ``model_id``. The render uses ``model_id``'s
+          checkpoint. ``render_model_id`` is ignored.
+        * ``target_kind='family'`` — renders the family-kind prompts
+          stored under ``model_id`` (which holds a family id when
+          target_kind='family'; e.g. 'flux'). ``render_model_id`` is
+          REQUIRED and must be a model whose family matches
+          ``model_id``; the render uses ``render_model_id``'s
+          checkpoint. CLI validates the family-membership match.
 
         Reloads everything it needs from the DB (series row, scenes,
-        prompts), rebuilds the GenerationContext for the **target**
-        model_id (which may differ from the model used to create the
-        series), recomputes per-target-model resolution at render
-        time, stages IPAdapter where applicable, runs the render loop
-        with retries, scores, postprocesses, and (in supervised mode)
-        prompts the operator for image-level review.
+        prompts), rebuilds the GenerationContext for the **render
+        checkpoint** (which is ``render_model_id`` in family-kind, or
+        ``model_id`` in model-kind), recomputes per-target-model
+        resolution at render time, stages IPAdapter where applicable,
+        runs the render loop with retries, scores, postprocesses, and
+        (in supervised mode) prompts the operator for image-level
+        review.
 
         Returns ``(rendered_images, ctx_state)``. ``ctx_state`` carries
         everything :meth:`run_phase_c` needs (``series_plan, scenes,
-        prompts, ctx, style_profile, style_profile_id``) so the caller
-        doesn't have to re-load.
+        prompts, ctx, style_profile, style_profile_id``, plus
+        ``target_kind`` and ``target_id`` for output paths) so the
+        caller doesn't have to re-load.
 
         Used by ``render_prompts.py`` (standalone Phase B+C invocation
         on an existing series) and indirectly by :meth:`run_cycle` (which
-        wraps phase_a → phase_b → phase_c).
+        wraps phase_a → phase_b → phase_c, always model-kind).
 
         Raises
         ------
         EngineError
-            Series not in DB; no prompts for the (series, model) pair;
-            target model not in registry.
+            Series not in DB; no prompts for the (series, target_kind,
+            target_id, llm) tuple; target_kind='family' but
+            render_model_id is None or the model's family doesn't
+            match.
         """
+        # Resolve the render checkpoint id. For model-kind, this is
+        # just `model_id`. For family-kind, it's the explicit
+        # `render_model_id` (validated upstream).
+        if target_kind == "family":
+            if not render_model_id:
+                raise EngineError(
+                    "run_phase_b: target_kind='family' requires "
+                    "render_model_id (which model checkpoint to use). "
+                    "Pass --render-with-model on the CLI."
+                )
+            checkpoint_model_id = render_model_id
+        else:
+            checkpoint_model_id = model_id
+
         logger.info(
-            "Phase B: Rendering series=%s model=%s …", series_id, model_id,
+            "Phase B: Rendering series=%s target_kind=%s target_id=%s "
+            "render_with=%s …",
+            series_id, target_kind, model_id, checkpoint_model_id,
         )
 
         # ── 1. Reload series + scenes + prompts from DB ─────────────
@@ -1024,12 +1140,10 @@ class PipelineEngine:
             scene_rows = conn.execute(scenes_query, scenes_params).fetchall()
             scenes = [dict(r) for r in scene_rows]
 
-            # Reload prompts filtered by (series, model, llm_id,
-            # optional scenes). The llm_id comes from --llm <id>
-            # (cli_llm_override) when set, else falls back to default_llm.
-            # Phase 5 will tighten this with strict-ambiguity checking
-            # at the CLI boundary so the user always specifies which
-            # LLM's prompts to render against a non-empty series.
+            # Reload prompts filtered by (series, target_kind, model_id,
+            # llm_id, optional scenes). model_id holds the target_id
+            # (image-model id for target_kind='model'; family id for
+            # target_kind='family').
             phase_b_llm_id = (
                 cli_llm_override
                 if cli_llm_override is not None
@@ -1037,10 +1151,11 @@ class PipelineEngine:
             )
             prompts_query = (
                 "SELECT * FROM prompts "
-                "WHERE series_id = ? AND model_id = ? AND llm_id = ?"
+                "WHERE series_id = ? AND target_kind = ? "
+                "AND model_id = ? AND llm_id = ?"
             )
             prompts_params: list[Any] = [
-                series_id, model_id, phase_b_llm_id,
+                series_id, target_kind, model_id, phase_b_llm_id,
             ]
             if scene_ids:
                 placeholders = ", ".join(["?"] * len(scene_ids))
@@ -1054,8 +1169,10 @@ class PipelineEngine:
         if not prompts:
             raise EngineError(
                 f"No prompts found in DB for series_id={series_id!r}, "
-                f"model_id={model_id!r}, llm_id={phase_b_llm_id!r}. "
-                f"Run prepare_prompts first."
+                f"target_kind={target_kind!r}, target_id={model_id!r}, "
+                f"llm_id={phase_b_llm_id!r}. Run prepare_prompts "
+                f"--{'families' if target_kind == 'family' else 'models'} "
+                f"{model_id} first."
             )
 
         # ── 2. Reload style_profile + content_rules ─────────────────
@@ -1077,6 +1194,10 @@ class PipelineEngine:
                     character_id, series_id,
                 )
 
+        # Render-time ctx uses the CHECKPOINT model (which equals
+        # model_id for target_kind='model', or render_model_id for
+        # target_kind='family'). The render workflow needs a concrete
+        # model_config for sampler/cfg/checkpoint/family lookups.
         ctx = build_context(
             mode=mode_name,
             content_level=content_level,
@@ -1084,7 +1205,7 @@ class PipelineEngine:
             style_profile=style_profile,
             content_rules=content_rules,
             db_path=self.db_path,
-            model_id=model_id,
+            model_id=checkpoint_model_id,
             commercial_mode=self._commercial_mode,
         )
         if character is not None:
@@ -1195,13 +1316,17 @@ class PipelineEngine:
             output_dir=self.comfy_output_dir,
         )
         rendered_images: list[dict[str, Any]] = []
-        # Per-LLM output dir so Cydonia/Magnum/Venice renders of the
-        # same series don't overwrite each other on disk. Plan §3.5.
+        # Per-LLM + per-target output dir so multi-LLM and
+        # model-vs-family renders on the same series don't overwrite
+        # each other. target_id is the model_id for target_kind='model'
+        # or the family_id for target_kind='family' — collapses to a
+        # single segment. Plan §3.5 + family-level prep D7.
         output_series_dir = (
             self.output_dir
             / content_level
             / series_id
             / phase_b_llm_id
+            / model_id  # = target_id (image model id or family id)
             / "images"
         )
         output_series_dir.mkdir(parents=True, exist_ok=True)
@@ -1285,7 +1410,7 @@ class PipelineEngine:
                 self._embed_png_metadata(
                     dst_path,
                     prompt=prompt,
-                    model_id=model_id,
+                    model_id=model_id,  # target_id (family id when family-kind)
                     series_id=series_id,
                     seed=seed_val,
                     resolution=resolution,
@@ -1297,6 +1422,12 @@ class PipelineEngine:
                     steps=ctx.model_config.default_steps,
                     cfg=ctx.model_config.default_cfg,
                     clip_skip=ctx.model_config.default_clip_skip,
+                    target_kind=target_kind,
+                    render_model_id=(
+                        checkpoint_model_id
+                        if target_kind == "family"
+                        else None
+                    ),
                 )
                 rendered_images.append({
                     "id": uuid.uuid4().hex,
@@ -1325,6 +1456,12 @@ class PipelineEngine:
             # the Exporter (which reconstructs its own export_dir and
             # would otherwise overwrite Cydonia/Magnum exports).
             "llm_id": phase_b_llm_id,
+            # Family-level prompt-prep — surface target_kind and
+            # target_id so run_phase_c's Exporter can place the
+            # exported set under <target_id>/ (matches the per-target
+            # output_series_dir shape).
+            "target_kind": target_kind,
+            "target_id": model_id,
         }
 
         if not rendered_images:
@@ -1387,13 +1524,13 @@ class PipelineEngine:
 
         # ── 12. Supervised pause 2 (image review) ───────────────────
         if ctx.execution_mode == "supervised":
-            # Per-LLM preview dir so dual-LLM A/B series get separate
-            # review folders (matches output_series_dir shape above).
+            # Per-LLM + per-target preview dir matches output_series_dir.
             preview_dir = (
                 self.output_dir
                 / content_level
                 / series_id
                 / phase_b_llm_id
+                / model_id  # = target_id
                 / "preview"
             )
             preview_dir.mkdir(parents=True, exist_ok=True)
@@ -1431,6 +1568,8 @@ class PipelineEngine:
         elapsed_seconds: float | None = None,
         llm_id: str | None = None,
         cli_llm_override: str | None = None,
+        target_kind: str = "model",
+        target_id: str | None = None,
     ) -> dict[str, Any]:
         """Phase C — package + persist + log.
 
@@ -1521,10 +1660,12 @@ class PipelineEngine:
         # Watermark T1/T2 exports (T3/T4 ship to paid platforms unwatermarked)
         self.watermarker.apply_batch(selected, content_level=content_level)
 
-        # Export. llm_id flows from run_phase_b's ctx_state via run_cycle
-        # so exports land under output/<level>/<series>/<llm_id>/.
-        # Without it, two LLMs A/B-rendering the same series would
-        # silently overwrite each other's exports.
+        # Export. llm_id + target_id flow from run_phase_b's ctx_state
+        # so exports land under
+        # output/<level>/<series>/<llm_id>/<target_id>/. Without
+        # target_id, two A/B targets (model + family, or two families)
+        # rendering the same series under the same LLM would silently
+        # overwrite each other's exports.
         exporter = Exporter(self.output_dir)
         export_dir = exporter.export(
             series_id=series_id,
@@ -1535,6 +1676,8 @@ class PipelineEngine:
             model_id=model_id,
             style_profile_id=style_profile_id,
             llm_id=llm_id or self._default_llm_id,
+            target_id=target_id or model_id,
+            target_kind=target_kind,
         )
 
         # Persist images to DB
@@ -1743,6 +1886,8 @@ class PipelineEngine:
         steps: int | None,
         cfg: float | None,
         clip_skip: int | None,
+        target_kind: str = "model",
+        render_model_id: str | None = None,
     ) -> None:
         """Attach AUTOMATIC1111 ``parameters`` + pipeline ``nsfw_pipeline``
         PNG tEXt chunks to ``path``. Best-effort: any failure logs at
@@ -1795,6 +1940,13 @@ class PipelineEngine:
                 # Stamp the generating LLM on the PNG itself so a
                 # forensic reader can identify it without DB access.
                 llm_id=prompt.get("llm_id"),
+                # Family-mode forensics: when target_kind='family',
+                # model_id holds the family id (e.g. 'flux') and
+                # render_model_id holds the actual checkpoint
+                # ('flux_nsfw_71q8'). For target_kind='model' both
+                # collapse — render_model_id stays None.
+                target_kind=target_kind,
+                render_model_id=render_model_id,
             )
             write_png_metadata(
                 path,
