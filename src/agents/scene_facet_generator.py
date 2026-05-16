@@ -56,10 +56,46 @@ _TIER_REQUIRED_NSFW_FIELDS: dict[str, tuple[str, ...]] = {
     "T4_explicit":   ("nsfw_anatomy", "nsfw_act"),
 }
 
+# Native danbooru NSFW vocabulary — booru families (pony, illustrious)
+# may express tier-appropriate NSFW content directly in ``booru_tags``
+# rather than via the structured ``nsfw_anatomy`` enum. When any of
+# these tokens appear inside booru_tags, treat the missing structured
+# anatomy field as satisfied (the booru tag is the equivalent native
+# signal for these families). Lowercase, whole-word matched via the
+# token-set check in :func:`_booru_tags_carry_nsfw`.
+_BOORU_NSFW_TOKENS: frozenset[str] = frozenset({
+    "nude", "completely_nude", "fully_nude", "topless", "bare_chest",
+    "bare_breasts", "breasts", "nipples", "pussy", "vulva",
+    "anatomically_correct", "fine_art_nude",
+})
+
+# Booru prompt_style values whose facets carry NSFW content natively
+# in booru_tags (parallel to ``_BOORU_PROMPT_STYLES`` below — kept as
+# a constant here so the post-validator doesn't need a circular import).
+_BOORU_NATIVE_STYLES: frozenset[str] = frozenset({
+    "pony_danbooru", "illustrious_tags",
+})
+
+
+def _booru_tags_carry_nsfw(facet: dict[str, Any] | None) -> bool:
+    """True iff ``facet.booru_tags`` contains any token from
+    :data:`_BOORU_NSFW_TOKENS`. Whole-token match on the comma-split
+    tag list — substring match would false-positive on tokens like
+    ``rear_view`` containing ``ear`` or similar. Case-insensitive.
+    """
+    if facet is None:
+        return False
+    tags_str = facet.get("booru_tags")
+    if not isinstance(tags_str, str) or not tags_str.strip():
+        return False
+    tag_tokens = {t.strip().lower() for t in tags_str.split(",")}
+    return bool(tag_tokens & _BOORU_NSFW_TOKENS)
+
 
 def _missing_required_nsfw_fields(
     facet: dict[str, Any] | None,
     content_level: str,
+    prompt_style: str | None = None,
 ) -> list[str]:
     """Return tier-required NSFW field names that are missing/null in
     ``facet``. Empty list = facet satisfies the tier's NSFW contract.
@@ -68,16 +104,31 @@ def _missing_required_nsfw_fields(
     AND its value is a non-empty string. None, empty string, or
     missing-key all count as missing.
 
+    Booru-family relaxation (2026-05-17): for prompt_styles in
+    :data:`_BOORU_NATIVE_STYLES` (Pony, Illustrious), ``nsfw_anatomy``
+    is also considered satisfied when ``facet.booru_tags`` contains
+    any native danbooru NSFW vocabulary token — booru families
+    natively express NSFW content via the tag list, not via the
+    structured concept enum. ``nsfw_act`` (T4-only) has no booru
+    equivalent and remains strictly required.
+
     No-op for T1/T2 (no required NSFW fields) — always returns [].
     """
     required = _TIER_REQUIRED_NSFW_FIELDS.get(content_level, ())
     if not required or facet is None:
         return []
     missing = []
+    booru_native = prompt_style in _BOORU_NATIVE_STYLES
+    booru_nsfw_present = booru_native and _booru_tags_carry_nsfw(facet)
     for field in required:
         value = facet.get(field)
-        if not isinstance(value, str) or not value.strip():
-            missing.append(field)
+        if isinstance(value, str) and value.strip():
+            continue
+        # nsfw_anatomy: accept booru-native NSFW tags as equivalent.
+        # nsfw_act (T4-only): no booru equivalent — strict check.
+        if field == "nsfw_anatomy" and booru_nsfw_present:
+            continue
+        missing.append(field)
     return missing
 
 
@@ -402,7 +453,9 @@ class SceneFacetGenerator:
         # for instance) we get a tame facet that bypasses the NSFW
         # vocabulary path entirely. This post-check rejects null at
         # T3/T4 and triggers the retry loop with an explicit nudge.
-        missing = _missing_required_nsfw_fields(facet, content_level)
+        missing = _missing_required_nsfw_fields(
+            facet, content_level, prompt_style=prompt_style,
+        )
         if facet is not None and not missing:
             return facet
 
@@ -444,7 +497,7 @@ class SceneFacetGenerator:
         # Operator can re-prep that scene later.
         if facet is not None:
             still_missing = _missing_required_nsfw_fields(
-                facet, content_level,
+                facet, content_level, prompt_style=prompt_style,
             )
             if still_missing:
                 logger.warning(
