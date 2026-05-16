@@ -125,8 +125,9 @@ class FamilyConfig:
     # the comma-token form for SDXL/Pony/Illustrious composers; ``prose``
     # is the natural-language sentence for prose families
     # (flux/chroma/flux2). Pony realism finetunes typically override
-    # ``keyword`` to ``"1woman, mature, adult"`` since Pony's tag
-    # conventions don't use "adult woman" verbatim.
+    # ``keyword`` to ``"1girl, mature_female, adult"`` since `1girl` +
+    # `mature_female` is the canonical Danbooru adult-female pair
+    # (``1woman`` is not a real Danbooru tag).
     adult_anchor: dict[str, str] = field(default_factory=lambda: {
         "keyword": "adult woman, mature features",
         "prose": "An adult woman with mature features.",

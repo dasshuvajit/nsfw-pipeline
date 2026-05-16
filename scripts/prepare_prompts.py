@@ -150,7 +150,59 @@ def _build_baseline_ctx(
     # Mode resolution: --mode wins; else weighted-random via ModeSelector
     # (the engine's selector, configured from pipeline.yaml::mode_weights).
     mode_name = engine.mode_selector.select(force_mode=args.mode)
-    content_rules = ContentLevelLoader(engine.db_path).load(args.level)
+
+    # Content-level resolution (2026-05-17 bug fix). When retargeting an
+    # existing series, the tier is whatever the series row in DB says —
+    # NOT the CLI default. This closes the silent-downgrade bug where
+    # `prepare_prompts --series-id <T4-series> --families chroma` (no
+    # --level) was producing T2_implied prompts despite the series being
+    # T4_explicit.
+    #
+    # The DB read is defensive: a fresh DB (or a test fixture) may not
+    # carry the `series` table yet. In that case we leave effective_level
+    # at whatever args.level resolved to and let run_phase_a's own
+    # "series not found" check fire.
+    effective_level = args.level
+    if args.series_id:
+        import sqlite3 as _sqlite3
+        db_level: str | None = None
+        try:
+            _conn = _sqlite3.connect(str(engine.db_path))
+            try:
+                row = _conn.execute(
+                    "SELECT content_level FROM series WHERE id = ?",
+                    (args.series_id,),
+                ).fetchone()
+                if row is not None:
+                    db_level = row[0]
+            finally:
+                _conn.close()
+        except _sqlite3.DatabaseError:
+            # Schema not initialised / DB unreadable — fall through and
+            # let downstream code surface the real error if it matters.
+            db_level = None
+
+        if db_level is not None:
+            if effective_level is None:
+                effective_level = db_level
+                logging.getLogger(__name__).info(
+                    "Retarget: inheriting content_level %r from series %s",
+                    effective_level, args.series_id,
+                )
+            elif effective_level != db_level:
+                raise EngineError(
+                    f"--level {effective_level!r} does not match the "
+                    f"existing series' content_level ({db_level!r}). "
+                    f"You cannot change the tier of an existing series "
+                    f"— omit --level to inherit from the series, or "
+                    f"create a new series at the desired tier."
+                )
+
+    if effective_level is None:
+        # New series (or unreadable DB) — apply the documented default.
+        effective_level = "T2_implied"
+
+    content_rules = ContentLevelLoader(engine.db_path).load(effective_level)
 
     # Character resolution (character mode + --character flag).
     baseline_character: dict[str, Any] | None = None
@@ -207,7 +259,7 @@ def _build_baseline_ctx(
 
     ctx = build_context(
         mode=mode_name,
-        content_level=args.level,
+        content_level=effective_level,
         execution_mode=engine.execution_mode,
         style_profile=style_profile,
         content_rules=content_rules,
@@ -287,8 +339,14 @@ def main() -> int:
     parser.add_argument(
         "--level",
         choices=["T1_suggestive", "T2_implied", "T3_artnude", "T4_explicit"],
-        default="T2_implied",
-        help="Content tier (default: T2_implied)",
+        default=None,
+        help=(
+            "Content tier. New-series default: T2_implied. Retargeting "
+            "an existing series (--series-id): the tier is INHERITED "
+            "from the series row in DB and --level must match (or be "
+            "omitted). Mismatch is rejected — you cannot retarget a "
+            "T4 series at T2."
+        ),
     )
     parser.add_argument(
         "--style-profile",

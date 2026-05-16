@@ -117,8 +117,8 @@ families:
           environment_detail: rumpled white sheets in a low-key bedroom
           mood_note: sultry and direct
         expected_facet:
-          camera_spec: "50mm f/1.4, shallow depth of field, sharp eyes, anatomically accurate skin"
-          clothing: "nude, partially draped white sheet at hip"
+          camera_spec: "50mm f/1.4, shallow depth of field, sharp eyes, anatomically accurate skin, fine-art nude framing, bare breasts visible, natural nipples, mature adult female"
+          clothing: "fully nude, no clothing, partially draped white sheet at hip exposing thigh and breasts"
 
   # ── Pony V6 (CyberRealistic Pony, Pony Realism) ───────────────────────
   # MANDATORY 6-tier prefix + BREAK — verified against AstraliteHeart's
@@ -181,10 +181,11 @@ families:
     # from freelancing and breaking tag conventions.
     llm_temperature: 0.4
     # Pony tag conventions don't say "adult woman" verbatim — booru
-    # tagging uses ``1woman`` / ``mature`` / ``adult`` distinct tokens.
+    # tagging uses ``1girl, mature_female, adult`` (canonical Danbooru
+    # vocabulary; ``1woman`` is not a real Danbooru tag).
     # _positive_age_safety_scan inserts the keyword form for Pony.
     adult_anchor:
-      keyword: "1woman, mature, adult"
+      keyword: "1girl, mature_female, adult"
       prose: "An adult woman with mature features."
     llm_hint: >-
       Use Danbooru-style tags (e.g. 1girl, long_hair, looking_at_viewer).
@@ -222,7 +223,7 @@ families:
           environment_detail: rumpled white sheets
           mood_note: sultry
         expected_facet:
-          booru_tags: "1girl, long_hair, looking_at_viewer, lying, on_back, knee_up, nude, breasts, anatomically_correct, detailed_skin, intimate, mature_female"
+          booru_tags: "1girl, mature_female, long_hair, looking_at_viewer, lying, on_back, knee_up, completely_nude, breasts, medium_breasts, nipples, navel, pussy, spread_legs, anatomically_correct, detailed_skin, intimate, fine_art_nude, bedroom, sheets"
           source_tag: "source_photograph"
 
   # ── Illustrious XL (Perfection Realistic ILXL, etc.) ──────────────────
@@ -318,8 +319,8 @@ families:
           environment_detail: rumpled sheets
           mood_note: sultry
         expected_facet:
-          booru_tags: "1girl, long_hair, looking_at_viewer, lying, on_back, knee_up, nude, breasts, anatomically_correct, detailed_skin, intimate, photorealistic, mature_female"
-          scene_prose: "A woman lies on rumpled white sheets, one knee raised, looking directly at the camera with a sultry expression under a warm overhead practical light."
+          booru_tags: "1girl, mature_female, long_hair, looking_at_viewer, lying, on_back, knee_up, completely_nude, breasts, medium_breasts, nipples, navel, pussy, spread_legs, anatomically_correct, detailed_skin, intimate, fine_art_nude, photorealistic"
+          scene_prose: "A fully nude adult woman lies on rumpled white sheets, one knee raised, bare breasts and natural nipples visible, looking directly at the camera with a sultry expression under a warm overhead practical light."
 
   # ── Flux.1 Dev / Schnell (vanilla) ────────────────────────────────────
   # CFG-distilled: negatives are ignored (FluxGuidance takes over).
@@ -386,7 +387,7 @@ families:
           environment_detail: rumpled white sheets
           mood_note: sultry and direct
         expected_facet:
-          scene_prose: "A woman lies on rumpled white sheets, one knee raised, looking directly into the camera with a sultry expression. Warm overhead practical light pools across her skin and the bedding, creating a soft natural shadow and an intimate close-up framing."
+          scene_prose: "A fully nude adult woman lies on rumpled white cotton sheets, one knee raised, the other extended, bare breasts and natural nipples visible, soft pubic shadow at the hip. She holds the camera's gaze with a direct, sultry expression. Warm overhead practical light pools across her bare skin and the bedding, sculpting collarbone, ribs, and thigh into a clean fine-art nude composition."
 
   # ── FLUX.2 Klein 9B (distilled, Qwen3-8B text encoder, 32-ch VAE) ─────
   # Step-distilled + guidance-distilled from FLUX.2-[dev] 32B. No
@@ -477,9 +478,9 @@ families:
           environment_detail: rumpled white sheets
           mood_note: sultry and direct
         expected_facet:
-          scene_prose: "A woman lies on her back on rumpled white cotton sheets, one knee raised, the other extended. She looks directly into the camera with a sultry, level gaze. A single warm overhead practical light spills across her exposed skin and the white bedding, creating a soft natural shadow and an intimate close-up frame."
-          subject_focus: "Woman, lying back, knee raised, direct gaze"
-          lighting_directive: "Warm overhead practical light directly above, soft natural shadow under the chin and knee, intimate close-up"
+          scene_prose: "A fully nude adult woman lies on her back on rumpled white cotton sheets, one knee raised, the other extended. Bare breasts and natural nipples are visible. She holds the camera's gaze with a sultry, level expression. A single warm overhead practical light spills directly across her bare skin and the bedding, sculpting the curves of her collarbone, ribs, and thigh into a fine-art nude composition."
+          subject_focus: "Fully nude adult woman, lying back, knee raised, bare breasts visible, direct gaze"
+          lighting_directive: "Warm overhead practical light directly above, soft natural shadow under the chin and knee, intimate close-up sculpting nude form"
     guide:
       structure_order: [subject, setting, details, lighting, atmosphere]
       target_words: [30, 80]
@@ -492,20 +493,33 @@ families:
     prompt_style: flux_natural
     quality_prefix: []
     quality_suffix: []
+    # Negative-axis vocabulary aligned with the official ChromaPipeline
+    # diffusers example (verified 2026-05-17):
+    #   "low quality, ugly, unfinished, out of focus, deformed,
+    #    disfigure, blurry, smudged, restricted palette, flat colors"
+    # Plus NSFW-specific watermark/anatomy axes. Effective only when
+    # CFG > 1 — vanilla Schnell ignores negatives entirely; finetunes
+    # like Chroma1-HD honour them above guidance_scale=1.
     negative_axes:
       anatomy:
         - bad anatomy
         - bad hands
         - deformed
+        - disfigure
         - mutation
         - extra limbs
         - missing limbs
       medium: []
       skin: []
       quality:
-        - blurry
         - low quality
         - ugly
+        - blurry
+        - out of focus
+        - smudged
+        - unfinished
+        - flat colors
+        - restricted palette
       watermark:
         - watermark
         - signature
@@ -515,27 +529,43 @@ families:
     supports_negative_prompt: true
     supports_weighting: false
     clip_skip: 1
-    max_tokens: 256
+    # T5-XXL window for Chroma — the official diffusers ChromaPipeline
+    # uses max_sequence_length=512 (verified 2026-05-17 against
+    # huggingface/docs/diffusers/api/pipelines/chroma). Earlier 256 was
+    # too restrictive; bumped to 512 so longer scene prose isn't truncated.
+    max_tokens: 512
     tokenizer_id: t5
     structure_rules: >-
       Same prose style as Flux but shorter — stay under ~200 words.
       Chroma supports negative prompts (unlike vanilla Schnell).
     avoid_words: [score_9, score_8_up, masterpiece, "best quality"]
     # "period" = append realism tail as period-separated fragments:
-    #   ". f/1.8. 35mm. photorealistic. natural skin texture."
+    #   ". f/1.8. 35mm. photographic. natural skin texture."
     # The lodestones HF card + top Chroma Civitai workflows consistently
-    # use this shape; comma-joining the tail degrades realism.
+    # use this shape; comma-joining the tail degrades realism. Note:
+    # tail uses "photographic" (not "photorealistic") per civitai
+    # community guidance — "photorealistic" pushes toward photorealistic
+    # ART rather than real photos.
     realism_tail_style: period
-    # Slightly lower than Flux — Chroma's 256 T5 window rewards more
-    # concise, consistent phrasing.
     llm_temperature: 0.75
     llm_hint: >-
-      Natural-English phrases, concise. Same as Flux but shorter.
+      Natural-English prose, concise. Same as Flux but shorter — aim
+      for 2-3 flowing sentences (under ~120 words). Weave pose,
+      lighting, lens, environment, mood into prose. NO comma-keyword
+      lists, NO weighting syntax, NO underscored tokens. The composer
+      will automatically append the photographic realism tail
+      (f/1.8. 35mm. photographic. natural skin texture.) — do NOT
+      emit it yourself.
     example_prompt: >-
       A confident woman standing in a modern loft apartment with soft
       window light illuminating her features, realistic skin texture
       with natural pores, a cinematic depth of field, warm and elegant
       atmosphere.
+    # Few-shot exemplars: CLEAN prose only — no period-tail, no
+    # "photorealistic". The composer auto-appends
+    # ". f/1.8. 35mm. photographic. natural skin texture." at compose
+    # time. Showing the tail in the exemplar trains the LLM to emit a
+    # duplicate tail, which doubles up in the final prompt.
     examples:
       - tier: T2_implied
         scene:
@@ -545,7 +575,7 @@ families:
           environment_detail: modern loft
           mood_note: calm
         expected_facet:
-          scene_prose: "A confident woman in cream silk lingerie stands in a modern loft, soft natural window light catching her features, warm tones, intimate atmosphere. f/1.8. 85mm. photorealistic. natural skin texture."
+          scene_prose: "A confident woman in cream silk lingerie stands in a modern loft, soft natural window light catching her features. Warm tones throughout the room create an intimate, elegant atmosphere with a cinematic shallow depth of field."
       - tier: T3_artnude
         scene:
           pose: reclined on side
@@ -554,7 +584,7 @@ families:
           environment_detail: linen sheets
           mood_note: intimate
         expected_facet:
-          scene_prose: "A woman reclines on her side draped in a sheer linen sheet, golden hour light from the window catching her skin in warm tones. f/1.4. 85mm. photorealistic. natural skin texture."
+          scene_prose: "A woman reclines on her side draped in a sheer linen sheet, golden hour light from the window catching her skin in warm tones. The fabric drapes naturally across her form, an intimate and unhurried moment captured in soft focus."
       - tier: T4_explicit
         scene:
           pose: lying back
@@ -563,4 +593,4 @@ families:
           environment_detail: rumpled white sheets
           mood_note: sultry
         expected_facet:
-          scene_prose: "A woman lies on rumpled white sheets, one knee raised, looking directly at the camera with a sultry expression, warm overhead practical light. f/1.4. 50mm. photorealistic. anatomically accurate skin."
+          scene_prose: "A fully nude adult woman lies on rumpled white sheets, one knee raised, bare breasts and natural nipples visible against the white bedding. She holds the camera with a sultry, direct gaze. Warm overhead practical lighting carves soft shadows across her bare body, the low-key bedroom around her, a fine-art nude framing."

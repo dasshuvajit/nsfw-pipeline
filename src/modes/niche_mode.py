@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any, TYPE_CHECKING
 
 from src.agents.llm_client import OllamaClient
+from src.agents.schemas import SceneList, SeriesPlan
 from src.core.generation_context import GenerationContext
 from src.memory.categories_loader import CategoriesLoader
 from src.modes._llm_helpers import run_llm_with_retry, validate_scene_list
@@ -42,7 +43,10 @@ You plan image sets optimized for specific niche audiences and their search beha
 
 Your output is ALWAYS a single JSON object with NO extra text, NO markdown fences, NO commentary.
 
-You must respect the content level provided — never exceed it.
+You must respect the content tier directive provided — never exceed
+it, never SOFTEN it. If the tier directive calls for explicit nude
+content, the THEME and SUBJECT_BIAS must reflect that — do NOT plan
+a T2-style "implied nude / lingerie" set when given T4_explicit.
 """
 
 _PLAN_USER_TEMPLATE = """\
@@ -54,8 +58,11 @@ Niche cluster: {cluster_name}
 Style profile: {style_name}
   Keywords: {style_keywords}
 
-Content level: {content_level}
-  Tag strategy: {tag_strategy}
+══════════ CONTENT TIER ({content_level}) — READ CAREFULLY ══════════
+{llm_directive}
+═════════════════════════════════════════════════════════════════════
+
+Tag strategy: {tag_strategy}
 Allowed pose types: {allowed_pose_types}
 
 Previous niche themes to AVOID repeating (last 5 series in niche mode):
@@ -85,8 +92,12 @@ You generate scene descriptions optimized for a specific niche audience.
 
 Your output is ALWAYS a JSON array of scene objects with NO extra text, NO markdown fences, NO commentary.
 
-You must respect the content level and allowed pose types provided — never exceed them.
-Every scene should incorporate at least one visual element from the niche plan.
+You must respect the content tier directive and allowed pose types
+provided — never exceed them, never SOFTEN them. At T3_artnude and
+T4_explicit, every scene's pose / camera / mood must be compatible
+with the directive's default state of undress. Do NOT euphemise.
+Every scene should incorporate at least one visual element from the
+niche plan.
 """
 
 _SCENE_USER_TEMPLATE = """\
@@ -102,7 +113,10 @@ Niche plan:
   Keyword cluster: {keyword_cluster}
   Variation axes: {variation_axes}
 
-Content level: {content_level}
+══════════ CONTENT TIER ({content_level}) — READ CAREFULLY ══════════
+{llm_directive}
+═════════════════════════════════════════════════════════════════════
+
 Allowed pose types: {allowed_pose_types}
 
 Each scene must be a JSON object with exactly these fields:
@@ -174,12 +188,17 @@ class NicheMode(BaseMode):
         previous_themes = self._load_recent_themes(ctx.db_path)
         allowed_poses = ctx.content_rules.allowed_pose_types
 
+        tier_directive = (
+            getattr(ctx.content_rules, "llm_directive", "")
+            or f"(No directive declared for {ctx.content_level}.)"
+        )
         user_prompt = _PLAN_USER_TEMPLATE.format(
             cluster_name=cluster["name"],
             cluster_keywords=json.dumps(keywords),
             style_name=ctx.style_profile["name"],
             style_keywords=ctx.style_profile["base_style_keywords"],
             content_level=ctx.content_level,
+            llm_directive=tier_directive,
             tag_strategy=tag_strategy,
             allowed_pose_types=json.dumps(allowed_poses),
             previous_themes="\n".join(f"  - {t}" for t in previous_themes) or "  (none)",
@@ -214,7 +233,10 @@ class NicheMode(BaseMode):
     ) -> list[dict[str, Any]]:
         """Generate scenes incorporating visual_elements and niche keywords."""
         allowed_poses = ctx.content_rules.allowed_pose_types
-
+        tier_directive = (
+            getattr(ctx.content_rules, "llm_directive", "")
+            or f"(No directive declared for {ctx.content_level}.)"
+        )
         user_prompt = _SCENE_USER_TEMPLATE.format(
             scene_count=25,
             theme=series_plan["theme"],
@@ -226,6 +248,7 @@ class NicheMode(BaseMode):
             keyword_cluster=json.dumps(series_plan.get("keyword_cluster", [])),
             variation_axes=json.dumps(series_plan.get("variation_axes", [])),
             content_level=ctx.content_level,
+            llm_directive=tier_directive,
             allowed_pose_types=json.dumps(allowed_poses),
         )
 
@@ -287,6 +310,7 @@ class NicheMode(BaseMode):
             mode_name="NicheMode plan",
             error_factory=NicheModeError,
             model=model,
+            schema=SeriesPlan,
         )
 
     def _generate_scenes(
@@ -307,6 +331,7 @@ class NicheMode(BaseMode):
             mode_name="NicheMode scenes",
             error_factory=NicheModeError,
             model=model,
+            schema=SceneList,
         )
 
     @staticmethod

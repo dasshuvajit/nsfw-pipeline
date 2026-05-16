@@ -48,7 +48,7 @@ def test_hard_block_prepended_to_negative(pb):
 def test_positive_age_scan_keyword_families(pb, family_loader, family_id):
     """Each keyword family inserts its own ``family.adult_anchor.keyword``
     when age-ambiguity vocabulary is stripped — Pony has its own anchor
-    (`1woman, mature, adult`); SDXL/Illustrious use the global default."""
+    (`1girl, mature_female, adult`); SDXL/Illustrious use the global default."""
     family = family_loader.get_family(family_id)
     character = {"base_prompt": "woman with dark hair"}
     scene = {
@@ -122,10 +122,11 @@ def test_positive_age_scan_leaves_clean_prompts_untouched(pb, family_loader):
 
 
 def test_pony_adult_anchor_uses_booru_token_form(pb, family_loader):
-    """Pony's anchor (`1woman, mature, adult`) honours booru tag
-    conventions — distinct from the default keyword form."""
+    """Pony's anchor (`1girl, mature_female, adult`) honours booru tag
+    conventions — `1woman` is not a Danbooru tag; we use the canonical
+    `1girl` + `mature_female` adult-female pair instead."""
     family = family_loader.get_family("pony")
-    assert family.adult_anchor["keyword"] == "1woman, mature, adult"
+    assert family.adult_anchor["keyword"] == "1girl, mature_female, adult"
     assert "adult" in family.adult_anchor["prose"].lower()
 
 

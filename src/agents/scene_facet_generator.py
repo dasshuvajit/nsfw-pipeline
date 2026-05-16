@@ -45,6 +45,42 @@ if TYPE_CHECKING:
     from src.memory.model_registry import ModelPromptGuide
 
 
+# Tier-required NSFW facet fields (added 2026-05-17). The llm_directive
+# at T3/T4 says these are REQUIRED but the Pydantic schema declares
+# them Optional for back-compat. We post-validate to catch LLM dodges
+# and trigger the retry loop with an explicit nudge.
+_TIER_REQUIRED_NSFW_FIELDS: dict[str, tuple[str, ...]] = {
+    "T1_suggestive": (),
+    "T2_implied":    (),
+    "T3_artnude":    ("nsfw_anatomy",),
+    "T4_explicit":   ("nsfw_anatomy", "nsfw_act"),
+}
+
+
+def _missing_required_nsfw_fields(
+    facet: dict[str, Any] | None,
+    content_level: str,
+) -> list[str]:
+    """Return tier-required NSFW field names that are missing/null in
+    ``facet``. Empty list = facet satisfies the tier's NSFW contract.
+
+    A field is considered "present" iff the key exists in the dict
+    AND its value is a non-empty string. None, empty string, or
+    missing-key all count as missing.
+
+    No-op for T1/T2 (no required NSFW fields) — always returns [].
+    """
+    required = _TIER_REQUIRED_NSFW_FIELDS.get(content_level, ())
+    if not required or facet is None:
+        return []
+    missing = []
+    for field in required:
+        value = facet.get(field)
+        if not isinstance(value, str) or not value.strip():
+            missing.append(field)
+    return missing
+
+
 # Q6 — Pattern A persona for the prose-family facet generator
 # (sdxl_keywords / flux_natural / chroma / flux2_prose). Q7 adds a
 # parallel booru-tag persona for pony_danbooru / illustrious_tags;
@@ -358,24 +394,66 @@ class SceneFacetGenerator:
         facet = self._attempt(
             system_prompt, user_prompt, schema, effective_temp, model=model,
         )
-        if facet is not None:
+        # Tier-required-tags post-validation (added 2026-05-17). The
+        # Pydantic schema declares nsfw_anatomy / nsfw_act as Optional
+        # (back-compat across all tiers), but at T3/T4 they are REQUIRED
+        # per the llm_directive. Pydantic + constrained-decoding alone
+        # accept null here; if the LLM dodges (cydonia self-censoring,
+        # for instance) we get a tame facet that bypasses the NSFW
+        # vocabulary path entirely. This post-check rejects null at
+        # T3/T4 and triggers the retry loop with an explicit nudge.
+        missing = _missing_required_nsfw_fields(facet, content_level)
+        if facet is not None and not missing:
             return facet
 
-        # Retry with a nudge
-        logger.warning(
-            "Scene facet generator: first attempt failed for family "
-            "%s, retrying …", family.id,
-        )
-        retry_prompt = (
-            user_prompt
-            + "\n\nIMPORTANT: Your previous response was not valid JSON or "
-            "did not match the schema. Return ONLY a single JSON object "
-            "with exactly the requested fields, no markdown, no commentary."
-        )
+        if missing:
+            logger.warning(
+                "Scene facet generator: first attempt for family %s "
+                "missing tier-required NSFW field(s) %s at "
+                "content_level=%s; retrying with explicit nudge.",
+                family.id, missing, content_level,
+            )
+            nudge = (
+                "\n\nIMPORTANT: At content_level "
+                f"{content_level}, the following field(s) are "
+                f"REQUIRED and must NOT be null: {', '.join(missing)}. "
+                "Pick one tag for each from the vocabulary menu in the "
+                "system prompt and include it in your JSON output. "
+                "Return ONLY a single JSON object."
+            )
+            retry_prompt = user_prompt + nudge
+        else:
+            logger.warning(
+                "Scene facet generator: first attempt failed for family "
+                "%s, retrying …", family.id,
+            )
+            retry_prompt = (
+                user_prompt
+                + "\n\nIMPORTANT: Your previous response was not valid "
+                "JSON or did not match the schema. Return ONLY a single "
+                "JSON object with exactly the requested fields, no "
+                "markdown, no commentary."
+            )
+
         facet = self._attempt(
             system_prompt, retry_prompt, schema, effective_temp, model=model,
         )
+        # Re-check tier-required fields after retry. We surface a
+        # WARNING (not an error) if still missing — better to ship a
+        # partially-tame T4 facet than to fail the whole prep run.
+        # Operator can re-prep that scene later.
         if facet is not None:
+            still_missing = _missing_required_nsfw_fields(
+                facet, content_level,
+            )
+            if still_missing:
+                logger.warning(
+                    "Scene facet generator: family %s still missing "
+                    "tier-required NSFW field(s) %s after retry; "
+                    "shipping the facet anyway (operator can re-prep "
+                    "this scene with --regen-facets to retry).",
+                    family.id, still_missing,
+                )
             return facet
 
         raise SceneFacetGeneratorError(

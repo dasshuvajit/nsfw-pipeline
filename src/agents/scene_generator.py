@@ -118,7 +118,10 @@ Series plan:
   Environment: {environment}
   Variation axes: {variation_axes}
 
-Content level: {content_level}
+══════════ CONTENT TIER ({content_level}) — READ CAREFULLY ══════════
+{llm_directive}
+═════════════════════════════════════════════════════════════════════
+
 Allowed pose types: {allowed_pose_types}
 
 Each scene must be a JSON object with exactly these fields:
@@ -168,6 +171,7 @@ class SceneGenerator:
         scene_count: int = 25,
         temperature: float | None = None,
         model: str | None = None,
+        llm_directive: str = "",
     ) -> list[dict]:
         """Generate model-agnostic scene cores from a series plan.
 
@@ -205,6 +209,14 @@ class SceneGenerator:
 
         scene_count = max(20, min(30, scene_count))
 
+        # Tier directive (added 2026-05-17). Required for T3/T4 to
+        # produce scenes that actually MATCH the tier rather than
+        # defaulting to T2-tame moods/poses.
+        if not llm_directive:
+            llm_directive = (
+                f"(No llm_directive supplied for {content_level}.)"
+            )
+
         user_prompt = _USER_PROMPT_TEMPLATE.format(
             scene_count=scene_count,
             theme=series_plan["theme"],
@@ -212,6 +224,7 @@ class SceneGenerator:
             environment=series_plan["environment"],
             variation_axes=json.dumps(series_plan["variation_axes"]),
             content_level=content_level,
+            llm_directive=llm_directive,
             allowed_pose_types=json.dumps(allowed_pose_types),
             schema_body=_SCHEMA_BODY,
         )

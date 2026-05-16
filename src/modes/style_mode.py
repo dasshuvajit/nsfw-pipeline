@@ -29,6 +29,7 @@ from typing import Any
 from typing import TYPE_CHECKING
 
 from src.agents.llm_client import OllamaClient
+from src.agents.schemas import SceneList, SeriesPlan
 from src.core.generation_context import GenerationContext
 from src.memory.categories_loader import CategoriesLoader
 from src.modes._llm_helpers import run_llm_with_retry, validate_scene_list
@@ -46,7 +47,9 @@ You design cohesive visual styles that unify diverse subjects in an image set.
 
 Your output is ALWAYS a single JSON object with NO extra text, NO markdown fences, NO commentary.
 
-You must respect the content level provided — never exceed it.
+You must respect the content tier directive provided — never exceed
+it, never SOFTEN it. The style's mood / camera-bias / environment-bias
+must be compatible with the tier directive at all times.
 """
 
 _PLAN_USER_TEMPLATE = """\
@@ -60,7 +63,9 @@ Style category: {category_name}
 Base style profile: {style_name}
   Keywords: {style_keywords}
 
-Content level: {content_level}
+══════════ CONTENT TIER ({content_level}) — READ CAREFULLY ══════════
+{llm_directive}
+═════════════════════════════════════════════════════════════════════
 
 Previous styles to AVOID repeating (last 5 series in style mode):
 {previous_styles}
@@ -90,8 +95,12 @@ You create diverse subjects (different people) unified by a specific visual styl
 
 Your output is ALWAYS a JSON array of scene objects with NO extra text, NO markdown fences, NO commentary.
 
-You must respect the content level and allowed pose types provided — never exceed them.
-Each subject should be a different person — vary appearance, but keep the visual style consistent.
+You must respect the content tier directive and allowed pose types
+provided — never exceed them, never SOFTEN them. At T3_artnude and
+T4_explicit, every subject's pose / camera / mood_note / subject_detail
+must be compatible with the directive's default state of undress.
+Each subject should be a different person — vary appearance, but keep
+the visual style consistent.
 """
 
 _SCENE_USER_TEMPLATE = """\
@@ -108,7 +117,10 @@ Style plan:
   Style keywords: {style_keywords_plan}
   Variation axes: {variation_axes}
 
-Content level: {content_level}
+══════════ CONTENT TIER ({content_level}) — READ CAREFULLY ══════════
+{llm_directive}
+═════════════════════════════════════════════════════════════════════
+
 Allowed pose types: {allowed_pose_types}
 
 Each scene must be a JSON object with exactly these fields:
@@ -165,6 +177,10 @@ class StyleMode(BaseMode):
 
         previous_styles = self._load_recent_styles(ctx.db_path)
 
+        tier_directive = (
+            getattr(ctx.content_rules, "llm_directive", "")
+            or f"(No directive declared for {ctx.content_level}.)"
+        )
         user_prompt = _PLAN_USER_TEMPLATE.format(
             category_name=category["name"],
             category_description=category.get("description", ""),
@@ -173,6 +189,7 @@ class StyleMode(BaseMode):
             style_name=ctx.style_profile["name"],
             style_keywords=ctx.style_profile["base_style_keywords"],
             content_level=ctx.content_level,
+            llm_directive=tier_directive,
             previous_styles="\n".join(f"  - {s}" for s in previous_styles) or "  (none)",
         )
 
@@ -206,6 +223,10 @@ class StyleMode(BaseMode):
         """Generate subjects (not scenes) — each is a different person."""
         allowed_poses = ctx.content_rules.allowed_pose_types
 
+        tier_directive = (
+            getattr(ctx.content_rules, "llm_directive", "")
+            or f"(No directive declared for {ctx.content_level}.)"
+        )
         user_prompt = _SCENE_USER_TEMPLATE.format(
             scene_count=25,
             theme=series_plan["theme"],
@@ -217,6 +238,7 @@ class StyleMode(BaseMode):
             style_keywords_plan=series_plan.get("style_keywords", ""),
             variation_axes=json.dumps(series_plan.get("variation_axes", [])),
             content_level=ctx.content_level,
+            llm_directive=tier_directive,
             allowed_pose_types=json.dumps(allowed_poses),
         )
 
@@ -273,6 +295,7 @@ class StyleMode(BaseMode):
             mode_name="StyleMode plan",
             error_factory=StyleModeError,
             model=model,
+            schema=SeriesPlan,
         )
 
     def _generate_scenes(
@@ -293,6 +316,7 @@ class StyleMode(BaseMode):
             mode_name="StyleMode scenes",
             error_factory=StyleModeError,
             model=model,
+            schema=SceneList,
         )
 
     @staticmethod

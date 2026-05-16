@@ -76,7 +76,10 @@ Character:
 Style profile: {style_name}
   Keywords: {style_keywords}
 
-Content level: {content_level}
+══════════ CONTENT TIER ({content_level}) — READ CAREFULLY ══════════
+{llm_directive}
+═════════════════════════════════════════════════════════════════════
+
 Allowed pose types: {allowed_pose_types}
 Mood range: {mood_range}
 Environment constraint: {environment_constraint}
@@ -211,6 +214,18 @@ class SeriesPlanner:
 
         mood_range = constraints.get("mood_range", [])
         environment_constraint = constraints.get("environment", "any")
+        # Tier directive (added 2026-05-17): the rich text from
+        # categories.yaml::content_levels.<tier>.llm_directive. Critical
+        # for T3/T4 — without it, the planner only sees a bare
+        # "Content level: T4_explicit" string and produces tame
+        # themes (e.g. "lingerie golden-hour") for explicit tiers.
+        # content_rules may not carry it (older callers), so fall back.
+        tier_directive = content_rules.get("llm_directive", "")
+        if not tier_directive:
+            tier_directive = (
+                f"(No llm_directive declared for {content_level} in "
+                f"content_rules.)"
+            )
 
         prev_str = "\n".join(f"  - {t}" for t in (previous_themes or [])) or "  (none — this is the first series)"
 
@@ -221,6 +236,7 @@ class SeriesPlanner:
             style_name=style_name,
             style_keywords=style_keywords,
             content_level=content_level,
+            llm_directive=tier_directive,
             allowed_pose_types=json.dumps(allowed_poses),
             mood_range=json.dumps(mood_range),
             environment_constraint=environment_constraint,

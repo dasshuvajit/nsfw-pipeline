@@ -103,6 +103,13 @@ class CharacterMode(BaseMode):
             content_rules={
                 "allowed_pose_types": ctx.content_rules.raw_allowed_pose_types,
                 "scene_constraints": ctx.content_rules.raw_scene_constraints,
+                # Tier directive — added 2026-05-17 so the character-
+                # mode planner LLM sees the rich tier guidance, not
+                # just a bare "Content level: T4_explicit" string.
+                # Required for T3/T4 to produce explicit themes.
+                "llm_directive": getattr(
+                    ctx.content_rules, "llm_directive", ""
+                ),
             },
             previous_themes=previous_themes,
             prompt_guide=ctx.model_prompt_guide,
@@ -147,6 +154,13 @@ class CharacterMode(BaseMode):
             scene_count=25,
             temperature=ctx.family.llm_temperature,
             model=scene_gen_model,
+            # Tier directive — added 2026-05-17. Without it the
+            # scene-gen LLM only saw "Content level: T4_explicit"
+            # and produced T2-tame scenes (dreamy / contemplative)
+            # despite the tier label.
+            llm_directive=getattr(
+                ctx.content_rules, "llm_directive", ""
+            ),
         )
         logger.info("CharacterMode: %d scenes generated", len(scenes))
         return scenes

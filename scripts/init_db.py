@@ -110,7 +110,7 @@ CREATE TABLE series (
     actual_count INTEGER DEFAULT 0,
     base_seed INTEGER DEFAULT NULL,           -- NULL=random per image, set=reproducible
     status TEXT NOT NULL DEFAULT 'planned' CHECK (status IN (
-        'planned','dry_run','rendering','filtering','packaging','complete','failed','partial'
+        'planned','dry_run','rendering','filtering','packaging','complete','failed','partial','aborted'
     )),
     llm_series_plan TEXT,                     -- JSON
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

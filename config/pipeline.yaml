@@ -20,7 +20,7 @@ pipeline:
   default_style_profile_id: "golden_hour_natural"
 
 execution:
-  mode: supervised           # manual|supervised|automated
+  mode: automated           # manual|supervised|automated
   pause_after_dryrun: true
   pause_after_filter: true
 

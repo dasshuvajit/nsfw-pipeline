@@ -27,6 +27,7 @@ from typing import Any
 from typing import TYPE_CHECKING
 
 from src.agents.llm_client import OllamaClient
+from src.agents.schemas import SceneList, SeriesPlan
 from src.core.generation_context import GenerationContext
 from src.modes._llm_helpers import run_llm_with_retry, validate_scene_list
 from src.modes.base_mode import BaseMode
@@ -43,7 +44,13 @@ You plan cohesive image sets around a specific theme category.
 
 Your output is ALWAYS a single JSON object with NO extra text, NO markdown fences, NO commentary.
 
-You must respect the content level and allowed pose types provided — never exceed them.
+You must respect the content tier directive and allowed pose types
+provided — never exceed them, never SOFTEN them. If the tier directive
+calls for explicit nude content, the THEME and SUBJECT_DESCRIPTION must
+reflect that explicitly (e.g. "nude fine-art studio session", not
+"lingerie golden-hour"). Tiered fields cascade: a tame theme + tame
+subject produces tame scenes downstream, no matter how strong the
+tier directive becomes later. Plan at the tier you're given.
 """
 
 _PLAN_USER_TEMPLATE = """\
@@ -55,7 +62,10 @@ Theme category: {category_name}
 Style profile: {style_name}
   Keywords: {style_keywords}
 
-Content level: {content_level}
+══════════ CONTENT TIER ({content_level}) — READ CAREFULLY ══════════
+{llm_directive}
+═════════════════════════════════════════════════════════════════════
+
 Allowed pose types: {allowed_pose_types}
 
 Previous themes to AVOID repeating (last 5 series in this category):
@@ -63,15 +73,15 @@ Previous themes to AVOID repeating (last 5 series in this category):
 
 Generate a JSON object with exactly these fields:
 {{
-  "theme": "<specific evocative theme within this category — NOT just the category name>",
-  "mood": "<emotional tone that fits the theme>",
+  "theme": "<specific evocative theme within this category — NOT just the category name; must reflect the tier above>",
+  "mood": "<emotional tone that fits the theme AND the tier>",
   "environment": "<primary setting/location — be specific: 'rain-soaked Tokyo alley at night' not 'outdoor'>",
   "variation_axes": ["<axis1>", "<axis2>", "<axis3>", "<axis4>"],
-  "subject_description": "<brief description of the type of subject/model for this set — be specific>"
+  "subject_description": "<brief description of the subject/model — at T3/T4, name nudity / state of undress explicitly per the tier directive; do NOT default to lingerie if T4 directive calls for fully nude>"
 }}
 
 The theme must be SPECIFIC (not vague like "beauty" or "nature").
-The subject_description should describe what kind of person appears in the set.
+The subject_description must MATCH the tier directive's default state.
 Variation_axes should be 3-5 dimensions the scenes will vary across.
 
 Return ONLY the JSON object."""
@@ -82,8 +92,12 @@ You generate diverse, specific scene descriptions for themed image sets.
 
 Your output is ALWAYS a JSON array of scene objects with NO extra text, NO markdown fences, NO commentary.
 
-You must respect the content level and allowed pose types provided — never exceed them.
-Every scene must be visually distinct from the others.
+You must respect the content tier directive and allowed pose types
+provided — never exceed them, never SOFTEN them. At T3_artnude and
+T4_explicit, every scene's pose / camera / mood_note must be compatible
+with the tier directive's default state of undress. Do NOT euphemise
+(no "draped" / "veiled" / "shadow hides her form" at T4 — those belong
+to T2). Every scene must be visually distinct from the others.
 """
 
 _SCENE_USER_TEMPLATE = """\
@@ -96,7 +110,10 @@ Series plan:
   Subject: {subject_description}
   Variation axes: {variation_axes}
 
-Content level: {content_level}
+══════════ CONTENT TIER ({content_level}) — READ CAREFULLY ══════════
+{llm_directive}
+═════════════════════════════════════════════════════════════════════
+
 Allowed pose types: {allowed_pose_types}
 
 Each scene must be a JSON object with exactly these fields:
@@ -157,12 +174,23 @@ class ThemeMode(BaseMode):
         previous_themes = self._load_recent_themes(ctx.db_path, category["id"])
 
         allowed_poses = ctx.content_rules.allowed_pose_types
+        # Tier directive sourced from categories.yaml::content_levels.<tier>
+        # so the planner LLM sees the SAME rich guidance the scene-facet
+        # generator gets. Without this, the planner only saw a bare
+        # "Content level: T4_explicit" string and produced tame
+        # themes/subject_descriptions (e.g. "delicate silk lingerie"
+        # for a T4_explicit run). Fixed 2026-05-17.
+        tier_directive = (
+            getattr(ctx.content_rules, "llm_directive", "")
+            or f"(No directive declared for {ctx.content_level}.)"
+        )
         user_prompt = _PLAN_USER_TEMPLATE.format(
             category_name=category["name"],
             category_description=category.get("description", ""),
             style_name=ctx.style_profile["name"],
             style_keywords=ctx.style_profile["base_style_keywords"],
             content_level=ctx.content_level,
+            llm_directive=tier_directive,
             allowed_pose_types=json.dumps(allowed_poses),
             previous_themes="\n".join(f"  - {t}" for t in previous_themes) or "  (none)",
         )
@@ -197,6 +225,10 @@ class ThemeMode(BaseMode):
         """Generate scenes — LLM creates subjects per scene (no character lock)."""
         allowed_poses = ctx.content_rules.allowed_pose_types
 
+        tier_directive = (
+            getattr(ctx.content_rules, "llm_directive", "")
+            or f"(No directive declared for {ctx.content_level}.)"
+        )
         user_prompt = _SCENE_USER_TEMPLATE.format(
             scene_count=25,
             theme=series_plan["theme"],
@@ -205,6 +237,7 @@ class ThemeMode(BaseMode):
             subject_description=series_plan.get("subject_description", "a model"),
             variation_axes=json.dumps(series_plan.get("variation_axes", [])),
             content_level=ctx.content_level,
+            llm_directive=tier_directive,
             allowed_pose_types=json.dumps(allowed_poses),
         )
 
@@ -261,6 +294,7 @@ class ThemeMode(BaseMode):
             mode_name="ThemeMode plan",
             error_factory=ThemeModeError,
             model=model,
+            schema=SeriesPlan,
         )
 
     def _generate_scenes(
@@ -281,6 +315,7 @@ class ThemeMode(BaseMode):
             mode_name="ThemeMode scenes",
             error_factory=ThemeModeError,
             model=model,
+            schema=SceneList,
         )
 
     @staticmethod
