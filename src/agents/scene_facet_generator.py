@@ -79,9 +79,20 @@ _BOORU_NATIVE_STYLES: frozenset[str] = frozenset({
 
 def _booru_tags_carry_nsfw(facet: dict[str, Any] | None) -> bool:
     """True iff ``facet.booru_tags`` contains any token from
-    :data:`_BOORU_NSFW_TOKENS`. Whole-token match on the comma-split
-    tag list — substring match would false-positive on tokens like
-    ``rear_view`` containing ``ear`` or similar. Case-insensitive.
+    :data:`_BOORU_NSFW_TOKENS` **or** a lowercased ``nsfw_*`` /
+    ``art_nude*`` concept-tag token (venice quirk — see below).
+    Whole-token match on the comma-split tag list; case-insensitive.
+
+    Venice quirk: at T3+ for booru families, Venice frequently emits
+    the abstract concept tag (lowercased) inside ``booru_tags`` —
+    e.g. ``nsfw_breast_natural, art_fine_nude, photorealistic`` —
+    instead of populating the structured ``nsfw_anatomy`` enum
+    field. The composer doesn't translate those tokens (canonicalizer
+    only fires on the structured field), so the booru-tag-side
+    signal is weaker, but the operator's intent is unambiguous: a
+    tier-marked NSFW scene. Treat that as satisfying the gate so we
+    stop emitting spurious shipping-with-warning logs for every
+    illustrious/pony T3+ scene.
     """
     if facet is None:
         return False
@@ -89,7 +100,14 @@ def _booru_tags_carry_nsfw(facet: dict[str, Any] | None) -> bool:
     if not isinstance(tags_str, str) or not tags_str.strip():
         return False
     tag_tokens = {t.strip().lower() for t in tags_str.split(",")}
-    return bool(tag_tokens & _BOORU_NSFW_TOKENS)
+    if tag_tokens & _BOORU_NSFW_TOKENS:
+        return True
+    # Venice quirk: lowercase `nsfw_*` or `art_*nude*` concept-tag-shaped
+    # tokens inside the comma list.
+    for tok in tag_tokens:
+        if tok.startswith("nsfw_") or "nude" in tok or tok.startswith("art_fine_nude"):
+            return True
+    return False
 
 
 def _missing_required_nsfw_fields(
