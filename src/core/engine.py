@@ -659,8 +659,11 @@ class PipelineEngine:
         )
         logger.info("=" * 60)
 
-        # ── 2. Preflight (baseline ctx — series-level concerns) ────
-        self._preflight(ctx)
+        # ── 2. Preflight (Phase A — Ollama reachability only) ──────
+        # Render-time checks (checkpoint file, workflow JSON,
+        # IPAdapter) run from run_phase_b instead — Phase A is purely
+        # LLM and doesn't touch ComfyUI files.
+        self._preflight_phase_a(ctx)
 
         # ── 3. New-series path: plan + generate scenes + persist ────
         if is_new_series:
@@ -1212,7 +1215,13 @@ class PipelineEngine:
             ctx.character = character
             ctx.character_id = character_id
 
-        # ── 4. Memory preflight + status update ─────────────────────
+        # ── 4. Render-time preflight (checkpoint / workflow JSON /
+        # IPAdapter / external-template) ────────────────────────────
+        # Fail fast BEFORE memory/status work — a missing checkpoint
+        # is cheaper to surface here than to crash inside ComfyUI.
+        self._preflight_phase_b(ctx)
+
+        # ── 5. Memory preflight + status update ─────────────────────
         self._memory_preflight(min_free_gb=14.0)
         self._update_series_status(series_id, "rendering")
 
@@ -1364,6 +1373,23 @@ class PipelineEngine:
                 logger.error("Workflow build failed: %s", exc)
                 continue
 
+            # Refiner-stage detection — populates the two PNG metadata
+            # fields (`refiner_used`, `refiner_checkpoint`). Inspecting
+            # the resolved workflow rather than the template-on-disk
+            # means a built-in template that wires a refiner stage (when
+            # we add one later) gets the same forensic record. False/None
+            # for any template without the refiner contract IDs.
+            refiner_used = "refiner_positive_prompt" in workflow
+            refiner_checkpoint = None
+            if "refiner_checkpoint_loader" in workflow:
+                rcl_inputs = workflow["refiner_checkpoint_loader"].get(
+                    "inputs", {}
+                )
+                refiner_checkpoint = (
+                    rcl_inputs.get("ckpt_name")
+                    or rcl_inputs.get("unet_name")
+                )
+
             comfy_images = None
             for attempt in range(self.max_retry):
                 try:
@@ -1428,6 +1454,8 @@ class PipelineEngine:
                         if target_kind == "family"
                         else None
                     ),
+                    refiner_used=refiner_used,
+                    refiner_checkpoint=refiner_checkpoint,
                 )
                 rendered_images.append({
                     "id": uuid.uuid4().hex,
@@ -1734,28 +1762,46 @@ class PipelineEngine:
     # PREFLIGHT CHECKS
     # ═══════════════════════════════════════════════════════════════
 
-    def _preflight(self, ctx: GenerationContext) -> None:
-        """Run all preflight checks before the LLM phase.
+    def _preflight_phase_a(self, ctx: GenerationContext) -> None:
+        """Phase A (LLM planning) preflight — Ollama reachability only.
 
-        Two branches. The Ollama check always runs (Phase A LLM
-        planning is unaffected by which workflow renders the result).
-        The system-template path checks the checkpoint file,
-        ``{family}/base.json``, and IPAdapter-capability compatibility.
-        The external-template path (``--template``) skips all three
-        because the external graph ships its own checkpoint, its own
-        graph file, and IPAdapter is forced off — and instead validates
-        that the external template is loadable and carries the four
-        contracted semantic IDs with the right input fields.
+        Phase A produces prompts in the DB; nothing renders here. The
+        checkpoint file, workflow JSON, and IPAdapter capability are
+        all render-time concerns and live in :meth:`_preflight_phase_b`.
+        Pre-2026-05-06 these were bundled into a single ``_preflight``
+        called from Phase A — which broke ``prepare_prompts --families
+        <f>`` (the family-mode baseline ctx picks an arbitrary family
+        member; its ``.gguf`` file may not be installed yet, and Phase
+        A doesn't need it).
         """
-        errors: list[str] = []
-
-        # 1. Ollama reachable — ALWAYS required.
         if not self.llm_client.is_available():
-            errors.append(
-                f"Ollama not reachable at {self.llm_client.base_url}. "
+            raise PreflightError(
+                "Preflight check(s) failed:\n"
+                f"  - Ollama not reachable at {self.llm_client.base_url}. "
                 f"Run `ollama serve`."
             )
+        logger.info("Preflight (Phase A): Ollama reachable")
 
+    def _preflight_phase_b(self, ctx: GenerationContext) -> None:
+        """Phase B (render) preflight — checkpoint, workflow, IPAdapter.
+
+        Two branches:
+
+        * **System-template path** (default, ``--template`` not set):
+          checkpoint file, ``{family}/base.json``, and IPAdapter-
+          capability compatibility for character mode with a reference
+          image.
+        * **External-template path** (``--template`` set): skip the
+          system-path checks (the external graph ships its own
+          checkpoint, its own graph file, and IPAdapter is forced off);
+          instead validate that the external template is loadable and
+          carries the four contracted semantic IDs with the right
+          input fields.
+
+        Aggregates errors so the user sees every missing-file issue
+        at once instead of one-at-a-time.
+        """
+        errors: list[str] = []
         if self.template_override:
             errors.extend(self._preflight_external_template(ctx))
         else:
@@ -1767,7 +1813,7 @@ class PipelineEngine:
             )
             raise PreflightError(msg)
 
-        logger.info("Preflight: all checks passed")
+        logger.info("Preflight (Phase B): all render-time checks passed")
 
     def _preflight_system_template(
         self, ctx: GenerationContext,
@@ -1888,6 +1934,8 @@ class PipelineEngine:
         clip_skip: int | None,
         target_kind: str = "model",
         render_model_id: str | None = None,
+        refiner_used: bool = False,
+        refiner_checkpoint: str | None = None,
     ) -> None:
         """Attach AUTOMATIC1111 ``parameters`` + pipeline ``nsfw_pipeline``
         PNG tEXt chunks to ``path``. Best-effort: any failure logs at
@@ -1947,6 +1995,8 @@ class PipelineEngine:
                 # collapse — render_model_id stays None.
                 target_kind=target_kind,
                 render_model_id=render_model_id,
+                refiner_used=refiner_used,
+                refiner_checkpoint=refiner_checkpoint,
             )
             write_png_metadata(
                 path,

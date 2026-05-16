@@ -99,6 +99,8 @@ def build_pipeline_metadata(
     llm_id: str | None = None,
     target_kind: str = "model",
     render_model_id: str | None = None,
+    refiner_used: bool = False,
+    refiner_checkpoint: str | None = None,
 ) -> str:
     """Build the ``nsfw_pipeline`` JSON chunk content.
 
@@ -116,6 +118,19 @@ def build_pipeline_metadata(
     the actual checkpoint that produced the PNG (e.g.
     'flux_nsfw_71q8'). For model-kind, the two collapse —
     ``render_model_id`` may be ``None`` and readers use ``model_id``.
+
+    Two refiner fields (added 2026-05-15 alongside the SDXL-refiner
+    contract extension):
+
+    * ``refiner_used`` — true iff the resolved workflow wired a
+      refiner stage (presence of ``refiner_positive_prompt`` semantic
+      node). False for templates without a refiner pass.
+    * ``refiner_checkpoint`` — the filename of the refiner's model,
+      read from the ``refiner_checkpoint_loader`` semantic node's
+      ``inputs.ckpt_name`` (CheckpointLoaderSimple) or
+      ``inputs.unet_name`` (UNETLoader). ``None`` when the template
+      didn't declare a refiner_checkpoint_loader (rare; the operator
+      can read the template JSON to learn what shipped).
     """
     payload: dict[str, Any] = {
         "vocab_version": vocab_version,
@@ -133,6 +148,8 @@ def build_pipeline_metadata(
         "steps": steps,
         "cfg": cfg,
         "content_level": content_level,
+        "refiner_used": refiner_used,
+        "refiner_checkpoint": refiner_checkpoint,
     }
     if structured_facet:
         # Drop None values to keep the chunk small.

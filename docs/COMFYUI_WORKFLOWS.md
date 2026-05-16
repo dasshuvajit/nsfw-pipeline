@@ -277,6 +277,142 @@ references a custom node you haven't installed, the render fails
 at execution time with ComfyUI's own error message. Mitigate by
 running the template manually in the UI once before pasting.
 
+## Refiner pipelines (optional two-stage templates)
+
+Added 2026-05-15. The external-template contract supports an
+**optional** second-stage refiner pass — typically a Chroma /
+Flux / Pony base + SDXL refiner combo. The pipeline patches the
+refiner stage with the same prompt + same seed as the base, so a
+refiner template is fully deterministic for a given (scene, model,
+llm, seed) tuple.
+
+### Why no LLM-generated refiner prompt
+
+SDXL refiners at the standard denoise band (0.10–0.25) are *polish
+passes* — they enforce skin texture, sharp edges, photographic
+detail; they don't re-imagine the scene. The community convention
+(A1111 SDXL base+refiner, Civitai workflows, ComfyUI examples) is
+to feed the refiner the **same positive prompt** as the base,
+optionally with a short SDXL-keyword booster ("realistic skin
+detail, sharp focus") appended.
+
+The pipeline mirrors this exactly: at render time it patches
+`refiner_positive_prompt.inputs.text` with the same string it
+patched into `positive_prompt.inputs.text`. The template author
+owns the static keyword booster — write whatever SDXL keywords you
+prefer into a separate node (e.g. node `45` in the gonzaLomo
+template) and wire a `ConditioningConcat` to combine them with the
+refiner positive. The pipeline never touches that booster node.
+
+### Optional refiner contract IDs
+
+Add these top-level keys to a template to wire a refiner stage.
+Backward-compatible: templates without these keys (every shipped
+`<family>/base.json` and `chroma_done_properly.json`) continue to
+validate and render unchanged.
+
+| Semantic ID | Required input fields | Pipeline patches | Notes |
+|---|---|---|---|
+| `refiner_positive_prompt` | `inputs.text` | `inputs.text` ← base prompt | CLIPTextEncode using the refiner's CLIP |
+| `refiner_negative_prompt` | _(none)_ | **NOT patched** | Template-owned; usually empty for denoise < 0.25 |
+| `refiner_ksampler` | `inputs.seed` | `inputs.seed` ← base seed | KSampler / variant for the refiner pass |
+| `refiner_checkpoint_loader` | _(none)_ | **NOT patched (metadata only)** | Pipeline reads `inputs.ckpt_name` OR `inputs.unet_name` for the PNG `refiner_checkpoint` field |
+
+### The all-or-none pair rule
+
+If either `refiner_positive_prompt` or `refiner_ksampler` is
+present, **both must be**. This catches half-renamed templates —
+the bug where you change one ID and forget the other, producing
+silent broken renders. `refiner_negative_prompt` and
+`refiner_checkpoint_loader` are fully optional and don't
+participate in the pair check.
+
+The preflight error looks like:
+
+```
+External template MyRefiner.json has 'refiner_positive_prompt' but
+is missing 'refiner_ksampler'. The refiner pair must be present
+together (refiner stage wired) or both absent (no-refiner
+template).
+```
+
+### Refiner negative prompt — left empty, by design
+
+Even when `refiner_negative_prompt` is present in the template,
+the pipeline does **not** patch its `inputs.text`. At denoise =
+0.15 the refiner barely touches the image; negative-prompt
+influence is near-zero. Reusing the base negative would add a
+meaningless CLIP-encoding overhead. A1111 and Civitai conventions
+both default to empty refiner negatives. If you want a non-empty
+refiner negative for some specific effect, write the text directly
+into the template — the pipeline preserves it.
+
+### Refiner checkpoint metadata
+
+`refiner_checkpoint_loader` exists so the pipeline can record
+which checkpoint actually refined the image — written into the
+PNG's `nsfw_pipeline` chunk as `refiner_checkpoint`. The pipeline
+reads either `inputs.ckpt_name` (CheckpointLoaderSimple) or
+`inputs.unet_name` (UNETLoader) — whichever your loader uses.
+Without this node, `refiner_checkpoint` lands as `null`; the
+forensic record is incomplete but the render still works.
+
+### Renaming a fresh ComfyUI-export with a refiner stage
+
+For a typical Chroma-base + SDXL-refiner workflow saved as API
+JSON from the ComfyUI UI, you'll typically have all-numeric IDs.
+Rename:
+
+1. The Chroma base CLIPTextEncode (the one feeding the base
+   KSampler's `positive` input) → `positive_prompt`
+2. The Chroma base CLIPTextEncode for negative (if zeroed via
+   `ConditioningZeroOut`, the *source* node) → `negative_prompt`
+3. The Chroma base KSampler → `ksampler`
+4. The latent shape node (EmptyLatentImage / EmptySD3LatentImage)
+   → `empty_latent`
+5. The SDXL CLIPTextEncode that re-encodes the base text →
+   `refiner_positive_prompt`
+6. The SDXL CLIPTextEncode for refiner negative (usually empty) →
+   `refiner_negative_prompt`
+7. The SDXL refiner KSampler → `refiner_ksampler`
+8. The SDXL CheckpointLoaderSimple → `refiner_checkpoint_loader`
+
+Reference: `config/comfyui_workflows/templates/chroma/gonzaLomo_Chroma_Refiner_v11.json`
+is a worked example of this exact pattern.
+
+### Cross-family templates
+
+The contract is family-agnostic. A flux series + SDXL refiner
+needs a `templates/flux/<author>_FluxBase_SDXLRefiner.json` with
+the same 8 semantic IDs. Same patching code path — the pipeline
+just sees the contract and does its thing. The flux base prompt
+flows into both encoders fine because SDXL CLIP handles prose
+input.
+
+### Opt-in (no new CLI flag)
+
+To render through a refiner template:
+
+```bash
+python scripts/render_prompts.py --series-id <id> \
+    --families chroma --render-with-model <some_chroma_model> \
+    --templates templates/chroma/gonzaLomo_Chroma_Refiner_v11.json \
+    --llm cydonia_24b_v43
+```
+
+Choosing the refiner template via `--templates` IS the opt-in. No
+new flag at `prepare_prompts` or `render_prompts`. A/B-compare
+without refiner: point `--templates` at `chroma_done_properly.json`
+on the same series.
+
+### Recommended denoise band
+
+SDXL refiners on top of a Chroma/Flux/Pony base typically run at
+`denoise = 0.10–0.25`. The gonzaLomo template uses **0.15** — a
+gentle skin/texture polish that doesn't alter composition. Edit
+`refiner_ksampler.inputs.denoise` to tune. The pipeline doesn't
+touch that field.
+
 ---
 
 ## `sdxl/base.json`

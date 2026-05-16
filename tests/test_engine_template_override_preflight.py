@@ -157,7 +157,7 @@ def test_preflight_passes_on_valid_external_template(
         "templates/chroma/chroma_done_properly.json",
         monkeypatch,
     )
-    engine._preflight(_fake_ctx())  # must not raise
+    engine._preflight_phase_b(_fake_ctx())  # must not raise
 
 
 def test_preflight_fails_on_missing_external_template(
@@ -169,7 +169,7 @@ def test_preflight_fails_on_missing_external_template(
         monkeypatch,
     )
     with pytest.raises(engine_module.PreflightError) as exc:
-        engine._preflight(_fake_ctx())
+        engine._preflight_phase_b(_fake_ctx())
     assert "not found" in str(exc.value).lower()
     assert "--template" in str(exc.value)
 
@@ -186,7 +186,7 @@ def test_preflight_fails_on_malformed_external_template(
         monkeypatch,
     )
     with pytest.raises(engine_module.PreflightError) as exc:
-        engine._preflight(_fake_ctx())
+        engine._preflight_phase_b(_fake_ctx())
     assert "not valid json" in str(exc.value).lower()
 
 
@@ -206,7 +206,7 @@ def test_preflight_fails_on_missing_positive_prompt(
         monkeypatch,
     )
     with pytest.raises(engine_module.PreflightError) as exc:
-        engine._preflight(_fake_ctx())
+        engine._preflight_phase_b(_fake_ctx())
     assert "positive_prompt" in str(exc.value)
 
 
@@ -225,7 +225,7 @@ def test_preflight_fails_on_missing_input_field(
         monkeypatch,
     )
     with pytest.raises(engine_module.PreflightError) as exc:
-        engine._preflight(_fake_ctx())
+        engine._preflight_phase_b(_fake_ctx())
     assert "ksampler.inputs.seed" in str(exc.value)
 
 
@@ -246,7 +246,7 @@ def test_preflight_skips_checkpoint_file_check_under_template(
     )
     # engine.comfy_output_dir points at a nonexistent dir; if the
     # system-path checkpoint check runs, it'll fail here.
-    engine._preflight(_fake_ctx())  # must not raise
+    engine._preflight_phase_b(_fake_ctx())  # must not raise
 
 
 def test_preflight_skips_base_json_check_under_template(
@@ -263,7 +263,7 @@ def test_preflight_skips_base_json_check_under_template(
     # external template under templates/chroma/. Preflight must not
     # reach for the system path.
     assert not (workflow_dir / "chroma" / "base.json").exists()
-    engine._preflight(_fake_ctx())  # must not raise
+    engine._preflight_phase_b(_fake_ctx())  # must not raise
 
 
 def test_preflight_skips_ipadapter_capability_check_under_template(
@@ -285,7 +285,7 @@ def test_preflight_skips_ipadapter_capability_check_under_template(
         "templates/chroma/chroma_done_properly.json",
         monkeypatch,
     )
-    engine._preflight(ctx)  # must not raise
+    engine._preflight_phase_b(ctx)  # must not raise
 
 
 # ---------- preflight: Ollama still required ----------------------------
@@ -295,7 +295,9 @@ def test_preflight_still_requires_ollama_under_template(
     engine_module, workflow_dir: Path, monkeypatch
 ):
     """Phase A LLM planning runs regardless of which workflow renders
-    the result, so Ollama must still be up."""
+    the result, so Ollama must still be up. The Ollama check lives
+    in ``_preflight_phase_a`` (template_override is irrelevant —
+    Phase A is always LLM-bound)."""
     engine = _engine_with_template(
         engine_module, workflow_dir,
         "templates/chroma/chroma_done_properly.json",
@@ -307,7 +309,7 @@ def test_preflight_still_requires_ollama_under_template(
         lambda self: False,
     )
     with pytest.raises(engine_module.PreflightError) as exc:
-        engine._preflight(_fake_ctx())
+        engine._preflight_phase_a(_fake_ctx())
     assert "Ollama" in str(exc.value) or "ollama" in str(exc.value)
 
 
@@ -325,6 +327,6 @@ def test_preflight_without_template_still_checks_base_json(
     )
     # workflow_dir has no chroma/base.json — system path should fail.
     with pytest.raises(engine_module.PreflightError) as exc:
-        engine._preflight(_fake_ctx())
+        engine._preflight_phase_b(_fake_ctx())
     msg = str(exc.value)
     assert "base.json" in msg or "Workflow template" in msg

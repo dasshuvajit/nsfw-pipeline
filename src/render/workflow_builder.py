@@ -162,6 +162,46 @@ _REQUIRED_EXTERNAL_INPUTS: dict[str, tuple[str, ...]] = {
     "empty_latent":    ("width", "height"),
 }
 
+# Optional refiner-stage IDs (2026-05-15 — added for two-pass workflows
+# like Chroma-base + SDXL-refiner). Validated only when present in the
+# workflow JSON. Backward-compatible — templates without these IDs (the
+# system-shipped <family>/base.json and chroma_done_properly.json) pass
+# the optional-loop as a no-op.
+#
+# - refiner_positive_prompt — SDXL-CLIP-encoded copy of the base text.
+#   Pipeline patches `inputs.text` with the SAME prompt as
+#   `positive_prompt`. The template's own ConditioningConcat (with the
+#   template-author-owned static keyword booster, e.g. node `45` in
+#   gonzaLomo with "realistic skin detail, …") yields the final
+#   refiner positive conditioning.
+# - refiner_negative_prompt — template-owned, NOT patched. SDXL refiner
+#   at denoise≤0.25 has near-zero negative influence; template author's
+#   empty default is correct. Listed so templates can opt to expose
+#   the node without violating the contract.
+# - refiner_ksampler — pipeline patches `inputs.seed` with the SAME seed
+#   as the base `ksampler` so a (scene, model, llm, seed) render is
+#   deterministic end-to-end.
+# - refiner_checkpoint_loader — metadata only. Pipeline reads
+#   `inputs.ckpt_name` (CheckpointLoaderSimple) or `inputs.unet_name`
+#   (UNETLoader) to populate the PNG `nsfw_pipeline` chunk's
+#   `refiner_checkpoint` field. Never written to.
+_OPTIONAL_NODES_EXTERNAL: tuple[str, ...] = (
+    "refiner_positive_prompt",
+    "refiner_negative_prompt",
+    "refiner_ksampler",
+    "refiner_checkpoint_loader",
+)
+
+_OPTIONAL_EXTERNAL_INPUTS: dict[str, tuple[str, ...]] = {
+    "refiner_positive_prompt":     ("text",),
+    # refiner_negative_prompt — no required fields (not patched).
+    "refiner_ksampler":            ("seed",),
+    # refiner_checkpoint_loader — neither field is REQUIRED (different
+    # loader classes use different field names); presence-of-node is
+    # the only check. Field lookup at metadata-extraction time is
+    # tolerant of either ckpt_name or unet_name.
+}
+
 # Default IPAdapter weight when the caller doesn't override. 0.7 is the
 # Section 7 sweet spot — strong enough to lock identity, soft enough to
 # let pose/lighting/expression vary across a set. Bumped from the cubiq
@@ -188,8 +228,25 @@ def _assert_external_template_inputs(
     ``empty_latent`` at the top level but its ``inputs`` dict is
     missing ``width`` or ``height`` (which would raise a KeyError
     mid-inject).
+
+    Three passes:
+
+    1. **Required-field pass** — every node in `_REQUIRED_EXTERNAL_INPUTS`
+       must expose every listed field.
+    2. **Optional-field pass** — for each node in
+       `_OPTIONAL_NODES_EXTERNAL` that is present in the workflow,
+       validate any required fields. Absent nodes are skipped silently.
+    3. **Refiner-pair-consistency pass** — if either
+       ``refiner_positive_prompt`` or ``refiner_ksampler`` is present,
+       both must be. (``refiner_negative_prompt`` and
+       ``refiner_checkpoint_loader`` are fully optional and don't
+       participate in the pair check.) This rule catches a half-renamed
+       template — the kind of bug where the user changes one ID and
+       forgets the other, getting silent broken renders.
     """
     missing: list[str] = []
+
+    # Pass 1 — required fields on required nodes.
     for node_id, field_keys in _REQUIRED_EXTERNAL_INPUTS.items():
         node = workflow.get(node_id, {})
         inputs = node.get("inputs") if isinstance(node, dict) else None
@@ -199,12 +256,42 @@ def _assert_external_template_inputs(
         for field in field_keys:
             if field not in inputs:
                 missing.append(f"{node_id}.inputs.{field}")
+
+    # Pass 2 — required fields on present optional nodes.
+    for node_id, field_keys in _OPTIONAL_EXTERNAL_INPUTS.items():
+        if node_id not in workflow:
+            continue
+        node = workflow[node_id]
+        inputs = node.get("inputs") if isinstance(node, dict) else None
+        if not isinstance(inputs, dict):
+            missing.append(f"{node_id}.inputs (missing or not an object)")
+            continue
+        for field in field_keys:
+            if field not in inputs:
+                missing.append(f"{node_id}.inputs.{field}")
+
     if missing:
         raise WorkflowTemplateError(
             f"External template {template_name} has the required nodes "
             f"but is missing input fields: {missing}. Each required "
             f"node must expose these keys (see docs/COMFYUI_WORKFLOWS.md "
             f"§ External templates)."
+        )
+
+    # Pass 3 — refiner-pair consistency.
+    has_refiner_pos = "refiner_positive_prompt" in workflow
+    has_refiner_ks = "refiner_ksampler" in workflow
+    if has_refiner_pos != has_refiner_ks:
+        present, missing_id = (
+            ("refiner_positive_prompt", "refiner_ksampler")
+            if has_refiner_pos
+            else ("refiner_ksampler", "refiner_positive_prompt")
+        )
+        raise WorkflowTemplateError(
+            f"External template {template_name} has '{present}' but is "
+            f"missing '{missing_id}'. The refiner pair must be present "
+            f"together (refiner stage wired) or both absent (no-refiner "
+            f"template). See docs/COMFYUI_WORKFLOWS.md § Refiner pipelines."
         )
 
 
@@ -768,6 +855,18 @@ class WorkflowBuilder:
         workflow["ksampler"]["inputs"]["seed"] = chosen_seed
         workflow["empty_latent"]["inputs"]["width"] = int(resolution[0])
         workflow["empty_latent"]["inputs"]["height"] = int(resolution[1])
+
+        # Optional refiner stage — same prompt + same seed as base.
+        # Patched only when the template wired in the refiner pair.
+        # `refiner_negative_prompt` is fully template-owned (not
+        # patched); `refiner_checkpoint_loader` is metadata-only.
+        # The pair-rule check in _assert_external_template_inputs
+        # already guarantees that if either side is present, both are.
+        if "refiner_positive_prompt" in workflow:
+            workflow["refiner_positive_prompt"]["inputs"]["text"] = prompt_text
+        if "refiner_ksampler" in workflow:
+            workflow["refiner_ksampler"]["inputs"]["seed"] = chosen_seed
+
         return workflow
 
     # ----- internals --------------------------------------------------------
