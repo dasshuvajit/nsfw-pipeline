@@ -246,12 +246,16 @@ class TestSceneList:
         sl = SceneList.model_validate_json(json.dumps(payload))
         assert len(sl) == 2
 
-    def test_empty_list_is_valid(self):
-        """A SceneList with zero scenes is structurally valid; the
-        downstream logic in scene_generator already handles the
-        zero-valid-scenes case as a generator failure."""
-        sl = SceneList.model_validate([])
-        assert len(sl) == 0
+    def test_empty_list_rejected(self):
+        """Post-2026-05-06, ``SceneList`` carries ``MinLen(1)`` so an
+        empty list is invalid at both the grammar level (Ollama emits
+        ``minItems: 1`` to llama.cpp's grammar) and the Pydantic post-
+        validation level. A loose-aligned LLM (Venice, Magnum) used to
+        emit ``[]`` as the path of least resistance — that path is
+        now closed."""
+        import pydantic
+        with pytest.raises(pydantic.ValidationError):
+            SceneList.model_validate([])
 
 
 # ============================================================================

@@ -165,11 +165,14 @@ class TestCharacterSchema:
 
 # ── SceneList sanity (already used by SceneGenerator) ────────────────
 class TestSceneListSanity:
-    def test_empty_list_rejected_via_min_length_on_inner(self):
-        # SceneList itself doesn't constrain length but Scene requires
-        # core fields — so an empty list IS valid.
-        sl = SceneList.model_validate([])
-        assert len(sl) == 0
+    def test_empty_list_rejected(self):
+        # Post-2026-05-06, SceneList carries MinLen(1): an empty list
+        # is rejected at both the grammar level (minItems: 1 lands in
+        # the JSON schema Ollama hands to llama.cpp) and Pydantic
+        # post-validation. Closes the venice / magnum "emit []" path.
+        import pydantic
+        with pytest.raises(pydantic.ValidationError):
+            SceneList.model_validate([])
 
     def test_valid_scene_list(self):
         sl = SceneList.model_validate([

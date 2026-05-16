@@ -15,9 +15,12 @@ caller-supplied error type.
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, TYPE_CHECKING, TypeVar
 
 from src.agents.llm_client import OllamaClient, OllamaJSONParseError
+
+if TYPE_CHECKING:
+    from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +42,7 @@ def run_llm_with_retry(
     mode_name: str,
     error_factory: Callable[[str], Exception],
     model: str,
+    schema: "type[BaseModel] | None" = None,
     retry_nudge: str = DEFAULT_RETRY_NUDGE,
     max_retries: int = 1,
 ) -> T:
@@ -61,6 +65,14 @@ def run_llm_with_retry(
         Factory producing the exception to raise on final failure —
         lets each caller keep its own error class (ThemeModeError etc.)
         without importing every mode's error module here.
+    schema : type[BaseModel] | None
+        Pydantic model used for grammar-constrained decoding (Phase 4b
+        ``format: <schema>`` API). When set, Ollama enforces structural
+        validity at decode time so a chatty / loose-aligned LLM (Venice,
+        Magnum) can't produce free-form prose where JSON is expected.
+        ``None`` (default) preserves the legacy free-form path used
+        before 2026-05-06; safe for callers whose validator already
+        tolerates malformed input.
     retry_nudge : str
         Appended to ``user`` on retry attempts.
     max_retries : int
@@ -79,6 +91,7 @@ def run_llm_with_retry(
                 system, current_user,
                 temperature=temperature, num_predict=num_predict,
                 model=model,
+                schema=schema,
             )
         except OllamaJSONParseError as exc:
             last_reason = f"JSON parse error: {exc}"

@@ -70,10 +70,10 @@ def _seed_series_with_prompts(
     )
     for i, model_id in enumerate(models):
         conn.execute(
-            "INSERT INTO prompts (id, series_id, scene_id, model_id, "
-            "llm_id, prompt_text, negative_prompt, prompt_hash, "
+            "INSERT INTO prompts (id, series_id, scene_id, target_kind, "
+            "model_id, llm_id, prompt_text, negative_prompt, prompt_hash, "
             "content_level, status) VALUES "
-            "(?, ?, ?, ?, ?, ?, ?, ?, 'T2_implied', 'pending')",
+            "(?, ?, ?, 'model', ?, ?, ?, ?, ?, 'T2_implied', 'pending')",
             (f"p_{i}", series_id, scene_id, model_id, "cydonia_24b_v43",
              "test prompt", "neg", f"hash_{i}"),
         )
@@ -138,7 +138,7 @@ class TestValidatePromptsExist:
         counts = render_module._validate_prompts_exist(
             fresh_db,
             series_id="ser_seed", scene_id=None,
-            models=["lustify_v7", "chroma_v10HD", "flux_nsfw_71q8"],
+            targets=["lustify_v7", "chroma_v10HD", "flux_nsfw_71q8"],
         )
         assert counts == {
             "lustify_v7": 1,
@@ -151,7 +151,7 @@ class TestValidatePromptsExist:
         counts = render_module._validate_prompts_exist(
             fresh_db,
             series_id=None, scene_id="ser_seed_sc_000",
-            models=["lustify_v7"],
+            targets=["lustify_v7"],
         )
         assert counts == {"lustify_v7": 1}
 
@@ -234,7 +234,7 @@ def test_main_missing_prompts_returns_2(
     assert rc == 2
 
     captured = capsys.readouterr()
-    assert "ERROR: no prompts in DB" in captured.err
+    assert "ERROR: no model-kind prompts in DB" in captured.err
     assert "lustify_v7" in captured.err
     assert "prepare_prompts.py" in captured.err
     assert "--series-id ser_no_prompts" in captured.err
@@ -354,6 +354,7 @@ def test_main_success_path_single_model(
         series_id="ser_seed", model_id="lustify_v7",
         scene_ids=None, template_override=None,
         cli_llm_override="cydonia_24b_v43",
+        target_kind="model", render_model_id=None,
     )
     fake_engine.run_phase_c.assert_called_once()
 

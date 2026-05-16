@@ -769,10 +769,16 @@ def _compose_illustrious_tags(
     return f"{body}, {', '.join(filtered_suffix)}" if body else ", ".join(filtered_suffix)
 
 
+# Chroma realism tail — period-separated fragments appended to the
+# scene prose to push toward photographic realism. Per Civitai community
+# guidance (verified 2026-05-17): "avoid photorealistic — it pushes
+# toward photorealistic ART; use photo or photography for real photos."
+# https://civitai.com/articles/19951 (Chroma Guide); lodestones/Chroma1-HD
+# HF README confirms pure-prose, photo-oriented terms.
 _CHROMA_REALISM_TAIL = (
     "f/1.8",
     "35mm",
-    "photorealistic",
+    "photographic",
     "natural skin texture",
 )
 
@@ -798,9 +804,12 @@ def _compose_natural(
     re-chopping it into the universal comma-list.
 
     When ``realism_tail_style == "period"`` (Chroma), the realism
-    tail (``f/1.8. 35mm. photorealistic. natural skin texture.``) is
+    tail (``f/1.8. 35mm. photographic. natural skin texture.``) is
     appended as period-separated fragments after the body — the shape
     the lodestones HF card and top Civitai Chroma workflows use.
+    Note: "photographic" not "photorealistic" — civitai community
+    guidance says photorealistic pushes toward photorealistic ART; use
+    photographic / photography for true-photo aesthetics.
 
     Tokens matching ``avoid`` are filtered from each segment before the
     segment is capitalized and stitched. Trigger words are appended as

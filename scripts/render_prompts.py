@@ -134,25 +134,31 @@ def _validate_prompts_exist(
     *,
     series_id: str | None,
     scene_id: str | None,
-    models: list[str],
+    targets: list[str],
     llm_id: str | None = None,
+    target_kind: str = "model",
 ) -> dict[str, int]:
-    """For each model: count prompts matching ``(series_id, scene_id)``.
+    """For each target_id: count prompts matching ``(series_id,
+    scene_id, target_kind)``.
 
-    When ``llm_id`` is set, only prompts from that LLM are counted —
-    matching the run_phase_b filter. ``None`` skips the LLM filter
-    (legacy single-LLM path).
+    ``target_kind`` discriminates whether ``targets`` are model ids
+    (``'model'``, default) or family ids (``'family'``). When
+    ``llm_id`` is set, only prompts from that LLM are counted —
+    matching the run_phase_b filter.
 
-    Returns ``{model_id: count}``. Caller decides whether to abort
+    Returns ``{target_id: count}``. Caller decides whether to abort
     when any value is 0 (we always abort for the missing-prompts path
     so the operator gets a clear hint pointing at ``prepare_prompts``).
     """
     counts: dict[str, int] = {}
     conn = sqlite3.connect(str(db_path))
     try:
-        for model_id in models:
-            base = "SELECT COUNT(*) FROM prompts WHERE model_id = ?"
-            params: list[Any] = [model_id]
+        for target_id in targets:
+            base = (
+                "SELECT COUNT(*) FROM prompts "
+                "WHERE target_kind = ? AND model_id = ?"
+            )
+            params: list[Any] = [target_kind, target_id]
             if scene_id:
                 base += " AND scene_id = ?"
                 params.append(scene_id)
@@ -163,7 +169,7 @@ def _validate_prompts_exist(
                 base += " AND llm_id = ?"
                 params.append(llm_id)
             row = conn.execute(base, params).fetchone()
-            counts[model_id] = row[0] if row else 0
+            counts[target_id] = row[0] if row else 0
     finally:
         conn.close()
     return counts
@@ -174,31 +180,38 @@ def _llms_present_on_series(
     *,
     series_id: str | None,
     scene_id: str | None,
-    models: list[str],
+    targets: list[str],
+    target_kind: str = "model",
 ) -> list[str]:
     """Return the distinct llm_ids present on the prompts for this
-    target (series_id or scene_id) across the requested models.
+    target (series_id or scene_id) across the requested target ids,
+    filtered to the kind being rendered THIS invocation.
 
-    Used by the strict-ambiguity check (plan §3.5b): when 1+ LLMs are
-    represented on a non-empty series, ``--llm`` becomes required so
-    the user makes an explicit choice instead of silently rendering
-    one LLM's data.
+    Used by the strict-ambiguity check (plan §3.5b + verifier patch
+    I7): when 1+ LLMs are represented on the prompts the user is
+    about to render, ``--llm`` becomes required so the user makes an
+    explicit choice instead of silently rendering one LLM's data.
+    Per-invocation filter on ``target_kind`` ensures a series with
+    BOTH family-kind (LLM=magnum) AND model-kind (LLM=cydonia) rows
+    doesn't cross-contaminate the ambiguity check.
     """
     conn = sqlite3.connect(str(db_path))
     try:
-        placeholders = ", ".join(["?"] * len(models))
+        placeholders = ", ".join(["?"] * len(targets))
         if scene_id:
             base = (
                 f"SELECT DISTINCT llm_id FROM prompts "
-                f"WHERE scene_id = ? AND model_id IN ({placeholders})"
+                f"WHERE target_kind = ? AND scene_id = ? "
+                f"AND model_id IN ({placeholders})"
             )
-            params: list[Any] = [scene_id, *models]
+            params: list[Any] = [target_kind, scene_id, *targets]
         else:
             base = (
                 f"SELECT DISTINCT llm_id FROM prompts "
-                f"WHERE series_id = ? AND model_id IN ({placeholders})"
+                f"WHERE target_kind = ? AND series_id = ? "
+                f"AND model_id IN ({placeholders})"
             )
-            params = [series_id, *models]
+            params = [target_kind, series_id, *targets]
         rows = conn.execute(base, params).fetchall()
         return sorted(r[0] for r in rows if r[0])
     finally:
@@ -269,18 +282,43 @@ def main() -> int:
         default=None,
         help=(
             "Comma-separated model ids to render through "
-            "(e.g. 'lustify_v7,chroma_v10HD'). Default: "
-            "[pipeline.default_model_id]. Models render sequentially."
+            "(e.g. 'lustify_v7,chroma_v10HD'). Renders MODEL-kind "
+            "prompts. Default: [pipeline.default_model_id]. Models "
+            "render sequentially. Mutually exclusive with --families."
+        ),
+    )
+    parser.add_argument(
+        "--families",
+        default=None,
+        help=(
+            "Comma-separated family ids to render through "
+            "(e.g. 'flux,pony'). Renders FAMILY-kind prompts (prepared "
+            "via `prepare_prompts --families <F>`). REQUIRES "
+            "--render-with-model to specify which checkpoint to use; "
+            "the chosen model's family must match the family. "
+            "Mutually exclusive with --models."
+        ),
+    )
+    parser.add_argument(
+        "--render-with-model",
+        default=None,
+        help=(
+            "Single model id to use as the render checkpoint when "
+            "--families is given. The chosen model's family must "
+            "match the family being rendered (validated at parse "
+            "time). REQUIRED with --families; FORBIDDEN with --models."
         ),
     )
     parser.add_argument(
         "--templates",
         default=None,
         help=(
-            "Per-model external workflow templates (positional pairing "
-            "with --models). 'system' = built-in family template. A "
-            "single value applies to all models. Otherwise must equal "
-            "--models count."
+            "External workflow templates (positional pairing with "
+            "--models OR --families). 'system' = built-in family "
+            "template. A single value applies to all targets. "
+            "Otherwise must equal target count. Required for refiner "
+            "workflows (e.g. chroma base + SDXL refiner via "
+            "templates/chroma/gonzaLomo_Chroma_Refiner_v11.json)."
         ),
     )
     parser.add_argument(
@@ -324,14 +362,85 @@ def main() -> int:
 
     try:
         config = _load_config()
-        models = _resolve_models(args.models, config)
-        templates = _resolve_templates(args.templates, models)
+        # Mutual exclusion + flag-pair validation. argparse can't
+        # express the cross-flag dependency cleanly so we do it here.
+        if args.models and args.families:
+            print(
+                "ERROR: --models and --families are mutually exclusive. "
+                "Pass one or the other.",
+                file=sys.stderr,
+            )
+            return 2
+        if args.families and not args.render_with_model:
+            print(
+                "ERROR: --families requires --render-with-model "
+                "<model_id>. The family-level prompt is checkpoint-"
+                "agnostic; you must pick which model to render with.",
+                file=sys.stderr,
+            )
+            return 2
+        if args.render_with_model and not args.families:
+            print(
+                "ERROR: --render-with-model is only valid with "
+                "--families. For --models, the model_id IS the render "
+                "checkpoint.",
+                file=sys.stderr,
+            )
+            return 2
+        # Resolve targets — single source of truth for the per-target
+        # render loop below. `targets` is family ids when --families is
+        # given, model ids otherwise; `target_kind` discriminates.
+        # `--templates` works in both modes (positional pairing with
+        # targets) — family-mode + external template is the canonical
+        # path for refiner workflows (e.g. Chroma base + SDXL refiner
+        # via templates/chroma/gonzaLomo_Chroma_Refiner_v11.json).
+        families = _parse_csv(args.families)
+        if families:
+            target_kind = "family"
+            targets = families
+            render_with_model = args.render_with_model
+        else:
+            target_kind = "model"
+            targets = _resolve_models(args.models, config)
+            render_with_model = None
+        templates = _resolve_templates(args.templates, targets)
 
         engine = PipelineEngine(
             config=config,
             db_path=Path(args.db_path) if args.db_path else None,
             dry_run=False,
         )
+
+        # Family-membership validation (D6): when --families is given,
+        # the chosen --render-with-model must belong to that family.
+        # Pony booru tags don't render through a flux checkpoint etc.
+        if target_kind == "family" and render_with_model:
+            from src.memory.model_registry import (
+                ModelNotFound,
+                ModelRegistryLoader,
+            )
+            try:
+                rwm_entry = ModelRegistryLoader(
+                    commercial_mode=False,
+                ).get_model(render_with_model)
+            except ModelNotFound as exc:
+                print(
+                    f"ERROR: --render-with-model {render_with_model!r} "
+                    f"is not a valid model id: {exc}",
+                    file=sys.stderr,
+                )
+                return 2
+            for fam in targets:
+                if rwm_entry.family != fam:
+                    print(
+                        f"ERROR: --render-with-model "
+                        f"{render_with_model!r} belongs to family "
+                        f"{rwm_entry.family!r}, not {fam!r}. Family-"
+                        f"level prompts must be rendered through a "
+                        f"checkpoint of the matching family.",
+                        file=sys.stderr,
+                    )
+                    return 2
 
         # Resolve series_id (from --series-id directly, or via the
         # scene's owning series for --scene-id).
@@ -359,7 +468,8 @@ def main() -> int:
             engine.db_path,
             series_id=args.series_id,
             scene_id=args.scene_id,
-            models=models,
+            targets=targets,
+            target_kind=target_kind,
         )
         if args.llm is None and present_llms:
             target_desc = (
@@ -393,8 +503,9 @@ def main() -> int:
             engine.db_path,
             series_id=args.series_id,
             scene_id=args.scene_id,
-            models=models,
+            targets=targets,
             llm_id=args.llm,
+            target_kind=target_kind,
         )
         missing = [m for m, n in counts.items() if n == 0]
         if missing:
@@ -403,58 +514,77 @@ def main() -> int:
                 else f"series '{args.series_id}'"
             )
             llm_hint = f" --llm {args.llm}" if args.llm else ""
+            prep_flag = (
+                "--families" if target_kind == "family" else "--models"
+            )
             print(
-                f"\nERROR: no prompts in DB for "
+                f"\nERROR: no {target_kind}-kind prompts in DB for "
                 f"{', '.join(repr(m) for m in missing)} on {target_desc}"
                 f"{f' (llm={args.llm})' if args.llm else ''}.\n"
                 f"Run prepare_prompts first:\n"
                 f"  python scripts/prepare_prompts.py --series-id "
                 f"{args.series_id or '<series>'} "
-                f"--models {','.join(missing)}{llm_hint}",
+                f"{prep_flag} {','.join(missing)}{llm_hint}",
                 file=sys.stderr,
             )
             return 2
 
         logger.info(
-            "render_prompts: series=%s%s, models=%s",
+            "render_prompts: series=%s%s, target_kind=%s, targets=%s%s",
             series_id,
             f" scene={args.scene_id}" if args.scene_id else "",
-            ",".join(models),
+            target_kind,
+            ",".join(targets),
+            (
+                f", render_with_model={render_with_model}"
+                if render_with_model else ""
+            ),
         )
 
-        # Per-model render loop (sequential — ComfyUI loads one
+        # Per-target render loop (sequential — ComfyUI loads one
         # checkpoint at a time; parallelism here would just thrash
-        # VRAM).
+        # VRAM). For target_kind='family', every iteration runs the
+        # same render_with_model checkpoint; for 'model', target_id IS
+        # the checkpoint.
         run_start = time.time()
         summaries: list[dict[str, Any]] = []
 
-        for model_id, template in zip(models, templates):
+        for target_id, template in zip(targets, templates):
             t0 = time.time()
             try:
                 rendered_images, ctx_state = engine.run_phase_b(
                     series_id=series_id,
-                    model_id=model_id,
+                    model_id=target_id,
                     scene_ids=scene_ids,
                     template_override=template,
                     cli_llm_override=args.llm,
+                    target_kind=target_kind,
+                    render_model_id=render_with_model,
                 )
             except EngineError as exc:
                 logger.error(
-                    "Render failed for %s: %s", model_id, exc,
+                    "Render failed for %s %s: %s",
+                    target_kind, target_id, exc,
                 )
                 summaries.append({
-                    "model_id": model_id,
+                    "model_id": target_id,
+                    "target_kind": target_kind,
                     "status": "failed",
                     "error": str(exc),
                 })
                 continue
 
             if ctx_state.get("aborted"):
-                summaries.append({"model_id": model_id, "status": "aborted"})
+                summaries.append({
+                    "model_id": target_id,
+                    "target_kind": target_kind,
+                    "status": "aborted",
+                })
                 continue
             if not rendered_images:
                 summaries.append({
-                    "model_id": model_id,
+                    "model_id": target_id,
+                    "target_kind": target_kind,
                     "status": "failed",
                     "reason": "zero rendered",
                 })
@@ -462,7 +592,8 @@ def main() -> int:
 
             if args.no_export:
                 summaries.append({
-                    "model_id": model_id,
+                    "model_id": target_id,
+                    "target_kind": target_kind,
                     "status": "complete",
                     "images_rendered": len(rendered_images),
                     "images_selected": len(rendered_images),
@@ -472,6 +603,11 @@ def main() -> int:
 
             elapsed_for_model = time.time() - t0
             try:
+                # Phase C records the actual checkpoint that ran in
+                # `model_id` (= ctx.model_id, which is render_with_model
+                # for family-kind, target_id for model-kind), and the
+                # target_kind/target_id pair so the export path picks
+                # up the family-or-model segment correctly.
                 result = engine.run_phase_c(
                     series_id=series_id,
                     model_id=ctx_state["ctx"].model_id,
@@ -485,14 +621,18 @@ def main() -> int:
                     style_profile_id=ctx_state["style_profile_id"],
                     elapsed_seconds=elapsed_for_model,
                     llm_id=ctx_state.get("llm_id"),
+                    target_kind=target_kind,
+                    target_id=target_id,
                 )
                 summaries.append(result)
             except Exception as exc:
                 logger.error(
-                    "Phase C failed for %s: %s", model_id, exc,
+                    "Phase C failed for %s %s: %s",
+                    target_kind, target_id, exc,
                 )
                 summaries.append({
-                    "model_id": model_id,
+                    "model_id": target_id,
+                    "target_kind": target_kind,
                     "status": "failed",
                     "error": f"phase_c: {exc}",
                 })

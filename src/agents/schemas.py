@@ -29,8 +29,9 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any
+from typing import Annotated, Any
 
+from annotated_types import MinLen
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -114,13 +115,21 @@ class Scene(BaseModel):
     audience_target: str | None = None
 
 
-class SceneList(RootModel[list[Scene]]):
+class SceneList(RootModel[Annotated[list[Scene], MinLen(1)]]):
     """Validated list of scenes — wraps :class:`SceneGenerator` output.
 
     Pydantic's RootModel makes ``model_validate_json`` work on a bare
     JSON array without needing an outer wrapper object. The ``.root``
     attribute is the underlying list; iteration / indexing / length
     proxy through to it.
+
+    The ``MinLen(1)`` annotation forbids an empty list at both the
+    grammar level (Ollama's ``format: <schema>`` emits ``minItems: 1``)
+    and the Pydantic post-validation level. Without it, a loose-aligned
+    LLM (Venice, Magnum) takes the path of least resistance and emits
+    ``[]`` — grammatically valid but semantically a no-op. The downstream
+    ``validate_scene_list`` filter drops empty lists too, so an LLM that
+    slips past the grammar still hits a wall — defence in depth.
     """
 
     def __iter__(self):

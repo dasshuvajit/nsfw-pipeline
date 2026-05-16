@@ -129,10 +129,15 @@ def test_chroma_appends_period_separated_realism_tail(pb, family_loader):
     out = pb.build_one(CHARACTER, scene, STYLE, family=family)
     text = out["prompt_text"]
     # The period-separated tail is appended after the prose body.
+    # Tail uses "photographic" (not "photorealistic") per Civitai
+    # community guidance — photorealistic pushes toward photorealistic
+    # ART, photographic pushes toward real photos. Updated 2026-05-17.
     assert "f/1.8" in text
     assert "35mm" in text
-    assert "photorealistic" in text
+    assert "photographic" in text
     assert "natural skin texture" in text
+    # Regression guard: the old "photorealistic" must be gone.
+    assert "photorealistic" not in text
     # Ordering: tail comes after the prose
     assert text.index("reclines") < text.index("f/1.8")
 
@@ -152,9 +157,9 @@ def test_flux2_uses_scene_prose_and_omits_realism_tail(pb, family_loader):
     # Prose body survives
     assert "reclines on cream silk sheets" in text
     # BFL Klein 9B guide bans the camera-tail dump — unlike Chroma, no
-    # `f/1.8. 35mm. photorealistic.` tail should be appended.
+    # `f/1.8. 35mm. photographic.` tail should be appended.
     assert "f/1.8" not in text
-    assert "photorealistic" not in text
+    assert "photographic" not in text
     assert "natural skin texture" not in text
 
 

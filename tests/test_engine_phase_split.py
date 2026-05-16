@@ -166,8 +166,14 @@ def _patch_facet_gen_with_canned(facet_dict: dict):
 
 
 def _patch_preflight():
-    """Skip Ollama + checkpoint preflight (no live services)."""
-    return patch("src.core.engine.PipelineEngine._preflight", return_value=None)
+    """Skip Phase A preflight (Ollama reachability) — no live services
+    in unit tests. Render-time checks moved to ``_preflight_phase_b``
+    which fires from ``run_phase_b`` only; tests in this file exercise
+    ``run_phase_a`` so only the Phase-A patcher is needed here."""
+    return patch(
+        "src.core.engine.PipelineEngine._preflight_phase_a",
+        return_value=None,
+    )
 
 
 def _patch_unload():
