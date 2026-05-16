@@ -3,7 +3,50 @@
 > **Platform:** Mac M4 Pro, 48 GB unified RAM  
 > **Target:** DeviantArt, Patreon  
 > **Stack:** Python 3.11, SQLite, ComfyUI, Ollama 0.5+
-> **Last sync:** 2026-05-04 (Multi-LLM cleanup + quality lifts — F1-F4
+> **Last sync:** 2026-05-17 (T4 softness fix + Venice routing default —
+> 5-layer fix lands: (1) `prepare_prompts.py --series-id` retarget
+> now inherits `content_level` from DB instead of silently
+> downgrading to T2_implied; (2-3) theme/niche/style/character modes
+> and SeriesPlanner/SceneGenerator inject the rich
+> `categories.yaml::content_levels.<tier>.llm_directive` into both
+> plan and scene templates inside a `══ CONTENT TIER ══` banner;
+> (4) `families.yaml` T4 few-shot exemplars rewritten across all 6
+> families with explicit `fully_nude / breasts / nipples / vulva /
+> anatomically_correct` (booru) and `fully nude / bare breasts /
+> natural nipples` (prose) language; (5) `scene_facet_generator.py`
+> post-validation enforces tier-required NSFW fields —
+> `nsfw_anatomy` at T3+, both `nsfw_anatomy + nsfw_act` at T4 —
+> retries with explicit nudge then ships with warning if still
+> missing. Plus `pipeline.yaml::llm.routing.scene_facet_generator
+> .default: venice_24b` (2.2% refusal floor) pinned by default so
+> the facet LLM doesn't self-censor — empirically resolves the
+> "tasteful boudoir at T4" symptom. Pony `families.yaml::adult_anchor`
+> corrected from non-Danbooru `1woman` to canonical
+> `1girl, mature_female`. `init_db.py::series.status` CHECK
+> constraint now includes `aborted` (fixed latent crash on
+> supervisor reject path). All 1250 tests pass.)
+>
+> Prior sync: 2026-05-06 (Family-level prompt prep — `prompts` schema
+> gains `target_kind` discriminator (`'model'` | `'family'`); UNIQUE
+> extends to `(scene_id, target_kind, model_id, llm_id)`. New
+> `prepare_prompts --families <f>` and `render_prompts --families <f>
+> --render-with-model <m>` flag pair lets a series carry both
+> family-kind (checkpoint-agnostic, no per-model overlay) and
+> model-kind (full trigger / avoid / LoRA stack) prompts on the same
+> scenes; `scene_facets` rows are shared across both kinds since the
+> facet table is family-keyed. `GenerationContext` gains
+> `target_kind` field + `__post_init__` invariant guard;
+> `build_family_context` factory produces family-kind ctxs for
+> Phase A's per-target loop. Output paths symmetric:
+> `output/<level>/<series>/<llm_id>/<target_id>/{images,preview}/`
+> where `target_id` = `model_id` for model-kind, `family_id` for
+> family-kind. PNG `nsfw_pipeline` chunk records `target_kind` and
+> `render_model_id` for forensic reproducibility.
+> Out-of-scope: `compare_models.py` / `dry_run.py` / `run_once.py` /
+> `src/main.py` stay model-only for now (engine-side wiring is done;
+> CLI flags are deferred). See PROJECT_GUIDE.md §17.)
+>
+> Prior sync: 2026-05-04 (Multi-LLM cleanup + quality lifts — F1-F4
 > + Q6-Q11 shipped. Per-role routing now fires for every agent (not
 > just facet generator); `OllamaClient` is a pure transport with
 > per-call model required; constrained decoding wired for Scene/
@@ -73,7 +116,7 @@ in YAML under `config/`. See §3 for the storage split.
 | `series` | One concept-level row per series | `id`, `mode`, `content_level`, `character_id`, `style_profile_id`, `theme`, `llm_series_plan` (JSON — re-targeting reads this back), `status` |
 | `scenes` | Per-scene model-agnostic core | `id`, `series_id`, `pose`, `camera`, `camera_angle`, `lighting`, `environment_detail`, `mood_note`, `expression`, `aspect_ratio`, `resolution_w/h`. **No family-shaped fields** — those moved to `scene_facets`. |
 | `scene_facets` (Phase 1) | Per-(scene, family) LLM expansion | PRIMARY KEY `(scene_id, family)`. Holds free-text family fields — `booru_tags`, `source_tag`, `scene_prose`, `camera_spec`, `clothing` — **plus** the structured concept-tag enum fields added in 2026-04 Phase 4a (`realism_camera`, `realism_lens`, `realism_film_stock`, `art_style_reference`, `lighting_directive`, `mood_aesthetic`, `nsfw_anatomy`, `nsfw_posture`). Set by `SceneFacetGenerator`. Sibling models in the same family share one row. The `family` CHECK clause is **templated from `config/families.yaml`** at init time. |
-| `prompts` | Per-(scene, model) composed text | `id`, `series_id`, `scene_id`, **`model_id` (NOT NULL)**, `prompt_text`, `negative_prompt`, `prompt_hash`, `content_level`, **`vocab_version` (Phase 4a — records the `prompt_vocabulary.yaml` version that produced the row)**, `status`. **`UNIQUE(scene_id, model_id)`** enforces "one prompt per (scene, model)". Re-rolling requires `prepare_prompts --regen-prompts <model>`. |
+| `prompts` | Per-(scene, target_kind, target_id, llm) composed text | `id`, `series_id`, `scene_id`, **`target_kind` (NOT NULL, `'model'` \| `'family'` — added 2026-05)**, **`model_id` (NOT NULL — dual semantic: model id when target_kind='model', family id when target_kind='family')**, **`llm_id` (NOT NULL)**, `prompt_text`, `negative_prompt`, `prompt_hash`, `content_level`, **`vocab_version` (Phase 4a — records the `prompt_vocabulary.yaml` version that produced the row)**, `status`. **`UNIQUE(scene_id, target_kind, model_id, llm_id)`** enforces "one prompt per (scene, kind, target, generating-LLM)" so model-kind and family-kind prompts coexist on the same scene. Re-rolling requires `prepare_prompts --regen-prompts <model> --llm <id>` (model-kind) or `prepare_prompts --regen-family-prompts <family> --llm <id>` (family-kind). |
 | `images` | Rendered images + scores | `id`, `prompt_id`, `series_id`, `model_id` (weak-ref TEXT), `file_path`, `seed`, `quality_score`, `aesthetic_score`, `blur_score`, `face_confidence`, `hps_v2_score`, `image_reward_score`, `quality_flags` (JSON). The two Phase-G score columns are nullable — populated only when `scoring.use_hps_v2` / `use_image_reward` are flipped on |
 | `sets` | Exported set metadata | `id`, `series_id`, `title`, `tags` (JSON), `export_path` |
 | `posts` | Engagement tracking | `id`, `set_id`, `platform`, `views_24h/72h`, `favorites` |
@@ -666,29 +709,45 @@ schemas in `src/agents/schemas.py` (`SeriesPlan`, `Scene`,
 parse time, so a malformed LLM output fails fast with a typed error
 path (`OllamaJSONParseError` → retry-with-nudge).
 
-### Per-model prompts (Phases 1–5)
+### Per-(scene, target, llm) prompts (Phases 1–5 + 2026-05 family-level)
 
-The DB carries **one prompt per (scene, model)** rather than the
-old one prompt per scene. Three coordinated changes underpin this:
+The DB carries **one prompt per (scene, target_kind, target_id, llm)**
+quad rather than the old one prompt per scene. Four coordinated
+properties underpin this:
 
 1. **`scenes` is model-agnostic** — only the universal scene core.
    Family-shaped fields no longer live here; they moved to
    `scene_facets`.
-2. **`scene_facets` is per-(scene, family)** — sibling models in the
-   same family share one row; the per-family LLM expansion is reused
-   across them.
-3. **`prompts` is per-(scene, model)** — `prompts.model_id` is
-   NOT NULL; `UNIQUE(scene_id, model_id)` enforces the invariant.
-   Re-rolling on the same model requires explicit
-   `prepare_prompts.py --regen-prompts <model>` which DELETEs
-   first; otherwise IntegrityError surfaces with a CLI hint.
+2. **`scene_facets` is per-(scene, family, llm)** — sibling models
+   in the same family share one row; the per-family LLM expansion
+   is reused across them. **Shared between model-kind and family-kind
+   prompt prep** — facet generation runs once regardless of how many
+   target_kinds consume it.
+3. **`prompts.target_kind`** (added 2026-05) is `'model'` or
+   `'family'`. `prompts.model_id` is dual-purpose: it carries an
+   image-model id when target_kind='model' and a family id when
+   target_kind='family'. Both columns are NOT NULL, plus
+   `UNIQUE(scene_id, target_kind, model_id, llm_id)` enforces the
+   invariant.
+4. **Re-rolling** for model-kind requires
+   `prepare_prompts --regen-prompts <model>`; for family-kind,
+   `prepare_prompts --regen-family-prompts <family>` (separate
+   flags so a typo can't cross-delete the other kind). Without
+   regen, IntegrityError surfaces with a CLI hint.
 
 This split lets the **same scene concept** feed multiple model
 families without re-querying the LLM for the model-agnostic core
-(saving ~one LLM call per scene per added model). The SDXL-vs-Flux
-"render the same series two ways" use case is now native:
-`prepare_prompts --series-id S --models flux_nsfw_71q8` is a single
-command after the original SDXL series was created.
+(saving ~one LLM call per scene per added model), AND lets the
+same scene carry both checkpoint-agnostic family-level prompts
+(no per-model overlay) and full per-model prompts simultaneously.
+The SDXL-vs-Flux "render the same series two ways" use case is
+native:
+`prepare_prompts --series-id S --models flux_nsfw_71q8` adds a
+new model-kind row; `prepare_prompts --series-id S --families flux`
+adds a new family-kind row. `render_prompts --families flux
+--render-with-model flux_nsfw_71q8` then renders the family-level
+prompts through any flux-family checkpoint (validated at parse
+time).
 
 ### Realism vocabulary library (Phase 4a + 4-bis, vocab_version 2)
 

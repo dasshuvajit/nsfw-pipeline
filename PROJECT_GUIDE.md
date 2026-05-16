@@ -805,7 +805,7 @@ flag is single-valued.
 | `scoring.composite_weights` | 6-signal weights when either Phase-G flag on (defaults: hps=0.30, image_reward=0.25, aesthetic=0.20, face=0.10, blur=0.10, resolution=0.05) |
 | `scoring.legacy_weights` | 4-signal fallback weights when both Phase-G flags off (0.40 / 0.25 / 0.25 / 0.10) |
 | `llm.base_url` / `llm.unload_after_phase` / `llm.keep_alive_seconds` | Ollama transport config |
-| `llm.routing` | Per-role LLM routing; empty `{}` by default → every role uses `default_llm`. See §16 |
+| `llm.routing` | Per-role LLM routing; default (2026-05-17) pins `scene_facet_generator.default: venice_24b` so the role producing NSFW phrasing runs through the lowest-refusal-floor LLM. Other roles use `default_llm`. See §16 |
 | `comfyui.base_url` / `output_dir` / `input_dir` / `render_timeout_seconds` / `workflow_dir` | ComfyUI config |
 | `watermark.*`, `postprocess.*`, `variation_mode.*` | tier-export + Phase-2/4 knobs |
 | `postprocess.upscale_enabled` | Phase F — pure-ESRGAN upscale (sdxl/pony/illustrious only); raises eagerly for untemplated families |
@@ -821,7 +821,8 @@ between quality_prefix and body; Pony realism finetunes use
 `[source_photograph, "photo (medium)", realistic]`),
 **`adult_anchor`** (Phase 3b — `{keyword, prose}` injection text for
 the positive-side age-safety scan; Pony overrides to
-`1woman, mature, adult` since booru tagging doesn't say "adult woman"
+`1girl, mature_female, adult` since `1girl` + `mature_female` is the
+canonical Danbooru adult-female pair (`1woman` is not a real tag)
 verbatim), negatives (7-axis taxonomy), clip_skip, max_tokens,
 structure rules, avoid words, LLM hints, capability flags.
 
@@ -975,7 +976,7 @@ and are passed via `--template` rather than auto-loaded by family.
 | `pipeline.yaml::llm.routing.X -> 'Y' is not a valid active registry id` | Routing block references a missing or inactive LLM. Either remove the routing entry, mark `active: true` in the registry, or change the value to a valid id. Validation fires at engine startup so the typo never reaches the LLM call. |
 | `compare_models.py: ERROR: --templates count must equal --models count` | Phase 5 changed N==N from Cartesian to positional pairing; mismatched counts (both >1) are now rejected. Either pass exactly N templates for N models, or pass 1 template (broadcast). |
 | `SceneFacetGeneratorError: facet generation failed` | LLM returned malformed JSON or schema-invalid fields for the facet. Check Ollama logs. Re-roll with `prepare_prompts --regen-facets <family>` (the bad facet row will be DELETEd + regenerated). |
-| **T4 series rendered tasteful boudoir, not actually NSFW/explicit** | Pre-2026-05-02 fix: the SceneFacetGenerator ran tier-blind (no `content_level` in the user prompt) and the LLM defaulted to safe prose. Fixed: `categories.yaml` now declares an `llm_directive:` per tier; the facet generator surfaces both content_level and the directive. **DB re-init required**: `python scripts/init_db.py --force` to add the `nsfw_act` column (Phase 4-bis was incomplete pre-fix). For an existing DB without re-init: pre-2026-05-02 series stay tasteful (drop them and regenerate from a fresh DB). |
+| **T4 series rendered tasteful boudoir, not actually NSFW/explicit** | 2026-05-17 — fully resolved by 5-layer fix: (1) `prepare_prompts.py --series-id` retarget now inherits `content_level` from DB instead of silently downgrading to T2_implied when `--level` is omitted; (2-3) theme/niche/style/character modes and SeriesPlanner/SceneGenerator now inject the rich `categories.yaml::content_levels.<tier>.llm_directive` into both plan and scene templates inside a `══ CONTENT TIER ══` banner (planner LLM previously only saw the bare tier string); (4) `families.yaml` T4 few-shot exemplars rewritten across all 6 families with explicit `fully_nude / breasts / nipples / vulva / anatomically_correct` language (booru) and `fully nude / bare breasts / natural nipples` prose; (5) `scene_facet_generator.py` post-validation enforces tier-required NSFW fields — `nsfw_anatomy` at T3+, both `nsfw_anatomy + nsfw_act` at T4 — with retry-nudge then ship-with-warning if still missing. Plus `pipeline.yaml::llm.routing.scene_facet_generator.default: venice_24b` (2.2% refusal floor) pinned by default so the facet LLM doesn't self-censor. Prior partial fix (2026-05-02) added the directive plumbing but cydonia still dodged with null tags; the 2026-05-17 fix closes that loop. **For DBs created pre-2026-05-17:** drop stale T4 facets+prompts (DELETE FROM scene_facets / prompts WHERE llm_id='cydonia_24b_v43' on the affected series) and re-run `prepare_prompts.py --series-id <s> --regen-facets <fam> --regen-family-prompts <fam>` — facets regenerate via venice and populate the required NSFW tags. |
 | `no such column: nsfw_act` | Your DB was created pre-2026-05-02. Run `python scripts/init_db.py --force` to add the column. Per project no-migration policy, existing series data is disposable. |
 
 ---
@@ -1059,36 +1060,44 @@ Ollama tag installed locally.
 
 ### 16.1 Two operating modes
 
-**Simple mode (default).** Leave `pipeline.yaml::llm.routing: {}`
-empty. Every agent role uses the registry's `default_llm` (currently
-`cydonia_24b_v43`). To switch LLMs for a single command, pass
-`--llm <id>` on the CLI — that overrides every role uniformly for the
-run. Recommended starting point.
+**Default routing (shipped 2026-05-17).** `pipeline.yaml::llm.routing`
+pins `scene_facet_generator.default: venice_24b` so the role that
+produces the actual NSFW phrasing (booru_tags / scene_prose /
+nsfw_anatomy / nsfw_act) runs through the lowest-refusal-floor LLM
+(~2.2% refusal vs cydonia's ~5%). Every other role
+(`series_planner`, `scene_generator`, `metadata_generator`,
+`character_creator`) stays on the registry default
+(`cydonia_24b_v43`) since those don't produce sexually explicit
+text directly. To switch LLMs for a single command, pass
+`--llm <id>` on the CLI — that overrides every role uniformly for
+the run. Recommended starting point.
 
 ```bash
-# Default LLM (cydonia) for everything:
+# Default routing (cydonia for planner/scene-gen, venice for facets):
 python scripts/prepare_prompts.py --character char_001 --level T4_explicit \
     --models lustify_v7
 
-# Override to Magnum for one run (every role uses Magnum):
+# Override to Cydonia for every role (forces A/B parity with old behaviour):
+python scripts/prepare_prompts.py --character char_001 --level T4_explicit \
+    --models lustify_v7 --llm cydonia_24b_v43
+
+# Override to Magnum for every role (A/B prose flavour test):
 python scripts/prepare_prompts.py --character char_001 --level T4_explicit \
     --models lustify_v7 --llm magnum_v4_22b
 ```
 
-**Quality-optimised mode.** Uncomment the recommended `routing:`
-block in `pipeline.yaml`:
+**Quality-optimised mode (further tuning).** Edit
+`pipeline.yaml::llm.routing` to override per-family or other roles:
 
 ```yaml
 llm:
   routing:
-    series_planner:    cydonia_24b_v43
-    scene_generator:   cydonia_24b_v43
     scene_facet_generator:
-      default:          cydonia_24b_v43      # SDXL/Pony/Illustrious
-      flux_natural:     magnum_v4_22b        # Claude-Opus prose
-      flux2_prose:      magnum_v4_22b
-    metadata_generator: venice_24b           # 2.2% refusal floor
-    character_creator:  cydonia_24b_v43
+      default:          venice_24b          # default — lowest refusal (~2.2%)
+      flux_natural:     magnum_v4_22b       # Claude-Opus prose for flux/chroma
+      flux2_prose:      magnum_v4_22b       # BFL 5-anchor prose
+    metadata_generator: venice_24b          # platform-metadata role
+    # series_planner / scene_generator / character_creator stay on default_llm
 ```
 
 Each role automatically gets the best-fit LLM. `--llm` is reserved for
@@ -1167,3 +1176,152 @@ Renders include the generating `llm_id` in the `nsfw_pipeline` tEXt
 chunk so a forensic reader can identify the LLM from the PNG alone
 (no DB access needed). The standard `parameters` (A1111) chunk is
 unchanged — interop-safe.
+
+### 16.6 Switching LLMs (cheat-sheet)
+
+Each Phase A LLM call has a **role**. The active LLM for a role is
+resolved in priority order:
+
+1. `--llm <id>` on the CLI — single-run override for every role.
+2. `pipeline.yaml::llm.routing.<role>` — per-role override.
+3. `config/llm_models.yaml::default_llm` — global fallback.
+
+Roles: `series_planner`, `scene_generator`, `scene_facet_generator`,
+`character_creator`, `metadata_generator`.
+
+| Goal | What to edit |
+|---|---|
+| Use a different model as the default everywhere | `config/llm_models.yaml::default_llm` |
+| One-off run with a different LLM | `--llm <id>` on the CLI (no config change) |
+| Route a specific family through a different facet LLM | `pipeline.yaml::llm.routing.scene_facet_generator.<prompt_style>: <id>` (e.g. `flux_natural: magnum_v4_22b`) |
+| Revert the venice default for facets | Edit `pipeline.yaml::llm.routing.scene_facet_generator.default` |
+| Use Magnum as the second-chance fallback | `config/llm_models.yaml::fallback_llm: magnum_22b_v4` |
+| Add a new model | `ollama pull <tag>`, add an entry to `config/llm_models.yaml::llms` |
+
+The shipped default (2026-05-17) is **Cydonia 24B v4.3 (Q4_K_M)** for
+planner / scene-gen / metadata / character roles, with
+**Venice 24B (Q5_K_M)** pinned for `scene_facet_generator` (all 6
+families). See §16.7 for why.
+
+### 16.7 When to switch LLMs (and what breaks if you do)
+
+- **Cydonia (Q4_K_M, 14 GB) — default.** Fast Q4 quant, well-aligned
+  to "JSON only" instructions, reliable on the heavy structured
+  roles (25-scene generation, character creation, metadata). The
+  multi-LLM cleanup (2026-05-04), Q-series tuning (Q6-Q11), and
+  constrained-decoding work all assume Cydonia as the default.
+  Pull: `ollama pull moophlo/Cydonia-24B-v4.3-GGUF:Q4_K_M`.
+
+- **Venice (Q5_K_M, 13 GB) — default for `scene_facet_generator`
+  (2026-05-17).** Lowest refusal floor (~2.2%). Pinned to all 6
+  facet prompt_styles via `routing.scene_facet_generator.default:
+  venice_24b` so the role that produces actual NSFW phrasing
+  (booru_tags / scene_prose / nsfw_anatomy / nsfw_act) runs through
+  a model that won't dodge with null tags. Empirically resolved the
+  T3/T4 "tasteful boudoir" symptom (see §14 known issues).
+  **Don't use as the global default**: the Q5 quant + looser
+  instruction-following make 25-scene generation slow enough to
+  exceed Ollama's 5-min HTTP timeout on a 48 GB Mac.
+
+- **Magnum (Q6_K, 28 GB) — opt-in fallback.** Even more permissive
+  on prose; very slow at the Q6 quant. Same caveat as Venice for
+  the heavy structured roles. Best as `fallback_llm: magnum_22b_v4`
+  for the rare case where the primary model refuses constrained-
+  decoded output and the user wants a second chance with a less
+  censored model.
+
+**Rule of thumb:** keep the default at Cydonia. Reach for Venice
+or Magnum **per-role** via `pipeline.yaml::llm.routing` only when
+you have a concrete reason (refusals on a specific facet family).
+A whole-pipeline swap to Venice or Magnum will work but blows the
+performance envelope the codebase was tuned for.
+
+## 17. Family-level prompt preparation (2026-05)
+
+Prepare prompts at the **family** level (sdxl / pony / illustrious /
+flux / chroma / flux2) without applying any per-model rules.
+A family-level prompt is checkpoint-agnostic — any model in that
+family can render it. Useful when:
+
+- You want to compose prompts once and render them through several
+  sibling checkpoints in the same family (e.g. compare flux_nsfw_71q8
+  vs gonzalomo_flux_v30 on identical text).
+- You want clean family-level baseline prompts without trigger words,
+  per-model LoRAs, or model-specific negative embeddings.
+
+Model-level and family-level prompts coexist on the same scene; the
+schema discriminates via `prompts.target_kind` ∈ {`model`, `family`}.
+The `scene_facets` row is shared — facet generation (the expensive
+LLM hop) runs once per (scene, family, llm) regardless of how many
+target_kinds consume it.
+
+### 17.1 Flag matrix
+
+| CLI | Flag | Behaviour |
+|---|---|---|
+| `prepare_prompts.py` | `--models <m1,m2>` | Per-model rules (trigger / avoid / LoRAs). target_kind='model'. |
+| `prepare_prompts.py` | `--families <f1,f2>` | Family-level only — no per-model overlay. target_kind='family'. |
+| `prepare_prompts.py` | both | Both kinds prepared on same series; coexist in DB. |
+| `prepare_prompts.py` | `--regen-prompts <m>` | Re-roll model-kind only. |
+| `prepare_prompts.py` | `--regen-family-prompts <f>` | Re-roll family-kind only. |
+| `render_prompts.py` | `--models <m1,m2>` | Render model-kind prompts; the `model_id` IS the checkpoint. |
+| `render_prompts.py` | `--families <f1,f2> --render-with-model <m>` | Render family-kind prompts via `<m>` (must belong to the family). |
+| `render_prompts.py` | mutex | `--models` XOR `--families`; `--render-with-model` REQUIRES `--families`, FORBIDDEN with `--models`. |
+
+### 17.2 Walkthrough
+
+```bash
+# 1. Prepare both kinds on a fresh series (one LLM hop generates the
+#    flux scene_facet; both prompt-kinds compose from it).
+python scripts/prepare_prompts.py \
+    --mode theme --level T2_implied \
+    --models lustify_v7 \
+    --families flux \
+    --llm cydonia_24b_v43
+
+# 2. Inspect — expect ('family','flux',N), ('model','lustify_v7',N).
+sqlite3 nsfw_pipeline.db \
+  "SELECT target_kind, model_id, COUNT(*) FROM prompts GROUP BY 1, 2"
+
+# 3. Render the family-kind rows through a chosen flux checkpoint.
+python scripts/render_prompts.py \
+    --series-id <id> \
+    --families flux --render-with-model flux_nsfw_71q8 \
+    --llm cydonia_24b_v43
+
+# 4. Render the model-kind rows separately (paths don't collide).
+python scripts/render_prompts.py \
+    --series-id <id> \
+    --models lustify_v7 \
+    --llm cydonia_24b_v43
+
+# 5. Output paths — symmetric for both kinds.
+ls output/T2_implied/<id>/cydonia_24b_v43/flux/images/
+ls output/T2_implied/<id>/cydonia_24b_v43/lustify_v7/images/
+```
+
+### 17.3 Family-membership validation
+
+`render_prompts.py` validates at parse time that
+`--render-with-model` belongs to the family supplied via
+`--families`. Pony booru tags don't render correctly through a flux
+checkpoint, etc. — this rejects the combination with rc=2 and a
+clear "lustify_v7 belongs to family 'sdxl', not 'flux'" message
+before any LLM or ComfyUI work fires.
+
+### 17.4 PNG metadata
+
+Family-kind renders carry both `target_kind='family'`,
+`model_id='flux'` (the family) AND `render_model_id='flux_nsfw_71q8'`
+(the actual checkpoint that produced the image) in the
+`nsfw_pipeline` tEXt chunk. A forensic reader can answer "was this
+prompt family-level or model-level? which LLM produced the prompt?
+which checkpoint actually rendered it?" from the PNG alone.
+
+### 17.5 Out-of-scope CLIs
+
+`compare_models.py`, `dry_run.py`, `run_once.py`, and `src/main.py`
+remain model-only for now. Family-aware variants are deferred — the
+engine plumbing is in place (`run_phase_a` / `run_phase_b` accept
+`target_kind`), so adding a `--families` flag to those scripts is a
+small follow-up rather than a deep refactor.
