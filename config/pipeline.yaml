@@ -113,19 +113,30 @@ llm:
 
   # Per-role routing — fires ONLY when --llm is omitted on the CLI. When
   # --llm is specified it overrides every role for that one command run.
-  # Empty by default ({}): every role uses default_llm. Uncomment the block
-  # below to opt in to per-family quality optimisation. All values must be
-  # registry IDs from config/llm_models.yaml (NOT raw Ollama strings — the
-  # router resolves to the Ollama tag at call time so editing the tag in
-  # the registry propagates everywhere automatically).
-  routing: {}
-    # series_planner:    cydonia_24b_v43      # creative direction
-    # scene_generator:   cydonia_24b_v43      # 25-scene batch generation
+  # All values must be registry IDs from config/llm_models.yaml (NOT raw
+  # Ollama strings — the router resolves to the Ollama tag at call time
+  # so editing the tag in the registry propagates everywhere automatically).
+  #
+  # Active routing (2026-05-17): scene_facet_generator is pinned to
+  # venice_24b — the actual NSFW phrasing (booru_tags / scene_prose /
+  # nsfw_anatomy / nsfw_act etc.) runs through the lowest-refusal-floor
+  # model (~2.2% vs cydonia's 5%). This is the role that empirically
+  # softened T3/T4 output on cydonia despite the uncensored tag. All
+  # other roles (series_planner, scene_generator, metadata_generator,
+  # character_creator) stay on default_llm (cydonia_24b_v43) since
+  # they don't produce sexually explicit text directly.
+  #
+  # Other commented examples below are reference for future tuning.
+  routing:
+    scene_facet_generator:
+      default: venice_24b               # lowest refusal floor (~2.2%)
+    # series_planner:    cydonia_24b_v43   # creative direction
+    # scene_generator:   cydonia_24b_v43   # 25-scene batch generation
     # scene_facet_generator:
-    #   default:          cydonia_24b_v43     # SDXL/Pony/Illustrious tags
-    #   flux_natural:     magnum_v4_22b       # Claude-Opus prose
-    #   flux2_prose:      magnum_v4_22b       # BFL 5-anchor prose
-    # metadata_generator: venice_24b           # 2.2% refusal floor
+    #   default:          venice_24b       # lowest refusal floor (~2.2%)
+    #   flux_natural:     magnum_v4_22b    # Claude-Opus prose (if you prefer prose flavour over compliance)
+    #   flux2_prose:      magnum_v4_22b    # BFL 5-anchor prose
+    # metadata_generator: venice_24b        # 2.2% refusal floor
     # character_creator:  cydonia_24b_v43
 
 comfyui:
