@@ -245,7 +245,7 @@ def test_save_dry_run_two_models_one_scene(engine, fresh_db: Path) -> None:
     conn.execute(
         "INSERT INTO prompts (id, series_id, scene_id, model_id, llm_id, "
         "prompt_text, negative_prompt, prompt_hash, content_level, status) "
-        "VALUES ('p2', 's', 'sc1', 'chroma_v10HD', 'cydonia_24b_v43', 't', "
+        "VALUES ('p2', 's', 'sc1', 'chroma_v10HD', 'cydonia_heretic_24b', 't', "
         "'n', 'h2', 'T2_implied', 'pending')"
     )
     conn.commit()
@@ -276,7 +276,7 @@ def test_save_dry_run_duplicate_scene_model_pair_raises(
         conn.execute(
             "INSERT INTO prompts (id, series_id, scene_id, model_id, llm_id, "
             "prompt_text, negative_prompt, prompt_hash, content_level, status) "
-            "VALUES ('p_dup', 's', 'sc1', 'gonzalomo_photo_v70', 'cydonia_24b_v43', "
+            "VALUES ('p_dup', 's', 'sc1', 'gonzalomo_photo_v70', 'cydonia_heretic_24b', "
             "'t', 'n', 'h_dup', 'T2_implied', 'pending')"
         )
 

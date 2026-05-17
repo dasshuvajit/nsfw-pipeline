@@ -79,7 +79,7 @@ def _seed_series_with_prompts(
                 "content_level, status) VALUES "
                 "(?, ?, ?, ?, ?, ?, ?, ?, 'T2_implied', 'pending')",
                 (f"{series_id}_p_{i}_{j}", series_id, scene_id, model_id,
-                 "cydonia_24b_v43",
+                 "cydonia_heretic_24b",
                  f"prompt for {model_id} scene {i}", "neg",
                  f"hash_{i}_{j}"),
             )
@@ -370,7 +370,7 @@ def _seed_two_llms(db_path: Path) -> None:
         "content_level) VALUES "
         "('sc_two_000', 'ser_two', 'pose', 'portrait_23', 'T2_implied')"
     )
-    for i, llm_id in enumerate(("cydonia_24b_v43", "magnum_v4_22b")):
+    for i, llm_id in enumerate(("cydonia_heretic_24b", "hermes3")):
         conn.execute(
             "INSERT INTO prompts (id, series_id, scene_id, model_id, llm_id, "
             "prompt_text, negative_prompt, prompt_hash, content_level, "
@@ -398,10 +398,10 @@ class TestLlmFilter:
             series_id="ser_two",
             scene_id=None,
             model_ids=["gonzalomo_photo_v70"],
-            llm_id="cydonia_24b_v43",
+            llm_id="cydonia_heretic_24b",
         )
         assert len(out["gonzalomo_photo_v70"]) == 1
-        assert out["gonzalomo_photo_v70"][0]["prompt_text"] == "prompt from cydonia_24b_v43"
+        assert out["gonzalomo_photo_v70"][0]["prompt_text"] == "prompt from cydonia_heretic_24b"
 
     def test_llm_filter_other_llm(
         self, compare_module, fresh_db,
@@ -412,10 +412,10 @@ class TestLlmFilter:
             series_id="ser_two",
             scene_id=None,
             model_ids=["gonzalomo_photo_v70"],
-            llm_id="magnum_v4_22b",
+            llm_id="hermes3",
         )
         assert len(out["gonzalomo_photo_v70"]) == 1
-        assert out["gonzalomo_photo_v70"][0]["prompt_text"] == "prompt from magnum_v4_22b"
+        assert out["gonzalomo_photo_v70"][0]["prompt_text"] == "prompt from hermes3"
 
     def test_no_llm_filter_returns_all(
         self, compare_module, fresh_db,
@@ -440,6 +440,6 @@ class TestLlmFilter:
             series_id=None,
             scene_id="sc_two_000",
             model_ids=["gonzalomo_photo_v70"],
-            llm_id="cydonia_24b_v43",
+            llm_id="cydonia_heretic_24b",
         )
         assert len(out["gonzalomo_photo_v70"]) == 1

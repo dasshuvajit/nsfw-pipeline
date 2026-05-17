@@ -776,7 +776,7 @@ flag is single-valued.
 | `scoring.composite_weights` | 6-signal weights when either Phase-G flag on (defaults: hps=0.30, image_reward=0.25, aesthetic=0.20, face=0.10, blur=0.10, resolution=0.05) |
 | `scoring.legacy_weights` | 4-signal fallback weights when both Phase-G flags off (0.40 / 0.25 / 0.25 / 0.10) |
 | `llm.base_url` / `llm.unload_after_phase` / `llm.keep_alive_seconds` | Ollama transport config |
-| `llm.routing` | Per-role LLM routing; default (2026-05-17) pins `scene_facet_generator.default: venice_24b` so the role producing NSFW phrasing runs through the lowest-refusal-floor LLM. Other roles use `default_llm`. See §16 |
+| `llm.routing` | Per-role LLM routing. Disabled by default (2026-05-18) — every role falls through to `default_llm` (`cydonia_heretic_24b`). Set per-role entries here if a future evaluation shows a specific role benefits from a different LLM. See §16 |
 | `comfyui.base_url` / `output_dir` / `input_dir` / `render_timeout_seconds` / `workflow_dir` | ComfyUI config |
 | `watermark.*`, `postprocess.*`, `variation_mode.*` | tier-export + Phase-2/4 knobs |
 | `postprocess.upscale_enabled` | Phase F — pure-ESRGAN upscale (sdxl/pony/illustrious only); raises eagerly for untemplated families |
@@ -941,13 +941,13 @@ and are passed via `--template` rather than auto-loaded by family.
 | Phase G column missing (`hps_v2_score` / `image_reward_score`) on existing DB | Re-init: `python scripts/init_db.py --force` (the project has no migrations during pre-stable; see §9.1). Existing data is disposable until v1. |
 | `Upscaler: family 'flux' not in _SUPPORTED_FAMILIES` | Phase F templates only ship for sdxl/pony/illustrious — flux/chroma/flux2 already render at 1024+. Either disable `postprocess.upscale_enabled`, or pick a templated family |
 | `prepare_prompts.py: ERROR: prompts for ... already exist on series` | UNIQUE(scene_id, model_id, llm_id) blocks accidental double-insert. Re-run with `--regen-prompts <model_id> --llm <id>` to DELETE + re-compose for that specific (model, LLM) pair. Other LLMs' prompts on the same scenes are untouched. |
-| `render_prompts.py: ERROR: series 'S' has prompts from LLM(s): ...` | Strict-ambiguity check (plan §3.5b) — when 1+ LLMs have prompts on the series, `--llm <id>` becomes required. Pass `--llm cydonia_24b_v43` (or whichever LLM you want to render). |
+| `render_prompts.py: ERROR: series 'S' has prompts from LLM(s): ...` | Strict-ambiguity check (plan §3.5b) — when 1+ LLMs have prompts on the series, `--llm <id>` becomes required. Pass `--llm cydonia_heretic_24b` (or whichever LLM you want to render). |
 | `render_prompts.py: ERROR: no prompts in DB for ... on series` | The model's prompts haven't been generated yet. Run `python scripts/prepare_prompts.py --series-id <S> --models <M>` first; the error message includes the exact command. |
 | `LLM 'foo' is not in your registry` | `--llm` was passed an id not declared under `llms:` in `config/llm_models.yaml`. The error lists the available ids. Either fix the typo, or `ollama pull <tag>` and add the entry. |
 | `pipeline.yaml::llm.routing.X -> 'Y' is not a valid active registry id` | Routing block references a missing or inactive LLM. Either remove the routing entry, mark `active: true` in the registry, or change the value to a valid id. Validation fires at engine startup so the typo never reaches the LLM call. |
 | `compare_models.py: ERROR: --templates count must equal --models count` | Phase 5 changed N==N from Cartesian to positional pairing; mismatched counts (both >1) are now rejected. Either pass exactly N templates for N models, or pass 1 template (broadcast). |
 | `SceneFacetGeneratorError: facet generation failed` | LLM returned malformed JSON or schema-invalid fields for the facet. Check Ollama logs. Re-roll with `prepare_prompts --regen-facets <family>` (the bad facet row will be DELETEd + regenerated). |
-| **T4 series rendered tasteful boudoir, not actually NSFW/explicit** | 2026-05-17 — fully resolved by 5-layer fix: (1) `prepare_prompts.py --series-id` retarget now inherits `content_level` from DB instead of silently downgrading to T2_implied when `--level` is omitted; (2-3) theme/niche/style/character modes and SeriesPlanner/SceneGenerator now inject the rich `categories.yaml::content_levels.<tier>.llm_directive` into both plan and scene templates inside a `══ CONTENT TIER ══` banner (planner LLM previously only saw the bare tier string); (4) `families.yaml` T4 few-shot exemplars rewritten across all 6 families with explicit `fully_nude / breasts / nipples / vulva / anatomically_correct` language (booru) and `fully nude / bare breasts / natural nipples` prose; (5) `scene_facet_generator.py` post-validation enforces tier-required NSFW fields — `nsfw_anatomy` at T3+, both `nsfw_anatomy + nsfw_act` at T4 — with retry-nudge then ship-with-warning if still missing. Plus `pipeline.yaml::llm.routing.scene_facet_generator.default: venice_24b` (2.2% refusal floor) pinned by default so the facet LLM doesn't self-censor. Prior partial fix (2026-05-02) added the directive plumbing but cydonia still dodged with null tags; the 2026-05-17 fix closes that loop. **For DBs created pre-2026-05-17:** drop stale T4 facets+prompts (DELETE FROM scene_facets / prompts WHERE llm_id='cydonia_24b_v43' on the affected series) and re-run `prepare_prompts.py --series-id <s> --regen-facets <fam> --regen-family-prompts <fam>` — facets regenerate via venice and populate the required NSFW tags. |
+| **T4 series rendered tasteful boudoir, not actually NSFW/explicit** | 2026-05-17/18 — fully resolved by 5-layer fix + LLM swap: (1) `prepare_prompts.py --series-id` retarget now inherits `content_level` from DB instead of silently downgrading to T2_implied when `--level` is omitted; (2-3) theme/niche/style/character modes and SeriesPlanner/SceneGenerator now inject the rich `categories.yaml::content_levels.<tier>.llm_directive` into both plan and scene templates inside a `══ CONTENT TIER ══` banner; (4) `families.yaml` T4 few-shot exemplars rewritten across all 6 families with explicit anatomical vocabulary; (5) `scene_facet_generator.py` post-validation enforces tier-required NSFW fields — `nsfw_anatomy` at T3+, both `nsfw_anatomy + nsfw_act` at T4 — with retry-nudge then ship-with-warning if still missing. The 2026-05-18 LLM swap (default → `cydonia_heretic_24b`, a heretic-tuned refusal-removed variant) further reduces facet-side self-censoring at T3/T4. **For DBs created pre-2026-05-17:** drop stale T4 facets+prompts (`DELETE FROM scene_facets / prompts WHERE llm_id='<old_llm_id>'` on the affected series) and re-run `prepare_prompts.py --series-id <s> --regen-facets <fam> --regen-family-prompts <fam>` — facets regenerate via the new default LLM and populate the required NSFW tags. |
 | `no such column: nsfw_act` | Your DB was created pre-2026-05-02. Run `python scripts/init_db.py --force` to add the column. Per project no-migration policy, existing series data is disposable. |
 
 ---
@@ -1031,48 +1031,53 @@ Ollama tag installed locally.
 
 ### 16.1 Two operating modes
 
-**Default routing (shipped 2026-05-17).** `pipeline.yaml::llm.routing`
-pins `scene_facet_generator.default: venice_24b` so the role that
-produces the actual NSFW phrasing (booru_tags / scene_prose /
-nsfw_anatomy / nsfw_act) runs through the lowest-refusal-floor LLM
-(~2.2% refusal vs cydonia's ~5%). Every other role
-(`series_planner`, `scene_generator`, `metadata_generator`,
-`character_creator`) stays on the registry default
-(`cydonia_24b_v43`) since those don't produce sexually explicit
-text directly. To switch LLMs for a single command, pass
-`--llm <id>` on the CLI — that overrides every role uniformly for
-the run. Recommended starting point.
+**Single-default mode (shipped 2026-05-18).** `pipeline.yaml::llm.routing`
+is empty by default — every role falls through to `default_llm`
+(`cydonia_heretic_24b`, the heretic-tuned Cydonia 24B v4.3 variant).
+The heretic tune already carries a low refusal floor, so the prior
+per-role split is no longer needed. To switch LLMs for a single
+command, pass `--llm <id>` on the CLI — that overrides every role
+uniformly for the run. Recommended starting point.
 
 ```bash
-# Default routing (cydonia for planner/scene-gen, venice for facets):
+# Default (every role uses cydonia_heretic_24b):
 python scripts/prepare_prompts.py --character char_001 --level T4_explicit \
     --models gonzalomo_photo_v70
 
-# Override to Cydonia for every role (forces A/B parity with old behaviour):
+# Explicit default LLM (same as above; useful when documenting):
 python scripts/prepare_prompts.py --character char_001 --level T4_explicit \
-    --models gonzalomo_photo_v70 --llm cydonia_24b_v43
+    --models gonzalomo_photo_v70 --llm cydonia_heretic_24b
 
-# Override to Magnum for every role (A/B prose flavour test):
+# Override to Hermes 3 for every role (A/B test against smaller model):
 python scripts/prepare_prompts.py --character char_001 --level T4_explicit \
-    --models gonzalomo_photo_v70 --llm magnum_v4_22b
+    --models gonzalomo_photo_v70 --llm hermes3
 ```
 
-**Quality-optimised mode (further tuning).** Edit
-`pipeline.yaml::llm.routing` to override per-family or other roles:
+**Per-role routing mode (opt-in tuning).** Edit
+`pipeline.yaml::llm.routing` to send specific roles to specific
+LLMs:
 
 ```yaml
 llm:
   routing:
     scene_facet_generator:
-      default:          venice_24b          # default — lowest refusal (~2.2%)
-      flux_natural:     magnum_v4_22b       # Claude-Opus prose for flux/chroma
-      flux2_prose:      magnum_v4_22b       # BFL 5-anchor prose
-    metadata_generator: venice_24b          # platform-metadata role
+      default:          cydonia_heretic_24b   # NSFW phrasing (default LLM)
+      flux_natural:     hermes3                # smaller/faster for flux/chroma prose
+      flux2_prose:      hermes3                # BFL 5-anchor prose
+    metadata_generator: cydonia_heretic_24b   # platform-metadata role
     # series_planner / scene_generator / character_creator stay on default_llm
 ```
 
 Each role automatically gets the best-fit LLM. `--llm` is reserved for
 explicit A/B testing where you want a single LLM doing every role.
+
+**Fallback retry.** `config/llm_models.yaml::fallback_llm: hermes3`
+configures the second-chance retry inside `OllamaClient.generate_json`
+— if the primary LLM (`cydonia_heretic_24b`) fails constrained
+decoding twice in a row, the agent retries once with Hermes 3.
+Different lineage (Llama 3.1 vs Mistral) gives meaningful diversity
+on the retry. Setting `fallback_llm` equal to `default_llm` collapses
+the fallback dimension (single-LLM operation).
 
 ### 16.2 A/B-compare flow (the headline use case)
 
@@ -1080,31 +1085,31 @@ Re-prompt the same series with a different LLM; both sets coexist on
 the same scene rows.
 
 ```bash
-# 1. Generate with Cydonia (default).
+# 1. Generate with Cydonia Heretic (default).
 python scripts/prepare_prompts.py \
     --character char_001 --level T4_explicit --models gonzalomo_photo_v70
 
-# 2. Re-prompt the same series with Magnum (scenes reused; new
-#    facets+prompts written for llm_id=magnum_v4_22b).
+# 2. Re-prompt the same series with Hermes 3 (scenes reused; new
+#    facets+prompts written for llm_id=hermes3).
 python scripts/prepare_prompts.py \
-    --series-id ser_xxx --models gonzalomo_photo_v70 --llm magnum_v4_22b
+    --series-id ser_xxx --models gonzalomo_photo_v70 --llm hermes3
 
 # 3. Inspect the DB — both LLMs' prompts coexist:
 sqlite3 nsfw_pipeline.db "SELECT llm_id, COUNT(*) FROM prompts \
     WHERE series_id='ser_xxx' GROUP BY llm_id;"
-# cydonia_24b_v43|25
-# magnum_v4_22b|25
+# cydonia_heretic_24b|25
+# hermes3|25
 
 # 4. Render each LLM separately. --llm is REQUIRED here (strict
 #    ambiguity check, plan §3.5b) since both LLMs have prompts.
 python scripts/render_prompts.py --series-id ser_xxx \
-    --models gonzalomo_photo_v70 --llm cydonia_24b_v43
+    --models gonzalomo_photo_v70 --llm cydonia_heretic_24b
 python scripts/render_prompts.py --series-id ser_xxx \
-    --models gonzalomo_photo_v70 --llm magnum_v4_22b
+    --models gonzalomo_photo_v70 --llm hermes3
 
 # 5. Output paths disambiguate — each LLM gets its own subdir:
 ls output/T4_explicit/ser_xxx/
-# cydonia_24b_v43/  magnum_v4_22b/
+# cydonia_heretic_24b/  hermes3/
 
 # 6. Compare manually — pick whichever LLM produced better images.
 ```
@@ -1164,48 +1169,43 @@ Roles: `series_planner`, `scene_generator`, `scene_facet_generator`,
 |---|---|
 | Use a different model as the default everywhere | `config/llm_models.yaml::default_llm` |
 | One-off run with a different LLM | `--llm <id>` on the CLI (no config change) |
-| Route a specific family through a different facet LLM | `pipeline.yaml::llm.routing.scene_facet_generator.<prompt_style>: <id>` (e.g. `flux_natural: magnum_v4_22b`) |
-| Revert the venice default for facets | Edit `pipeline.yaml::llm.routing.scene_facet_generator.default` |
-| Use Magnum as the second-chance fallback | `config/llm_models.yaml::fallback_llm: magnum_22b_v4` |
+| Route a specific family through a different facet LLM | `pipeline.yaml::llm.routing.scene_facet_generator.<prompt_style>: <id>` (e.g. `flux_natural: hermes3`) |
+| Re-enable per-role routing | Add entries under `pipeline.yaml::llm.routing` (it's `{}` by default — every role currently falls through to `default_llm`) |
+| Swap the fallback LLM | `config/llm_models.yaml::fallback_llm: <id>` (used after two consecutive primary failures) |
 | Add a new model | `ollama pull <tag>`, add an entry to `config/llm_models.yaml::llms` |
 
-The shipped default (2026-05-17) is **Cydonia 24B v4.3 (Q4_K_M)** for
-planner / scene-gen / metadata / character roles, with
-**Venice 24B (Q5_K_M)** pinned for `scene_facet_generator` (all 6
-families). See §16.7 for why.
+The shipped default (2026-05-18) is **Cydonia 24B v4.3 Heretic
+Vision (Q4_K_M)** for every role, with **Hermes 3 (latest)** as
+the second-chance fallback. See §16.7 for why.
 
 ### 16.7 When to switch LLMs (and what breaks if you do)
 
-- **Cydonia (Q4_K_M, 14 GB) — default.** Fast Q4 quant, well-aligned
-  to "JSON only" instructions, reliable on the heavy structured
-  roles (25-scene generation, character creation, metadata). The
-  multi-LLM cleanup (2026-05-04), Q-series tuning (Q6-Q11), and
-  constrained-decoding work all assume Cydonia as the default.
-  Pull: `ollama pull moophlo/Cydonia-24B-v4.3-GGUF:Q4_K_M`.
+- **Cydonia Heretic Vision 24B (Q4_K_M, ~14 GB) — default for
+  every role.** Heretic-tuned (refusal-removed) variant of
+  Cydonia 24B v4.3, built on Mistral Small 24B. Initiative-taking
+  creative-writing layer + RP-tuned booru tag handling makes it
+  a single LLM that competently serves all five Phase A roles
+  (planner / scene-gen / facet / character / metadata) without
+  the prior per-role split. The 2026-05-18 LLM swap collapsed
+  routing entirely on this basis. Pull:
+  `ollama pull Fermi/Cydonia-24B-v4.3-heretic-vision:Q4_K_M`.
 
-- **Venice (Q5_K_M, 13 GB) — default for `scene_facet_generator`
-  (2026-05-17).** Lowest refusal floor (~2.2%). Pinned to all 6
-  facet prompt_styles via `routing.scene_facet_generator.default:
-  venice_24b` so the role that produces actual NSFW phrasing
-  (booru_tags / scene_prose / nsfw_anatomy / nsfw_act) runs through
-  a model that won't dodge with null tags. Empirically resolved the
-  T3/T4 "tasteful boudoir" symptom (see §14 known issues).
-  **Don't use as the global default**: the Q5 quant + looser
-  instruction-following make 25-scene generation slow enough to
-  exceed Ollama's 5-min HTTP timeout on a 48 GB Mac.
+- **Hermes 3 (latest tag, ~5 GB Q4_K_M) — fallback.** Nous
+  Research Hermes 3 on Llama 3.1 (`:latest` defaults to the 8B
+  variant). Smaller, faster, different lineage — a meaningful
+  diversification target for `OllamaClient.generate_json`'s
+  second-chance retry. Set as `fallback_llm` so the agent retries
+  once with Hermes 3 if the primary fails constrained decoding
+  twice in a row. Can also be the global default for batch /
+  speed-sensitive runs via `--llm hermes3`. Pull:
+  `ollama pull hermes3:latest`.
 
-- **Magnum (Q6_K, 28 GB) — opt-in fallback.** Even more permissive
-  on prose; very slow at the Q6 quant. Same caveat as Venice for
-  the heavy structured roles. Best as `fallback_llm: magnum_22b_v4`
-  for the rare case where the primary model refuses constrained-
-  decoded output and the user wants a second chance with a less
-  censored model.
-
-**Rule of thumb:** keep the default at Cydonia. Reach for Venice
-or Magnum **per-role** via `pipeline.yaml::llm.routing` only when
-you have a concrete reason (refusals on a specific facet family).
-A whole-pipeline swap to Venice or Magnum will work but blows the
-performance envelope the codebase was tuned for.
+**Rule of thumb:** keep the default at `cydonia_heretic_24b` for
+quality and `fallback_llm: hermes3` for diversity on retry.
+Re-enable per-role routing in `pipeline.yaml::llm.routing` only
+when a future evaluation shows a specific role benefits from a
+different LLM — the heretic tune obsoletes the prior need for a
+separate low-refusal model on facet generation.
 
 ## 17. Family-level prompt preparation (2026-05)
 
@@ -1215,8 +1215,8 @@ A family-level prompt is checkpoint-agnostic — any model in that
 family can render it. Useful when:
 
 - You want to compose prompts once and render them through several
-  sibling checkpoints in the same family (e.g. compare gonzalomo_flux_v30
-  vs gonzalomo_flux_v30 on identical text).
+  sibling checkpoints in the same family (e.g. compare juggernaut_ragnarok
+  vs gonzalomo_photo_v70 on identical SDXL text).
 - You want clean family-level baseline prompts without trigger words,
   per-model LoRAs, or model-specific negative embeddings.
 
@@ -1248,7 +1248,7 @@ python scripts/prepare_prompts.py \
     --mode theme --level T2_implied \
     --models gonzalomo_photo_v70 \
     --families flux \
-    --llm cydonia_24b_v43
+    --llm cydonia_heretic_24b
 
 # 2. Inspect — expect ('family','flux',N), ('model','gonzalomo_photo_v70',N).
 sqlite3 nsfw_pipeline.db \
@@ -1258,17 +1258,17 @@ sqlite3 nsfw_pipeline.db \
 python scripts/render_prompts.py \
     --series-id <id> \
     --families flux --render-with-model gonzalomo_flux_v30 \
-    --llm cydonia_24b_v43
+    --llm cydonia_heretic_24b
 
 # 4. Render the model-kind rows separately (paths don't collide).
 python scripts/render_prompts.py \
     --series-id <id> \
     --models gonzalomo_photo_v70 \
-    --llm cydonia_24b_v43
+    --llm cydonia_heretic_24b
 
 # 5. Output paths — symmetric for both kinds.
-ls output/T2_implied/<id>/cydonia_24b_v43/flux/images/
-ls output/T2_implied/<id>/cydonia_24b_v43/gonzalomo_photo_v70/images/
+ls output/T2_implied/<id>/cydonia_heretic_24b/flux/images/
+ls output/T2_implied/<id>/cydonia_heretic_24b/gonzalomo_photo_v70/images/
 ```
 
 ### 17.3 Family-membership validation

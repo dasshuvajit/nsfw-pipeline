@@ -194,52 +194,52 @@ def test_get_facets_for_scene_returns_all_families(db: Path) -> None:
 def test_same_scene_family_different_llm_ids_coexist(db: Path) -> None:
     """The triple PK (scene, family, llm_id) lets different LLMs leave
     parallel facet rows on the same scene without overwriting."""
-    insert_facet(db, "sc1", "sdxl", {"camera_spec": "cydonia-shot"}, "cydonia")
-    insert_facet(db, "sc1", "sdxl", {"camera_spec": "magnum-shot"}, "magnum")
+    insert_facet(db, "sc1", "sdxl", {"camera_spec": "llm-a-shot"}, "llm_a")
+    insert_facet(db, "sc1", "sdxl", {"camera_spec": "llm-b-shot"}, "llm_b")
     # Both rows present; lookups disambiguate by llm_id.
-    assert has_facet(db, "sc1", "sdxl", "cydonia")
-    assert has_facet(db, "sc1", "sdxl", "magnum")
-    assert get_facet(db, "sc1", "sdxl", "cydonia")["camera_spec"] == "cydonia-shot"
-    assert get_facet(db, "sc1", "sdxl", "magnum")["camera_spec"] == "magnum-shot"
+    assert has_facet(db, "sc1", "sdxl", "llm_a")
+    assert has_facet(db, "sc1", "sdxl", "llm_b")
+    assert get_facet(db, "sc1", "sdxl", "llm_a")["camera_spec"] == "llm-a-shot"
+    assert get_facet(db, "sc1", "sdxl", "llm_b")["camera_spec"] == "llm-b-shot"
 
 
 def test_delete_one_llms_facet_leaves_other_llm_untouched(db: Path) -> None:
-    insert_facet(db, "sc1", "sdxl", {"camera_spec": "a"}, "cydonia")
-    insert_facet(db, "sc1", "sdxl", {"camera_spec": "b"}, "magnum")
-    delete_facet(db, "sc1", "sdxl", "cydonia")
-    assert not has_facet(db, "sc1", "sdxl", "cydonia")
-    assert has_facet(db, "sc1", "sdxl", "magnum")
+    insert_facet(db, "sc1", "sdxl", {"camera_spec": "a"}, "llm_a")
+    insert_facet(db, "sc1", "sdxl", {"camera_spec": "b"}, "llm_b")
+    delete_facet(db, "sc1", "sdxl", "llm_a")
+    assert not has_facet(db, "sc1", "sdxl", "llm_a")
+    assert has_facet(db, "sc1", "sdxl", "llm_b")
 
 
 def test_delete_facets_for_family_filters_by_llm(db: Path) -> None:
-    insert_facet(db, "sc1", "sdxl", {"camera_spec": "a"}, "cydonia")
-    insert_facet(db, "sc2", "sdxl", {"camera_spec": "b"}, "cydonia")
-    insert_facet(db, "sc1", "sdxl", {"camera_spec": "c"}, "magnum")
-    n = delete_facets_for_family(db, ["sc1", "sc2"], "sdxl", "cydonia")
+    insert_facet(db, "sc1", "sdxl", {"camera_spec": "a"}, "llm_a")
+    insert_facet(db, "sc2", "sdxl", {"camera_spec": "b"}, "llm_a")
+    insert_facet(db, "sc1", "sdxl", {"camera_spec": "c"}, "llm_b")
+    n = delete_facets_for_family(db, ["sc1", "sc2"], "sdxl", "llm_a")
     assert n == 2
-    assert not has_facet(db, "sc1", "sdxl", "cydonia")
-    assert not has_facet(db, "sc2", "sdxl", "cydonia")
-    # Magnum's row on sc1 is untouched.
-    assert has_facet(db, "sc1", "sdxl", "magnum")
+    assert not has_facet(db, "sc1", "sdxl", "llm_a")
+    assert not has_facet(db, "sc2", "sdxl", "llm_a")
+    # LLM B's row on sc1 is untouched.
+    assert has_facet(db, "sc1", "sdxl", "llm_b")
 
 
 def test_get_facets_for_scene_no_llm_filter_includes_all_llms(db: Path) -> None:
-    insert_facet(db, "sc1", "sdxl", {"camera_spec": "a"}, "cydonia")
-    insert_facet(db, "sc1", "pony", {"booru_tags": "b"}, "cydonia")
-    insert_facet(db, "sc1", "sdxl", {"camera_spec": "c"}, "magnum")
+    insert_facet(db, "sc1", "sdxl", {"camera_spec": "a"}, "llm_a")
+    insert_facet(db, "sc1", "pony", {"booru_tags": "b"}, "llm_a")
+    insert_facet(db, "sc1", "sdxl", {"camera_spec": "c"}, "llm_b")
     facets = get_facets_for_scene(db, "sc1")  # llm_id=None
     # Keyed "<family>:<llm_id>" to disambiguate.
-    assert set(facets.keys()) == {"sdxl:cydonia", "pony:cydonia", "sdxl:magnum"}
-    assert facets["sdxl:cydonia"]["camera_spec"] == "a"
-    assert facets["sdxl:magnum"]["camera_spec"] == "c"
+    assert set(facets.keys()) == {"sdxl:llm_a", "pony:llm_a", "sdxl:llm_b"}
+    assert facets["sdxl:llm_a"]["camera_spec"] == "a"
+    assert facets["sdxl:llm_b"]["camera_spec"] == "c"
 
 
 def test_get_facets_for_scene_with_llm_filter_excludes_other_llms(db: Path) -> None:
-    insert_facet(db, "sc1", "sdxl", {"camera_spec": "a"}, "cydonia")
-    insert_facet(db, "sc1", "sdxl", {"camera_spec": "b"}, "magnum")
-    cydonia_only = get_facets_for_scene(db, "sc1", llm_id="cydonia")
-    assert set(cydonia_only.keys()) == {"sdxl"}
-    assert cydonia_only["sdxl"]["camera_spec"] == "a"
+    insert_facet(db, "sc1", "sdxl", {"camera_spec": "a"}, "llm_a")
+    insert_facet(db, "sc1", "sdxl", {"camera_spec": "b"}, "llm_b")
+    llm_a_only = get_facets_for_scene(db, "sc1", llm_id="llm_a")
+    assert set(llm_a_only.keys()) == {"sdxl"}
+    assert llm_a_only["sdxl"]["camera_spec"] == "a"
 
 
 # ── schema constraints ──────────────────────────────────────────────

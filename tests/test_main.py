@@ -72,12 +72,12 @@ class TestRunSafeThreading:
             cfg, db_path,
             force_mode="character",
             force_level="T4_explicit",
-            cli_llm_override="cydonia_24b_v43",
+            cli_llm_override="cydonia_heretic_24b",
         )
 
         # cli_llm_override threaded through to run_cycle.
         _, kwargs = fake_engine.run_cycle.call_args
-        assert kwargs["cli_llm_override"] == "cydonia_24b_v43"
+        assert kwargs["cli_llm_override"] == "cydonia_heretic_24b"
         assert kwargs["content_level"] == "T4_explicit"
 
     def test_run_safe_with_no_llm_override(

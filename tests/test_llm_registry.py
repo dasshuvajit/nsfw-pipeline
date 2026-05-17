@@ -288,15 +288,16 @@ class TestRealRegistry:
         default = loader.get_default_llm()
         assert default.active is True
 
-    def test_real_default_is_cydonia(self):
-        """Cydonia 24B v4.3 is the project's chosen default per plan §3.1."""
+    def test_real_default_is_cydonia_heretic(self):
+        """Cydonia 24B v4.3 Heretic Vision is the project's chosen default
+        (2026-05-18 LLM swap)."""
         loader = LLMRegistryLoader()
-        assert loader.default_llm_id == "cydonia_24b_v43"
+        assert loader.default_llm_id == "cydonia_heretic_24b"
 
-    def test_real_three_llms_active(self):
-        """The three documented LLMs (Cydonia, Venice, Magnum) are active."""
+    def test_real_two_llms_active(self):
+        """The two installed LLMs (Cydonia Heretic Vision + Hermes 3) are
+        active. Hermes 3 is the fallback for retries after primary refusal."""
         loader = LLMRegistryLoader()
         ids = {e.id for e in loader.list_llms()}
-        assert "cydonia_24b_v43" in ids
-        assert "venice_24b" in ids
-        assert "magnum_v4_22b" in ids
+        assert "cydonia_heretic_24b" in ids
+        assert "hermes3" in ids

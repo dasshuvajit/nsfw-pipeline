@@ -117,27 +117,23 @@ llm:
   # Ollama strings — the router resolves to the Ollama tag at call time
   # so editing the tag in the registry propagates everywhere automatically).
   #
-  # Active routing (2026-05-17): scene_facet_generator is pinned to
-  # venice_24b — the actual NSFW phrasing (booru_tags / scene_prose /
-  # nsfw_anatomy / nsfw_act etc.) runs through the lowest-refusal-floor
-  # model (~2.2% vs cydonia's 5%). This is the role that empirically
-  # softened T3/T4 output on cydonia despite the uncensored tag. All
-  # other roles (series_planner, scene_generator, metadata_generator,
-  # character_creator) stay on default_llm (cydonia_24b_v43) since
-  # they don't produce sexually explicit text directly.
+  # Current state (2026-05-18): ROUTING DISABLED. Every role falls back to
+  # default_llm (cydonia_heretic_24b) — the heretic-tuned variant already
+  # carries a low refusal floor, so the prior split (venice_24b for facets,
+  # cydonia for planner) is no longer needed. Re-enable per-role routing
+  # only if a future evaluation shows a specific role benefits from a
+  # different LLM.
   #
-  # Other commented examples below are reference for future tuning.
-  routing:
-    scene_facet_generator:
-      default: venice_24b               # lowest refusal floor (~2.2%)
-    # series_planner:    cydonia_24b_v43   # creative direction
-    # scene_generator:   cydonia_24b_v43   # 25-scene batch generation
+  # Examples (uncomment + customise if needed):
+  routing: {}
+    # series_planner:    cydonia_heretic_24b   # creative direction
+    # scene_generator:   cydonia_heretic_24b   # 25-scene batch generation
     # scene_facet_generator:
-    #   default:          venice_24b       # lowest refusal floor (~2.2%)
-    #   flux_natural:     magnum_v4_22b    # Claude-Opus prose (if you prefer prose flavour over compliance)
-    #   flux2_prose:      magnum_v4_22b    # BFL 5-anchor prose
-    # metadata_generator: venice_24b        # 2.2% refusal floor
-    # character_creator:  cydonia_24b_v43
+    #   default:          cydonia_heretic_24b  # facet generation (NSFW phrasing)
+    #   flux_natural:     hermes3              # prose flavour for flux/chroma
+    #   flux2_prose:      hermes3              # BFL 5-anchor prose for flux2
+    # metadata_generator: cydonia_heretic_24b
+    # character_creator:  cydonia_heretic_24b
 
 comfyui:
   base_url: "http://127.0.0.1:8188"

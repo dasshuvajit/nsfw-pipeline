@@ -31,7 +31,7 @@ class TestDefaultOutput:
         assert result.returncode == 0
         assert "Image models" in result.stdout
         assert "LLM registry" in result.stdout
-        assert "cydonia_24b_v43" in result.stdout
+        assert "cydonia_heretic_24b" in result.stdout
         # Default should NOT print routing table.
         assert "Resolved LLMs by role" not in result.stdout
 
@@ -45,9 +45,9 @@ class TestLlmsOnly:
 
     def test_includes_default_marker(self):
         result = _run("--llms-only")
-        # default column shows 'Y' for cydonia
-        assert "cydonia_24b_v43" in result.stdout
-        assert "default = 'cydonia_24b_v43'" in result.stdout
+        # default column shows 'Y' for the configured default_llm
+        assert "cydonia_heretic_24b" in result.stdout
+        assert "default = 'cydonia_heretic_24b'" in result.stdout
 
 
 class TestModelsOnly:
@@ -86,7 +86,7 @@ class TestRouting:
         assert result.returncode == 0
         assert "Reverse mapping" in result.stdout
         # The default LLM should appear in reverse mapping with annotations
-        assert "cydonia_24b_v43" in result.stdout
+        assert "cydonia_heretic_24b" in result.stdout
         # Default annotation visible somewhere
         assert "default" in result.stdout
 

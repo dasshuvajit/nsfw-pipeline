@@ -154,9 +154,9 @@ class VocabularyLoader:
           Pony deliberately omits camera / lens / film_stock).
 
         Logs at INFO when dropping for tier-gate / family-omission;
-        logs at ERROR when dropping for solo-mode suppression — drift
-        from venice / cydonia on the partnered tags surfaces at facet-
-        write time, not at render.
+        logs at ERROR when dropping for solo-mode suppression — any
+        LLM drift onto partnered tags surfaces at facet-write time,
+        not at render.
         """
         if not concept:
             return None

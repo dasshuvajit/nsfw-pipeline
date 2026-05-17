@@ -461,14 +461,14 @@ class TestLlmFlag:
         self._common_monkeypatch(prepare_module, monkeypatch, fake_engine)
         monkeypatch.setattr(
             sys, "argv",
-            _argv("--models", "gonzalomo_photo_v70", "--llm", "cydonia_24b_v43"),
+            _argv("--models", "gonzalomo_photo_v70", "--llm", "cydonia_heretic_24b"),
         )
 
         rc = prepare_module.main()
         assert rc == 0
         # run_phase_a should have received cli_llm_override.
         _, kwargs = fake_engine.run_phase_a.call_args
-        assert kwargs["cli_llm_override"] == "cydonia_24b_v43"
+        assert kwargs["cli_llm_override"] == "cydonia_heretic_24b"
 
     def test_invalid_llm_exits_2_with_help(
         self, prepare_module, monkeypatch, capsys,

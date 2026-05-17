@@ -169,7 +169,8 @@ class TestSceneListSanity:
         # Post-2026-05-06, SceneList carries MinLen(1): an empty list
         # is rejected at both the grammar level (minItems: 1 lands in
         # the JSON schema Ollama hands to llama.cpp) and Pydantic
-        # post-validation. Closes the venice / magnum "emit []" path.
+        # post-validation. Closes the historical "emit []" path that
+        # some 22B-class models hit on edge cases.
         import pydantic
         with pytest.raises(pydantic.ValidationError):
             SceneList.model_validate([])

@@ -192,7 +192,7 @@ def _llms_present_on_series(
     about to render, ``--llm`` becomes required so the user makes an
     explicit choice instead of silently rendering one LLM's data.
     Per-invocation filter on ``target_kind`` ensures a series with
-    BOTH family-kind (LLM=magnum) AND model-kind (LLM=cydonia) rows
+    BOTH family-kind (LLM=hermes3) AND model-kind (LLM=cydonia_heretic_24b) rows
     doesn't cross-contaminate the ambiguity check.
     """
     conn = sqlite3.connect(str(db_path))

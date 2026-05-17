@@ -74,7 +74,7 @@ def _seed_series_with_prompts(
             "model_id, llm_id, prompt_text, negative_prompt, prompt_hash, "
             "content_level, status) VALUES "
             "(?, ?, ?, 'model', ?, ?, ?, ?, ?, 'T2_implied', 'pending')",
-            (f"p_{i}", series_id, scene_id, model_id, "cydonia_24b_v43",
+            (f"p_{i}", series_id, scene_id, model_id, "cydonia_heretic_24b",
              "test prompt", "neg", f"hash_{i}"),
         )
     conn.commit()
@@ -338,7 +338,7 @@ def test_main_success_path_single_model(
         _argv(
             "--series-id", "ser_seed",
             "--models", "gonzalomo_photo_v70",
-            "--llm", "cydonia_24b_v43",
+            "--llm", "cydonia_heretic_24b",
         ),
     )
 
@@ -353,7 +353,7 @@ def test_main_success_path_single_model(
     fake_engine.run_phase_b.assert_called_once_with(
         series_id="ser_seed", model_id="gonzalomo_photo_v70",
         scene_ids=None, template_override=None,
-        cli_llm_override="cydonia_24b_v43",
+        cli_llm_override="cydonia_heretic_24b",
         target_kind="model", render_model_id=None,
     )
     fake_engine.run_phase_c.assert_called_once()
@@ -393,7 +393,7 @@ def test_main_multi_model_loops_per_model(
         _argv(
             "--series-id", "ser_seed",
             "--models", "gonzalomo_photo_v70,chroma_v10HD",
-            "--llm", "cydonia_24b_v43",
+            "--llm", "cydonia_heretic_24b",
         ),
     )
 
@@ -431,7 +431,7 @@ def test_main_no_export_skips_phase_c(
             "--series-id", "ser_seed",
             "--models", "gonzalomo_photo_v70",
             "--no-export",
-            "--llm", "cydonia_24b_v43",
+            "--llm", "cydonia_heretic_24b",
         ),
     )
 
@@ -478,7 +478,7 @@ def test_main_template_pairing_passes_through(
             "--series-id", "ser_seed",
             "--models", "gonzalomo_photo_v70,chroma_v10HD",
             "--templates", "system,templates/chroma/foo.json",
-            "--llm", "cydonia_24b_v43",
+            "--llm", "cydonia_heretic_24b",
         ),
     )
 
@@ -525,7 +525,7 @@ def test_main_partial_failure_returns_1(
         _argv(
             "--series-id", "ser_seed",
             "--models", "gonzalomo_photo_v70,chroma_v10HD",
-            "--llm", "cydonia_24b_v43",
+            "--llm", "cydonia_heretic_24b",
         ),
     )
 
@@ -565,7 +565,7 @@ def test_main_scene_id_path_resolves_series_and_filters(
         _argv(
             "--scene-id", "ser_seed_sc_000",
             "--models", "gonzalomo_photo_v70",
-            "--llm", "cydonia_24b_v43",
+            "--llm", "cydonia_heretic_24b",
         ),
     )
 
@@ -603,7 +603,7 @@ class TestLlmFlag:
     def test_strict_ambiguity_omitted_llm_with_seeded_prompts_exits_2(
         self, render_module, fresh_db, capsys, monkeypatch,
     ):
-        # Seed prompts with the default cydonia_24b_v43 llm_id (the
+        # Seed prompts with the default cydonia_heretic_24b llm_id (the
         # _seed_series_with_prompts helper does this).
         _seed_series_with_prompts(fresh_db, models=["gonzalomo_photo_v70"])
 
@@ -620,7 +620,7 @@ class TestLlmFlag:
         assert rc == 2
         captured = capsys.readouterr()
         assert "has prompts from LLM(s)" in captured.err
-        assert "cydonia_24b_v43" in captured.err
+        assert "cydonia_heretic_24b" in captured.err
         assert "Specify --llm" in captured.err
 
     def test_invalid_llm_exits_2(
@@ -663,11 +663,11 @@ class TestLlmFlag:
             _argv(
                 "--series-id", "ser_seed",
                 "--models", "gonzalomo_photo_v70",
-                "--llm", "cydonia_24b_v43",
+                "--llm", "cydonia_heretic_24b",
             ),
         )
         rc = render_module.main()
         assert rc == 0
         # cli_llm_override threaded to run_phase_b.
         _, kwargs = fake_engine.run_phase_b.call_args
-        assert kwargs["cli_llm_override"] == "cydonia_24b_v43"
+        assert kwargs["cli_llm_override"] == "cydonia_heretic_24b"

@@ -1660,8 +1660,10 @@ class PipelineEngine:
 
         # Brief LLM reload for metadata. The metadata role gets its
         # own router resolution (override→routing→default) so a user
-        # can route metadata to e.g. venice_24b for its lower refusal
-        # floor while keeping cydonia for the rest of the pipeline.
+        # can route metadata to a specialised LLM (e.g. one tuned for
+        # social-media-platform tags) while keeping the default for
+        # the rest of the pipeline. With routing disabled, every role
+        # collapses to default_llm.
         metadata = None
         meta_llm_entry = self._llm_router.resolve_role(
             "metadata_generator", override=cli_llm_override,

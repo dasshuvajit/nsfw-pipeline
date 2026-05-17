@@ -3,7 +3,33 @@
 > **Platform:** Mac M4 Pro, 48 GB unified RAM  
 > **Target:** DeviantArt, Patreon  
 > **Stack:** Python 3.11, SQLite, ComfyUI, Ollama 0.5+
-> **Last sync:** 2026-05-17 (Global single-female subject enforcement
+> **Last sync:** 2026-05-18 (LLM registry overhaul + routing disabled
+> — the previous 3-LLM setup (`cydonia_24b_v43` + `venice_24b` +
+> `magnum_v4_22b`) is retired. New 2-LLM registry: (1) primary +
+> default for every role: `cydonia_heretic_24b` — Ollama tag
+> `Fermi/Cydonia-24B-v4.3-heretic-vision:Q4_K_M`, the heretic-tuned
+> (refusal-removed) variant of Cydonia 24B v4.3 on Mistral Small 24B.
+> The "heretic" tune drops the refusal floor low enough that the
+> prior per-role split (venice for facets) is no longer needed —
+> one LLM serves planner / scene-gen / facet / character / metadata.
+> (2) fallback: `hermes3` — Ollama tag `hermes3:latest`, Nous
+> Research Hermes 3 on Llama 3.1 (default :latest = 8B). Different
+> lineage gives meaningful diversity on
+> ``OllamaClient.generate_json``'s second-chance retry after two
+> consecutive constrained-decoding failures. Routing in
+> `pipeline.yaml::llm.routing` is now `{}` (intentionally empty);
+> every role falls through to `default_llm`. The prior routing
+> recipe (`scene_facet_generator.default: venice_24b`) is preserved
+> in commented examples for re-introduction if a future eval shows
+> a per-role split is warranted. Test count unchanged at 1232; all
+> tests pivoted from old IDs to new IDs via bulk substitute
+> (`cydonia_24b_v43` → `cydonia_heretic_24b`, `venice_24b` →
+> `cydonia_heretic_24b`, `magnum_v4_22b` → `hermes3`) — the prior
+> `test_real_three_llms_active` is renamed to
+> `test_real_two_llms_active`, and `test_real_default_is_cydonia`
+> → `test_real_default_is_cydonia_heretic`.)
+>
+> Prior sync: 2026-05-17 (Global single-female subject enforcement
 > — pipeline-wide constraint that EVERY render targets exactly one
 > adult female subject (multi-subject is explicitly deferred).
 > 7-layer defence-in-depth mirroring the existing age-safety

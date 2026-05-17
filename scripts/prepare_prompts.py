@@ -427,7 +427,7 @@ def main() -> int:
             "Override LLM from config/llm_models.yaml. When set, every "
             "agent role uses this LLM (overrides routing). Use to "
             "re-prompt the same series with a different LLM for A/B "
-            "comparison: --series-id S --llm magnum_v4_22b. Default: "
+            "comparison: --series-id S --llm hermes3. Default: "
             "registry's default_llm."
         ),
     )

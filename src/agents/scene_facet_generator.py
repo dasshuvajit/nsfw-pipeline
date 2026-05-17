@@ -80,10 +80,10 @@ _BOORU_NATIVE_STYLES: frozenset[str] = frozenset({
 def _booru_tags_carry_nsfw(facet: dict[str, Any] | None) -> bool:
     """True iff ``facet.booru_tags`` contains any token from
     :data:`_BOORU_NSFW_TOKENS` **or** a lowercased ``nsfw_*`` /
-    ``art_nude*`` concept-tag token (venice quirk — see below).
+    ``art_nude*`` concept-tag token (observed LLM quirk — see below).
     Whole-token match on the comma-split tag list; case-insensitive.
 
-    Venice quirk: at T3+ for booru families, Venice frequently emits
+    Observed LLM quirk: at T3+ for booru families, some LLMs emit
     the abstract concept tag (lowercased) inside ``booru_tags`` —
     e.g. ``nsfw_breast_natural, art_fine_nude, photorealistic`` —
     instead of populating the structured ``nsfw_anatomy`` enum
@@ -480,10 +480,10 @@ class SceneFacetGenerator:
         # Pydantic schema declares nsfw_anatomy / nsfw_act as Optional
         # (back-compat across all tiers), but at T3/T4 they are REQUIRED
         # per the llm_directive. Pydantic + constrained-decoding alone
-        # accept null here; if the LLM dodges (cydonia self-censoring,
-        # for instance) we get a tame facet that bypasses the NSFW
-        # vocabulary path entirely. This post-check rejects null at
-        # T3/T4 and triggers the retry loop with an explicit nudge.
+        # accept null here; if the LLM dodges (self-censoring, omitting
+        # the structured fields) we get a tame facet that bypasses the
+        # NSFW vocabulary path entirely. This post-check rejects null
+        # at T3/T4 and triggers the retry loop with an explicit nudge.
         missing = _missing_required_nsfw_fields(
             facet, content_level, prompt_style=prompt_style,
         )

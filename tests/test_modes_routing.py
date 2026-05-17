@@ -162,7 +162,7 @@ class TestThemeMode:
                 "variation_axes": ["a"],
             }
             mode.plan(_ctx_stub(), cli_llm_override=None)
-        # Real registry default is the cydonia ollama_id.
+        # Real registry default resolves to the configured default LLM's ollama_id.
         from src.memory.llm_registry import LLMRegistryLoader
         expected = LLMRegistryLoader().get_default_llm().ollama_id
         assert helper.call_args.kwargs["model"] == expected

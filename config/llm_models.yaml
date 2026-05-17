@@ -17,80 +17,53 @@
 # =============================================================================
 
 llms:
-  cydonia_24b_v43:
-    ollama_id: "moophlo/Cydonia-24B-v4.3-GGUF:Q4_K_M"
-    display_name: "Cydonia 24B v4.3"
-    description: "Initiative-taking creative-writing model. Best general-purpose pick; RP-tuning handles booru tag generation cleanly."
+  cydonia_heretic_24b:
+    ollama_id: "Fermi/Cydonia-24B-v4.3-heretic-vision:Q4_K_M"
+    display_name: "Cydonia 24B v4.3 (Heretic Vision)"
+    description: "Heretic-tuned (refusal-removed) variant of Cydonia 24B v4.3. Mistral Small 24B base + initiative-taking creative-writing layer; the heretic fine-tune drops the refusal floor for explicit-tier work without sacrificing prose quality. Default LLM for every role — routing intentionally collapsed so this model serves every agent (planner, scene generator, facet generator, metadata, character creator)."
     quant: "Q4_K_M"
     size_gb: 14
     context_tokens: 32768
-    refusal_rate: 5.0           # community-reported, not vendor-tested
+    refusal_rate: 2.0           # community-reported for heretic-flavour tunes
     strengths:
+      - "low refusal floor (heretic tune)"
       - "creative writing"
       - "initiative-taking prose"
-      - "RP-tuned (handles booru tag generation cleanly)"
+      - "RP-tuned booru tag generation"
     families_recommended: ["all"]
     active: true
 
-  venice_24b:
-    ollama_id: "ikiru/Dolphin-Mistral-24B-Venice-Edition"
-    display_name: "Dolphin Mistral 24B Venice"
-    description: "Lowest-refusal floor (~2.2%). Best for explicit-tier metadata generation where vocabulary lookup matters."
-    quant: "Q5_K_M"
-    size_gb: 17
+  hermes3:
+    ollama_id: "hermes3:latest"
+    display_name: "Hermes 3 (latest)"
+    description: "Nous Research Hermes 3 on Llama 3.1. The :latest Ollama tag defaults to the 8B variant — smaller and faster than the 24B Cydonia primary. Used as the fallback LLM (OllamaClient.generate_json retries with this when the primary fails twice in a row), and available via --llm hermes3 for ad-hoc A/B testing."
+    quant: "Q4_K_M"
+    size_gb: 5
     context_tokens: 32768
-    refusal_rate: 2.2
+    refusal_rate: 10.0          # community-reported; Hermes is moderately permissive
     strengths:
-      - "lowest refusal floor (~2.2%)"
-      - "platform metadata (tags, titles, captions)"
+      - "fast (8B; lower memory footprint)"
+      - "general-purpose instruct follower"
+      - "different lineage from primary (Llama 3.1 vs Mistral)"
     families_recommended: ["all"]
     active: true
 
-  magnum_v4_22b:
-    ollama_id: "fluffy/magnum-v4-22b:q6_K"
-    display_name: "Magnum v4 22B"
-    description: "Claude-Opus-distilled prose. Best for prose-style families (Flux/Chroma/Flux2)."
-    quant: "Q6_K"
-    size_gb: 17
-    context_tokens: 32768
-    refusal_rate: 10.0
-    strengths:
-      - "Claude-style prose"
-      - "natural-language scene descriptions"
-    families_recommended: ["flux", "chroma", "flux2"]
-    active: true
-
   # ---------------------------------------------------------------------------
-  # Recommended-but-not-yet-installed: uncomment after `ollama pull <tag>` to
-  # enable. huihui_ai/qwen3-30b-a3b-abliterated is a 30B MoE (~3B active) — the
-  # fastest tokens/sec model available on M4 Pro for batch scene generation.
-  # Add to routing.scene_generator in pipeline.yaml once installed for ~3x
-  # faster 25-scene batches without sacrificing quality.
+  # To add another LLM: ollama pull <tag>, then add an entry below mirroring
+  # the shape above. Set active: true to make it routable. Setting it as
+  # default_llm makes it the project-wide default.
   # ---------------------------------------------------------------------------
-  # qwen3_30b_a3b:
-  #   ollama_id: "huihui_ai/qwen3-30b-a3b-abliterated"
-  #   display_name: "Qwen3 30B A3B (abliterated)"
-  #   description: "MoE — 30B params / 3B active. ~70 tok/s on M4 Pro batch."
-  #   quant: "Q4_K_M"
-  #   size_gb: 18
-  #   context_tokens: 32768
-  #   refusal_rate: 0.0
-  #   strengths:
-  #     - "fastest tokens/sec for batch scene generation"
-  #     - "MoE efficiency on Apple unified memory"
-  #   families_recommended: ["all"]
-  #   active: true
 
 # Default LLM used when --llm flag is omitted on the CLI and no per-role
 # routing entry in pipeline.yaml::llm.routing applies. Must be the registry
 # id (not the ollama_id) of an active entry above.
-default_llm: cydonia_24b_v43
+default_llm: cydonia_heretic_24b
 
 # Fallback LLM — used by ``OllamaClient.generate_json(fallback_model=...)``
 # when the primary model fails twice in a row (constrained-decoding +
 # Pydantic validation both reject the response). The retry path is opt-in;
 # agents pass ``fallback_model=router.fallback().ollama_id`` per call.
-# Must be a registry id of an active entry above. When omitted (or the
-# same id as default_llm) the fallback dimension collapses — no behaviour
-# change vs single-LLM operation.
-fallback_llm: cydonia_24b_v43
+# Must be a registry id of an active entry above. Set to a DIFFERENT id from
+# default_llm to gain diversity on the retry; set to the same id to collapse
+# the fallback dimension (single-LLM operation).
+fallback_llm: hermes3

@@ -13,7 +13,7 @@ The complete architecture is documented in ARCHITECTURE.md — read it fully bef
   grammar-constrained JSON decoding, which lands at Ollama 0.5.
   Multi-LLM upgrade (2026-05) replaces the single-model assumption
   with an LLM registry at `config/llm_models.yaml` (default:
-  `cydonia_24b_v43`). Per-CLI `--llm <id>` is the canonical override;
+  `cydonia_heretic_24b`). Per-CLI `--llm <id>` is the canonical override;
   every facet/prompt row stamps `llm_id` so multi-LLM A/B series
   coexist on the same scenes.
 - Mac M4 Pro, 48GB unified RAM
@@ -75,9 +75,10 @@ The complete architecture is documented in ARCHITECTURE.md — read it fully bef
     for the same quad requires `--regen-prompts <model>` (model-kind)
     or `--regen-family-prompts <family>` (family-kind), each with
     `--llm <id>`. The multi-LLM upgrade (2026-05) added the `llm_id`
-    dimension so the same scene can be re-prompted by Cydonia,
-    Magnum, Venice, etc. without overwriting prior LLMs' work —
-    manual A/B comparison is the canonical user workflow.
+    dimension so the same scene can be re-prompted by any LLM in the
+    registry (currently `cydonia_heretic_24b` + `hermes3`) without
+    overwriting prior LLMs' work — manual A/B comparison is the
+    canonical user workflow.
     `scene_facets` PK extends similarly to
     `(scene_id, family, llm_id)` and is shared between model-kind
     and family-kind prompt prep (the expensive LLM facet hop only
@@ -88,21 +89,22 @@ The complete architecture is documented in ARCHITECTURE.md — read it fully bef
     bump doesn't lose audit trail for older rows.
 - Static data sources:
   - `config/llm_models.yaml` — LLM registry (multi-LLM upgrade,
-    2026-05). Maps registry ids (e.g. `cydonia_24b_v43`) to Ollama
-    tags (`moophlo/Cydonia-24B-v4.3-GGUF:Q4_K_M`). Declares
-    `default_llm: cydonia_24b_v43`. Validated at startup:
+    2026-05). Maps registry ids (e.g. `cydonia_heretic_24b`) to Ollama
+    tags (`Fermi/Cydonia-24B-v4.3-heretic-vision:Q4_K_M`). Declares
+    `default_llm: cydonia_heretic_24b` and `fallback_llm: hermes3`
+    (different lineage — used by `OllamaClient.generate_json` after
+    two consecutive primary failures). Validated at startup:
     `LLMRegistryLoader` rejects an inactive default and any
     `pipeline.yaml::llm.routing.*` target that doesn't resolve here.
     Per-CLI `--llm <id>` overrides routing + default for that one
     command run. Output paths include `<llm_id>` segment so two
     LLMs A/B-rendering the same series don't overwrite each other.
-    **Default routing (2026-05-17):**
-    `pipeline.yaml::llm.routing.scene_facet_generator.default:
-    venice_24b` so the role that produces the actual NSFW phrasing
-    (booru_tags / scene_prose / nsfw_anatomy / nsfw_act) runs through
-    the lowest-refusal-floor model (Venice 24B, ~2.2% refusal). Other
-    roles (series_planner / scene_generator / metadata_generator /
-    character_creator) stay on cydonia (default_llm).
+    **Routing state (2026-05-18):** `pipeline.yaml::llm.routing` is
+    intentionally empty — every role falls through to `default_llm`
+    (`cydonia_heretic_24b`). The heretic-tuned variant's already-low
+    refusal floor obsoletes the prior per-role split. Re-enable
+    routing only if a future evaluation shows a specific role
+    benefits from a different LLM.
   - `config/families.yaml` — 6 families (sdxl, pony, illustrious, flux,
     chroma, flux2), each declaring prompt_style, quality prefix/suffix,
     `structure_intro` (Pony realism: `[source_photograph, "photo (medium)",

@@ -397,7 +397,7 @@ To render through a refiner template:
 python scripts/render_prompts.py --series-id <id> \
     --families chroma --render-with-model <some_chroma_model> \
     --templates templates/chroma/gonzaLomo_Chroma_Refiner_v11.json \
-    --llm cydonia_24b_v43
+    --llm cydonia_heretic_24b
 ```
 
 Choosing the refiner template via `--templates` IS the opt-in. No

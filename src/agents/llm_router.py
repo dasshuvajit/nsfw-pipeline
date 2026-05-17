@@ -11,7 +11,7 @@ Three-layer resolution model (see plan §3.2):
   3. **``llm_models.yaml::default_llm``.** Universal fallback when
      no routing entry exists for the resolved role.
 
-The router resolves registry IDs (e.g. ``cydonia_24b_v43``) through
+The router resolves registry IDs (e.g. ``cydonia_heretic_24b``) through
 :class:`LLMRegistryLoader` to obtain the Ollama tag (``ollama_id``)
 that ``OllamaClient.generate(model=...)`` consumes. Single source of
 truth: editing the Ollama tag in ``llm_models.yaml`` propagates to
@@ -175,8 +175,8 @@ class LLMRouter:
         Sample output (CLI override active):
 
             Resolved LLMs for this run:
-              series_planner                    → cydonia_24b_v43   (--llm override; routing was: cydonia_24b_v43)
-              scene_facet_generator.flux_natural → cydonia_24b_v43   (--llm override; routing was: magnum_v4_22b)
+              series_planner                    → cydonia_heretic_24b   (--llm override; routing was: cydonia_heretic_24b)
+              scene_facet_generator.flux_natural → cydonia_heretic_24b   (--llm override; routing was: hermes3)
               ...
         """
         rows = self._build_resolution_rows(cli_llm_override)

@@ -59,7 +59,7 @@ def _seed_family_prompts(
     series_id: str = "ser_fam",
     scene_id: str = "ser_fam_sc_000",
     families: list[str] | None = None,
-    llm_id: str = "cydonia_24b_v43",
+    llm_id: str = "cydonia_heretic_24b",
 ):
     """Seed series + scene + 1 family-kind prompt per family.
 
@@ -141,7 +141,7 @@ def _canned_phase_c_result(model_id: str = "gonzalomo_flux_v30", count: int = 2)
         "status": "complete",
         "images_rendered": count,
         "images_selected": count,
-        "export_dir": f"/tmp/output/ser_fam/cydonia_24b_v43/flux/",
+        "export_dir": f"/tmp/output/ser_fam/cydonia_heretic_24b/flux/",
         "elapsed_seconds": 1.0,
         "model_id": model_id,
         "theme": "t",
@@ -172,7 +172,7 @@ def test_families_threads_target_kind_and_render_model_to_phase_b(
             "--series-id", "ser_fam",
             "--families", "flux",
             "--render-with-model", "gonzalomo_flux_v30",
-            "--llm", "cydonia_24b_v43",
+            "--llm", "cydonia_heretic_24b",
         ),
     )
 
@@ -184,7 +184,7 @@ def test_families_threads_target_kind_and_render_model_to_phase_b(
         model_id="flux",                       # loop-target = family id
         scene_ids=None,
         template_override=None,
-        cli_llm_override="cydonia_24b_v43",
+        cli_llm_override="cydonia_heretic_24b",
         target_kind="family",
         render_model_id="gonzalomo_flux_v30",     # actual render checkpoint
     )
@@ -226,7 +226,7 @@ def test_families_with_external_template_threads_template_override(
             "--families", "chroma",
             "--render-with-model", "gonzalomo_chroma_v30",
             "--templates", "templates/chroma/gonzaLomo_Chroma_Refiner_v11.json",
-            "--llm", "cydonia_24b_v43",
+            "--llm", "cydonia_heretic_24b",
         ),
     )
 
@@ -264,7 +264,7 @@ def test_render_with_model_from_wrong_family_exits_2(
             "--series-id", "ser_fam",
             "--families", "flux",
             "--render-with-model", "gonzalomo_photo_v70",
-            "--llm", "cydonia_24b_v43",
+            "--llm", "cydonia_heretic_24b",
         ),
     )
 
@@ -293,7 +293,7 @@ def test_models_and_families_mutex_exits_2(
             "--models", "gonzalomo_photo_v70",
             "--families", "flux",
             "--render-with-model", "gonzalomo_flux_v30",
-            "--llm", "cydonia_24b_v43",
+            "--llm", "cydonia_heretic_24b",
         ),
     )
 
@@ -318,7 +318,7 @@ def test_families_without_render_with_model_exits_2(
         _argv(
             "--series-id", "ser_fam",
             "--families", "flux",
-            "--llm", "cydonia_24b_v43",
+            "--llm", "cydonia_heretic_24b",
         ),
     )
 
@@ -346,7 +346,7 @@ def test_render_with_model_without_families_exits_2(
             "--series-id", "ser_fam",
             "--models", "gonzalomo_photo_v70",
             "--render-with-model", "gonzalomo_flux_v30",
-            "--llm", "cydonia_24b_v43",
+            "--llm", "cydonia_heretic_24b",
         ),
     )
 
@@ -376,7 +376,7 @@ def test_no_family_prompts_emits_families_hint(
             "--series-id", "ser_fam",
             "--families", "flux",
             "--render-with-model", "gonzalomo_flux_v30",
-            "--llm", "cydonia_24b_v43",
+            "--llm", "cydonia_heretic_24b",
         ),
     )
 
@@ -416,7 +416,7 @@ def test_model_kind_prompts_dont_satisfy_families_query(
         "model_id, llm_id, prompt_text, negative_prompt, prompt_hash, "
         "content_level, status) VALUES "
         "('pm_0', 'ser_fam', 'ser_fam_sc_000', 'model', 'gonzalomo_flux_v30', "
-        "'cydonia_24b_v43', 'model prompt', 'neg', 'mhash_0', "
+        "'cydonia_heretic_24b', 'model prompt', 'neg', 'mhash_0', "
         "'T2_implied', 'pending')",
     )
     conn.commit()
@@ -431,7 +431,7 @@ def test_model_kind_prompts_dont_satisfy_families_query(
             "--series-id", "ser_fam",
             "--families", "flux",
             "--render-with-model", "gonzalomo_flux_v30",
-            "--llm", "cydonia_24b_v43",
+            "--llm", "cydonia_heretic_24b",
         ),
     )
 
