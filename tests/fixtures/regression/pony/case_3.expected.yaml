@@ -1,8 +1,8 @@
 expected:
-  prompt_text: score_9, score_8_up, score_7_up, score_6_up, score_5_up, score_4_up, BREAK, solo, source_photographic,
-    1girl, copper_hair, freckles, lithe, lying_on_chaise_lounge, completely_nude, soft_shadow, on_back,
-    feet_together, art_nude, fine art photography
-  prompt_token_count: 86
+  prompt_text: score_9, score_8_up, score_7_up, score_6_up, score_5_up, score_4_up, BREAK, 1girl, solo,
+    source_photographic, 1girl, copper_hair, freckles, lithe, lying_on_chaise_lounge, completely_nude,
+    soft_shadow, on_back, feet_together, art_nude, fine art photography
+  prompt_token_count: 89
   negative_prompt: cartoon, anime
   ratio: landscape
   resolution:

@@ -190,8 +190,12 @@ def test_pony_structure_intro_emitted_after_quality_prefix(
     break_idx = text.index("BREAK")
     source_idx = text.index("source_photo")
     assert break_idx < source_idx
-    # And intro tokens come BEFORE the body's booru tags
-    body_idx = text.index("1girl")
+    # And intro tokens come BEFORE the body's booru tags. We use
+    # ``looking_at_viewer`` as a body-only marker because the solo_anchor
+    # (added 2026-05-17) injects its own ``1girl, solo`` between BREAK
+    # and the structure_intro — ``1girl`` is no longer unique to the
+    # body.
+    body_idx = text.index("looking_at_viewer")
     assert source_idx < body_idx
 
 

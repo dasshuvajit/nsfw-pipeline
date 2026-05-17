@@ -1,8 +1,8 @@
 expected:
-  prompt_text: score_9, score_8_up, score_7_up, score_6_up, score_5_up, score_4_up, BREAK, solo, source_photographic,
-    1girl, raven_hair, green_eyes, slim_body, long_hair, black_hair, slender, parted_lips, looking_to_the_side,
-    silk_robe, indoors, detailed face, soft lighting
-  prompt_token_count: 91
+  prompt_text: score_9, score_8_up, score_7_up, score_6_up, score_5_up, score_4_up, BREAK, 1girl, solo,
+    source_photographic, 1girl, raven_hair, green_eyes, slim_body, long_hair, black_hair, slender, parted_lips,
+    looking_to_the_side, silk_robe, indoors, detailed face, soft lighting
+  prompt_token_count: 94
   negative_prompt: deformed hands
   ratio: square
   resolution:

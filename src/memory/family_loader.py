@@ -207,6 +207,12 @@ class FamilyConfig:
         # global keyword/prose strings. Missing = use module defaults
         # baked into the dataclass field.
         anchor = _parse_adult_anchor(fam_id, d.get("adult_anchor"))
+        # 2026-05-17 — solo_anchor: per-family override for the
+        # ``_positive_solo_anchor_inject`` injection text. Booru
+        # families override to ``1girl, solo`` (the canonical
+        # subject-count pair); other families fall back to the
+        # single-token default ``solo`` to fit CLIP 77-budget.
+        solo_anchor_data = _parse_solo_anchor(fam_id, d.get("solo_anchor"))
         # Phase 3 — structure_intro: optional list of comma-tokens
         # emitted after quality_prefix.
         intro = list(d.get("structure_intro") or [])
@@ -274,6 +280,7 @@ class FamilyConfig:
             realism_tail_style=realism_tail_style,
             guide=guide,
             adult_anchor=anchor,
+            solo_anchor=solo_anchor_data,
             structure_intro=intro,
             examples=examples,
         )
@@ -311,6 +318,51 @@ _DEFAULT_ADULT_ANCHOR = {
     "keyword": "adult woman, mature features",
     "prose": "An adult woman with mature features.",
 }
+
+
+# Single-female enforcement (2026-05-17). Booru families override to
+# ``1girl, solo``; everything else falls back to the single-token
+# ``solo`` form (fits inside CLIP 77-token budget cleanly).
+_DEFAULT_SOLO_ANCHOR = {
+    "keyword": "solo",
+    "prose": "A single adult woman alone in the scene.",
+}
+
+
+def _parse_solo_anchor(fam_id: str, raw: object) -> dict[str, str]:
+    """Parse the optional ``solo_anchor:`` block.
+
+    Per-family override of the ``_positive_solo_anchor_inject``
+    insertion text. Both ``keyword`` and ``prose`` keys are required
+    when the block is present so a typo can't silently drop one form.
+    Missing block falls back to :data:`_DEFAULT_SOLO_ANCHOR`
+    (``"solo"`` keyword + a generic prose sentence) — adequate for
+    most families; Pony / Illustrious override to the canonical
+    booru ``1girl, solo`` pair.
+    """
+    if raw is None:
+        return dict(_DEFAULT_SOLO_ANCHOR)
+    if not isinstance(raw, dict):
+        raise FamilyLoaderError(
+            f"family {fam_id!r}: solo_anchor must be a mapping "
+            f"(got {type(raw).__name__})"
+        )
+    missing = {"keyword", "prose"} - raw.keys()
+    if missing:
+        raise FamilyLoaderError(
+            f"family {fam_id!r}: solo_anchor missing keys {sorted(missing)}"
+        )
+    keyword = raw["keyword"]
+    prose = raw["prose"]
+    if not isinstance(keyword, str) or not keyword.strip():
+        raise FamilyLoaderError(
+            f"family {fam_id!r}: solo_anchor.keyword must be a non-empty string"
+        )
+    if not isinstance(prose, str) or not prose.strip():
+        raise FamilyLoaderError(
+            f"family {fam_id!r}: solo_anchor.prose must be a non-empty string"
+        )
+    return {"keyword": keyword.strip(), "prose": prose.strip()}
 
 
 def _parse_adult_anchor(fam_id: str, raw: object) -> dict[str, str]:
