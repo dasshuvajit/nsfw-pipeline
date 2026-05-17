@@ -3,7 +3,45 @@
 > **Platform:** Mac M4 Pro, 48 GB unified RAM  
 > **Target:** DeviantArt, Patreon  
 > **Stack:** Python 3.11, SQLite, ComfyUI, Ollama 0.5+
-> **Last sync:** 2026-05-17 (T4 softness fix + Venice routing default —
+> **Last sync:** 2026-05-17 (Global single-female subject enforcement
+> — pipeline-wide constraint that EVERY render targets exactly one
+> adult female subject (multi-subject is explicitly deferred).
+> 7-layer defence-in-depth mirroring the existing age-safety
+> pattern: (1) tier directives (`categories.yaml` T1-T4) gain a
+> SOLO clause — light-touch at T1/T2, strict at T3/T4 (T4 directive
+> additionally forbids partnered `nsfw_act` tags); (2) mode planner
+> SYSTEM_PROMPTs (`theme/niche/style/character` modes +
+> `SeriesPlanner` + `SceneGenerator` + `SceneFacetGenerator`)
+> inject a SOLO operating principle so the LLM sees the constraint
+> from multiple angles, with Pony's booru system prompt explicitly
+> forbidding `2girls / multiple_girls / NSFW_T4_PARTNERED_*`; (3)
+> `families.yaml` gains a `solo_anchor` field — separate from
+> `adult_anchor` — with booru-shaped `1girl, solo` (Pony,
+> Illustrious) vs the default single `solo` token (SDXL realism
+> finetunes still recognise booru subject vocabulary) vs prose
+> sentence for Flux / Chroma / Flux.2; (4) `negative_axes` taxonomy
+> bumps from 7 axes to 8 with new `subject_count` axis (booru
+> families emit `2girls / multiple_girls / multiple_subjects /
+> group / crowd`; Chroma emits prose `two people / multiple people
+> / a couple / group / crowd / another person`; Flux / Flux.2 stay
+> empty since CFG-distilled families ignore negatives — also
+> exempt from `filter_conflicts` so positive `solo` doesn't cancel
+> the negative-side suppression); (5) `HARD_BLOCK_NEGATIVE` adds
+> `2girls, multiple_girls, multiple_subjects` so every family that
+> supports negatives gets the multi-subject gate unconditionally;
+> (6) `_positive_subject_count_scan` strips multi-subject vocab
+> from any LLM drift before composition (ERROR log so the drift is
+> visible); (7) `vocabulary.py::_SOLO_MODE_BANNED_TAGS` filters the
+> 4 partnered T4 `nsfw_act` tags both from the LLM's concept menu
+> (`all_concepts_for_family`) and from the canonicalizer's output
+> (defence-in-depth — even if a stale directive slips a banned tag
+> through). End-to-end validation on a fresh T4 chroma series
+> (25/25 scenes) confirmed zero multi-subject leakage. Illustrious
+> `adult_anchor` corrected from prose-shaped default to booru-shaped
+> `1girl, mature_female, adult` to match its composer convention.
+> 1240 tests pass.)
+>
+> Prior sync: 2026-05-17 (T4 softness fix + Venice routing default —
 > 5-layer fix lands: (1) `prepare_prompts.py --series-id` retarget
 > now inherits `content_level` from DB instead of silently
 > downgrading to T2_implied; (2-3) theme/niche/style/character modes
@@ -24,7 +62,7 @@
 > corrected from non-Danbooru `1woman` to canonical
 > `1girl, mature_female`. `init_db.py::series.status` CHECK
 > constraint now includes `aborted` (fixed latent crash on
-> supervisor reject path). All 1250 tests pass.)
+> supervisor reject path).)
 >
 > Prior sync: 2026-05-06 (Family-level prompt prep — `prompts` schema
 > gains `target_kind` discriminator (`'model'` | `'family'`); UNIQUE
@@ -296,9 +334,10 @@ end-to-end case. The same code paths underlie all three CLIs.
       sdxl/pony/illustrious, T5 for flux/chroma, word-count heuristic
       for flux2; trim from the middle, BREAK-window-aware for Pony.
       **5-layer negative assembly** (Phase D + E): TI embeddings
-      hoisted, `HARD_BLOCK_NEGATIVE`, family `negative_axes` (7-axis
-      taxonomy with conflict-filter), per-model `prompt.extend.negative_*`,
-      character-level.
+      hoisted, `HARD_BLOCK_NEGATIVE` (age + multi-subject), family
+      `negative_axes` (8-axis taxonomy with conflict-filter; the
+      `subject_count` axis is exempt from filter_conflicts),
+      per-model `prompt.extend.negative_*`, character-level.
    f. **Sanitize** — `PromptSanitizer` enforces tier suppress / boost.
    g. **Dedup** — `PromptDeduplicator` per-model (hash + scene
       structural similarity against `generation_memory`).
@@ -650,13 +689,17 @@ position-weighted encoder gives them their full weight):
    teen, schoolgirl, loli, shota, underage, ...`). Belt-and-braces
    alongside the positive-side `_AGE_AMBIGUITY_PATTERN` scan and
    the post-render `PromptSanitizer`.
-3. **`family.negative_axes`** flattened — Phase D 7-axis taxonomy
+3. **`family.negative_axes`** flattened — 8-axis taxonomy
    (`anatomy / medium / skin / quality / watermark / safety /
-   censor`); each axis is a list of tokens. Before flattening,
-   `filter_conflicts()` drops any token that appears in
+   censor / subject_count`); each axis is a list of tokens. Before
+   flattening, `filter_conflicts()` drops any token that appears in
    the positive prompt to avoid the classic `"naked"`-in-negatives-
-   while-positive-says-`"nude pose"` foot-gun. Dropped tokens are
-   logged at WARNING.
+   while-positive-says-`"nude pose"` foot-gun. `subject_count` is
+   on the `_CONFLICT_FILTER_EXEMPT_AXES` allowlist — even when the
+   positive carries `solo`, the negative-side multi-subject
+   suppression must NOT be filtered out (it's intentional
+   "intentional-suppression" rather than a conflict). Dropped tokens
+   are logged at WARNING.
 4. **per-model `prompt.extend.negative_axes`** / `negative_prompt`
    — additive overrides on top of the family taxonomy.
 5. **`characters.negative_prompt`** — character-level negatives.
@@ -664,6 +707,64 @@ position-weighted encoder gives them their full weight):
 All non-TI segments are comma-split and case-insensitive deduped
 via `_keyword_dedup`. Returns empty string when
 `family.supports_negative_prompt` is False (Flux / Flux.2).
+
+### Global single-female subject enforcement
+
+Pipeline-wide invariant: every render targets **exactly one adult
+female subject**. Multi-subject generation is explicitly deferred —
+the constraint is encoded across 7 enforcement layers (mirrors the
+existing age-safety pattern) so a drift at any one layer is caught
+by the next:
+
+1. **Tier directives** (`categories.yaml` T1-T4) — every
+   `llm_directive` carries a SOLO clause. Light-touch at T1/T2
+   ("exactly one subject"), strict at T3/T4 (T4 additionally forbids
+   the partnered `nsfw_act` tags by name).
+2. **Mode + agent SYSTEM_PROMPTs** — `ThemeMode` / `NicheMode` /
+   `StyleMode` (PLAN and SCENE templates) + `SeriesPlanner` +
+   `SceneGenerator` + `SceneFacetGenerator` all carry a SOLO
+   operating principle so the LLM sees the constraint from multiple
+   angles. `PONY_BOORU_SYSTEM_PROMPT` additionally forbids
+   `2girls / multiple_girls / NSFW_T4_PARTNERED_*` tags explicitly.
+3. **`families.yaml::solo_anchor`** (separate from `adult_anchor`)
+   — positive-side injection. Booru families (Pony, Illustrious)
+   override to `1girl, solo`; SDXL realism inherits the default
+   single `solo` token (realism finetunes still recognise booru
+   subject vocabulary); Flux / Chroma / Flux.2 use a prose sentence.
+   `PromptBuilder._positive_solo_anchor_inject` runs
+   unconditionally (unlike `_positive_age_safety_scan`, which fires
+   only when an age-ambiguity term is present) and respects
+   `family.break_marker` for Pony — the anchor lands in CLIP
+   window 2 (post-BREAK) so it stays adjacent to the booru body.
+4. **`negative_axes.subject_count`** — 8th axis on the taxonomy.
+   Booru families emit `2girls / multiple_girls /
+   multiple_subjects / group / crowd`; Chroma emits prose tokens
+   (`two people / multiple people / a couple / group / crowd /
+   another person`); Flux / Flux.2 stay empty (CFG-distilled
+   families ignore negatives). On the `_CONFLICT_FILTER_EXEMPT_AXES`
+   allowlist so positive `solo` doesn't trigger
+   `filter_conflicts` to drop the negative-side suppression.
+5. **`HARD_BLOCK_NEGATIVE` extension** — adds
+   `2girls, multiple_girls, multiple_subjects` to the unconditional
+   prepend block, so every render with `supports_negative=True`
+   carries the multi-subject gate even before family negatives
+   are flattened.
+6. **`_positive_subject_count_scan`** — composer-side scan that
+   strips multi-subject vocab (`2girls`, `multiple subjects`,
+   `her partner`, `another woman`, …) from the assembled positive
+   if any LLM drifted through layers 1-2. Logs at ERROR so drift
+   surfaces in operator visibility rather than silent leakage.
+7. **`vocabulary.py::_SOLO_MODE_BANNED_TAGS`** — frozenset of the
+   4 partnered T4 `nsfw_act` concept tags. Filtered both from
+   `all_concepts_for_family()` (hides them from the LLM's concept
+   menu) and from `canonicalize()` (drops them if a stale system
+   prompt slips one through). ERROR-logged on drop.
+
+The whole stack is deliberate defence-in-depth: each layer is
+narrow on its own but the combination makes single-subject leakage
+exceptionally hard to produce. Adding multi-subject support later
+means relaxing all 7 layers in lockstep behind an explicit opt-in
+flag — never silently.
 
 ### LLM Model Awareness (Phase 2 split)
 

@@ -25,6 +25,13 @@ The complete architecture is documented in ARCHITECTURE.md — read it fully bef
 - Never mix content levels within a set. The 4 tiers are
   `T1_suggestive`, `T2_implied`, `T3_artnude`, `T4_explicit`
   (enforced by DB CHECK and by `assert_level_purity()`).
+- **Single-female subject only.** Every render targets exactly
+  one adult female subject. Multi-subject mode is explicitly
+  deferred — enforced via 7-layer defence-in-depth (tier directives
+  + agent SYSTEM_PROMPTs + `solo_anchor` positive injection +
+  `subject_count` negative axis + `HARD_BLOCK_NEGATIVE` + composer
+  `_positive_subject_count_scan` + vocab `_SOLO_MODE_BANNED_TAGS`).
+  See ARCHITECTURE.md § Global single-female subject enforcement.
 - Sequential execution: LLM phase → unload → render phase.
 - **Commercial licensing:** the `flux2_klein_9b` model ships under the
   FLUX NCL (non-commercial) license. Output from it cannot be sold on
@@ -98,10 +105,14 @@ The complete architecture is documented in ARCHITECTURE.md — read it fully bef
     chroma, flux2), each declaring prompt_style, quality prefix/suffix,
     `structure_intro` (Pony realism: `[source_photograph, "photo (medium)",
     realistic]`), `adult_anchor` (per-family age-anchor injection
-    keyword/prose forms), `negative_axes` (7-axis taxonomy),
-    capabilities, LLM hints. `flux2` covers FLUX.2 Klein 9B and is
-    distilled (cfg=1.0 / steps=4 / euler / simple — enforced by
-    `_build_flux2`).
+    keyword/prose forms), `solo_anchor` (per-family single-female
+    anchor — booru-shaped `1girl, solo` for Pony/Illustrious; default
+    single `solo` token for SDXL; prose sentence for Flux/Chroma/Flux.2),
+    `negative_axes` (8-axis taxonomy — added `subject_count` for
+    multi-subject suppression, on the `filter_conflicts` exempt
+    allowlist so positive `solo` doesn't cancel it), capabilities,
+    LLM hints. `flux2` covers FLUX.2 Klein 9B and is distilled
+    (cfg=1.0 / steps=4 / euler / simple — enforced by `_build_flux2`).
   - `config/models/{id}.yaml` — per-model: `family:` reference +
     `prompt: {extend:, override:}` hooks for trigger words, negatives,
     `negative_embeddings:` (typed list of TI tokens — see Phase 1),
@@ -163,11 +174,25 @@ The complete architecture is documented in ARCHITECTURE.md — read it fully bef
   watermarker preserves both chunks on re-save.
 - Negative prompt assembly is 5-layer (TI embeddings → HARD_BLOCK →
   model → style → character) with per-family token-budget enforcement
-  via `fit_to_budget`.
-- Adult anchor (positive-side age-safety injection) reads
-  `family.adult_anchor.{keyword,prose}` — Pony overrides to
-  `1woman, mature, adult` since booru tag conventions don't say
-  "adult woman" verbatim.
+  via `fit_to_budget`. `HARD_BLOCK_NEGATIVE` carries both
+  age-ambiguity tokens (`child`, `teen`, `loli`, …) and
+  multi-subject tokens (`2girls`, `multiple_girls`,
+  `multiple_subjects`) prepended unconditionally.
+- Adult anchor (positive-side age-safety injection, conditional on
+  age-ambiguity detection) reads `family.adult_anchor.{keyword,prose}`
+  — Pony and Illustrious (booru families) override to
+  `1girl, mature_female, adult`; SDXL/Flux/Chroma/Flux.2 use the
+  prose-shaped default `adult woman, mature features` (keyword) +
+  `An adult woman with mature features.` (prose).
+- Solo anchor (positive-side single-female injection, runs
+  unconditionally) reads `family.solo_anchor.{keyword,prose}`.
+  Booru families override to `1girl, solo` (2 tokens); SDXL
+  inherits the default single `solo` token (CLIP 77-budget
+  friendly — realism finetunes still recognise booru subject
+  vocab); Flux/Chroma/Flux.2 use a prose sentence
+  (`A single adult woman alone in the scene.`). The composer
+  splits on `family.break_marker` for Pony so the anchor lands
+  in CLIP window 2 (post-BREAK) alongside the booru body.
 
 ## Project Structure
 See ARCHITECTURE.md §16 for the full file structure.
@@ -184,7 +209,7 @@ Workflow JSON templates live in this project under config/comfyui_workflows/{fam
 External user-authored workflow templates live under config/comfyui_workflows/templates/{family}/ — see docs/COMFYUI_WORKFLOWS.md § External templates.
 
 ## Key Files
-- ARCHITECTURE.md — System design; living doc, update when code drifts (last sync: 2026-05-02 NSFW-output-path fix)
+- ARCHITECTURE.md — System design; living doc, update when code drifts (last sync: 2026-05-17 — global single-female subject enforcement + refiner contract + venice routing)
 - CLAUDE.md — This file (project context for Claude Code)
 - PROJECT_GUIDE.md — Living document: setup, run, test instructions (UPDATE after every implementation)
 - config/prompt_vocabulary.yaml — Versioned realism + NSFW concept library (Phase 4a; canonicalizer translates abstract concept tags to family phrasing at compose time)
