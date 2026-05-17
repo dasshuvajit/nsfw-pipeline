@@ -98,21 +98,6 @@ def test_commercial_mode_drops_non_commercial_model(models_dir, caplog):
     )
 
 
-def test_commercial_mode_default_is_false_on_real_registry():
-    # Sanity: the real on-disk registry defaults to commercial_mode=False
-    # so flux2_klein_9b resolves without any commercial_mode flag flipped.
-    loader = ModelRegistryLoader()
-    entry = loader.get_model("flux2_klein_9b")
-    assert entry.commercial_use is False
-    assert entry.license == "flux_ncl"
-
-
-def test_commercial_mode_true_on_real_registry_hides_flux2_klein():
-    loader = ModelRegistryLoader(commercial_mode=True)
-    with pytest.raises(ModelNotFound):
-        loader.get_model("flux2_klein_9b")
-
-
 def test_legacy_yaml_without_license_keys_defaults_to_commercial(tmp_path):
     # Legacy YAMLs (pre-license-gate) don't carry `license:` /
     # `commercial_use:` keys. The loader must treat the missing

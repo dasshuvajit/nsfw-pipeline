@@ -472,9 +472,7 @@ def test_negative_prompt_without_embedding_token_still_accepted():
 
 
 @pytest.mark.parametrize("model_id", [
-    "cyberrealistic_pony_v160",
     "cyberrealistic_pony_v170",
-    "pony_realism_v23",
     "pony_realism_v23_ultra",
 ])
 def test_pony_realism_finetunes_carry_structure_intro(model_id):
@@ -499,7 +497,6 @@ def test_pony_realism_finetunes_carry_structure_intro(model_id):
 
 
 @pytest.mark.parametrize("model_id", [
-    "cyberrealistic_pony_v160",
     "cyberrealistic_pony_v170",
 ])
 def test_cyberrealistic_pony_carries_negative_embedding(model_id):

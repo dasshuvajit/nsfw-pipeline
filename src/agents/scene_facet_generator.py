@@ -13,8 +13,8 @@ stored in ``scene_facets`` keyed by ``(scene_id, family)``.
 
 Why split it out:
 
-  * Sibling models in the same family (``lustify_v7`` +
-    ``juggernaut_ragnarok``, both sdxl) can share a single facet
+  * Sibling models in the same family (``juggernaut_ragnarok`` +
+    ``gonzalomo_photo_v70``, both sdxl) can share a single facet
     row. The per-model differentiation is in ``prompts`` via
     composer + per-model trigger words.
   * Re-targeting an existing series for a new family is one LLM

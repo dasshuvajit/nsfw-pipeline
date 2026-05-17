@@ -45,7 +45,7 @@ class TestParseCsv:
         assert prepare_module._parse_csv("") == []
 
     def test_single_value(self, prepare_module):
-        assert prepare_module._parse_csv("lustify_v7") == ["lustify_v7"]
+        assert prepare_module._parse_csv("gonzalomo_photo_v70") == ["gonzalomo_photo_v70"]
 
     def test_multi_value(self, prepare_module):
         assert prepare_module._parse_csv("a,b,c") == ["a", "b", "c"]
@@ -160,7 +160,7 @@ def _make_canned_result(
         "scenes_created": 5,
         "facets_created": 5,
         "prompts_created": 10,
-        "models_completed": models if models is not None else ["lustify_v7"],
+        "models_completed": models if models is not None else ["gonzalomo_photo_v70"],
         "families_completed": families or [],
     }
 
@@ -176,12 +176,12 @@ def test_main_success_path_prints_next_command(
     fake_engine._commercial_mode = False
     fake_engine.mode_selector.select.return_value = "character"
     fake_engine.run_phase_a.return_value = _make_canned_result(
-        series_id="ser_xyz", models=["lustify_v7", "chroma_v10HD"],
+        series_id="ser_xyz", models=["gonzalomo_photo_v70", "chroma_v10HD"],
     )
 
     fake_config = {
         "pipeline": {
-            "default_model_id": "lustify_v7",
+            "default_model_id": "gonzalomo_photo_v70",
             "default_style_profile_id": "golden_hour_natural",
         },
         "execution": {"mode": "manual"},
@@ -207,7 +207,7 @@ def test_main_success_path_prints_next_command(
     )
     monkeypatch.setattr(
         sys, "argv",
-        _argv("--models", "lustify_v7,chroma_v10HD", "--level", "T2_implied"),
+        _argv("--models", "gonzalomo_photo_v70,chroma_v10HD", "--level", "T2_implied"),
     )
 
     rc = prepare_module.main()
@@ -216,10 +216,10 @@ def test_main_success_path_prints_next_command(
     captured = capsys.readouterr()
     assert "Phase A complete" in captured.out
     assert "Series:           ser_xyz" in captured.out
-    assert "Models completed: lustify_v7, chroma_v10HD" in captured.out
+    assert "Models completed: gonzalomo_photo_v70, chroma_v10HD" in captured.out
     assert "render_prompts.py" in captured.out
     assert "--series-id ser_xyz" in captured.out
-    assert "--models lustify_v7,chroma_v10HD" in captured.out
+    assert "--models gonzalomo_photo_v70,chroma_v10HD" in captured.out
 
 
 def test_main_unique_collision_returns_2_with_hint(
@@ -241,7 +241,7 @@ def test_main_unique_collision_returns_2_with_hint(
         prepare_module, "_load_config",
         lambda: {
             "pipeline": {
-                "default_model_id": "lustify_v7",
+                "default_model_id": "gonzalomo_photo_v70",
                 "default_style_profile_id": "golden_hour_natural",
             },
             "execution": {"mode": "manual"},
@@ -265,7 +265,7 @@ def test_main_unique_collision_returns_2_with_hint(
     )
     monkeypatch.setattr(
         sys, "argv",
-        _argv("--models", "lustify_v7", "--series-id", "ser_existing"),
+        _argv("--models", "gonzalomo_photo_v70", "--series-id", "ser_existing"),
     )
 
     rc = prepare_module.main()
@@ -274,7 +274,7 @@ def test_main_unique_collision_returns_2_with_hint(
     captured = capsys.readouterr()
     assert "ERROR: prompts" in captured.err
     assert "ser_existing" in captured.err
-    assert "--regen-prompts lustify_v7" in captured.err
+    assert "--regen-prompts gonzalomo_photo_v70" in captured.err
 
 
 def test_main_supervisor_aborted_returns_3(
@@ -294,7 +294,7 @@ def test_main_supervisor_aborted_returns_3(
         prepare_module, "_load_config",
         lambda: {
             "pipeline": {
-                "default_model_id": "lustify_v7",
+                "default_model_id": "gonzalomo_photo_v70",
                 "default_style_profile_id": "golden_hour_natural",
             },
             "execution": {"mode": "supervised"},
@@ -333,7 +333,7 @@ def test_main_engine_error_returns_1(
         prepare_module, "_load_config",
         lambda: {
             "pipeline": {
-                "default_model_id": "lustify_v7",
+                "default_model_id": "gonzalomo_photo_v70",
                 "default_style_profile_id": "golden_hour_natural",
             },
             "execution": {"mode": "manual"},
@@ -367,7 +367,7 @@ def test_main_passes_regen_flags_through(
         prepare_module, "_load_config",
         lambda: {
             "pipeline": {
-                "default_model_id": "lustify_v7",
+                "default_model_id": "gonzalomo_photo_v70",
                 "default_style_profile_id": "golden_hour_natural",
             },
             "execution": {"mode": "manual"},
@@ -392,10 +392,10 @@ def test_main_passes_regen_flags_through(
     monkeypatch.setattr(
         sys, "argv",
         _argv(
-            "--models", "lustify_v7",
+            "--models", "gonzalomo_photo_v70",
             "--series-id", "ser_existing",
             "--regen-facets", "sdxl,pony",
-            "--regen-prompts", "lustify_v7",
+            "--regen-prompts", "gonzalomo_photo_v70",
         ),
     )
 
@@ -405,10 +405,10 @@ def test_main_passes_regen_flags_through(
     # Verify run_phase_a was called with the parsed regen lists.
     fake_engine.run_phase_a.assert_called_once()
     _, kwargs = fake_engine.run_phase_a.call_args
-    assert kwargs["models"] == ["lustify_v7"]
+    assert kwargs["models"] == ["gonzalomo_photo_v70"]
     assert kwargs["series_id_existing"] == "ser_existing"
     assert kwargs["regen_facets"] == ["sdxl", "pony"]
-    assert kwargs["regen_prompts"] == ["lustify_v7"]
+    assert kwargs["regen_prompts"] == ["gonzalomo_photo_v70"]
 
 
 # ── F3: --llm flag coverage ─────────────────────────────────────────
@@ -426,7 +426,7 @@ class TestLlmFlag:
             prepare_module, "_load_config",
             lambda: {
                 "pipeline": {
-                    "default_model_id": "lustify_v7",
+                    "default_model_id": "gonzalomo_photo_v70",
                     "default_style_profile_id": "golden_hour_natural",
                 },
                 "execution": {"mode": "manual"},
@@ -461,7 +461,7 @@ class TestLlmFlag:
         self._common_monkeypatch(prepare_module, monkeypatch, fake_engine)
         monkeypatch.setattr(
             sys, "argv",
-            _argv("--models", "lustify_v7", "--llm", "cydonia_24b_v43"),
+            _argv("--models", "gonzalomo_photo_v70", "--llm", "cydonia_24b_v43"),
         )
 
         rc = prepare_module.main()
@@ -477,7 +477,7 @@ class TestLlmFlag:
         self._common_monkeypatch(prepare_module, monkeypatch, fake_engine)
         monkeypatch.setattr(
             sys, "argv",
-            _argv("--models", "lustify_v7", "--llm", "not_a_real_llm_id"),
+            _argv("--models", "gonzalomo_photo_v70", "--llm", "not_a_real_llm_id"),
         )
 
         rc = prepare_module.main()
@@ -500,7 +500,7 @@ class TestLlmFlag:
         fake_engine.run_phase_a.return_value = _make_canned_result()
         self._common_monkeypatch(prepare_module, monkeypatch, fake_engine)
         monkeypatch.setattr(
-            sys, "argv", _argv("--models", "lustify_v7"),
+            sys, "argv", _argv("--models", "gonzalomo_photo_v70"),
         )
 
         rc = prepare_module.main()
@@ -527,7 +527,7 @@ class TestFamiliesFlag:
             prepare_module, "_load_config",
             lambda: {
                 "pipeline": {
-                    "default_model_id": "lustify_v7",
+                    "default_model_id": "gonzalomo_photo_v70",
                     "default_style_profile_id": "golden_hour_natural",
                 },
                 "execution": {"mode": "manual"},
@@ -555,7 +555,7 @@ class TestFamiliesFlag:
         from src.memory.model_registry import ModelRegistryLoader
         fake_loader = MagicMock()
         fake_loader.list_models.return_value = [
-            MagicMock(id="flux_nsfw_71q8")
+            MagicMock(id="gonzalomo_flux_v30")
         ]
         monkeypatch.setattr(
             prepare_module, "ModelRegistryLoader",
@@ -605,18 +605,18 @@ class TestFamiliesFlag:
         fake_engine._commercial_mode = False
         fake_engine.mode_selector.select.return_value = "character"
         fake_engine.run_phase_a.return_value = _make_canned_result(
-            models=["lustify_v7"], families=["flux"],
+            models=["gonzalomo_photo_v70"], families=["flux"],
         )
         self._common_monkeypatch(prepare_module, monkeypatch, fake_engine)
         monkeypatch.setattr(
             sys, "argv",
-            _argv("--models", "lustify_v7", "--families", "flux"),
+            _argv("--models", "gonzalomo_photo_v70", "--families", "flux"),
         )
 
         rc = prepare_module.main()
         assert rc == 0
         _, kwargs = fake_engine.run_phase_a.call_args
-        assert kwargs["models"] == ["lustify_v7"]
+        assert kwargs["models"] == ["gonzalomo_photo_v70"]
         assert kwargs["families"] == ["flux"]
 
     def test_neither_models_nor_families_with_no_default_exits_2(

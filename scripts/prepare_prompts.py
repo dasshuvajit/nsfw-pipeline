@@ -26,15 +26,15 @@ Usage:
 
     # Multi-model fan-out (sibling-family models share facet rows)
     python scripts/prepare_prompts.py --character char_001 --level T3_artnude \\
-        --models lustify_v7,chroma_v10HD
+        --models juggernaut_ragnarok,chroma_v10HD
 
     # Re-target an existing series for a new model
     python scripts/prepare_prompts.py --series-id ser_abc \\
-        --models flux_nsfw_71q8
+        --models gonzalomo_flux_v30
 
-    # Re-roll the SDXL facets + lustify_v7 prompts on an existing series
+    # Re-roll the SDXL facets + juggernaut_ragnarok prompts on an existing series
     python scripts/prepare_prompts.py --series-id ser_abc \\
-        --models lustify_v7 --regen-facets sdxl --regen-prompts lustify_v7
+        --models juggernaut_ragnarok --regen-facets sdxl --regen-prompts juggernaut_ragnarok
 
 Exit codes:
     0 = success
@@ -79,7 +79,7 @@ from src.memory.character_manager import (  # noqa: E402
 def _parse_csv(value: str | None) -> list[str]:
     """Parse a comma-separated CLI value into a deduped, ordered list.
 
-    ``--models lustify_v7,chroma_v10HD`` → ``["lustify_v7", "chroma_v10HD"]``.
+    ``--models juggernaut_ragnarok,chroma_v10HD`` → ``["juggernaut_ragnarok", "chroma_v10HD"]``.
     Empty / None → ``[]``.
     """
     if not value:
@@ -358,7 +358,7 @@ def main() -> int:
         default=None,
         help=(
             "Comma-separated model ids to fan out across "
-            "(e.g. 'lustify_v7,chroma_v10HD'). Per-model rules apply "
+            "(e.g. 'juggernaut_ragnarok,chroma_v10HD'). Per-model rules apply "
             "(trigger words, avoid words, negative_embeddings, "
             "lora_stack). Sibling-family models share scene_facets "
             "rows. Default when neither --models nor --families is "
@@ -465,7 +465,7 @@ def main() -> int:
             print(
                 "ERROR: pass --models <model_ids> or --families "
                 "<family_ids> (or both). At least one is required.\n"
-                "    --models lustify_v7,chroma_v10HD   # model-level\n"
+                "    --models juggernaut_ragnarok,chroma_v10HD   # model-level\n"
                 "    --families flux,pony               # family-level\n"
                 "    --models X --families Y            # both\n"
                 "If neither is set, pipeline.default_model_id is used "

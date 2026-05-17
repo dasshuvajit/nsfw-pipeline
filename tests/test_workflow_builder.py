@@ -262,66 +262,6 @@ def test_flux2_no_loras_strips_loader_nodes(builder):
 # ---- model-YAML lora_stack wiring (via StyleProfileForWorkflow) ----------
 
 
-def test_flux2_auto_stages_model_lora_stack(builder):
-    # End-to-end: the real flux2_klein_9b YAML declares ultra_real_v4 +
-    # klein_slider_anatomy as enabled. StyleProfileForWorkflow should
-    # JSON-serialize those into its lora_stack when the profile row
-    # provides none, and the builder should wire them into
-    # lora_loader_0 / lora_loader_1.
-    from src.core.style_profile_adapter import StyleProfileForWorkflow
-    from src.memory.model_registry import ModelRegistryLoader
-
-    model = ModelRegistryLoader().get_model("flux2_klein_9b")
-    profile = StyleProfileForWorkflow({"lora_stack": None}, model)
-
-    graph = builder.build(
-        prompt_text="A woman in golden light.",
-        negative_prompt="",
-        style_profile=profile,
-        resolution=(1024, 1024),
-        seed=1,
-    )
-    loaded = {
-        n["inputs"]["lora_name"]: n["inputs"]["strength_model"]
-        for n in graph.values()
-        if n.get("class_type") == "LoraLoader"
-    }
-    assert loaded == {
-        "ultra_real_v4.safetensors": pytest.approx(0.70),
-        "klein_slider_anatomy.safetensors": pytest.approx(2.0),
-    }
-    # KSampler drains through the last LoRA loader, not the raw UNET.
-    assert graph["ksampler"]["inputs"]["model"] == ["lora_loader_1", 0]
-
-
-def test_flux2_profile_lora_stack_wins_over_model(builder):
-    # A profile-provided stack takes precedence. Model's two-LoRA
-    # default is dropped; only the single profile LoRA is wired.
-    from src.core.style_profile_adapter import StyleProfileForWorkflow
-    from src.memory.model_registry import ModelRegistryLoader
-
-    model = ModelRegistryLoader().get_model("flux2_klein_9b")
-    override = '[{"name":"custom_test","strength":0.5}]'
-    profile = StyleProfileForWorkflow({"lora_stack": override}, model)
-
-    graph = builder.build(
-        prompt_text="A woman.",
-        negative_prompt="",
-        style_profile=profile,
-        resolution=(1024, 1024),
-        seed=1,
-    )
-    loader_names = {
-        n["inputs"]["lora_name"]
-        for n in graph.values()
-        if n.get("class_type") == "LoraLoader"
-    }
-    assert loader_names == {"custom_test.safetensors"}
-    # Second slot stripped — KSampler routes through lora_loader_0 only.
-    assert "lora_loader_1" not in graph
-    assert graph["ksampler"]["inputs"]["model"] == ["lora_loader_0", 0]
-
-
 # ---- flux.1 regression (guard against cross-family leakage) --------------
 
 
@@ -330,7 +270,7 @@ def test_flux1_still_dispatches_to_its_own_builder(builder):
     # graph; adding flux2 must not break it.
     profile = SimpleNamespace(
         workflow_family="flux",
-        model_checkpoint="fluxedUpFluxNSFW_71Q8GGUF.gguf",
+        model_checkpoint="gonzalomoXLFluxPony_v30FluxDAIO.safetensors",
         sampler="dpmpp_2m",
         scheduler="beta",
         steps=28,

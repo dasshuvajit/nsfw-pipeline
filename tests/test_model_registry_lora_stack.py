@@ -203,26 +203,15 @@ def test_legacy_yaml_without_lora_stack_defaults_to_empty(models_dir):
     assert loader.get_model("flux2_bare").lora_stack == ()
 
 
-def test_real_flux2_klein_9b_registry_exposes_enabled_loras():
-    """Sanity: on-disk flux2_klein_9b YAML lands its enabled LoRAs on the entry."""
-    loader = ModelRegistryLoader()
-    entry = loader.get_model("flux2_klein_9b")
-    # Both of Plan §3's picks must be enabled + at the right strengths.
-    names = {lora["name"]: lora["strength"] for lora in entry.lora_stack}
-    assert "ultra_real_v4" in names
-    assert names["ultra_real_v4"] == pytest.approx(0.70)
-    assert "klein_slider_anatomy" in names
-    assert names["klein_slider_anatomy"] == pytest.approx(2.0)
-
-
 # ----- Phase 2: lora_stack works on every LoRA-supporting family ----------
 
 
 @pytest.mark.parametrize("family", ["sdxl", "pony", "illustrious", "flux"])
 def test_lora_stack_parses_for_every_lora_supporting_family(family, models_dir):
     """The same ``lora_stack:`` schema works on sdxl/pony/illustrious/flux.
-    flux2 is covered by the existing real-registry test above; chroma
-    intentionally has no LoRA wiring (supports_lora: false on its YAMLs)."""
+    chroma intentionally has no LoRA wiring (supports_lora: false on its
+    YAMLs); flux2 currently has no registered models but the wiring is
+    family-agnostic — the SDXL/pony/illustrious/flux cases prove it."""
     _write_family_yaml(models_dir, family, f"{family}_with_loras", """
         lora_stack:
           - name: realism_skin

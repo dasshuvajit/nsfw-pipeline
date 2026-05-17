@@ -257,8 +257,8 @@ Canonical example:
 | **N | N** | **positional pairing — model[i] ↔ template[i]** (was: Cartesian) |
 | N | M (mismatched, both >1) | error |
 
-Example: `--models lustify_v7,chroma_v10HD --templates system,templates/chroma/x.json`
-renders **2** outputs (lustify_v7 with system, chroma_v10HD with the
+Example: `--models juggernaut_ragnarok,chroma_v10HD --templates system,templates/chroma/x.json`
+renders **2** outputs (juggernaut_ragnarok with system, chroma_v10HD with the
 chroma template), not 4. Users who want Cartesian should run the
 script once per template.
 
@@ -672,8 +672,8 @@ placeholder map.
 
 ## `flux/base.json`
 
-**Status:** **BUILT** — ships with the `flux_nsfw_71q8` registry row
-(`fluxedUpFluxNSFW_71Q8GGUF.gguf`). Routed through
+**Status:** **BUILT** — ships with the `gonzalomo_flux_v30` registry row
+(`gonzalomoXLFluxPony_v30FluxDAIO.safetensors`). Routed through
 `WorkflowBuilder._build_flux()` via `workflow_family='flux'`.
 
 **Purpose:** base flux render path. Flux is a materially different

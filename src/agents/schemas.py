@@ -236,7 +236,7 @@ class SceneFacetSDXL(BaseModel):
     """Per-scene SDXL composer inputs (camera/lens spec + garment).
 
     Used by ``_compose_keywords``. Two SDXL siblings (e.g.
-    ``lustify_v7`` + ``juggernaut_ragnarok``) share this facet row.
+    ``juggernaut_ragnarok`` + ``gonzalomo_photo_v70``) share this facet row.
     """
 
     model_config = ConfigDict(extra="allow", str_strip_whitespace=True)

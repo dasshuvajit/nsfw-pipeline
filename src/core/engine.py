@@ -1991,7 +1991,7 @@ class PipelineEngine:
                 # Family-mode forensics: when target_kind='family',
                 # model_id holds the family id (e.g. 'flux') and
                 # render_model_id holds the actual checkpoint
-                # ('flux_nsfw_71q8'). For target_kind='model' both
+                # ('gonzalomo_flux_v30'). For target_kind='model' both
                 # collapse — render_model_id stays None.
                 target_kind=target_kind,
                 render_model_id=render_model_id,

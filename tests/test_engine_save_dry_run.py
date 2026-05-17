@@ -76,7 +76,7 @@ def engine(fresh_db: Path):
     return PipelineEngine(config=minimal_config, db_path=fresh_db, dry_run=True)
 
 
-def _make_ctx(model_id: str = "lustify_v7") -> MagicMock:
+def _make_ctx(model_id: str = "gonzalomo_photo_v70") -> MagicMock:
     """A GenerationContext stub that exposes only what _save_dry_run reads.
 
     ``character_id=None`` so we don't have to seed a `characters` row
@@ -143,7 +143,7 @@ def _prompt(
 def test_save_dry_run_inserts_series_scenes_prompts(
     engine, fresh_db: Path,
 ) -> None:
-    ctx = _make_ctx(model_id="lustify_v7")
+    ctx = _make_ctx(model_id="gonzalomo_photo_v70")
     engine._save_dry_run(
         series_id="ser1",
         ctx=ctx,
@@ -171,7 +171,7 @@ def test_save_dry_run_inserts_series_scenes_prompts(
         "ORDER BY id"
     ).fetchall()
     assert len(prompt_rows) == 2
-    assert all(r["model_id"] == "lustify_v7" for r in prompt_rows)
+    assert all(r["model_id"] == "gonzalomo_photo_v70" for r in prompt_rows)
     assert all(r["status"] == "pending" for r in prompt_rows)
 
 
@@ -202,14 +202,14 @@ def test_save_dry_run_per_prompt_model_id_overrides_ctx(
 ) -> None:
     """Multi-model run_phase_a path: per-prompt model_id wins over the
     ctx default."""
-    ctx = _make_ctx(model_id="lustify_v7")  # ctx says one model …
+    ctx = _make_ctx(model_id="gonzalomo_photo_v70")  # ctx says one model …
     engine._save_dry_run(
         series_id="s",
         ctx=ctx,
         series_plan=_series_plan(),
         scenes=[_scene("sc1"), _scene("sc2")],
         prompts=[
-            _prompt("p1", "sc1", model_id="lustify_v7"),
+            _prompt("p1", "sc1", model_id="gonzalomo_photo_v70"),
             _prompt("p2", "sc2", model_id="chroma_v10HD"),
         ],
         style_profile_id="golden_hour_natural",
@@ -218,7 +218,7 @@ def test_save_dry_run_per_prompt_model_id_overrides_ctx(
     rows = conn.execute(
         "SELECT id, model_id FROM prompts ORDER BY id"
     ).fetchall()
-    assert dict(rows) == {"p1": "lustify_v7", "p2": "chroma_v10HD"}
+    assert dict(rows) == {"p1": "gonzalomo_photo_v70", "p2": "chroma_v10HD"}
 
 
 # ── Multi-model on the same scene ───────────────────────────────────
@@ -227,14 +227,14 @@ def test_save_dry_run_per_prompt_model_id_overrides_ctx(
 def test_save_dry_run_two_models_one_scene(engine, fresh_db: Path) -> None:
     """The new (scene_id, model_id) UNIQUE constraint allows multiple
     prompts per scene as long as model_id differs."""
-    ctx = _make_ctx(model_id="lustify_v7")
+    ctx = _make_ctx(model_id="gonzalomo_photo_v70")
     # Need to seed series + scene first (we re-use ctx across two calls).
     engine._save_dry_run(
         series_id="s",
         ctx=ctx,
         series_plan=_series_plan(),
         scenes=[_scene("sc1")],
-        prompts=[_prompt("p1", "sc1", model_id="lustify_v7")],
+        prompts=[_prompt("p1", "sc1", model_id="gonzalomo_photo_v70")],
         style_profile_id="golden_hour_natural",
     )
 
@@ -252,7 +252,7 @@ def test_save_dry_run_two_models_one_scene(engine, fresh_db: Path) -> None:
     rows = conn.execute(
         "SELECT model_id FROM prompts WHERE scene_id='sc1' ORDER BY model_id"
     ).fetchall()
-    assert [r[0] for r in rows] == ["chroma_v10HD", "lustify_v7"]
+    assert [r[0] for r in rows] == ["chroma_v10HD", "gonzalomo_photo_v70"]
 
 
 def test_save_dry_run_duplicate_scene_model_pair_raises(
@@ -260,23 +260,23 @@ def test_save_dry_run_duplicate_scene_model_pair_raises(
 ) -> None:
     """The UNIQUE(scene_id, model_id) constraint blocks the
     accidental-double-insert path."""
-    ctx = _make_ctx(model_id="lustify_v7")
+    ctx = _make_ctx(model_id="gonzalomo_photo_v70")
     engine._save_dry_run(
         series_id="s",
         ctx=ctx,
         series_plan=_series_plan(),
         scenes=[_scene("sc1")],
-        prompts=[_prompt("p1", "sc1", model_id="lustify_v7")],
+        prompts=[_prompt("p1", "sc1", model_id="gonzalomo_photo_v70")],
         style_profile_id="golden_hour_natural",
     )
-    # Attempting to insert ANOTHER prompt for (sc1, lustify_v7) → IntegrityError.
+    # Attempting to insert ANOTHER prompt for (sc1, gonzalomo_photo_v70) → IntegrityError.
     conn = sqlite3.connect(str(fresh_db))
     conn.execute("PRAGMA foreign_keys = ON")
     with pytest.raises(sqlite3.IntegrityError, match=r"(?i)unique"):
         conn.execute(
             "INSERT INTO prompts (id, series_id, scene_id, model_id, llm_id, "
             "prompt_text, negative_prompt, prompt_hash, content_level, status) "
-            "VALUES ('p_dup', 's', 'sc1', 'lustify_v7', 'cydonia_24b_v43', "
+            "VALUES ('p_dup', 's', 'sc1', 'gonzalomo_photo_v70', 'cydonia_24b_v43', "
             "'t', 'n', 'h_dup', 'T2_implied', 'pending')"
         )
 

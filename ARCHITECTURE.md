@@ -510,41 +510,46 @@ checkpoint). Each file references one of **six** families declared in
 `config/families.yaml`. Nothing about models is in the DB — the
 runtime reads YAML via `ModelRegistryLoader` / `FamilyLoader`.
 
-### 17 Registered Models
+### 8 Registered Models
 
 | Model ID | Architecture | Family | Sampler | Scheduler | Steps | CFG | Neg? | License |
 |----------|-------------|--------|---------|-----------|-------|-----|------|---------|
-| `pony_realism_v23` | pony | pony | dpmpp_2m_sde | karras | 30 | 6.5 | Y | open |
 | `pony_realism_v23_ultra` | pony | pony | dpmpp_2m_sde | karras | 30 | 6.5 | Y | open |
-| `cyberrealistic_pony_v160` | pony | pony | dpmpp_sde | karras | 30 | 5.0 | Y | open |
 | `cyberrealistic_pony_v170` | pony | pony | dpmpp_sde | karras | 30 | 5.0 | Y | open |
 | `juggernaut_ragnarok` | sdxl | sdxl | dpmpp_2m_sde | karras | 35 | 4.0 | Y | open |
-| `lustify_v7` | sdxl | sdxl | dpmpp_2m_sde | exponential | 30 | 3.5 | Y | open |
-| `lustify_endgame` | sdxl | sdxl | dpmpp_2m_sde | exponential | 30 | 3.5 | Y | open |
-| `lustify_olt` | sdxl | sdxl | dpmpp_2m_sde | exponential | 30 | 3.5 | Y | open |
-| `mop` | sdxl | sdxl | dpmpp_2m | karras | 24 | 5.0 | Y | open |
-| `jib` | sdxl | sdxl | dpmpp_2m | karras | 24 | 5.0 | Y | open |
 | `gonzalomo_photo_v70` | sdxl | sdxl | dpmpp_sde | karras | 8 | 2.0 | Y | open |
 | `gonzalomo_flux_v30` | flux | flux | euler | simple | 12 | 1.0 | N | open |
 | `gonzalomo_chroma_v30` | chroma | chroma | euler | simple | 26 | 3.8 | Y | open |
 | `chroma_v10HD` | chroma | chroma | euler | simple | 26 | 3.8 | Y | open |
-| `flux_nsfw_71q8` | flux | flux | dpmpp_2m | sgm_uniform | 28 | 3.5 | N | open |
 | `perfection_realistic_ilxl` | illustrious | illustrious | dpmpp_3m_sde | simple | 24 | 4.0 | Y | open |
-| `flux2_klein_9b` | flux2 | flux2 | euler | simple | 4 | 1.0 | N | **flux_ncl** (non-commercial) |
 
-Flux and Chroma both use `models/unet/` + `UnetLoaderGGUF`. Flux uses
-`ModelSamplingFlux` + `FluxGuidance` + standard `KSampler`; Chroma
-uses `ModelSamplingAuraFlow` + `CFGGuider` + `SamplerCustomAdvanced`.
-For Flux, `default_cfg` stores `FluxGuidance.guidance`; `KSampler.cfg`
-is hardcoded to `1.0` in the template. Illustrious XL uses the same
-graph shape as SDXL (`CheckpointLoaderSimple` + `KSampler`), so it
-routes through the standard `WorkflowBuilder.build()` path — no
-dedicated builder method; only the `illustrious/` template directory
-and per-model YAML profile. **Flux.2 Klein 9B** lives in
+> **Note (2026-05-18):** the user removed 9 model checkpoints from
+> their local install on this date (`cyberrealistic_pony_v160`,
+> `flux2_klein_9b`, `flux_nsfw_71q8`, `jib`, `lustify_endgame`,
+> `lustify_olt`, `lustify_v7`, `mop`, `pony_realism_v23`). Their
+> YAMLs and all code/test/doc references were deleted alongside.
+> The flux2 family infrastructure remains (builder, schema,
+> negative-axes, families.yaml entry) so a future flux2 model can be
+> reintroduced by dropping a YAML into `config/models/`. Same for the
+> commercial-mode license gate — no NCL-licensed model is currently
+> registered, but the gate fires on any future YAML carrying
+> `commercial_use: false`.
+
+Flux and Chroma both use `models/unet/` + `UnetLoaderGGUF` (or
+safetensors UNET). Flux uses `ModelSamplingFlux` + `FluxGuidance` +
+standard `KSampler`; Chroma uses `ModelSamplingAuraFlow` + `CFGGuider`
++ `SamplerCustomAdvanced`. For Flux, `default_cfg` stores
+`FluxGuidance.guidance`; `KSampler.cfg` is hardcoded to `1.0` in the
+template. Illustrious XL uses the same graph shape as SDXL
+(`CheckpointLoaderSimple` + `KSampler`), so it routes through the
+standard `WorkflowBuilder.build()` path — no dedicated builder
+method; only the `illustrious/` template directory and per-model
+YAML profile. **Flux.2 family** wiring stays in place
+(`_build_flux2`, FLUX2 schema, dedicated template) — when a new
+flux2 checkpoint is added, the registered YAML drops into
 `models/diffusion_models/`, loaded via `UNETLoader` + a single
-`CLIPLoader(type=flux2)` (Qwen3-8B text encoder); the model is
-step-distilled and guidance-distilled, so `_build_flux2` warn-and-
-clamps the workflow to `cfg=1.0`, `steps≤6` (effectively 4),
+`CLIPLoader(type=flux2)` (Qwen3-8B text encoder); distilled models
+are warn-and-clamped to `cfg=1.0`, `steps≤6` (effectively 4),
 `sampler=euler`, `scheduler=simple` — any override melts output.
 
 ### 6 Families (`config/families.yaml`)
@@ -572,15 +577,15 @@ prose structure).
 Each model has a flat YAML file in `config/models/{model_id}.yaml`:
 
 ```yaml
-id: lustify_v7
-display_name: Lustify V7
-filename: lustify_V7.safetensors
+id: juggernaut_ragnarok
+display_name: Juggernaut XL Ragnarok
+filename: juggernautXL_ragnarokBy.safetensors
 architecture: sdxl
 family: sdxl                        # → config/families.yaml
 default_sampler: dpmpp_2m_sde
-default_scheduler: exponential
-default_steps: 30
-default_cfg: 3.5
+default_scheduler: karras
+default_steps: 35
+default_cfg: 4.0
 default_clip_skip: null
 supports_ipadapter: true
 supports_lora: true
@@ -610,7 +615,9 @@ prompt:
     trigger_words: ["shot on Canon EOS 5D", "glamour photography"]
     negative_embeddings: ["embedding:BadDream", "embedding:UnrealisticDream"]
     avoid_words: ["painting", "illustration"]
-    negative_axes:                   # Phase D: 7-axis taxonomy
+    negative_axes:                   # 8-axis taxonomy (anatomy / medium /
+                                     # skin / quality / watermark / safety /
+                                     # censor / subject_count)
       skin: ["plastic skin"]
       quality: ["jpeg artifacts"]
   override:
@@ -625,10 +632,12 @@ Conflicting keys (same field in both blocks) raise at load time.
 **Commercial-license gate.** When
 `pipeline.yaml::compliance.commercial_mode: true`,
 `ModelRegistryLoader` filters out any model whose YAML declares
-`commercial_use: false` (e.g. `flux2_klein_9b` under FLUX NCL).
-Trying to resolve the model under the gate raises `ModelNotFound`
-at startup, not mid-render — protects paid-tier exports from
-accidentally feeding through a non-commercial checkpoint.
+`commercial_use: false` (any future FLUX NCL-licensed checkpoint
+would land here). Trying to resolve the model under the gate raises
+`ModelNotFound` at startup, not mid-render — protects paid-tier
+exports from accidentally feeding through a non-commercial
+checkpoint. No NCL-licensed model is currently registered, but the
+gate remains active for future additions.
 
 ### Two-Tier Sampler Precedence
 
@@ -843,10 +852,10 @@ same scene carry both checkpoint-agnostic family-level prompts
 (no per-model overlay) and full per-model prompts simultaneously.
 The SDXL-vs-Flux "render the same series two ways" use case is
 native:
-`prepare_prompts --series-id S --models flux_nsfw_71q8` adds a
+`prepare_prompts --series-id S --models gonzalomo_flux_v30` adds a
 new model-kind row; `prepare_prompts --series-id S --families flux`
 adds a new family-kind row. `render_prompts --families flux
---render-with-model flux_nsfw_71q8` then renders the family-level
+--render-with-model gonzalomo_flux_v30` then renders the family-level
 prompts through any flux-family checkpoint (validated at parse
 time).
 
@@ -1662,10 +1671,12 @@ These rules are enforced in code and must never be violated:
 9. **Commercial-licensed-only mode is a registry-load gate.** When
    `pipeline.yaml::compliance.commercial_mode: true`,
    `ModelRegistryLoader` refuses any model whose YAML declares
-   `commercial_use: false` (e.g. `flux2_klein_9b` under FLUX NCL).
-   The gate raises `ModelNotFound` at startup, not at render —
-   protects paid-tier exports (DA Premium, Patreon, Fanvue) from
-   accidentally feeding through a non-commercial checkpoint.
+   `commercial_use: false` (any FLUX NCL-licensed checkpoint would
+   land here). The gate raises `ModelNotFound` at startup, not at
+   render — protects paid-tier exports (DA Premium, Patreon, Fanvue)
+   from accidentally feeding through a non-commercial checkpoint.
+   No NCL-licensed models are currently registered; the gate remains
+   active for future additions.
 
 10. **One prompt per (scene, model) — DB-enforced uniqueness.**
     `prompts.UNIQUE(scene_id, model_id)` blocks accidental

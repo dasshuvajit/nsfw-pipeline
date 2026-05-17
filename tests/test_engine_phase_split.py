@@ -89,7 +89,7 @@ def engine(fresh_db: Path):
     return PipelineEngine(config=minimal_config, db_path=fresh_db, dry_run=True)
 
 
-def _ctx_for(engine, model_id: str = "lustify_v7"):
+def _ctx_for(engine, model_id: str = "gonzalomo_photo_v70"):
     """Build a real GenerationContext via engine.build_context().
 
     Attaches a stub character so the prompt-builder's
@@ -188,11 +188,11 @@ def test_run_phase_a_creates_series_scenes_facets_prompts(engine, fresh_db):
     scenes = _scenes(3)
     canned_facet = {"camera_spec": "85mm f/1.4", "clothing": "ivory silk slip"}
     _patch_mode_with_canned_data(engine, plan, scenes)
-    ctx = _ctx_for(engine, model_id="lustify_v7")
+    ctx = _ctx_for(engine, model_id="gonzalomo_photo_v70")
 
     with _patch_preflight(), _patch_unload(), _patch_facet_gen_with_canned(canned_facet):
         result = engine.run_phase_a(
-            ctx, models=["lustify_v7"],
+            ctx, models=["gonzalomo_photo_v70"],
             style_profile={"id": "golden_hour_natural", "base_negative_prompt": ""},
             style_profile_id="golden_hour_natural",
         )
@@ -201,7 +201,7 @@ def test_run_phase_a_creates_series_scenes_facets_prompts(engine, fresh_db):
     assert result["scenes_created"] == 3
     assert result["facets_created"] == 3   # one per scene
     assert result["prompts_created"] == 3
-    assert result["models_completed"] == ["lustify_v7"]
+    assert result["models_completed"] == ["gonzalomo_photo_v70"]
 
     # DB inspection
     conn = sqlite3.connect(str(fresh_db))
@@ -216,7 +216,7 @@ def test_run_phase_a_creates_series_scenes_facets_prompts(engine, fresh_db):
         "SELECT COUNT(*) FROM scene_facets WHERE family = 'sdxl'"
     ).fetchone()[0] == 3
     assert conn.execute(
-        "SELECT COUNT(*) FROM prompts WHERE series_id = ? AND model_id = 'lustify_v7'",
+        "SELECT COUNT(*) FROM prompts WHERE series_id = ? AND model_id = 'gonzalomo_photo_v70'",
         (series_id,)
     ).fetchone()[0] == 3
 
@@ -230,14 +230,14 @@ def test_run_phase_a_multi_model_creates_prompts_per_model(engine, fresh_db):
     scenes = _scenes(2)
     canned_facet = {"camera_spec": "85mm f/1.4", "clothing": "silk slip"}
     _patch_mode_with_canned_data(engine, plan, scenes)
-    ctx = _ctx_for(engine, model_id="lustify_v7")
+    ctx = _ctx_for(engine, model_id="gonzalomo_photo_v70")
 
     with _patch_preflight(), _patch_unload(), _patch_facet_gen_with_canned(canned_facet):
         result = engine.run_phase_a(
             ctx,
             # Two sdxl-family models — should share scene_facets row
             # (PRIMARY KEY = scene_id + family).
-            models=["lustify_v7", "juggernaut_ragnarok"],
+            models=["gonzalomo_photo_v70", "juggernaut_ragnarok"],
             style_profile={"id": "golden_hour_natural", "base_negative_prompt": ""},
             style_profile_id="golden_hour_natural",
         )
@@ -246,7 +246,7 @@ def test_run_phase_a_multi_model_creates_prompts_per_model(engine, fresh_db):
     assert result["scenes_created"] == 2
     assert result["facets_created"] == 2   # 2 scenes × 1 family (shared)
     assert result["prompts_created"] == 4   # 2 scenes × 2 models
-    assert set(result["models_completed"]) == {"lustify_v7", "juggernaut_ragnarok"}
+    assert set(result["models_completed"]) == {"gonzalomo_photo_v70", "juggernaut_ragnarok"}
 
     conn = sqlite3.connect(str(fresh_db))
     series_id = result["series_id"]
@@ -255,7 +255,7 @@ def test_run_phase_a_multi_model_creates_prompts_per_model(engine, fresh_db):
         "SELECT model_id, COUNT(*) FROM prompts WHERE series_id = ? "
         "GROUP BY model_id ORDER BY model_id", (series_id,)
     ).fetchall()
-    assert dict(rows) == {"juggernaut_ragnarok": 2, "lustify_v7": 2}
+    assert dict(rows) == {"juggernaut_ragnarok": 2, "gonzalomo_photo_v70": 2}
     # Only one facet row per scene (shared sdxl family).
     facet_count = conn.execute(
         "SELECT COUNT(*) FROM scene_facets WHERE family = 'sdxl'"
@@ -268,7 +268,7 @@ def test_run_phase_a_cross_family_creates_separate_facets(engine, fresh_db):
     plan = _series_plan()
     scenes = _scenes(2)
     _patch_mode_with_canned_data(engine, plan, scenes)
-    ctx = _ctx_for(engine, model_id="lustify_v7")
+    ctx = _ctx_for(engine, model_id="gonzalomo_photo_v70")
 
     # Different facet shapes per family — but for this test the SDXL
     # mock returns SDXL-shape, chroma returns chroma-shape. Easiest:
@@ -284,7 +284,7 @@ def test_run_phase_a_cross_family_creates_separate_facets(engine, fresh_db):
     ):
         result = engine.run_phase_a(
             ctx,
-            models=["lustify_v7", "chroma_v10HD"],
+            models=["gonzalomo_photo_v70", "chroma_v10HD"],
             style_profile={"id": "golden_hour_natural", "base_negative_prompt": ""},
             style_profile_id="golden_hour_natural",
         )
@@ -309,12 +309,12 @@ def test_run_phase_a_retarget_skips_planning(engine, fresh_db):
     scenes = _scenes(2)
     canned_facet = {"camera_spec": "85mm", "clothing": "silk"}
     mode = _patch_mode_with_canned_data(engine, plan, scenes)
-    ctx = _ctx_for(engine, model_id="lustify_v7")
+    ctx = _ctx_for(engine, model_id="gonzalomo_photo_v70")
 
     # First call — fresh series.
     with _patch_preflight(), _patch_unload(), _patch_facet_gen_with_canned(canned_facet):
         first = engine.run_phase_a(
-            ctx, models=["lustify_v7"],
+            ctx, models=["gonzalomo_photo_v70"],
             style_profile={"id": "golden_hour_natural", "base_negative_prompt": ""},
             style_profile_id="golden_hour_natural",
         )
@@ -351,14 +351,14 @@ def test_run_phase_a_regen_facets_deletes_then_regenerates(engine, fresh_db):
     plan = _series_plan()
     scenes = _scenes(2)
     _patch_mode_with_canned_data(engine, plan, scenes)
-    ctx = _ctx_for(engine, model_id="lustify_v7")
+    ctx = _ctx_for(engine, model_id="gonzalomo_photo_v70")
     facet_v1 = {"camera_spec": "v1 spec", "clothing": "v1 cloth"}
     facet_v2 = {"camera_spec": "v2 spec", "clothing": "v2 cloth"}
 
     # First run.
     with _patch_preflight(), _patch_unload(), _patch_facet_gen_with_canned(facet_v1):
         first = engine.run_phase_a(
-            ctx, models=["lustify_v7"],
+            ctx, models=["gonzalomo_photo_v70"],
             style_profile={"id": "golden_hour_natural", "base_negative_prompt": ""},
             style_profile_id="golden_hour_natural",
         )
@@ -372,15 +372,15 @@ def test_run_phase_a_regen_facets_deletes_then_regenerates(engine, fresh_db):
     assert row[0] == "v1 spec"
     conn.close()
 
-    # Re-target with --regen-facets sdxl + --regen-prompts lustify_v7
+    # Re-target with --regen-facets sdxl + --regen-prompts gonzalomo_photo_v70
     # (need both since prompts uniqueness blocks re-insert otherwise).
     with _patch_preflight(), _patch_unload(), _patch_facet_gen_with_canned(facet_v2):
         engine.run_phase_a(
             ctx,
-            models=["lustify_v7"],
+            models=["gonzalomo_photo_v70"],
             series_id_existing=series_id,
             regen_facets=["sdxl"],
-            regen_prompts=["lustify_v7"],
+            regen_prompts=["gonzalomo_photo_v70"],
         )
 
     # Verify v2 facet now stored.
@@ -398,12 +398,12 @@ def test_run_phase_a_regen_prompts_clears_then_repopulates(engine, fresh_db):
     plan = _series_plan()
     scenes = _scenes(2)
     _patch_mode_with_canned_data(engine, plan, scenes)
-    ctx = _ctx_for(engine, model_id="lustify_v7")
+    ctx = _ctx_for(engine, model_id="gonzalomo_photo_v70")
     canned_facet = {"camera_spec": "x", "clothing": "y"}
 
     with _patch_preflight(), _patch_unload(), _patch_facet_gen_with_canned(canned_facet):
         first = engine.run_phase_a(
-            ctx, models=["lustify_v7"],
+            ctx, models=["gonzalomo_photo_v70"],
             style_profile={"id": "golden_hour_natural", "base_negative_prompt": ""},
             style_profile_id="golden_hour_natural",
         )
@@ -413,7 +413,7 @@ def test_run_phase_a_regen_prompts_clears_then_repopulates(engine, fresh_db):
     conn = sqlite3.connect(str(fresh_db))
     assert conn.execute(
         "SELECT COUNT(*) FROM prompts WHERE series_id = ? AND model_id = ?",
-        (series_id, "lustify_v7"),
+        (series_id, "gonzalomo_photo_v70"),
     ).fetchone()[0] == 2
     conn.close()
 
@@ -422,16 +422,16 @@ def test_run_phase_a_regen_prompts_clears_then_repopulates(engine, fresh_db):
     with _patch_preflight(), _patch_unload(), _patch_facet_gen_with_canned(canned_facet):
         engine.run_phase_a(
             ctx,
-            models=["lustify_v7"],
+            models=["gonzalomo_photo_v70"],
             series_id_existing=series_id,
-            regen_prompts=["lustify_v7"],
+            regen_prompts=["gonzalomo_photo_v70"],
         )
 
     conn = sqlite3.connect(str(fresh_db))
     # Still 2 prompts (replaced, not appended).
     assert conn.execute(
         "SELECT COUNT(*) FROM prompts WHERE series_id = ? AND model_id = ?",
-        (series_id, "lustify_v7"),
+        (series_id, "gonzalomo_photo_v70"),
     ).fetchone()[0] == 2
 
 
@@ -441,12 +441,12 @@ def test_run_phase_a_double_invoke_without_regen_raises(engine, fresh_db):
     plan = _series_plan()
     scenes = _scenes(2)
     _patch_mode_with_canned_data(engine, plan, scenes)
-    ctx = _ctx_for(engine, model_id="lustify_v7")
+    ctx = _ctx_for(engine, model_id="gonzalomo_photo_v70")
     canned_facet = {"camera_spec": "x", "clothing": "y"}
 
     with _patch_preflight(), _patch_unload(), _patch_facet_gen_with_canned(canned_facet):
         first = engine.run_phase_a(
-            ctx, models=["lustify_v7"],
+            ctx, models=["gonzalomo_photo_v70"],
             style_profile={"id": "golden_hour_natural", "base_negative_prompt": ""},
             style_profile_id="golden_hour_natural",
         )
@@ -457,7 +457,7 @@ def test_run_phase_a_double_invoke_without_regen_raises(engine, fresh_db):
         with pytest.raises(sqlite3.IntegrityError, match=r"(?i)unique"):
             engine.run_phase_a(
                 ctx,
-                models=["lustify_v7"],
+                models=["gonzalomo_photo_v70"],
                 series_id_existing=first["series_id"],
             )
 
@@ -469,7 +469,7 @@ def test_run_phase_b_missing_series_raises(engine):
     from src.core.engine import EngineError
     with pytest.raises(EngineError, match="not found in DB"):
         engine.run_phase_b(
-            series_id="ser_does_not_exist", model_id="lustify_v7",
+            series_id="ser_does_not_exist", model_id="gonzalomo_photo_v70",
         )
 
 
@@ -491,7 +491,7 @@ def test_run_phase_b_missing_prompts_raises_with_helpful_hint(
 
     with pytest.raises(EngineError, match="No prompts found"):
         engine.run_phase_b(
-            series_id="ser_no_prompts", model_id="lustify_v7",
+            series_id="ser_no_prompts", model_id="gonzalomo_photo_v70",
         )
 
 
@@ -510,7 +510,7 @@ def test_load_series_for_retarget_round_trips_llm_series_plan(
 
     with _patch_preflight(), _patch_unload(), _patch_facet_gen_with_canned(canned_facet):
         result = engine.run_phase_a(
-            ctx, models=["lustify_v7"],
+            ctx, models=["gonzalomo_photo_v70"],
             style_profile={"id": "golden_hour_natural", "base_negative_prompt": ""},
             style_profile_id="golden_hour_natural",
         )
@@ -533,20 +533,20 @@ def test_delete_prompts_for_target_returns_count(engine, fresh_db):
 
     with _patch_preflight(), _patch_unload(), _patch_facet_gen_with_canned(canned_facet):
         result = engine.run_phase_a(
-            ctx, models=["lustify_v7"],
+            ctx, models=["gonzalomo_photo_v70"],
             style_profile={"id": "golden_hour_natural", "base_negative_prompt": ""},
             style_profile_id="golden_hour_natural",
         )
 
     n = engine._delete_prompts_for_target(
-        result["series_id"], "lustify_v7", engine._default_llm_id,
+        result["series_id"], "gonzalomo_photo_v70", engine._default_llm_id,
         target_kind="model",
     )
     assert n == 3
 
     # Second delete is a no-op.
     n2 = engine._delete_prompts_for_target(
-        result["series_id"], "lustify_v7", engine._default_llm_id,
+        result["series_id"], "gonzalomo_photo_v70", engine._default_llm_id,
         target_kind="model",
     )
     assert n2 == 0
@@ -558,19 +558,19 @@ def test_delete_prompts_for_target_leaves_other_models_intact(
     plan = _series_plan()
     scenes = _scenes(2)
     _patch_mode_with_canned_data(engine, plan, scenes)
-    ctx = _ctx_for(engine, model_id="lustify_v7")
+    ctx = _ctx_for(engine, model_id="gonzalomo_photo_v70")
     canned_facet = {"camera_spec": "x", "clothing": "y"}
 
     with _patch_preflight(), _patch_unload(), _patch_facet_gen_with_canned(canned_facet):
         result = engine.run_phase_a(
-            ctx, models=["lustify_v7", "juggernaut_ragnarok"],
+            ctx, models=["gonzalomo_photo_v70", "juggernaut_ragnarok"],
             style_profile={"id": "golden_hour_natural", "base_negative_prompt": ""},
             style_profile_id="golden_hour_natural",
         )
 
-    # Delete only lustify_v7's prompts.
+    # Delete only gonzalomo_photo_v70's prompts.
     engine._delete_prompts_for_target(
-        result["series_id"], "lustify_v7", engine._default_llm_id,
+        result["series_id"], "gonzalomo_photo_v70", engine._default_llm_id,
         target_kind="model",
     )
 

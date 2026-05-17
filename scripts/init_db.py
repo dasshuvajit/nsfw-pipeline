@@ -203,7 +203,7 @@ CREATE TABLE prompts (
 -- the scenes table. Family-shaped LLM output (booru_tags for pony,
 -- scene_prose for flux/chroma/illustrious/flux2, camera_spec +
 -- clothing for sdxl) lives here, keyed by family. Sibling models in
--- the same family (e.g. lustify_v7 + juggernaut_ragnarok, both sdxl)
+-- the same family (e.g. juggernaut_ragnarok + gonzalomo_photo_v70, both sdxl)
 -- share a single facet row — the per-model differentiation lives in
 -- the prompts row via composer + trigger words.
 --

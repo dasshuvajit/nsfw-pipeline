@@ -49,7 +49,7 @@ def build_a1111_parameters(
         <positive prompt>
         Negative prompt: <negative>
         Steps: 30, Sampler: DPM++ 2M Karras, CFG scale: 6.0, Seed: 12345,
-        Size: 832x1216, Model: lustify_v7, Clip skip: 2
+        Size: 832x1216, Model: juggernaut_ragnarok, Clip skip: 2
 
     Missing fields are silently dropped from the trailing line — the
     consumer libraries are tolerant of partial data.
@@ -116,7 +116,7 @@ def build_pipeline_metadata(
     For family-kind renders (``target_kind='family'``), ``model_id``
     holds the family id (e.g. 'flux') and ``render_model_id`` holds
     the actual checkpoint that produced the PNG (e.g.
-    'flux_nsfw_71q8'). For model-kind, the two collapse —
+    'gonzalomo_flux_v30'). For model-kind, the two collapse —
     ``render_model_id`` may be ``None`` and readers use ``model_id``.
 
     Two refiner fields (added 2026-05-15 alongside the SDXL-refiner

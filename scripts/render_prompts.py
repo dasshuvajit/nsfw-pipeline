@@ -22,19 +22,19 @@ Pre-flight:
 
 Usage:
     # Whole series, single model
-    python scripts/render_prompts.py --series-id ser_abc --models lustify_v7
+    python scripts/render_prompts.py --series-id ser_abc --models juggernaut_ragnarok
 
     # Single scene, single model
     python scripts/render_prompts.py --scene-id ser_abc_scene_003 \\
-        --models lustify_v7
+        --models juggernaut_ragnarok
 
     # Multi-model fan-out (sequential render — one ComfyUI checkpoint at a time)
     python scripts/render_prompts.py --series-id ser_abc \\
-        --models lustify_v7,chroma_v10HD,flux_nsfw_71q8
+        --models juggernaut_ragnarok,chroma_v10HD,gonzalomo_flux_v30
 
     # Per-model templates (positional pairing: model[i] uses template[i])
     python scripts/render_prompts.py --series-id ser_abc \\
-        --models lustify_v7,chroma_v10HD \\
+        --models juggernaut_ragnarok,chroma_v10HD \\
         --templates system,templates/chroma/chroma_done_properly.json
 
 Exit codes:
@@ -282,7 +282,7 @@ def main() -> int:
         default=None,
         help=(
             "Comma-separated model ids to render through "
-            "(e.g. 'lustify_v7,chroma_v10HD'). Renders MODEL-kind "
+            "(e.g. 'juggernaut_ragnarok,chroma_v10HD'). Renders MODEL-kind "
             "prompts. Default: [pipeline.default_model_id]. Models "
             "render sequentially. Mutually exclusive with --families."
         ),

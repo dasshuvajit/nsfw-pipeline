@@ -42,7 +42,7 @@ def test_a1111_full_parameters_string():
         scheduler="Karras",
         cfg_scale=6.0,
         seed=12345,
-        model="lustify_v7",
+        model="gonzalomo_photo_v70",
         size=(832, 1216),
         clip_skip=2,
     )
@@ -58,7 +58,7 @@ def test_a1111_full_parameters_string():
     assert "CFG scale: 6.0" in tail
     assert "Seed: 12345" in tail
     assert "Size: 832x1216" in tail
-    assert "Model: lustify_v7" in tail
+    assert "Model: gonzalomo_photo_v70" in tail
     assert "Clip skip: 2" in tail
 
 
@@ -102,7 +102,7 @@ def test_pipeline_metadata_carries_repro_set():
     raw = build_pipeline_metadata(
         vocab_version=1,
         family="sdxl",
-        model_id="lustify_v7",
+        model_id="gonzalomo_photo_v70",
         scene_id="scn_001",
         series_id="ser_001",
         prompt_hash="abc123",
@@ -121,7 +121,7 @@ def test_pipeline_metadata_carries_repro_set():
     parsed = json.loads(raw)
     assert parsed["vocab_version"] == 1
     assert parsed["family"] == "sdxl"
-    assert parsed["model_id"] == "lustify_v7"
+    assert parsed["model_id"] == "gonzalomo_photo_v70"
     assert parsed["scene_id"] == "scn_001"
     assert parsed["seed"] == 42
     assert parsed["content_level"] == "T2_implied"
@@ -148,7 +148,7 @@ def test_pipeline_metadata_omits_structured_facet_when_empty():
 def test_pipeline_metadata_extra_field_propagates():
     raw = build_pipeline_metadata(
         vocab_version=2,
-        family="flux2", model_id="flux2_klein_9b",
+        family="flux", model_id="gonzalomo_flux_v30",
         scene_id="scn", series_id=None, prompt_hash=None,
         seed=1, sampler="euler", scheduler="simple",
         steps=4, cfg=1.0, content_level="T3_artnude",

@@ -54,7 +54,7 @@ def _seed_series_with_prompts(
     models: list[str] | None = None,
 ):
     """Seed series + 1 scene + 1 prompt per model."""
-    models = models or ["lustify_v7"]
+    models = models or ["gonzalomo_photo_v70"]
     conn = sqlite3.connect(str(db_path))
     conn.execute(
         "INSERT INTO series (id, mode, content_level, style_profile_id, "
@@ -133,17 +133,17 @@ class TestResolveTemplates:
 class TestValidatePromptsExist:
     def test_counts_per_model(self, render_module, fresh_db):
         _seed_series_with_prompts(
-            fresh_db, models=["lustify_v7", "chroma_v10HD"],
+            fresh_db, models=["gonzalomo_photo_v70", "chroma_v10HD"],
         )
         counts = render_module._validate_prompts_exist(
             fresh_db,
             series_id="ser_seed", scene_id=None,
-            targets=["lustify_v7", "chroma_v10HD", "flux_nsfw_71q8"],
+            targets=["gonzalomo_photo_v70", "chroma_v10HD", "gonzalomo_flux_v30"],
         )
         assert counts == {
-            "lustify_v7": 1,
+            "gonzalomo_photo_v70": 1,
             "chroma_v10HD": 1,
-            "flux_nsfw_71q8": 0,
+            "gonzalomo_flux_v30": 0,
         }
 
     def test_scene_id_filter(self, render_module, fresh_db):
@@ -151,9 +151,9 @@ class TestValidatePromptsExist:
         counts = render_module._validate_prompts_exist(
             fresh_db,
             series_id=None, scene_id="ser_seed_sc_000",
-            targets=["lustify_v7"],
+            targets=["gonzalomo_photo_v70"],
         )
-        assert counts == {"lustify_v7": 1}
+        assert counts == {"gonzalomo_photo_v70": 1}
 
 
 class TestResolveSeriesIdForScene:
@@ -217,7 +217,7 @@ def test_main_missing_prompts_returns_2(
     monkeypatch.setattr(
         render_module, "_load_config",
         lambda: {
-            "pipeline": {"default_model_id": "lustify_v7"},
+            "pipeline": {"default_model_id": "gonzalomo_photo_v70"},
             "execution": {"mode": "manual"},
             "compliance": {"commercial_mode": False},
         },
@@ -227,7 +227,7 @@ def test_main_missing_prompts_returns_2(
     )
     monkeypatch.setattr(
         sys, "argv",
-        _argv("--series-id", "ser_no_prompts", "--models", "lustify_v7"),
+        _argv("--series-id", "ser_no_prompts", "--models", "gonzalomo_photo_v70"),
     )
 
     rc = render_module.main()
@@ -235,10 +235,10 @@ def test_main_missing_prompts_returns_2(
 
     captured = capsys.readouterr()
     assert "ERROR: no model-kind prompts in DB" in captured.err
-    assert "lustify_v7" in captured.err
+    assert "gonzalomo_photo_v70" in captured.err
     assert "prepare_prompts.py" in captured.err
     assert "--series-id ser_no_prompts" in captured.err
-    assert "--models lustify_v7" in captured.err
+    assert "--models gonzalomo_photo_v70" in captured.err
 
     # Engine.run_phase_b should NOT have been called.
     fake_engine.run_phase_b.assert_not_called()
@@ -254,7 +254,7 @@ def test_main_scene_id_unknown_returns_1(
     monkeypatch.setattr(
         render_module, "_load_config",
         lambda: {
-            "pipeline": {"default_model_id": "lustify_v7"},
+            "pipeline": {"default_model_id": "gonzalomo_photo_v70"},
             "execution": {"mode": "manual"},
             "compliance": {"commercial_mode": False},
         },
@@ -264,7 +264,7 @@ def test_main_scene_id_unknown_returns_1(
     )
     monkeypatch.setattr(
         sys, "argv",
-        _argv("--scene-id", "no_such_scene", "--models", "lustify_v7"),
+        _argv("--scene-id", "no_such_scene", "--models", "gonzalomo_photo_v70"),
     )
 
     rc = render_module.main()
@@ -315,17 +315,17 @@ def _canned_phase_c_result(
 def test_main_success_path_single_model(
     render_module, fresh_db, capsys, monkeypatch,
 ):
-    _seed_series_with_prompts(fresh_db, models=["lustify_v7"])
+    _seed_series_with_prompts(fresh_db, models=["gonzalomo_photo_v70"])
 
     fake_engine = MagicMock()
     fake_engine.db_path = fresh_db
-    fake_engine.run_phase_b.return_value = _canned_phase_b_result("lustify_v7")
-    fake_engine.run_phase_c.return_value = _canned_phase_c_result("lustify_v7")
+    fake_engine.run_phase_b.return_value = _canned_phase_b_result("gonzalomo_photo_v70")
+    fake_engine.run_phase_c.return_value = _canned_phase_c_result("gonzalomo_photo_v70")
 
     monkeypatch.setattr(
         render_module, "_load_config",
         lambda: {
-            "pipeline": {"default_model_id": "lustify_v7"},
+            "pipeline": {"default_model_id": "gonzalomo_photo_v70"},
             "execution": {"mode": "manual"},
             "compliance": {"commercial_mode": False},
         },
@@ -337,7 +337,7 @@ def test_main_success_path_single_model(
         sys, "argv",
         _argv(
             "--series-id", "ser_seed",
-            "--models", "lustify_v7",
+            "--models", "gonzalomo_photo_v70",
             "--llm", "cydonia_24b_v43",
         ),
     )
@@ -347,11 +347,11 @@ def test_main_success_path_single_model(
 
     captured = capsys.readouterr()
     assert "render_prompts complete" in captured.out
-    assert "lustify_v7" in captured.out
+    assert "gonzalomo_photo_v70" in captured.out
     assert "status=complete" in captured.out
 
     fake_engine.run_phase_b.assert_called_once_with(
-        series_id="ser_seed", model_id="lustify_v7",
+        series_id="ser_seed", model_id="gonzalomo_photo_v70",
         scene_ids=None, template_override=None,
         cli_llm_override="cydonia_24b_v43",
         target_kind="model", render_model_id=None,
@@ -363,24 +363,24 @@ def test_main_multi_model_loops_per_model(
     render_module, fresh_db, capsys, monkeypatch,
 ):
     _seed_series_with_prompts(
-        fresh_db, models=["lustify_v7", "chroma_v10HD"],
+        fresh_db, models=["gonzalomo_photo_v70", "chroma_v10HD"],
     )
 
     fake_engine = MagicMock()
     fake_engine.db_path = fresh_db
     fake_engine.run_phase_b.side_effect = [
-        _canned_phase_b_result("lustify_v7", count=2),
+        _canned_phase_b_result("gonzalomo_photo_v70", count=2),
         _canned_phase_b_result("chroma_v10HD", count=2),
     ]
     fake_engine.run_phase_c.side_effect = [
-        _canned_phase_c_result("lustify_v7", count=2),
+        _canned_phase_c_result("gonzalomo_photo_v70", count=2),
         _canned_phase_c_result("chroma_v10HD", count=2),
     ]
 
     monkeypatch.setattr(
         render_module, "_load_config",
         lambda: {
-            "pipeline": {"default_model_id": "lustify_v7"},
+            "pipeline": {"default_model_id": "gonzalomo_photo_v70"},
             "execution": {"mode": "manual"},
             "compliance": {"commercial_mode": False},
         },
@@ -392,7 +392,7 @@ def test_main_multi_model_loops_per_model(
         sys, "argv",
         _argv(
             "--series-id", "ser_seed",
-            "--models", "lustify_v7,chroma_v10HD",
+            "--models", "gonzalomo_photo_v70,chroma_v10HD",
             "--llm", "cydonia_24b_v43",
         ),
     )
@@ -408,16 +408,16 @@ def test_main_multi_model_loops_per_model(
 def test_main_no_export_skips_phase_c(
     render_module, fresh_db, capsys, monkeypatch,
 ):
-    _seed_series_with_prompts(fresh_db, models=["lustify_v7"])
+    _seed_series_with_prompts(fresh_db, models=["gonzalomo_photo_v70"])
 
     fake_engine = MagicMock()
     fake_engine.db_path = fresh_db
-    fake_engine.run_phase_b.return_value = _canned_phase_b_result("lustify_v7")
+    fake_engine.run_phase_b.return_value = _canned_phase_b_result("gonzalomo_photo_v70")
 
     monkeypatch.setattr(
         render_module, "_load_config",
         lambda: {
-            "pipeline": {"default_model_id": "lustify_v7"},
+            "pipeline": {"default_model_id": "gonzalomo_photo_v70"},
             "execution": {"mode": "manual"},
             "compliance": {"commercial_mode": False},
         },
@@ -429,7 +429,7 @@ def test_main_no_export_skips_phase_c(
         sys, "argv",
         _argv(
             "--series-id", "ser_seed",
-            "--models", "lustify_v7",
+            "--models", "gonzalomo_photo_v70",
             "--no-export",
             "--llm", "cydonia_24b_v43",
         ),
@@ -447,24 +447,24 @@ def test_main_template_pairing_passes_through(
     render_module, fresh_db, capsys, monkeypatch,
 ):
     _seed_series_with_prompts(
-        fresh_db, models=["lustify_v7", "chroma_v10HD"],
+        fresh_db, models=["gonzalomo_photo_v70", "chroma_v10HD"],
     )
 
     fake_engine = MagicMock()
     fake_engine.db_path = fresh_db
     fake_engine.run_phase_b.side_effect = [
-        _canned_phase_b_result("lustify_v7"),
+        _canned_phase_b_result("gonzalomo_photo_v70"),
         _canned_phase_b_result("chroma_v10HD"),
     ]
     fake_engine.run_phase_c.side_effect = [
-        _canned_phase_c_result("lustify_v7"),
+        _canned_phase_c_result("gonzalomo_photo_v70"),
         _canned_phase_c_result("chroma_v10HD"),
     ]
 
     monkeypatch.setattr(
         render_module, "_load_config",
         lambda: {
-            "pipeline": {"default_model_id": "lustify_v7"},
+            "pipeline": {"default_model_id": "gonzalomo_photo_v70"},
             "execution": {"mode": "manual"},
             "compliance": {"commercial_mode": False},
         },
@@ -476,7 +476,7 @@ def test_main_template_pairing_passes_through(
         sys, "argv",
         _argv(
             "--series-id", "ser_seed",
-            "--models", "lustify_v7,chroma_v10HD",
+            "--models", "gonzalomo_photo_v70,chroma_v10HD",
             "--templates", "system,templates/chroma/foo.json",
             "--llm", "cydonia_24b_v43",
         ),
@@ -487,7 +487,7 @@ def test_main_template_pairing_passes_through(
 
     # Verify template pairing: model[0]→None (system), model[1]→external.
     calls = fake_engine.run_phase_b.call_args_list
-    assert calls[0].kwargs["model_id"] == "lustify_v7"
+    assert calls[0].kwargs["model_id"] == "gonzalomo_photo_v70"
     assert calls[0].kwargs["template_override"] is None
     assert calls[1].kwargs["model_id"] == "chroma_v10HD"
     assert calls[1].kwargs["template_override"] == "templates/chroma/foo.json"
@@ -498,21 +498,21 @@ def test_main_partial_failure_returns_1(
 ):
     """If any model fails, exit 1 (even if others succeeded)."""
     _seed_series_with_prompts(
-        fresh_db, models=["lustify_v7", "chroma_v10HD"],
+        fresh_db, models=["gonzalomo_photo_v70", "chroma_v10HD"],
     )
 
     fake_engine = MagicMock()
     fake_engine.db_path = fresh_db
     fake_engine.run_phase_b.side_effect = [
-        _canned_phase_b_result("lustify_v7"),
+        _canned_phase_b_result("gonzalomo_photo_v70"),
         ([], {"aborted": False}),  # zero rendered for chroma
     ]
-    fake_engine.run_phase_c.return_value = _canned_phase_c_result("lustify_v7")
+    fake_engine.run_phase_c.return_value = _canned_phase_c_result("gonzalomo_photo_v70")
 
     monkeypatch.setattr(
         render_module, "_load_config",
         lambda: {
-            "pipeline": {"default_model_id": "lustify_v7"},
+            "pipeline": {"default_model_id": "gonzalomo_photo_v70"},
             "execution": {"mode": "manual"},
             "compliance": {"commercial_mode": False},
         },
@@ -524,7 +524,7 @@ def test_main_partial_failure_returns_1(
         sys, "argv",
         _argv(
             "--series-id", "ser_seed",
-            "--models", "lustify_v7,chroma_v10HD",
+            "--models", "gonzalomo_photo_v70,chroma_v10HD",
             "--llm", "cydonia_24b_v43",
         ),
     )
@@ -533,7 +533,7 @@ def test_main_partial_failure_returns_1(
     assert rc == 1
 
     captured = capsys.readouterr()
-    assert "lustify_v7" in captured.out and "complete" in captured.out
+    assert "gonzalomo_photo_v70" in captured.out and "complete" in captured.out
     assert "chroma_v10HD" in captured.out and "failed" in captured.out
 
 
@@ -542,17 +542,17 @@ def test_main_scene_id_path_resolves_series_and_filters(
 ):
     """--scene-id resolves series via DB lookup + passes scene_ids
     filter into run_phase_b."""
-    _seed_series_with_prompts(fresh_db, models=["lustify_v7"])
+    _seed_series_with_prompts(fresh_db, models=["gonzalomo_photo_v70"])
 
     fake_engine = MagicMock()
     fake_engine.db_path = fresh_db
-    fake_engine.run_phase_b.return_value = _canned_phase_b_result("lustify_v7", count=1)
-    fake_engine.run_phase_c.return_value = _canned_phase_c_result("lustify_v7", count=1)
+    fake_engine.run_phase_b.return_value = _canned_phase_b_result("gonzalomo_photo_v70", count=1)
+    fake_engine.run_phase_c.return_value = _canned_phase_c_result("gonzalomo_photo_v70", count=1)
 
     monkeypatch.setattr(
         render_module, "_load_config",
         lambda: {
-            "pipeline": {"default_model_id": "lustify_v7"},
+            "pipeline": {"default_model_id": "gonzalomo_photo_v70"},
             "execution": {"mode": "manual"},
             "compliance": {"commercial_mode": False},
         },
@@ -564,7 +564,7 @@ def test_main_scene_id_path_resolves_series_and_filters(
         sys, "argv",
         _argv(
             "--scene-id", "ser_seed_sc_000",
-            "--models", "lustify_v7",
+            "--models", "gonzalomo_photo_v70",
             "--llm", "cydonia_24b_v43",
         ),
     )
@@ -591,7 +591,7 @@ class TestLlmFlag:
         monkeypatch.setattr(
             render_module, "_load_config",
             lambda: {
-                "pipeline": {"default_model_id": "lustify_v7"},
+                "pipeline": {"default_model_id": "gonzalomo_photo_v70"},
                 "execution": {"mode": "manual"},
                 "compliance": {"commercial_mode": False},
             },
@@ -605,7 +605,7 @@ class TestLlmFlag:
     ):
         # Seed prompts with the default cydonia_24b_v43 llm_id (the
         # _seed_series_with_prompts helper does this).
-        _seed_series_with_prompts(fresh_db, models=["lustify_v7"])
+        _seed_series_with_prompts(fresh_db, models=["gonzalomo_photo_v70"])
 
         fake_engine = MagicMock()
         fake_engine.db_path = fresh_db
@@ -614,7 +614,7 @@ class TestLlmFlag:
         # Omit --llm — should hit the strict-ambiguity check.
         monkeypatch.setattr(
             sys, "argv",
-            _argv("--series-id", "ser_seed", "--models", "lustify_v7"),
+            _argv("--series-id", "ser_seed", "--models", "gonzalomo_photo_v70"),
         )
         rc = render_module.main()
         assert rc == 2
@@ -626,7 +626,7 @@ class TestLlmFlag:
     def test_invalid_llm_exits_2(
         self, render_module, fresh_db, capsys, monkeypatch,
     ):
-        _seed_series_with_prompts(fresh_db, models=["lustify_v7"])
+        _seed_series_with_prompts(fresh_db, models=["gonzalomo_photo_v70"])
         fake_engine = MagicMock()
         fake_engine.db_path = fresh_db
         self._common(render_module, fresh_db, monkeypatch, fake_engine)
@@ -634,7 +634,7 @@ class TestLlmFlag:
             sys, "argv",
             _argv(
                 "--series-id", "ser_seed",
-                "--models", "lustify_v7",
+                "--models", "gonzalomo_photo_v70",
                 "--llm", "not_a_real_llm_id",
             ),
         )
@@ -647,14 +647,14 @@ class TestLlmFlag:
     def test_valid_llm_threads_to_run_phase_b(
         self, render_module, fresh_db, monkeypatch,
     ):
-        _seed_series_with_prompts(fresh_db, models=["lustify_v7"])
+        _seed_series_with_prompts(fresh_db, models=["gonzalomo_photo_v70"])
         fake_engine = MagicMock()
         fake_engine.db_path = fresh_db
         fake_engine.run_phase_b.return_value = _canned_phase_b_result(
-            "lustify_v7"
+            "gonzalomo_photo_v70"
         )
         fake_engine.run_phase_c.return_value = _canned_phase_c_result(
-            "lustify_v7"
+            "gonzalomo_photo_v70"
         )
         self._common(render_module, fresh_db, monkeypatch, fake_engine)
 
@@ -662,7 +662,7 @@ class TestLlmFlag:
             sys, "argv",
             _argv(
                 "--series-id", "ser_seed",
-                "--models", "lustify_v7",
+                "--models", "gonzalomo_photo_v70",
                 "--llm", "cydonia_24b_v43",
             ),
         )

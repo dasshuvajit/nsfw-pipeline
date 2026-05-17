@@ -788,7 +788,7 @@ def main() -> int:
         "--model",
         default=None,
         help="Override the checkpoint used for this render. Takes a "
-        "model id from config/models/ (e.g. 'lustify_v7' — see "
+        "model id from config/models/ (e.g. 'juggernaut_ragnarok' — see "
         "`python scripts/list_models.py`). When set, the model YAML's "
         "default_sampler/scheduler/steps/cfg override the style "
         "profile's (because those numbers were measured for this "

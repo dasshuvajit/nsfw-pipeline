@@ -2,11 +2,11 @@
 
 Companion to ``test_render_prompts.py``. Covers:
 
-  1. ``--families flux --render-with-model flux_nsfw_71q8`` selects
+  1. ``--families flux --render-with-model gonzalomo_flux_v30`` selects
      family-kind rows and threads ``target_kind='family'`` +
-     ``render_model_id='flux_nsfw_71q8'`` to ``engine.run_phase_b``.
-  2. ``--families flux --render-with-model lustify_v7`` → rc=2 at
-     parse time (lustify_v7 is sdxl-family, not flux).
+     ``render_model_id='gonzalomo_flux_v30'`` to ``engine.run_phase_b``.
+  2. ``--families flux --render-with-model gonzalomo_photo_v70`` → rc=2 at
+     parse time (gonzalomo_photo_v70 is sdxl-family, not flux).
   3. ``--models X --families Y`` → rc=2 (mutual exclusion).
   4. ``--families X`` without ``--render-with-model`` → rc=2.
   5. ``--families X`` with NO matching prompts in DB → rc=2 with
@@ -101,7 +101,7 @@ def _common_monkeypatch(render_module, fake_engine, monkeypatch):
     monkeypatch.setattr(
         render_module, "_load_config",
         lambda: {
-            "pipeline": {"default_model_id": "lustify_v7"},
+            "pipeline": {"default_model_id": "gonzalomo_photo_v70"},
             "execution": {"mode": "manual"},
             "compliance": {"commercial_mode": False},
         },
@@ -111,7 +111,7 @@ def _common_monkeypatch(render_module, fake_engine, monkeypatch):
     )
 
 
-def _canned_phase_b_result(model_id: str = "flux_nsfw_71q8", count: int = 2):
+def _canned_phase_b_result(model_id: str = "gonzalomo_flux_v30", count: int = 2):
     rendered = [
         {
             "id": f"img_{i}", "prompt_id": f"pf_{i}", "model_id": model_id,
@@ -135,7 +135,7 @@ def _canned_phase_b_result(model_id: str = "flux_nsfw_71q8", count: int = 2):
     return rendered, ctx_state
 
 
-def _canned_phase_c_result(model_id: str = "flux_nsfw_71q8", count: int = 2):
+def _canned_phase_c_result(model_id: str = "gonzalomo_flux_v30", count: int = 2):
     return {
         "series_id": "ser_fam",
         "status": "complete",
@@ -154,9 +154,9 @@ def _canned_phase_c_result(model_id: str = "flux_nsfw_71q8", count: int = 2):
 def test_families_threads_target_kind_and_render_model_to_phase_b(
     render_module, fresh_db, monkeypatch,
 ):
-    """``--families flux --render-with-model flux_nsfw_71q8`` calls
+    """``--families flux --render-with-model gonzalomo_flux_v30`` calls
     ``run_phase_b`` with ``target_kind='family'``,
-    ``render_model_id='flux_nsfw_71q8'`` and uses the family id ('flux')
+    ``render_model_id='gonzalomo_flux_v30'`` and uses the family id ('flux')
     as the loop-target ``model_id``."""
     _seed_family_prompts(fresh_db, families=["flux"])
 
@@ -171,7 +171,7 @@ def test_families_threads_target_kind_and_render_model_to_phase_b(
         _argv(
             "--series-id", "ser_fam",
             "--families", "flux",
-            "--render-with-model", "flux_nsfw_71q8",
+            "--render-with-model", "gonzalomo_flux_v30",
             "--llm", "cydonia_24b_v43",
         ),
     )
@@ -186,7 +186,7 @@ def test_families_threads_target_kind_and_render_model_to_phase_b(
         template_override=None,
         cli_llm_override="cydonia_24b_v43",
         target_kind="family",
-        render_model_id="flux_nsfw_71q8",     # actual render checkpoint
+        render_model_id="gonzalomo_flux_v30",     # actual render checkpoint
     )
     # Phase C also threaded with target_kind+target_id.
     pc_kwargs = fake_engine.run_phase_c.call_args.kwargs
@@ -251,8 +251,8 @@ def test_families_with_external_template_threads_template_override(
 def test_render_with_model_from_wrong_family_exits_2(
     render_module, fresh_db, capsys, monkeypatch,
 ):
-    """``--families flux --render-with-model lustify_v7`` is rejected
-    at parse time — lustify_v7 is sdxl-family, not flux."""
+    """``--families flux --render-with-model gonzalomo_photo_v70`` is rejected
+    at parse time — gonzalomo_photo_v70 is sdxl-family, not flux."""
     _seed_family_prompts(fresh_db, families=["flux"])
 
     fake_engine = MagicMock()
@@ -263,7 +263,7 @@ def test_render_with_model_from_wrong_family_exits_2(
         _argv(
             "--series-id", "ser_fam",
             "--families", "flux",
-            "--render-with-model", "lustify_v7",
+            "--render-with-model", "gonzalomo_photo_v70",
             "--llm", "cydonia_24b_v43",
         ),
     )
@@ -271,7 +271,7 @@ def test_render_with_model_from_wrong_family_exits_2(
     rc = render_module.main()
     assert rc == 2
     captured = capsys.readouterr()
-    assert "lustify_v7" in captured.err
+    assert "gonzalomo_photo_v70" in captured.err
     assert "sdxl" in captured.err
     assert "flux" in captured.err
     fake_engine.run_phase_b.assert_not_called()
@@ -290,9 +290,9 @@ def test_models_and_families_mutex_exits_2(
         sys, "argv",
         _argv(
             "--series-id", "ser_fam",
-            "--models", "lustify_v7",
+            "--models", "gonzalomo_photo_v70",
             "--families", "flux",
-            "--render-with-model", "flux_nsfw_71q8",
+            "--render-with-model", "gonzalomo_flux_v30",
             "--llm", "cydonia_24b_v43",
         ),
     )
@@ -344,8 +344,8 @@ def test_render_with_model_without_families_exits_2(
         sys, "argv",
         _argv(
             "--series-id", "ser_fam",
-            "--models", "lustify_v7",
-            "--render-with-model", "flux_nsfw_71q8",
+            "--models", "gonzalomo_photo_v70",
+            "--render-with-model", "gonzalomo_flux_v30",
             "--llm", "cydonia_24b_v43",
         ),
     )
@@ -375,7 +375,7 @@ def test_no_family_prompts_emits_families_hint(
         _argv(
             "--series-id", "ser_fam",
             "--families", "flux",
-            "--render-with-model", "flux_nsfw_71q8",
+            "--render-with-model", "gonzalomo_flux_v30",
             "--llm", "cydonia_24b_v43",
         ),
     )
@@ -415,7 +415,7 @@ def test_model_kind_prompts_dont_satisfy_families_query(
         "INSERT INTO prompts (id, series_id, scene_id, target_kind, "
         "model_id, llm_id, prompt_text, negative_prompt, prompt_hash, "
         "content_level, status) VALUES "
-        "('pm_0', 'ser_fam', 'ser_fam_sc_000', 'model', 'flux_nsfw_71q8', "
+        "('pm_0', 'ser_fam', 'ser_fam_sc_000', 'model', 'gonzalomo_flux_v30', "
         "'cydonia_24b_v43', 'model prompt', 'neg', 'mhash_0', "
         "'T2_implied', 'pending')",
     )
@@ -430,7 +430,7 @@ def test_model_kind_prompts_dont_satisfy_families_query(
         _argv(
             "--series-id", "ser_fam",
             "--families", "flux",
-            "--render-with-model", "flux_nsfw_71q8",
+            "--render-with-model", "gonzalomo_flux_v30",
             "--llm", "cydonia_24b_v43",
         ),
     )

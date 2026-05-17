@@ -12,7 +12,7 @@ output — manual A/B comparison ("Cydonia vs Magnum on this scene") is
 the primary user workflow.
 
 Sibling models in the same family share a single facet row per LLM
-(e.g. ``lustify_v7`` and ``juggernaut_ragnarok`` both map to one sdxl
+(e.g. ``juggernaut_ragnarok`` and ``gonzalomo_photo_v70`` both map to one sdxl
 facet for a given LLM); the per-model differentiation lives in
 ``prompts`` via the composer + per-model trigger words / negative axes.
 

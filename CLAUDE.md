@@ -33,12 +33,14 @@ The complete architecture is documented in ARCHITECTURE.md — read it fully bef
   `_positive_subject_count_scan` + vocab `_SOLO_MODE_BANNED_TAGS`).
   See ARCHITECTURE.md § Global single-female subject enforcement.
 - Sequential execution: LLM phase → unload → render phase.
-- **Commercial licensing:** the `flux2_klein_9b` model ships under the
-  FLUX NCL (non-commercial) license. Output from it cannot be sold on
-  DA Premium / Patreon / Fanvue. Set
-  `pipeline.yaml::compliance.commercial_mode: true` to have the
-  registry drop NCL-licensed models at startup; this protects against
-  accidentally routing a paid-tier render through Klein 9B.
+- **Commercial licensing:** every model YAML declares `license:` +
+  `commercial_use:`. Output from a model with `commercial_use: false`
+  (e.g. FLUX NCL-licensed checkpoints) cannot be sold on DA Premium /
+  Patreon / Fanvue. Set `pipeline.yaml::compliance.commercial_mode: true`
+  to have the registry drop NCL-licensed models at startup; this
+  protects against accidentally routing a paid-tier render through a
+  non-commercial checkpoint. (No NCL-licensed models are currently
+  registered — flux2 family has no member YAMLs at present.)
 
 ## Storage split (post 2026-04 refactor)
 - **Static config lives in YAML; SQLite is for runtime mutation only.**
@@ -64,7 +66,7 @@ The complete architecture is documented in ARCHITECTURE.md — read it fully bef
   - `prompts` — per-(scene, target_kind, target_id, llm_id) composed text.
     `prompts.target_kind` (added 2026-05) is `'model'` or `'family'`
     and discriminates whether `model_id` carries an image-model id
-    (e.g. `lustify_v7`) or a family id (e.g. `flux`); the column is
+    (e.g. `juggernaut_ragnarok`) or a family id (e.g. `flux`); the column is
     dual-purpose to keep the schema flat. `prompts.model_id` and
     `prompts.llm_id` are both NOT NULL;
     `UNIQUE(scene_id, target_kind, model_id, llm_id)` enforces "one

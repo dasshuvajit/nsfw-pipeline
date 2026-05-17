@@ -250,15 +250,15 @@ python scripts/prepare_prompts.py --mode character --level T2_implied
 
 # Multi-model fan-out (sibling-family models share the family's facet row)
 python scripts/prepare_prompts.py --character char_001 --level T3_artnude \
-  --models lustify_v7,chroma_v10HD
+  --models gonzalomo_photo_v70,chroma_v10HD
 
 # Re-target an existing series for a new model
 python scripts/prepare_prompts.py --series-id ser_abc \
-  --models flux_nsfw_71q8
+  --models gonzalomo_flux_v30
 
-# Re-roll the SDXL facets + lustify_v7 prompts on an existing series
+# Re-roll the SDXL facets + gonzalomo_photo_v70 prompts on an existing series
 python scripts/prepare_prompts.py --series-id ser_abc \
-  --models lustify_v7 --regen-facets sdxl --regen-prompts lustify_v7
+  --models gonzalomo_photo_v70 --regen-facets sdxl --regen-prompts gonzalomo_photo_v70
 ```
 
 | Flag | Required | Repeats | Notes |
@@ -283,10 +283,10 @@ Phase A complete in 1m 47s — status: complete
   Scenes created:   20
   Facets created:   40
   Prompts inserted: 40
-  Models completed: lustify_v7, chroma_v10HD
+  Models completed: gonzalomo_photo_v70, chroma_v10HD
 
 Next:
-  python scripts/render_prompts.py --series-id ser_xyz --models lustify_v7,chroma_v10HD
+  python scripts/render_prompts.py --series-id ser_xyz --models gonzalomo_photo_v70,chroma_v10HD
 ```
 
 ### 5.4 `render_prompts.py` — Phase B + C only (render existing prompts)
@@ -297,19 +297,19 @@ renders each, scores, packages, exports.
 
 ```bash
 # Whole series, single model
-python scripts/render_prompts.py --series-id ser_abc --models lustify_v7
+python scripts/render_prompts.py --series-id ser_abc --models gonzalomo_photo_v70
 
 # Single scene, single model
 python scripts/render_prompts.py --scene-id ser_abc_scene_003 \
-  --models lustify_v7
+  --models gonzalomo_photo_v70
 
 # Multi-model fan-out (sequential — one ComfyUI checkpoint at a time)
 python scripts/render_prompts.py --series-id ser_abc \
-  --models lustify_v7,chroma_v10HD,flux_nsfw_71q8
+  --models gonzalomo_photo_v70,chroma_v10HD,gonzalomo_flux_v30
 
 # Per-model templates (positional pairing: model[i] uses template[i])
 python scripts/render_prompts.py --series-id ser_abc \
-  --models lustify_v7,chroma_v10HD \
+  --models gonzalomo_photo_v70,chroma_v10HD \
   --templates system,templates/chroma/chroma_done_properly.json
 ```
 
@@ -415,7 +415,7 @@ to have run first for every `--models` entry. Missing prompts → exit 2 with a 
 # Raw-prompt mode (every model gets the same text)
 python scripts/compare_models.py \
   --prompt "a confident woman, soft window light, 85mm lens" \
-  --models juggernaut_ragnarok,lustify_v7,chroma_v10HD \
+  --models juggernaut_ragnarok,gonzalomo_photo_v70,chroma_v10HD \
   --count 3 --seed 42 --ratio portrait_23
 ```
 
@@ -423,7 +423,7 @@ python scripts/compare_models.py \
 # Stored-scene mode — each model uses its own DB prompt for the scene
 python scripts/compare_models.py \
   --scene-id ser_abc_scene_007 \
-  --models lustify_v7,chroma_v10HD,flux_nsfw_71q8 \
+  --models gonzalomo_photo_v70,chroma_v10HD,gonzalomo_flux_v30 \
   --seed 42
 ```
 
@@ -431,14 +431,14 @@ python scripts/compare_models.py \
 # Stored-series mode — render every scene in the series across every model
 python scripts/compare_models.py \
   --series-id ser_abc \
-  --models lustify_v7,chroma_v10HD
+  --models gonzalomo_photo_v70,chroma_v10HD
 ```
 
 ```bash
 # Character-mode variant — uses base_prompt + style-profile LoRAs
 python scripts/compare_models.py \
   --character char_001 \
-  --models juggernaut_ragnarok,lustify_v7 \
+  --models juggernaut_ragnarok,gonzalomo_photo_v70 \
   --count 2 --seed 123
 ```
 
@@ -619,17 +619,27 @@ sqlite3 nsfw_pipeline.db "SELECT mode, status, images_generated, images_selected
 
 ---
 
-## 10. FLUX.2 Klein 9B cookbook
+## 10. FLUX.2 family (no models currently registered)
 
-`flux2_klein_9b` is the only member of the `flux2` family. 9 B params,
-step-distilled + guidance-distilled. Contract (enforced by
-`_build_flux2` with warn-and-clamp): **cfg=1.0, steps≤6 (clamps to 4),
-sampler=euler, scheduler=simple**. Any override melts output.
+The `flux2` family infrastructure stays wired (builder, schema,
+template, negative-axes, families.yaml entry) — but no flux2 model
+YAMLs are currently in `config/models/`. When a flux2 checkpoint
+(e.g. Klein 9B, or a future BFL release) is reintroduced, drop the
+YAML into `config/models/` and the registry will pick it up.
+
+### Distilled-contract clamps
+
+Distilled flux2 checkpoints (Klein 9B is the canonical example, but
+any step- or guidance-distilled member of the family will share the
+profile) MUST run with **cfg=1.0, steps≤6 (clamps to 4),
+sampler=euler, scheduler=simple**. `_build_flux2` warn-and-clamps any
+override back to these — protects against accidental melt.
 
 ### License gate
 
-Klein 9B ships under **FLUX NCL** (non-commercial). Output cannot be
-sold on DA Premium / Patreon / Fanvue. For any paid-tier workflow:
+Any FLUX NCL-licensed checkpoint MUST declare
+`license: flux_ncl` + `commercial_use: false` in its YAML. For paid-
+tier workflows (DA Premium / Patreon / Fanvue):
 
 ```yaml
 # config/pipeline.yaml
@@ -637,56 +647,17 @@ compliance:
   commercial_mode: true
 ```
 
-When `true`, the registry refuses to register Klein 9B at startup
-(`ModelNotFound` on any attempt to resolve it).
-
-### ComfyUI-side files
-
-```bash
-ls ~/AI/apps/ComfyUI/models/diffusion_models/flux-2-klein-9b.safetensors    # ~18 GB
-ls ~/AI/apps/ComfyUI/models/text_encoders/qwen_3_8b_fp8mixed.safetensors    # single encoder
-ls ~/AI/apps/ComfyUI/models/vae/flux2-vae.safetensors                       # canonical BFL 32-ch VAE
-ls ~/AI/apps/ComfyUI/models/loras/ultra_real_v4.safetensors
-ls ~/AI/apps/ComfyUI/models/loras/klein_slider_anatomy.safetensors
-```
-
-Do **not** keep `full_encoder_small_decoder.safetensors` in `models/vae/`
-— that's a different BFL release line with a reduced decoder.
-
-### Active LoRAs (Klein-specific, 4-step-safe)
-
-| Slot | LoRA | Strength | Purpose |
-|---|---|---|---|
-| 0 | `ultra_real_v4.safetensors` | 0.70 | baseline realism + skin + NSFW detail |
-| 1 | `klein_slider_anatomy.safetensors` | 2.0 | anatomy slider; corrects 4-step misfires |
-
-Declared in `config/models/flux2_klein_9b.yaml::lora_stack`. The
-`StyleProfileForWorkflow` adapter auto-stages them when the style
-profile row provides no `lora_stack`. Max **2** enabled entries per
-model YAML — enforced at registry load.
-
-Excluded on purpose: `V2_flux_klein_4.safetensors` (Portrait Engine)
-— author recommends ≥15 steps, conflicts with the 4-step contract.
-The two turbo LoRAs (`Flux_2-Turbo-LoRA*`) are never stacked on Klein
-— Klein is already distilled.
+When `true`, the registry refuses to register any NCL model at
+startup (`ModelNotFound` on any attempt to resolve it).
 
 ### Prompting style (`flux2_prose`)
 
 Prose only, BFL 5-anchor order (subject → setting → details →
 lighting → atmosphere), 30–80 words. No comma tag lists, no weighting
-syntax, no `BREAK`. The Ultra Real trigger phrase
-`"This is a high-quality photograph of"` is surfaced via
-`prompt.extend.trigger_words` — the LLM may place it, not the
+syntax, no `BREAK`. Trigger phrases (e.g. Ultra Real's
+`"This is a high-quality photograph of"`) are surfaced via
+`prompt.extend.trigger_words` — the LLM may place them, not the
 composer.
-
-### Live render
-
-```bash
-python scripts/render_set.py --character char_001 --level T2_implied \
-  --model flux2_klein_9b --count 1
-```
-
-Expect ~50–85 s / 1024×1024 on M4 Pro.
 
 ---
 
@@ -941,7 +912,7 @@ non-obvious columns + constraints worth knowing:
 | `illustrious/upscale.json` | Phase F: pure ESRGAN, `prefix=upscale_illustrious` |
 | `chroma/base.json` | GGUF Q8 + SamplerCustomAdvanced + beta scheduler |
 | `flux/base.json` | FLUX.1 GGUF + ModelSamplingFlux + FluxGuidance |
-| `flux2/base.json` | FLUX.2 Klein 9B — UNETLoader + CLIPLoader(type=flux2) + KSampler @ cfg=1/steps=4 (clamped) |
+| `flux2/base.json` | FLUX.2 family (no models currently registered) — UNETLoader + CLIPLoader(type=flux2) + KSampler @ cfg=1/steps=4 (clamped for distilled checkpoints) |
 | `templates/chroma/chroma_done_properly.json` | community external template, used via `--template` flag |
 
 Build process: export from ComfyUI UI as "Save (API Format)" →
@@ -957,13 +928,13 @@ and are passed via `--template` rather than auto-loaded by family.
 | Symptom | Fix |
 |---|---|
 | `Ollama not reachable` | `ollama serve`; `curl localhost:11434/api/tags` |
-| `Checkpoint file not found` | preflight looks in a family-specific folder: SDXL / Pony / Illustrious → `models/checkpoints/`; Chroma & FLUX.1 GGUF → `models/unet/`; FLUX.2 Klein → `models/diffusion_models/`. The error message prints the exact path it expected |
+| `Checkpoint file not found` | preflight looks in a family-specific folder: SDXL / Pony / Illustrious → `models/checkpoints/`; Chroma & FLUX.1 GGUF → `models/unet/`; FLUX.2 → `models/diffusion_models/`. The error message prints the exact path it expected |
 | `Workflow template not found` | the model's `family:` has no template under `config/comfyui_workflows/{family}/` |
 | `base_prompt is immutable after creation` | rerun bootstrap with `--force` (DELETE + re-INSERT; trigger only fires on UPDATE) |
 | `Model X does not support IPAdapter` | `supports_ipadapter: false` in that model's YAML; pick a different model or drop `--reference-image` |
 | `style_profile_id is not in config/style_profiles.yaml` | `python -c "from src.memory.style_profile_loader import StyleProfileLoader; print([p.id for p in StyleProfileLoader().list_profiles()])"` |
-| FLUX.2 output melted | something overrode the distilled contract; `_build_flux2` logs will show which field clamped. Don't pass `--model flux2_klein_9b` with a style-profile that ships cfg/steps overrides (none currently do) |
-| `ModelNotFound` for `flux2_klein_9b` | `compliance.commercial_mode: true` dropped it at load; flip to `false` if this run isn't commercial |
+| FLUX.2 output melted | something overrode the distilled contract; `_build_flux2` logs will show which field clamped. Don't pass `--model <flux2_id>` with a style-profile that ships cfg/steps overrides |
+| `ModelNotFound` for an NCL-licensed model | `compliance.commercial_mode: true` dropped it at load; flip to `false` if this run isn't commercial |
 | Memory error mid-render | Ollama + ComfyUI compete for 48 GB — engine unloads LLM; if it fails: `curl -X POST localhost:11434/api/generate -d '{"model":"dolphin-mixtral:8x7b","prompt":"","keep_alive":0}'` |
 | `ComfyUI returned no images: every node was served from cache` | vary the seed or the prompt — identical inputs return cached output with no file |
 | `HPS v2 disabled for the rest of this run` (or same for ImageReward) | `pip install hpsv2` (or `image-reward`); both flagged optional in `requirements.txt`. First call downloads ~600MB / ~400MB of weights. To opt out entirely: `scoring.use_hps_v2: false` / `use_image_reward: false` in `pipeline.yaml` |
@@ -1075,15 +1046,15 @@ the run. Recommended starting point.
 ```bash
 # Default routing (cydonia for planner/scene-gen, venice for facets):
 python scripts/prepare_prompts.py --character char_001 --level T4_explicit \
-    --models lustify_v7
+    --models gonzalomo_photo_v70
 
 # Override to Cydonia for every role (forces A/B parity with old behaviour):
 python scripts/prepare_prompts.py --character char_001 --level T4_explicit \
-    --models lustify_v7 --llm cydonia_24b_v43
+    --models gonzalomo_photo_v70 --llm cydonia_24b_v43
 
 # Override to Magnum for every role (A/B prose flavour test):
 python scripts/prepare_prompts.py --character char_001 --level T4_explicit \
-    --models lustify_v7 --llm magnum_v4_22b
+    --models gonzalomo_photo_v70 --llm magnum_v4_22b
 ```
 
 **Quality-optimised mode (further tuning).** Edit
@@ -1111,12 +1082,12 @@ the same scene rows.
 ```bash
 # 1. Generate with Cydonia (default).
 python scripts/prepare_prompts.py \
-    --character char_001 --level T4_explicit --models lustify_v7
+    --character char_001 --level T4_explicit --models gonzalomo_photo_v70
 
 # 2. Re-prompt the same series with Magnum (scenes reused; new
 #    facets+prompts written for llm_id=magnum_v4_22b).
 python scripts/prepare_prompts.py \
-    --series-id ser_xxx --models lustify_v7 --llm magnum_v4_22b
+    --series-id ser_xxx --models gonzalomo_photo_v70 --llm magnum_v4_22b
 
 # 3. Inspect the DB — both LLMs' prompts coexist:
 sqlite3 nsfw_pipeline.db "SELECT llm_id, COUNT(*) FROM prompts \
@@ -1127,9 +1098,9 @@ sqlite3 nsfw_pipeline.db "SELECT llm_id, COUNT(*) FROM prompts \
 # 4. Render each LLM separately. --llm is REQUIRED here (strict
 #    ambiguity check, plan §3.5b) since both LLMs have prompts.
 python scripts/render_prompts.py --series-id ser_xxx \
-    --models lustify_v7 --llm cydonia_24b_v43
+    --models gonzalomo_photo_v70 --llm cydonia_24b_v43
 python scripts/render_prompts.py --series-id ser_xxx \
-    --models lustify_v7 --llm magnum_v4_22b
+    --models gonzalomo_photo_v70 --llm magnum_v4_22b
 
 # 5. Output paths disambiguate — each LLM gets its own subdir:
 ls output/T4_explicit/ser_xxx/
@@ -1244,7 +1215,7 @@ A family-level prompt is checkpoint-agnostic — any model in that
 family can render it. Useful when:
 
 - You want to compose prompts once and render them through several
-  sibling checkpoints in the same family (e.g. compare flux_nsfw_71q8
+  sibling checkpoints in the same family (e.g. compare gonzalomo_flux_v30
   vs gonzalomo_flux_v30 on identical text).
 - You want clean family-level baseline prompts without trigger words,
   per-model LoRAs, or model-specific negative embeddings.
@@ -1275,29 +1246,29 @@ target_kinds consume it.
 #    flux scene_facet; both prompt-kinds compose from it).
 python scripts/prepare_prompts.py \
     --mode theme --level T2_implied \
-    --models lustify_v7 \
+    --models gonzalomo_photo_v70 \
     --families flux \
     --llm cydonia_24b_v43
 
-# 2. Inspect — expect ('family','flux',N), ('model','lustify_v7',N).
+# 2. Inspect — expect ('family','flux',N), ('model','gonzalomo_photo_v70',N).
 sqlite3 nsfw_pipeline.db \
   "SELECT target_kind, model_id, COUNT(*) FROM prompts GROUP BY 1, 2"
 
 # 3. Render the family-kind rows through a chosen flux checkpoint.
 python scripts/render_prompts.py \
     --series-id <id> \
-    --families flux --render-with-model flux_nsfw_71q8 \
+    --families flux --render-with-model gonzalomo_flux_v30 \
     --llm cydonia_24b_v43
 
 # 4. Render the model-kind rows separately (paths don't collide).
 python scripts/render_prompts.py \
     --series-id <id> \
-    --models lustify_v7 \
+    --models gonzalomo_photo_v70 \
     --llm cydonia_24b_v43
 
 # 5. Output paths — symmetric for both kinds.
 ls output/T2_implied/<id>/cydonia_24b_v43/flux/images/
-ls output/T2_implied/<id>/cydonia_24b_v43/lustify_v7/images/
+ls output/T2_implied/<id>/cydonia_24b_v43/gonzalomo_photo_v70/images/
 ```
 
 ### 17.3 Family-membership validation
@@ -1306,13 +1277,13 @@ ls output/T2_implied/<id>/cydonia_24b_v43/lustify_v7/images/
 `--render-with-model` belongs to the family supplied via
 `--families`. Pony booru tags don't render correctly through a flux
 checkpoint, etc. — this rejects the combination with rc=2 and a
-clear "lustify_v7 belongs to family 'sdxl', not 'flux'" message
+clear "gonzalomo_photo_v70 belongs to family 'sdxl', not 'flux'" message
 before any LLM or ComfyUI work fires.
 
 ### 17.4 PNG metadata
 
 Family-kind renders carry both `target_kind='family'`,
-`model_id='flux'` (the family) AND `render_model_id='flux_nsfw_71q8'`
+`model_id='flux'` (the family) AND `render_model_id='gonzalomo_flux_v30'`
 (the actual checkpoint that produced the image) in the
 `nsfw_pipeline` tEXt chunk. A forensic reader can answer "was this
 prompt family-level or model-level? which LLM produced the prompt?

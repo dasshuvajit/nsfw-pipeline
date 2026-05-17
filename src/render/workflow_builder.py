@@ -778,7 +778,8 @@ class WorkflowBuilder:
         # dims / encoder) — we can't detect that here, but the model
         # YAML's `lora_stack` block is hand-maintained to only list
         # Klein-compatible LoRAs. Turbo LoRAs must never stack on Klein
-        # (it's already distilled — see config/models/flux2_klein_9b.yaml).
+        # (it's already distilled — flux2 model YAMLs declare their own
+        # cap-2 LoRA list which the registry validates).
         lora_stack_json = getattr(style_profile, "lora_stack", None)
         loras = json.loads(lora_stack_json) if lora_stack_json else []
         if len(loras) > 2:

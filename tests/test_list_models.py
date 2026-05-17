@@ -104,5 +104,5 @@ class TestFamilyFilter:
         assert result.returncode == 0
         assert "Image models" in result.stdout
         # SDXL models present, non-SDXL absent
-        assert "lustify_v7" in result.stdout
+        assert "gonzalomo_photo_v70" in result.stdout
         assert "chroma_v10HD" not in result.stdout

@@ -147,11 +147,11 @@ def test_build_candidates_n_models_n_templates_paired_positionally(
     N×N renders before Phase 5). Documented in PROJECT_GUIDE.md and
     the CLI docstring."""
     out = compare_models_module._build_candidates(
-        model_ids=["lustify_v7", "chroma_v10HD"],
+        model_ids=["gonzalomo_photo_v70", "chroma_v10HD"],
         template_tokens=["system", "templates/chroma/x.json"],
     )
     assert out == [
-        ("lustify_v7", "system"),
+        ("gonzalomo_photo_v70", "system"),
         ("chroma_v10HD", "templates/chroma/x.json"),
     ]
 

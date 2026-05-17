@@ -211,7 +211,7 @@ def test_post_init_rejects_family_kind_with_model_id_set(
     with pytest.raises(ValueError, match="target_kind='family'"):
         GenerationContext(
             **_minimal_args(fresh_db, style_profile, content_rules),
-            model_id="flux_nsfw_71q8",          # forbidden when family-kind
+            model_id="gonzalomo_flux_v30",          # forbidden when family-kind
             model_config=None,
             family=family,
             target_kind="family",
@@ -224,7 +224,7 @@ def test_post_init_rejects_family_kind_with_model_config_set(
     from src.memory.model_registry import ModelRegistryLoader
     loader = ModelRegistryLoader(fresh_db, commercial_mode=False)
     family = loader.get_family("flux")
-    model_cfg = loader.get_model("flux_nsfw_71q8")
+    model_cfg = loader.get_model("gonzalomo_flux_v30")
     with pytest.raises(ValueError, match="target_kind='family'"):
         GenerationContext(
             **_minimal_args(fresh_db, style_profile, content_rules),
@@ -308,11 +308,11 @@ def test_build_context_returns_model_kind_by_default(
         style_profile=style_profile,
         content_rules=content_rules,
         db_path=fresh_db,
-        model_id="lustify_v7",
+        model_id="gonzalomo_photo_v70",
         commercial_mode=False,
     )
     assert ctx.target_kind == "model"
-    assert ctx.model_id == "lustify_v7"
+    assert ctx.model_id == "gonzalomo_photo_v70"
     assert ctx.model_config is not None
     # supports_ipadapter / supports_lora must NOT raise on model-kind.
     _ = ctx.supports_ipadapter

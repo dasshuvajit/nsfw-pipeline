@@ -30,9 +30,9 @@ resolution_portrait: [896, 1152]
 resolution_square: [1024, 1024]
 resolution_landscape: [1152, 896]
 # License: GonzaLomo inherits Apache 2.0 from the Chroma1-HD base; the
-# Civitai page adds no restrictions. Commercial-safe under the same gate
-# that drops flux2_klein_9b when pipeline.yaml::compliance.commercial_mode
-# is true.
+# Civitai page adds no restrictions. Commercial-safe under the
+# `pipeline.yaml::compliance.commercial_mode` gate (would drop any
+# NCL-licensed model; this one resolves cleanly).
 license: apache_2.0
 commercial_use: true
 active: true

@@ -37,17 +37,17 @@ visual check, not a real render.
 Example:
     python scripts/compare_models.py \\
         --prompt "a beautiful portrait photo, studio lighting" \\
-        --models juggernaut_ragnarok,lustify_v7,realvis_v4 \\
+        --models juggernaut_ragnarok,gonzalomo_photo_v70 \\
         --count 3 --seed 42
 
     python scripts/compare_models.py \\
         --character char_001 \\
-        --models juggernaut_ragnarok,biglust_v16,lustify_v7 \\
+        --models juggernaut_ragnarok,gonzalomo_photo_v70 \\
         --count 2 --seed 123
 
     python scripts/compare_models.py \\
         --prompt "masterpiece, best quality, 1girl, portrait" \\
-        --models perfection_realistic_ilxl,lustify_v7 \\
+        --models perfection_realistic_ilxl,cyberrealistic_pony_v170 \\
         --ratio portrait_23 --count 2 --seed 42
 """
 
@@ -675,7 +675,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--models", required=True,
         help="Comma-separated list of model ids from config/models/ "
-             "(e.g. 'juggernaut_ragnarok,lustify_v7').",
+             "(e.g. 'juggernaut_ragnarok,gonzalomo_photo_v70').",
     )
     template_group = parser.add_mutually_exclusive_group(required=False)
     template_group.add_argument(

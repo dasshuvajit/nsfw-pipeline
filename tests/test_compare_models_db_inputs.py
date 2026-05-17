@@ -55,7 +55,7 @@ def _seed_series_with_prompts(
     aspect_ratio: str = "portrait_23",
 ):
     """Seed a series + N scenes + 1 prompt per (scene, model)."""
-    models = models or ["lustify_v7"]
+    models = models or ["gonzalomo_photo_v70"]
     conn = sqlite3.connect(str(db_path))
     conn.execute(
         "INSERT INTO series (id, mode, content_level, style_profile_id, "
@@ -95,18 +95,18 @@ class TestResolveDbPromptsPerModel:
         self, compare_module, fresh_db,
     ):
         _seed_series_with_prompts(
-            fresh_db, scene_count=3, models=["lustify_v7", "chroma_v10HD"],
+            fresh_db, scene_count=3, models=["gonzalomo_photo_v70", "chroma_v10HD"],
         )
         result = compare_module._resolve_db_prompts_per_model(
             db_path=fresh_db,
             series_id="ser_seed", scene_id=None,
-            model_ids=["lustify_v7", "chroma_v10HD"],
+            model_ids=["gonzalomo_photo_v70", "chroma_v10HD"],
         )
-        assert set(result.keys()) == {"lustify_v7", "chroma_v10HD"}
-        assert len(result["lustify_v7"]) == 3
+        assert set(result.keys()) == {"gonzalomo_photo_v70", "chroma_v10HD"}
+        assert len(result["gonzalomo_photo_v70"]) == 3
         assert len(result["chroma_v10HD"]) == 3
         # Per-row contents.
-        first_lustify = result["lustify_v7"][0]
+        first_lustify = result["gonzalomo_photo_v70"][0]
         assert "prompt_text" in first_lustify
         assert "negative_prompt" in first_lustify
         assert "scene_id" in first_lustify
@@ -116,33 +116,33 @@ class TestResolveDbPromptsPerModel:
         self, compare_module, fresh_db,
     ):
         _seed_series_with_prompts(
-            fresh_db, scene_count=3, models=["lustify_v7", "chroma_v10HD"],
+            fresh_db, scene_count=3, models=["gonzalomo_photo_v70", "chroma_v10HD"],
         )
         result = compare_module._resolve_db_prompts_per_model(
             db_path=fresh_db,
             series_id=None, scene_id="ser_seed_sc_001",
-            model_ids=["lustify_v7", "chroma_v10HD"],
+            model_ids=["gonzalomo_photo_v70", "chroma_v10HD"],
         )
-        assert len(result["lustify_v7"]) == 1
+        assert len(result["gonzalomo_photo_v70"]) == 1
         assert len(result["chroma_v10HD"]) == 1
-        assert result["lustify_v7"][0]["scene_id"] == "ser_seed_sc_001"
+        assert result["gonzalomo_photo_v70"][0]["scene_id"] == "ser_seed_sc_001"
         # Per-model prompt text differs (different model_id in seeding).
         assert (
-            result["lustify_v7"][0]["prompt_text"]
+            result["gonzalomo_photo_v70"][0]["prompt_text"]
             != result["chroma_v10HD"][0]["prompt_text"]
         )
 
     def test_missing_model_returns_empty_list(
         self, compare_module, fresh_db,
     ):
-        _seed_series_with_prompts(fresh_db, models=["lustify_v7"])
+        _seed_series_with_prompts(fresh_db, models=["gonzalomo_photo_v70"])
         result = compare_module._resolve_db_prompts_per_model(
             db_path=fresh_db,
             series_id="ser_seed", scene_id=None,
-            model_ids=["lustify_v7", "flux_nsfw_71q8"],  # second has no prompts
+            model_ids=["gonzalomo_photo_v70", "gonzalomo_flux_v30"],  # second has no prompts
         )
-        assert result["lustify_v7"]  # has data
-        assert result["flux_nsfw_71q8"] == []  # empty
+        assert result["gonzalomo_photo_v70"]  # has data
+        assert result["gonzalomo_flux_v30"] == []  # empty
 
 
 # ── _validate_db_prompts ────────────────────────────────────────────
@@ -152,7 +152,7 @@ class TestValidateDbPrompts:
     def test_all_have_prompts_passes_silently(self, compare_module):
         # Should not raise.
         compare_module._validate_db_prompts(
-            {"lustify_v7": [{"prompt_text": "x"}]},
+            {"gonzalomo_photo_v70": [{"prompt_text": "x"}]},
             series_id="ser_x", scene_id=None,
         )
 
@@ -160,23 +160,23 @@ class TestValidateDbPrompts:
         with pytest.raises(SystemExit) as exc:
             compare_module._validate_db_prompts(
                 {
-                    "lustify_v7": [{"prompt_text": "x"}],
-                    "flux_nsfw_71q8": [],
+                    "gonzalomo_photo_v70": [{"prompt_text": "x"}],
+                    "gonzalomo_flux_v30": [],
                 },
                 series_id="ser_x", scene_id=None,
             )
         msg = str(exc.value)
         assert "no prompts in DB" in msg
-        assert "flux_nsfw_71q8" in msg
-        assert "lustify_v7" not in msg  # only the missing one called out
+        assert "gonzalomo_flux_v30" in msg
+        assert "gonzalomo_photo_v70" not in msg  # only the missing one called out
         assert "ser_x" in msg
         assert "prepare_prompts.py" in msg
-        assert "--models flux_nsfw_71q8" in msg
+        assert "--models gonzalomo_flux_v30" in msg
 
     def test_scene_mode_error_uses_scene_label(self, compare_module):
         with pytest.raises(SystemExit) as exc:
             compare_module._validate_db_prompts(
-                {"lustify_v7": []},
+                {"gonzalomo_photo_v70": []},
                 series_id=None, scene_id="sc_xyz",
             )
         assert "scene 'sc_xyz'" in str(exc.value)
@@ -330,7 +330,7 @@ def test_argparse_requires_one_input_mode():
     """With NO input flag, argparse exits non-zero with a 'one of'
     message listing all 4 options."""
     result = subprocess.run(
-        [sys.executable, str(COMPARE_PATH), "--models", "lustify_v7"],
+        [sys.executable, str(COMPARE_PATH), "--models", "gonzalomo_photo_v70"],
         capture_output=True, text=True,
     )
     assert result.returncode != 0
@@ -346,7 +346,7 @@ def test_argparse_rejects_two_input_modes_at_once():
     result = subprocess.run(
         [sys.executable, str(COMPARE_PATH),
          "--prompt", "x", "--series-id", "ser_a",
-         "--models", "lustify_v7"],
+         "--models", "gonzalomo_photo_v70"],
         capture_output=True, text=True,
     )
     assert result.returncode != 0
@@ -375,7 +375,7 @@ def _seed_two_llms(db_path: Path) -> None:
             "INSERT INTO prompts (id, series_id, scene_id, model_id, llm_id, "
             "prompt_text, negative_prompt, prompt_hash, content_level, "
             "status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'T2_implied', 'pending')",
-            (f"p_{i}", "ser_two", "sc_two_000", "lustify_v7", llm_id,
+            (f"p_{i}", "ser_two", "sc_two_000", "gonzalomo_photo_v70", llm_id,
              f"prompt from {llm_id}", "neg", f"hash_{i}"),
         )
     conn.commit()
@@ -397,11 +397,11 @@ class TestLlmFilter:
             db_path=fresh_db,
             series_id="ser_two",
             scene_id=None,
-            model_ids=["lustify_v7"],
+            model_ids=["gonzalomo_photo_v70"],
             llm_id="cydonia_24b_v43",
         )
-        assert len(out["lustify_v7"]) == 1
-        assert out["lustify_v7"][0]["prompt_text"] == "prompt from cydonia_24b_v43"
+        assert len(out["gonzalomo_photo_v70"]) == 1
+        assert out["gonzalomo_photo_v70"][0]["prompt_text"] == "prompt from cydonia_24b_v43"
 
     def test_llm_filter_other_llm(
         self, compare_module, fresh_db,
@@ -411,11 +411,11 @@ class TestLlmFilter:
             db_path=fresh_db,
             series_id="ser_two",
             scene_id=None,
-            model_ids=["lustify_v7"],
+            model_ids=["gonzalomo_photo_v70"],
             llm_id="magnum_v4_22b",
         )
-        assert len(out["lustify_v7"]) == 1
-        assert out["lustify_v7"][0]["prompt_text"] == "prompt from magnum_v4_22b"
+        assert len(out["gonzalomo_photo_v70"]) == 1
+        assert out["gonzalomo_photo_v70"][0]["prompt_text"] == "prompt from magnum_v4_22b"
 
     def test_no_llm_filter_returns_all(
         self, compare_module, fresh_db,
@@ -425,11 +425,11 @@ class TestLlmFilter:
             db_path=fresh_db,
             series_id="ser_two",
             scene_id=None,
-            model_ids=["lustify_v7"],
+            model_ids=["gonzalomo_photo_v70"],
             llm_id=None,
         )
         # 2 prompts (one per LLM) when filter omitted.
-        assert len(out["lustify_v7"]) == 2
+        assert len(out["gonzalomo_photo_v70"]) == 2
 
     def test_scene_id_path_with_llm_filter(
         self, compare_module, fresh_db,
@@ -439,7 +439,7 @@ class TestLlmFilter:
             db_path=fresh_db,
             series_id=None,
             scene_id="sc_two_000",
-            model_ids=["lustify_v7"],
+            model_ids=["gonzalomo_photo_v70"],
             llm_id="cydonia_24b_v43",
         )
-        assert len(out["lustify_v7"]) == 1
+        assert len(out["gonzalomo_photo_v70"]) == 1
