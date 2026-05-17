@@ -1442,7 +1442,7 @@ class PipelineEngine:
                     resolution=resolution,
                     scene=scene,
                     content_level=content_level,
-                    family_id=family.id,
+                    family_id=target_family_id,
                     sampler=ctx.model_config.default_sampler,
                     scheduler=ctx.model_config.default_scheduler,
                     steps=ctx.model_config.default_steps,
