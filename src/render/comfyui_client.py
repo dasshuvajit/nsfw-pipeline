@@ -207,10 +207,23 @@ class ComfyUIClient:
 
     @staticmethod
     def _collect_images(entry: dict[str, Any]) -> list[dict[str, Any]]:
+        """Collect SaveImage outputs from a ComfyUI history entry.
+
+        ComfyUI annotates each output image with ``type``:
+        ``output`` for SaveImage nodes (written permanently to
+        ``output_dir``) and ``temp`` for PreviewImage / intermediate
+        nodes (written to ``temp/`` and auto-cleaned after the prompt
+        completes). Multi-stage workflows like the gonzaLomo Chroma
+        + SDXL refiner template have BOTH — the engine must skip the
+        temp entries (they vanish before we read them) and only
+        consume the persistent SaveImage outputs.
+        """
         collected: list[dict[str, Any]] = []
         outputs = entry.get("outputs") or {}
         for node_output in outputs.values():
             for img in node_output.get("images") or []:
+                if img.get("type") == "temp":
+                    continue
                 collected.append(img)
         return collected
 
