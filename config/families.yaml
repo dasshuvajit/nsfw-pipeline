@@ -64,6 +64,17 @@ families:
         - logo
       safety: []
       censor: []
+      # subject_count (2026-05-17) — single-female-only enforcement.
+      # Booru-shaped tokens since SDXL realism finetunes recognise the
+      # canonical danbooru subject-count vocabulary even when the rest
+      # of the prompt is keyword-style. Exempt from filter_conflicts.
+      subject_count:
+        - 2girls
+        - 3girls
+        - multiple_girls
+        - multiple_subjects
+        - group
+        - crowd
     supports_negative_prompt: true
     supports_weighting: true
     clip_skip: 1
@@ -162,6 +173,17 @@ families:
         - watermark
       safety: []
       censor: []
+      # subject_count (2026-05-17) — single-female-only enforcement.
+      # Pony V6 / realism finetunes recognise the danbooru subject-count
+      # vocabulary natively. Exempt from filter_conflicts so positive
+      # `solo` doesn't cancel the negative-side suppression.
+      subject_count:
+        - 2girls
+        - 3girls
+        - multiple_girls
+        - multiple_subjects
+        - group
+        - crowd
     supports_negative_prompt: true
     supports_weighting: true
     clip_skip: 2
@@ -187,6 +209,15 @@ families:
     adult_anchor:
       keyword: "1girl, mature_female, adult"
       prose: "An adult woman with mature features."
+    # Booru subject-count anchor — Pony recognises ``1girl`` + ``solo``
+    # as canonical single-subject vocabulary. Injected by
+    # _positive_solo_anchor_scan after the BREAK marker (so it lands in
+    # CLIP window 2, not in window 1 alongside the score chain).
+    # Kept short (2 tokens) to leave the 77-token CLIP budget for the
+    # actual scene body.
+    solo_anchor:
+      keyword: "1girl, solo"
+      prose: "A single adult woman alone in the scene."
     llm_hint: >-
       Use Danbooru-style tags (e.g. 1girl, long_hair, looking_at_viewer).
       Underscores between multi-word tags. No prose sentences. Do NOT
@@ -267,6 +298,16 @@ families:
         - username
       safety: []
       censor: []
+      # subject_count (2026-05-17) — single-female-only enforcement.
+      # Illustrious is "very sensitive to negative prompts" per community
+      # guidance, so the subject_count tokens carry strong weight.
+      subject_count:
+        - 2girls
+        - 3girls
+        - multiple_girls
+        - multiple_subjects
+        - group
+        - crowd
     supports_negative_prompt: true
     supports_weighting: true
     clip_skip: 1
@@ -278,6 +319,20 @@ families:
       Quality suffix is appended automatically. Responds strongly to
       long negative prompts — do not shorten.
     avoid_words: [score_9, score_8_up, score_7_up]
+    # Illustrious uses booru tag conventions for subject count —
+    # ``1girl, solo`` is the canonical single-subject pair (matches Pony
+    # convention). Per family_loader.py the default adult_anchor is
+    # "adult woman, mature features" which is prose-shaped and doesn't
+    # match Illustrious's tags-first composer convention. Explicit
+    # override here.
+    adult_anchor:
+      keyword: "1girl, mature_female, adult"
+      prose: "An adult woman with mature features."
+    # Booru-shaped solo anchor (kept short — 2 tokens — to leave the
+    # 77-token CLIP budget for scene body).
+    solo_anchor:
+      keyword: "1girl, solo"
+      prose: "A single adult woman alone in the scene."
     # Hybrid tag + prose family — medium temp balances tag consistency
     # with a bit of prose variety.
     llm_temperature: 0.5
@@ -329,7 +384,10 @@ families:
     prompt_style: flux_natural
     quality_prefix: []
     quality_suffix: []
-    # CFG-distilled — negatives are no-ops; axes stay empty.
+    # CFG-distilled — negatives are no-ops; axes stay empty. Note
+    # subject_count axis is also empty for the same reason — Flux can't
+    # enforce single-subject via negatives. The pipeline's positive-side
+    # solo_anchor + LLM directives carry the constraint instead.
     negative_axes:
       anatomy: []
       medium: []
@@ -338,6 +396,7 @@ families:
       watermark: []
       safety: []
       censor: []
+      subject_count: []
     supports_negative_prompt: false
     supports_weighting: false
     clip_skip: 1
@@ -402,6 +461,9 @@ families:
     quality_prefix: []
     quality_suffix: []
     # Klein 9B is distilled — no FluxGuidance, negatives ignored.
+    # subject_count axis stays empty for the same reason (Klein can't
+    # honour negative tokens). The pipeline relies on the positive-side
+    # solo_anchor prose + LLM directive for single-subject enforcement.
     negative_axes:
       anatomy: []
       medium: []
@@ -410,6 +472,7 @@ families:
       watermark: []
       safety: []
       censor: []
+      subject_count: []
     supports_negative_prompt: false
     supports_weighting: false
     clip_skip: 1
@@ -526,6 +589,20 @@ families:
         - text
       safety: []
       censor: []
+      # subject_count (2026-05-17) — single-female-only enforcement.
+      # Chroma supports negatives at CFG > 1; prose-shaped tokens
+      # because T5 prefers natural-language fragments over booru tags.
+      # `partnered` deliberately NOT included — the positive-side vocab
+      # filter (vocabulary.py::_SOLO_MODE_BANNED_TAGS) already removes
+      # the canonicalised partnered phrasing from the positive prompt,
+      # so the negative would just thrash with filter_conflicts.
+      subject_count:
+        - two people
+        - multiple people
+        - a couple
+        - group
+        - crowd
+        - another person
     supports_negative_prompt: true
     supports_weighting: false
     clip_skip: 1

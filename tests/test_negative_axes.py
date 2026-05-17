@@ -24,10 +24,16 @@ from src.prompt.negative_axes import (
 
 # ----- normalize_axes ------------------------------------------------------
 
-def test_empty_axes_has_all_seven_keys():
+def test_empty_axes_has_all_canonical_keys():
+    """Phase D ships 7 axes; 2026-05-17 added ``subject_count`` for
+    single-female enforcement. ``AXIS_KEYS`` is the canonical source
+    of truth — any future extension lands here."""
     out = empty_axes()
     assert set(out) == set(AXIS_KEYS)
     assert all(out[a] == [] for a in AXIS_KEYS)
+    # Sanity check: the new subject_count axis is part of the canonical
+    # taxonomy (regression guard so a refactor doesn't drop it).
+    assert "subject_count" in AXIS_KEYS
 
 
 def test_normalize_strips_blank_tokens_and_whitespace():
@@ -246,11 +252,13 @@ def test_flux_and_flux2_have_empty_axes():
         assert fam.negative_prompt == ""
 
 
-def test_sdxl_axes_token_set_matches_legacy_flat_string():
-    """The migration must preserve the original token set byte-for-byte
-    at the lower-cased token level. This is the ``zero-diff guarantee``
-    from the Phase D plan: any future axis migration that drops or
-    adds a token gets caught here."""
+def test_sdxl_axes_token_set_includes_phase_d_legacy_baseline():
+    """The Phase D migration preserved the original 26-token set; the
+    2026-05-17 single-female enforcement adds the 6-token
+    ``subject_count`` axis on top. The Phase D legacy baseline must
+    remain a subset of the current flat negative — any token DROP
+    surfaces here. ``subject_count`` tokens are tested separately in
+    :func:`test_sdxl_subject_count_axis_present`."""
     fam = FamilyLoader().get_family("sdxl")
     legacy = (
         "blurry, low quality, bad anatomy, distorted face, extra limbs, "
@@ -262,7 +270,34 @@ def test_sdxl_axes_token_set_matches_legacy_flat_string():
     )
     legacy_tokens = {t.strip().lower() for t in legacy.split(",") if t.strip()}
     new_tokens = {t.strip().lower() for t in fam.negative_prompt.split(",") if t.strip()}
-    assert legacy_tokens == new_tokens
+    # Legacy baseline must be a subset (no drops). New tokens may be
+    # added — they're explicitly tested by the subject_count test below.
+    assert legacy_tokens.issubset(new_tokens), (
+        f"Phase D legacy tokens dropped: {legacy_tokens - new_tokens}"
+    )
+
+
+def test_sdxl_subject_count_axis_present():
+    """SDXL family must carry booru-shaped subject_count tokens
+    (2026-05-17 single-female enforcement)."""
+    fam = FamilyLoader().get_family("sdxl")
+    expected = {"2girls", "3girls", "multiple_girls", "multiple_subjects", "group", "crowd"}
+    assert expected.issubset(set(fam.negative_axes["subject_count"]))
+
+
+def test_filter_conflicts_exempts_subject_count():
+    """``filter_conflicts`` MUST NOT drop subject_count tokens even when
+    the positive prompt deliberately contains the opposite signal
+    (``solo`` / ``1girl``). Verifier BLOCKER 3 guard."""
+    from src.prompt.negative_axes import filter_conflicts
+    axes = {
+        "anatomy": ["bad anatomy"],
+        "subject_count": ["2girls", "multiple_girls"],
+    }
+    # Positive prompt with `solo` and `1girl` MUST NOT cancel the
+    # subject_count negatives.
+    filtered, _dropped = filter_conflicts(axes, ["1girl, solo, mature_female"])
+    assert set(filtered["subject_count"]) == {"2girls", "multiple_girls"}
 
 
 # ----- assemble_negative_prompt + conflict_terms ---------------------------

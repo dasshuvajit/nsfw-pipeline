@@ -1,9 +1,9 @@
 expected:
-  prompt_text: 1girl, brunette, hazel eyes, athletic, looking_at_viewer, parted_lips, sundress, outdoors,
-    She stands on a sunset balcony, the warm rim light catching her hair as she gazes at the horizon.,
-    best quality, ultra-detailed, photorealistic skin texture, masterpiece, amazing quality, very aesthetic,
-    newest
-  prompt_token_count: 69
+  prompt_text: solo, 1girl, brunette, hazel eyes, athletic, looking_at_viewer, parted_lips, sundress,
+    outdoors, She stands on a sunset balcony, the warm rim light catching her hair as she gazes at the
+    horizon., best quality, ultra-detailed, photorealistic skin texture, masterpiece, amazing quality,
+    very aesthetic, newest
+  prompt_token_count: 71
   negative_prompt: lowres, blurry
   ratio: portrait_23
   resolution:

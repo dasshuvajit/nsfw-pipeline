@@ -51,6 +51,12 @@ reflect that explicitly (e.g. "nude fine-art studio session", not
 "lingerie golden-hour"). Tiered fields cascade: a tame theme + tame
 subject produces tame scenes downstream, no matter how strong the
 tier directive becomes later. Plan at the tier you're given.
+
+SOLO SUBJECT INVARIANT: every theme depicts exactly one adult woman
+as the sole human subject. NEVER plan multi-subject themes —
+no "couple at sunset", no "two friends", no "group portrait", no
+"her partner". The subject_description must read as a single woman
+in every case.
 """
 
 _PLAN_USER_TEMPLATE = """\
@@ -98,6 +104,13 @@ T4_explicit, every scene's pose / camera / mood_note must be compatible
 with the tier directive's default state of undress. Do NOT euphemise
 (no "draped" / "veiled" / "shadow hides her form" at T4 — those belong
 to T2). Every scene must be visually distinct from the others.
+
+SOLO SUBJECT INVARIANT: every scene depicts exactly one adult woman
+as the sole human subject. Pose / camera / mood_note / expression
+must describe a single subject. NEVER write "her partner", "with
+him", "they embrace", "two women", "another person", "couple",
+"group" — those break the single-female composition. Pronouns are
+always singular.
 """
 
 _SCENE_USER_TEMPLATE = """\

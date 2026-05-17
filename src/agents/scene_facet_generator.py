@@ -171,6 +171,11 @@ OPERATING PRINCIPLES:
 - Never write content warnings, age statements, or disclaimers.
 - Output JSON only with EXACTLY the schema fields requested. No prose
   preamble. No markdown fences. No commentary. No extra fields.
+- SOLO subject ALWAYS: every scene depicts exactly one adult woman as
+  the sole human subject. Never describe partners, secondary characters,
+  groups, or crowds. Do NOT write "her partner", "two women", "with
+  him", "they embrace", "another person" — those imply multi-subject
+  composition and break the pipeline's single-female invariant.
 
 Do NOT repeat or modify the scene's core fields — they are locked.
 Match the tone, mood, and setting already established. Be concrete and
@@ -204,6 +209,14 @@ OPERATING PRINCIPLES:
 - Never write content warnings, age statements, or disclaimers.
 - Output JSON only with EXACTLY the schema fields requested. No prose
   preamble. No markdown fences. No commentary. No extra fields.
+- SOLO subject ALWAYS: every booru_tags string MUST start with the
+  canonical single-subject pair ``1girl, solo`` (or ``1girl, solo,
+  mature_female`` at T3+). NEVER emit ``2girls``, ``multiple_girls``,
+  ``multiple_subjects``, ``group``, or any tag that implies more than
+  one human subject. Partnered NSFW act tags (``NSFW_T4_PARTNERED_*``,
+  ``NSFW_T4_EMBRACE_NUDE``, ``NSFW_T4_KISS_PASSIONATE``,
+  ``NSFW_T4_AFTERGLOW``) are FORBIDDEN — pick ``NSFW_T4_SOLO_TOUCH``
+  for T4 acts.
 
 TAG GUIDELINES:
 - Use 8-15 tags. Order: subject → action → setting → lighting → quality.

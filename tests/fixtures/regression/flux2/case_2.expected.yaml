@@ -1,10 +1,10 @@
 expected:
-  prompt_text: A twenty-eight-year-old woman named Mira — raven-black hair to her shoulders, green eyes,
-    slender frame. Mira sits on a low bench in a minimalist loft. An open silk robe slips loosely from
-    one shoulder. North-facing window light from camera-left wraps softly around her face; a single potted
-    fern blurs warmly in the background. The atmosphere is quiet, intimate, late-afternoon. Editorial,
-    film grain, muted palette.
-  prompt_token_count: 90
+  prompt_text: A single adult woman alone in the scene. A twenty-eight-year-old woman named Mira — raven-black
+    hair to her shoulders, green eyes, slender frame. Mira sits on a low bench in a minimalist loft. An
+    open silk robe slips loosely from one shoulder. North-facing window light from camera-left wraps softly
+    around her face; a single potted fern blurs warmly in the background. The atmosphere is quiet, intimate,
+    late-afternoon. Editorial, film grain, muted palette.
+  prompt_token_count: 101
   negative_prompt: ''
   ratio: square
   resolution:

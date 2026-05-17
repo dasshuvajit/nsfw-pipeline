@@ -244,6 +244,8 @@ content_levels:
       Scene mood is glamorous, confident, cinematic. Do NOT pick any
       `nsfw_*` enum tag from the vocabulary menu — those are gated to
       T3+ and the canonicalizer will drop them.
+      SOLO SUBJECT: scene depicts exactly one adult woman as the sole
+      subject. Do not describe partners, other people, or groups.
     prompt_boost_keywords:
       - lingerie
       - swimwear
@@ -287,6 +289,8 @@ content_levels:
       `nsfw_*` enum tag — those are gated to T3+. Scene_prose may
       reference the suggestion of nudity (e.g. "draped in silk
       revealing one shoulder") but never describe explicit anatomy.
+      SOLO SUBJECT: scene depicts exactly one adult woman as the sole
+      subject. Do not describe partners, other people, or groups.
     prompt_boost_keywords:
       - implied nude
       - artistic
@@ -337,6 +341,10 @@ content_levels:
       menu. Pick a `nsfw_posture` tag when the pose is reclining or
       kneeling. Do NOT pick `nsfw_act` tags (T4-only). Mood is
       contemplative, intimate, reverent.
+      SOLO SUBJECT INVARIANT: every scene is a single-female figure
+      study. NEVER describe partners, secondary characters, or groups.
+      Booru output starts with `1girl, solo`; prose output says "a
+      single adult woman alone" or equivalent. Pronouns singular.
     # Phase D — boost_keywords reduced to []. Tier directive above
     # drives the LLM; appending soft adjectives at sanitizer time was
     # decorative and did not actually push toward anatomy.
@@ -399,11 +407,21 @@ content_levels:
       `NSFW_FULL_NUDE`, `NSFW_VULVA_VISIBLE`, `NSFW_NIPPLES_VISIBLE`)
       over partial ones (`NSFW_BARE_CHEST`, `NSFW_HIPS_THIGHS`)
       unless the scene's pose makes a partial framing more natural.
-      Optionally pick a `nsfw_posture` tag when the pose calls for it.
+      For `nsfw_act` at T4, the ONLY allowed value is
+      `NSFW_T4_SOLO_TOUCH` — partnered act tags
+      (`NSFW_T4_EMBRACE_NUDE`, `NSFW_T4_KISS_PASSIONATE`,
+      `NSFW_T4_PARTNERED_INTIMATE`, `NSFW_T4_AFTERGLOW`) are FORBIDDEN
+      by the solo-subject invariant and will be dropped with an ERROR
+      log. Optionally pick a `nsfw_posture` tag when the pose calls
+      for it.
 
       Mood is intense, passionate, bold, raw, sensual, intimate.
-      Partnered scenes (when `nsfw_act` is partnered) carry mutual
-      consent and tender intimacy between two adults.
+
+      SOLO SUBJECT INVARIANT: every T4 scene is a solo composition.
+      NEVER write "her partner", "with him", "two adults", "they
+      embrace", "another person". Scene prose describes ONE adult
+      woman; booru output starts with `1girl, solo`. Pronouns singular
+      throughout.
     # Phase D — boost_keywords reduced to []. The tier directive above
     # is the LLM-side push; appending "bold, intense, sensual" at
     # sanitizer time was decorative and didn't actually drive nudity.

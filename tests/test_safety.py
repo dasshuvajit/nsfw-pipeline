@@ -131,13 +131,29 @@ def test_pony_adult_anchor_uses_booru_token_form(pb, family_loader):
 
 
 @pytest.mark.parametrize("family_id", [
-    "sdxl", "illustrious", "flux", "chroma", "flux2",
+    "sdxl", "flux", "chroma", "flux2",
 ])
 def test_non_pony_families_use_default_anchor(family_loader, family_id):
-    """Every non-Pony family inherits the dataclass default until it
-    declares its own override in families.yaml."""
+    """Non-Pony families inherit the dataclass default until they
+    declare an explicit override. 2026-05-17: ``illustrious`` now
+    overrides to the booru-shaped pair `1girl, mature_female, adult`
+    (Illustrious is a booru-tag family and the prose-shaped default
+    doesn't match its composer convention), so it's removed from this
+    test's parametrize list — it has its own test below."""
     family = family_loader.get_family(family_id)
     assert family.adult_anchor["keyword"] == "adult woman, mature features"
+    assert family.adult_anchor["prose"] == (
+        "An adult woman with mature features."
+    )
+
+
+def test_illustrious_adult_anchor_uses_booru_token_form(family_loader):
+    """Illustrious (booru-tag family) gets the same booru-shaped
+    adult-anchor as Pony — `1girl, mature_female, adult` — instead of
+    the prose-shaped default. Added 2026-05-17 alongside the solo_anchor
+    field."""
+    family = family_loader.get_family("illustrious")
+    assert family.adult_anchor["keyword"] == "1girl, mature_female, adult"
     assert family.adult_anchor["prose"] == (
         "An adult woman with mature features."
     )

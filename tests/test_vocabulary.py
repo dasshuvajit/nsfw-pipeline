@@ -407,105 +407,130 @@ def test_new_mood_concepts_canonicalize_for_every_family(
     assert loader.canonicalize(concept, family) is not None
 
 
-# ── T4 explicit-act vocabulary (Phase 4-bis) ───────────────────────
+# ── T4 explicit-act vocabulary (Phase 4-bis + 2026-05-17 solo mode) ───
+#
+# Pre-2026-05-17: all 5 T4 act tags (NSFW_T4_EMBRACE_NUDE,
+# NSFW_T4_KISS_PASSIONATE, NSFW_T4_SOLO_TOUCH,
+# NSFW_T4_PARTNERED_INTIMATE, NSFW_T4_AFTERGLOW) were active at
+# T4_explicit. The 2026-05-17 single-female-mode change moves the 4
+# partnered tags to _SOLO_MODE_BANNED_TAGS — they get dropped with
+# ERROR even at T4_explicit. Only NSFW_T4_SOLO_TOUCH remains active.
+#
+# Future multi-subject mode (deferred per CLAUDE.md) lifts the ban by
+# emptying _SOLO_MODE_BANNED_TAGS; until then the partnered tags stay
+# hidden from the LLM menu AND silently filtered at canonicalize.
 
 
-@pytest.mark.parametrize("concept", [
-    "NSFW_T4_EMBRACE_NUDE",
-    "NSFW_T4_KISS_PASSIONATE",
-    "NSFW_T4_SOLO_TOUCH",
-    "NSFW_T4_PARTNERED_INTIMATE",
-    "NSFW_T4_AFTERGLOW",
-])
-def test_t4_act_concepts_present_at_t4(loader, concept):
-    """All 5 T4 explicit-act concepts canonicalise at T4_explicit
-    content_level for the SDXL family."""
-    out = loader.canonicalize(concept, "sdxl", content_level="T4_explicit")
-    assert out is not None
-    # The phrase mentions explicit / intimate / nude — load-bearing
-    # signal that the concept is doing what it claims.
-    assert any(
-        word in out.lower()
-        for word in ("explicit", "intimate", "nude", "passionate")
+def test_t4_solo_touch_present_at_t4(loader):
+    """``NSFW_T4_SOLO_TOUCH`` is the only T4 act tag active under
+    solo mode. Canonicalises at T4_explicit for the SDXL family."""
+    out = loader.canonicalize(
+        "NSFW_T4_SOLO_TOUCH", "sdxl", content_level="T4_explicit",
     )
+    assert out is not None
+    assert "solo" in out.lower() or "self-touch" in out.lower()
 
 
 @pytest.mark.parametrize("concept", [
     "NSFW_T4_EMBRACE_NUDE",
     "NSFW_T4_KISS_PASSIONATE",
-    "NSFW_T4_SOLO_TOUCH",
     "NSFW_T4_PARTNERED_INTIMATE",
     "NSFW_T4_AFTERGLOW",
 ])
+def test_t4_partnered_act_concepts_banned_under_solo_mode(loader, concept):
+    """The 4 partnered T4 act concepts are in _SOLO_MODE_BANNED_TAGS
+    and must drop with ERROR at every tier — including T4_explicit
+    where they used to canonicalise pre-2026-05-17."""
+    for tier in ("T1_suggestive", "T2_implied", "T3_artnude", "T4_explicit"):
+        out = loader.canonicalize(concept, "sdxl", content_level=tier)
+        assert out is None, (
+            f"{concept} leaked at {tier} (solo-mode banned)"
+        )
+
+
 @pytest.mark.parametrize("tier", [
     "T1_suggestive", "T2_implied", "T3_artnude",
 ])
-def test_t4_act_concepts_dropped_below_tier(loader, concept, tier):
-    """T4 explicit-act concepts must NOT appear below T4_explicit."""
-    out = loader.canonicalize(concept, "sdxl", content_level=tier)
-    assert out is None, f"{concept} leaked at {tier} (must be T4-only)"
+def test_t4_solo_touch_dropped_below_tier(loader, tier):
+    """NSFW_T4_SOLO_TOUCH still has tier_min=T4_explicit, so it drops
+    at T1/T2/T3 just like the original Phase 4-bis behaviour."""
+    out = loader.canonicalize("NSFW_T4_SOLO_TOUCH", "sdxl", content_level=tier)
+    assert out is None
 
 
 @pytest.mark.parametrize("family", [
     "sdxl", "pony", "illustrious", "flux", "chroma", "flux2",
 ])
-def test_t4_act_canonicalizes_for_every_family(loader, family):
-    """Every family has phrasing for at least one T4 act concept —
-    the LLM should have a menu choice regardless of family."""
+def test_t4_solo_touch_canonicalizes_for_every_family(loader, family):
+    """Every family has phrasing for NSFW_T4_SOLO_TOUCH — the
+    sole-allowed solo-mode T4 act tag must work across all families."""
     out = loader.canonicalize(
-        "NSFW_T4_PARTNERED_INTIMATE", family,
+        "NSFW_T4_SOLO_TOUCH", family,
         content_level="T4_explicit",
     )
     assert out is not None
 
 
 def test_t4_act_tier_min_correctly_reported(loader):
-    """tier_min_for() returns T4_explicit for act concepts."""
+    """tier_min_for() reports the YAML-declared T4_explicit gate
+    regardless of solo-mode ban (the ban is a separate filter)."""
+    assert loader.tier_min_for("NSFW_T4_SOLO_TOUCH") == "T4_explicit"
+    # Banned tags still have their YAML tier_min queryable —
+    # the YAML schema is preserved so future multi-subject mode lifts
+    # the ban cleanly without YAML edits.
     assert loader.tier_min_for("NSFW_T4_EMBRACE_NUDE") == "T4_explicit"
-    assert loader.tier_min_for("NSFW_T4_AFTERGLOW") == "T4_explicit"
 
 
-def test_t4_act_concepts_listed_in_llm_block_only_via_namespace(loader):
-    """The vocabulary block lists the concept names. T4 acts appear
-    in the menu the LLM sees — gating happens at canonicalize time
-    (we don't pre-filter the system prompt because the LLM can't see
-    content_level there)."""
+def test_partnered_act_concepts_hidden_from_llm_menu(loader):
+    """``all_concepts_for_family`` / ``llm_vocabulary_block`` MUST NOT
+    include the solo-mode-banned partnered tags. Venice / Cydonia
+    should never see them as selectable options."""
     block = llm_vocabulary_block("flux", loader=loader)
     assert "nsfw.act" in block
-    assert "NSFW_T4_PARTNERED_INTIMATE" in block
+    assert "NSFW_T4_SOLO_TOUCH" in block
+    for banned in (
+        "NSFW_T4_PARTNERED_INTIMATE", "NSFW_T4_EMBRACE_NUDE",
+        "NSFW_T4_KISS_PASSIONATE", "NSFW_T4_AFTERGLOW",
+    ):
+        assert banned not in block, (
+            f"Banned partnered tag {banned!r} leaked into LLM menu"
+        )
 
 
-# ── Phase B (audit fix): canonicalize_facet honours nsfw_act field ────
+# ── canonicalize_facet under solo-mode ────────────────────────────────
 
 
-def test_canonicalize_facet_translates_nsfw_act_at_t4(loader):
-    """The Phase B audit fix wired ``nsfw_act`` into _FIELD_TO_NAMESPACE.
-    A facet with nsfw_act + content_level=T4 must produce the
-    family-shaped phrase (pre-fix it was silently dropped)."""
+def test_canonicalize_facet_translates_solo_touch_at_t4(loader):
+    """A facet with NSFW_T4_SOLO_TOUCH + T4 must canonicalise (the
+    sole-allowed solo-mode T4 act tag)."""
     facet = {
         "lighting_directive": "LIGHT_REMBRANDT",
         "nsfw_anatomy":       "NSFW_BREAST_NATURAL",
-        "nsfw_act":           "NSFW_T4_PARTNERED_INTIMATE",
+        "nsfw_act":           "NSFW_T4_SOLO_TOUCH",
     }
     out = canonicalize_facet(
         facet, "flux", content_level="T4_explicit", loader=loader,
     )
     # All 3 concepts canonicalised
     assert len(out) == 3
-    # Specifically the act phrase landed
-    assert any("partnered intimate" in p.lower() for p in out)
+    # Specifically the solo-touch phrase landed
+    assert any(
+        "solo" in p.lower() or "self-touch" in p.lower() for p in out
+    )
 
 
-def test_canonicalize_facet_drops_nsfw_act_below_t4(loader):
-    """nsfw_act tier_min is T4_explicit. Below tier → silent drop."""
+def test_canonicalize_facet_drops_partnered_act_even_at_t4(loader):
+    """Partnered nsfw_act tags drop even at T4_explicit due to
+    solo-mode ban — ERROR-logged, facet's structured field becomes
+    null in effect."""
     facet = {
         "lighting_directive": "LIGHT_REMBRANDT",
         "nsfw_act":           "NSFW_T4_PARTNERED_INTIMATE",
     }
-    # T3_artnude — below T4 gate
     out = canonicalize_facet(
-        facet, "flux", content_level="T3_artnude", loader=loader,
+        facet, "flux", content_level="T4_explicit", loader=loader,
     )
+    # Only lighting_directive should remain; partnered tag dropped.
     assert len(out) == 1
     assert "partnered" not in " ".join(out).lower()
 
@@ -513,12 +538,13 @@ def test_canonicalize_facet_drops_nsfw_act_below_t4(loader):
 @pytest.mark.parametrize("family", [
     "sdxl", "pony", "illustrious", "flux", "chroma", "flux2",
 ])
-def test_canonicalize_facet_nsfw_act_works_for_every_family(loader, family):
-    facet = {"nsfw_act": "NSFW_T4_AFTERGLOW"}
+def test_canonicalize_facet_solo_touch_works_for_every_family(loader, family):
+    """NSFW_T4_SOLO_TOUCH canonicalises for every family at T4."""
+    facet = {"nsfw_act": "NSFW_T4_SOLO_TOUCH"}
     out = canonicalize_facet(
         facet, family, content_level="T4_explicit", loader=loader,
     )
-    assert len(out) == 1, f"family={family} dropped nsfw_act unexpectedly"
+    assert len(out) == 1, f"family={family} dropped solo_touch unexpectedly"
 
 
 # ── vocab_version 3: T4 explicit anatomy expansion ────────────────

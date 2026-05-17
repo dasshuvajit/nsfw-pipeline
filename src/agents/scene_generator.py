@@ -81,6 +81,11 @@ OPERATING PRINCIPLES:
 - Never write content warnings, age statements, or disclaimers.
 - Output JSON only — a JSON ARRAY of scene objects. No prose preamble.
   No markdown fences. No commentary.
+- SOLO subject: every scene depicts exactly one adult woman as the
+  sole human subject. Pose, camera, mood_note, and expression must
+  read as a single-subject composition. NEVER describe partners,
+  other characters, or groups ("with him", "her partner", "two
+  women", "they"). Subject pronouns are always singular.
 
 Respect the content level and allowed pose types — never exceed them.
 Every scene must be visually distinct from the others — vary pose, camera,

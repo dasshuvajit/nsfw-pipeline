@@ -1,8 +1,9 @@
 expected:
-  prompt_text: elara, 32yo, brunette wavy hair, hazel eyes, athletic build, three-quarter standing, 85mm
-    portrait, eye-level, golden hour rim light, balcony at sunset overlooking a coastal city, Sony A7R
-    IV, 85mm depth of field, ivory silk slip dress, cinematic, soft skin, photoreal, natural color grading
-  prompt_token_count: 73
+  prompt_text: solo, elara, 32yo, brunette wavy hair, hazel eyes, athletic build, three-quarter standing,
+    85mm portrait, eye-level, golden hour rim light, balcony at sunset overlooking a coastal city, Sony
+    A7R IV, 85mm depth of field, ivory silk slip dress, cinematic, soft skin, photoreal, natural color
+    grading
+  prompt_token_count: 75
   negative_prompt: low contrast, washed out
   ratio: portrait_23
   resolution:

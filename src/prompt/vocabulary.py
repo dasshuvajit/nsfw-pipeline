@@ -56,6 +56,31 @@ _TIER_ORDER: tuple[str, ...] = (
     "T4_explicit",
 )
 
+# Single-female-mode banned concept tags (2026-05-17). The user-facing
+# constraint is "always exactly one adult female subject"; the
+# partnered ``nsfw.act`` tags are by definition multi-subject and so
+# cannot be picked under solo mode. The filter applies in two places:
+#
+#   * :meth:`VocabularyLoader.all_concepts_for_family` — drops banned
+#     tags so they don't appear in the system-prompt menu the LLM sees
+#     (Venice / Cydonia / Magnum can't pick what they're not shown).
+#
+#   * :meth:`VocabularyLoader.canonicalize` — defence-in-depth. If the
+#     LLM picks a banned tag anyway (training-set bias), the
+#     canonicalizer drops it with an ERROR log so drift surfaces at
+#     facet-write time, not in the rendered image. The facet still
+#     ships (the structured tag stays null) — the operator can re-prep.
+#
+# Future multi-subject mode lifts this by setting the constant to
+# ``frozenset()``; no YAML schema change required.
+_SOLO_MODE_BANNED_TAGS: frozenset[str] = frozenset({
+    "NSFW_T4_EMBRACE_NUDE",
+    "NSFW_T4_KISS_PASSIONATE",
+    "NSFW_T4_PARTNERED_INTIMATE",
+    "NSFW_T4_AFTERGLOW",
+})
+
+
 # Map SceneFacet enum-tag field names to their vocabulary namespace.
 # Each pair is (schema_field, "<top>.<sub>"). When the LLM populates
 # ``realism_camera="CAMERA_85MM_F14"``, the canonicalizer looks up
@@ -123,13 +148,29 @@ class VocabularyLoader:
         * The concept doesn't exist in any namespace (LLM drift).
         * The concept is NSFW-gated and the active ``content_level`` is
           below the concept's ``tier_min``.
+        * The concept is in :data:`_SOLO_MODE_BANNED_TAGS` (single-
+          female-mode partnered-act suppression). Logs at ERROR.
         * The concept exists but has no phrasing for ``family_id`` (e.g.
           Pony deliberately omits camera / lens / film_stock).
 
-        Logs at INFO when dropping for any of the above; the caller
-        treats ``None`` as "skip this segment".
+        Logs at INFO when dropping for tier-gate / family-omission;
+        logs at ERROR when dropping for solo-mode suppression — drift
+        from venice / cydonia on the partnered tags surfaces at facet-
+        write time, not at render.
         """
         if not concept:
+            return None
+        # Solo-mode banned tags (partnered nsfw_act). Reject early
+        # before walking namespaces so the ERROR log fires with the
+        # exact tag the LLM tried to use.
+        if concept in _SOLO_MODE_BANNED_TAGS:
+            logger.error(
+                "vocabulary: dropping solo-mode-banned partnered tag "
+                "%r at content_level=%r — single-female enforcement; "
+                "if multi-subject is required, lift "
+                "_SOLO_MODE_BANNED_TAGS.",
+                concept, content_level,
+            )
             return None
         # Walk every namespace looking for the concept.
         for top, top_dict in self._data.items():
@@ -193,7 +234,9 @@ class VocabularyLoader:
         keyed by ``"<top>.<sub>"`` namespace.
 
         Used by :func:`llm_vocabulary_block` to build the
-        system-prompt menu the LLM may pick from.
+        system-prompt menu the LLM may pick from. Tags in
+        :data:`_SOLO_MODE_BANNED_TAGS` are silently omitted so Venice /
+        Cydonia never see them as selectable options.
         """
         out: dict[str, list[str]] = {}
         for top in ("realism", "nsfw"):
@@ -205,6 +248,8 @@ class VocabularyLoader:
                 for concept, row in sub_dict.items():
                     if not isinstance(row, dict):
                         continue
+                    if concept in _SOLO_MODE_BANNED_TAGS:
+                        continue  # solo-mode banned — hide from LLM menu
                     phrasing = (
                         row.get("phrasing") if top == "nsfw" else row
                     )

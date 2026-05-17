@@ -50,6 +50,11 @@ Your output is ALWAYS a single JSON object with NO extra text, NO markdown fence
 You must respect the content tier directive provided — never exceed
 it, never SOFTEN it. The style's mood / camera-bias / environment-bias
 must be compatible with the tier directive at all times.
+
+SOLO SUBJECT INVARIANT: every style is designed for a single adult
+female subject. Never design styles that depend on multi-subject
+compositions ("dual portrait", "couples editorial", "group dynamic
+shoot"). The pipeline produces single-female content only.
 """
 
 _PLAN_USER_TEMPLATE = """\
@@ -101,6 +106,12 @@ T4_explicit, every subject's pose / camera / mood_note / subject_detail
 must be compatible with the directive's default state of undress.
 Each subject should be a different person — vary appearance, but keep
 the visual style consistent.
+
+SOLO SUBJECT INVARIANT: each scene depicts exactly ONE adult woman
+as the sole human subject. Different scenes feature different women,
+but within any single scene the composition is always single-female.
+NEVER write "her partner", "with him", "they", "two women",
+"couple", "another person" in any scene's pose / mood / subject_detail.
 """
 
 _SCENE_USER_TEMPLATE = """\

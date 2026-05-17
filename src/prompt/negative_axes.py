@@ -1,4 +1,4 @@
-"""Negative-axis taxonomy — split family negatives into 7 buckets.
+"""Negative-axis taxonomy — split family negatives into 8 buckets.
 
 Pre-Phase-D, every family's negatives lived as one flat comma string
 under ``negative_prompt:`` in ``config/families.yaml``. That collapses
@@ -6,20 +6,29 @@ all signal into a single bag of words: a per-model YAML can't say
 "keep ``bad anatomy`` but drop ``cartoon``" without rewriting the
 whole string.
 
-Phase D restructures negatives into 7 axes::
+Phase D restructures negatives into 8 axes::
 
     negative_axes:
-      anatomy:    [bad anatomy, extra limbs, deformed hands, ...]
-      medium:     [cartoon, painting, ...]
-      skin:       [plastic skin, oversharpened, ...]
-      quality:    [low quality, jpeg artifacts, blurry, ...]
-      watermark:  [watermark, text, logo, signature, ...]
-      safety:     []                  # HARD_BLOCK_NEGATIVE owns this axis
-      censor:     [censored, mosaic, bar censor]
+      anatomy:        [bad anatomy, extra limbs, deformed hands, ...]
+      medium:         [cartoon, painting, ...]
+      skin:           [plastic skin, oversharpened, ...]
+      quality:        [low quality, jpeg artifacts, blurry, ...]
+      watermark:      [watermark, text, logo, signature, ...]
+      safety:         []              # HARD_BLOCK_NEGATIVE owns this axis
+      censor:         [censored, mosaic, bar censor]
+      subject_count:  [2girls, multiple_girls, group, ...]  # 2026-05-17
 
 The composer flattens axes back into the comma-string the encoder
 expects — but each axis can now be ``extend``ed or ``override``d
 independently from a per-model YAML.
+
+``subject_count`` (added 2026-05-17) enforces the pipeline-wide
+single-female invariant. Booru families emit ``2girls / multiple_girls``;
+prose families that support negatives (chroma) emit ``"two people" /
+"a couple"``. Exempt from ``filter_conflicts`` (see
+:data:`_CONFLICT_FILTER_EXEMPT_AXES`) — the positive prompt's intentional
+``solo / 1girl`` tokens must NOT cancel the negative-side multi-subject
+suppression.
 
 This module is pure (no I/O, no logging side-effects) so the YAML
 loader, merge_overrides, and the prompt builder can all share its
@@ -42,7 +51,19 @@ AXIS_KEYS: tuple[str, ...] = (
     "watermark",
     "safety",
     "censor",
+    "subject_count",
 )
+
+
+# Axes that ``filter_conflicts`` MUST NOT touch — they encode intentional
+# suppression that the positive prompt deliberately states the opposite
+# of (e.g. positive ``solo`` ↔ negative ``2girls``). Without this guard,
+# the conflict-filter would drop the negative because ``solo`` appears
+# in the positive, defeating the suppression. See BLOCKER 3 in the
+# 2026-05-17 single-female enforcement plan.
+_CONFLICT_FILTER_EXEMPT_AXES: frozenset[str] = frozenset({
+    "subject_count",
+})
 
 
 def empty_axes() -> dict[str, list[str]]:
@@ -231,6 +252,13 @@ def filter_conflicts(
         return base, dropped
 
     for axis in AXIS_KEYS:
+        # Intentional-suppression axes (subject_count) pass through
+        # unfiltered — the positive prompt's matching token (e.g. `solo`
+        # opposing negative `2girls`) is deliberate and must not cancel
+        # the suppression.
+        if axis in _CONFLICT_FILTER_EXEMPT_AXES:
+            out[axis] = list(base[axis])
+            continue
         kept: list[str] = []
         for tok in base[axis]:
             norm = _normalize_token(tok)

@@ -1,9 +1,8 @@
 expected:
-  prompt_text: 1girl, copper hair, freckles, lithe, lying_on_back, completely_nude, art_nude, soft_shadows,
+  prompt_text: solo, 1girl, copper hair, freckles, lithe, lying_on_back, completely_nude, art_nude, soft_shadows,
     feet_together, She lies on a velvet chaise; the single tungsten key carves slow shadows across her
-    form, classical-painting calm., best quality, masterpiece, fine art nude, amazing quality, very aesthetic,
-    newest
-  prompt_token_count: 75
+    form, calm., best quality, masterpiece, fine art nude, amazing quality, very aesthetic, newest
+  prompt_token_count: 74
   negative_prompt: cartoon, watermark
   ratio: landscape
   resolution:

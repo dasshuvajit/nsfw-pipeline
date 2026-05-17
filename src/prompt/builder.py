@@ -70,13 +70,22 @@ _SCENE_FIELD_ORDER: tuple[str, ...] = (
     "mood_note",
 )
 
-# Always-on hard-block for age-ambiguity vocabulary — prepended to every
-# family-level negative prompt. Belt-and-braces: the LLM's planner hint
-# already bans these, the positive scan strips them from the body, and
-# this blocks the encoder from generating them even if one slips through.
+# Always-on hard-block for age-ambiguity + multi-subject vocabulary —
+# prepended to every family-level negative prompt. Belt-and-braces: the
+# LLM's planner hint already bans these, the positive scan strips them
+# from the body, and this blocks the encoder from generating them even
+# if one slips through.
+#
+# 2026-05-17 — extended with booru-shaped subject-count tokens
+# (``2girls / multiple_girls / multiple_subjects``). These match the
+# ``subject_count`` axis tokens for booru families but live here to
+# also fire on Chroma (which has its own prose-shaped axis tokens) for
+# defence-in-depth. Pony's CLIP tokenizer treats e.g. ``2girls`` as a
+# single learned token regardless of family-style preference.
 HARD_BLOCK_NEGATIVE = (
     "child, kid, young, minor, teen, schoolgirl, loli, shota, "
-    "underage, baby, toddler, preteen, youthful face"
+    "underage, baby, toddler, preteen, youthful face, "
+    "2girls, multiple_girls, multiple_subjects"
 )
 
 # Age-ambiguity vocabulary used by the positive-side scan. Matched
@@ -91,6 +100,55 @@ _AGE_AMBIGUITY_TERMS = (
 
 _AGE_AMBIGUITY_PATTERN = re.compile(
     r"\b(?:" + "|".join(re.escape(t) for t in _AGE_AMBIGUITY_TERMS) + r")\b",
+    re.IGNORECASE,
+)
+
+
+# Multi-subject vocabulary used by ``_positive_subject_count_scan`` —
+# matched case-insensitive as whole-word (or multi-word) phrases. The
+# scan strips these from the body and logs at ERROR (matching the
+# age-safety scan's severity). 2026-05-17 single-female enforcement.
+#
+# Phrases that read as multi-subject in T4 partnered nsfw_act prose
+# (``her partner``, ``their bodies``, ``two adult``, ``embrace
+# between``, etc.) are covered. We intentionally exclude bare nouns
+# like ``partner`` alone — those false-positive on legitimate uses
+# ("partner sleeve", "partner colour").
+_MULTI_SUBJECT_PATTERNS: tuple[str, ...] = (
+    r"2girls",
+    r"3girls",
+    r"multiple_girls",
+    r"multiple_subjects",
+    r"multiple girls",
+    r"multiple subjects",
+    r"multiple people",
+    r"two women",
+    r"two girls",
+    r"two adults",
+    r"two bodies",
+    r"two adult bodies",
+    r"two figures",
+    r"a couple",
+    r"another person",
+    r"another woman",
+    r"another girl",
+    r"her partner",
+    r"his partner",
+    r"their partner",
+    r"with him",
+    r"with her partner",
+    r"between adults",
+    r"embrace between",
+    r"partnered intimate",
+    r"partnered explicit",
+    r"between two",
+    r"group of",
+    r"crowd of",
+    r"threesome",
+)
+
+_MULTI_SUBJECT_PATTERN = re.compile(
+    r"\b(?:" + "|".join(_MULTI_SUBJECT_PATTERNS) + r")\b",
     re.IGNORECASE,
 )
 
@@ -309,6 +367,18 @@ class PromptBuilder:
         # age-ambiguity terms the LLM may have slipped into the body
         # and prepends an adult anchor when a match is found.
         prompt_text = _positive_age_safety_scan(prompt_text, family)
+
+        # Positive-side subject-count scan (2026-05-17) — every family.
+        # Strips any multi-subject vocabulary the LLM slipped through
+        # (``her partner``, ``two women``, ``2girls``, ``partnered
+        # intimate``) and logs at ERROR. Then unconditionally prepends
+        # the family's ``solo_anchor`` so the encoder sees a strong
+        # single-subject signal on EVERY render. For booru families
+        # with a ``BREAK`` marker (Pony), the anchor lands AFTER BREAK
+        # in CLIP window 2 alongside the body, not in window 1 alongside
+        # the score prefix.
+        prompt_text = _positive_subject_count_scan(prompt_text, family)
+        prompt_text = _positive_solo_anchor_inject(prompt_text, family)
 
         # Phase C — real-tokenizer trim. Prior to Phase C this was
         # ``_warn_if_over_budget`` (estimate words×1.3, log only). CLIP
@@ -1015,6 +1085,89 @@ def _positive_age_safety_scan(text: str, family: FamilyConfig) -> str:
     if family.prompt_style in {"flux_natural", "flux2_prose"}:
         return f"{anchor_prose} {stripped}".strip() if stripped else anchor_prose
     return f"{anchor_keyword}, {stripped}" if stripped else anchor_keyword
+
+
+def _positive_subject_count_scan(text: str, family: FamilyConfig) -> str:
+    """Strip multi-subject vocabulary from positive prompts.
+
+    Mirrors :func:`_positive_age_safety_scan` but for subject count.
+    The pipeline enforces a single-female-only invariant (2026-05-17);
+    when Venice or any LLM slips through ``her partner`` /
+    ``two women`` / ``partnered intimate`` / ``2girls`` etc. into the
+    composed positive prompt, this scan removes them and logs at
+    ERROR so drift surfaces immediately.
+
+    The solo_anchor injection in :func:`_positive_solo_anchor_inject`
+    runs after this and is unconditional — it ALWAYS prepends the
+    family's single-subject signal regardless of whether multi-subject
+    vocab was stripped. The scan returns the body with offending
+    tokens removed; clean prompts pass through untouched (byte-stable).
+    """
+    if not text:
+        return text
+    matches = _MULTI_SUBJECT_PATTERN.findall(text)
+    if not matches:
+        return text
+    logger.error(
+        "Multi-subject vocab detected in positive prompt — stripping. "
+        "matches=%s family=%r",
+        sorted({m.lower() for m in matches}), family.id,
+    )
+    stripped = _MULTI_SUBJECT_PATTERN.sub("", text)
+    stripped = re.sub(r",\s*,+", ",", stripped)
+    stripped = re.sub(r"\.\s*\.+", ".", stripped)
+    stripped = re.sub(r"\s{2,}", " ", stripped)
+    stripped = stripped.strip(" ,.")
+    return stripped
+
+
+def _positive_solo_anchor_inject(text: str, family: FamilyConfig) -> str:
+    """Unconditionally inject ``family.solo_anchor`` into the positive
+    prompt so the encoder always sees a strong single-subject signal.
+
+    Booru-style and SDXL families (``sdxl_keywords``, ``pony_danbooru``,
+    ``illustrious_tags``) receive ``solo_anchor.keyword`` as a comma-
+    joined fragment. Prose families (``flux_natural``, ``flux2_prose``)
+    receive ``solo_anchor.prose`` as a sentence-prefixed clause.
+
+    For families with a ``BREAK`` marker (Pony), the keyword fragment
+    lands AFTER the marker so it sits in CLIP window 2 alongside the
+    body — placing it in window 1 next to ``score_9, score_8_up, …``
+    would dilute the score prefix.
+
+    Idempotent: if the solo-anchor tokens (case-insensitive) are already
+    present in the body, no change is made — byte-stable when the LLM
+    already emitted ``solo`` / ``1girl`` itself.
+    """
+    if not text:
+        return text
+    anchor_kw = (family.solo_anchor or {}).get("keyword", "")
+    anchor_prose = (family.solo_anchor or {}).get("prose", "")
+
+    # Prose families — sentence-prefix.
+    if family.prompt_style in {"flux_natural", "flux2_prose"}:
+        if not anchor_prose:
+            return text
+        if anchor_prose.lower() in text.lower():
+            return text
+        sep = " " if text and not text[0].isspace() else ""
+        return f"{anchor_prose}{sep}{text}"
+
+    # Keyword / booru families — comma-joined fragment.
+    if not anchor_kw:
+        return text
+    anchor_tokens = [
+        t.strip().lower() for t in anchor_kw.split(",") if t.strip()
+    ]
+    text_lower = text.lower()
+    if anchor_tokens and all(tok in text_lower for tok in anchor_tokens):
+        return text  # idempotent — body already carries every solo token
+
+    if family.break_marker and family.break_marker in text:
+        head, marker, body = text.partition(family.break_marker)
+        body_clean = body.lstrip().lstrip(",").lstrip()
+        return f"{head}{marker} {anchor_kw}, {body_clean}"
+    return f"{anchor_kw}, {text}" if text else anchor_kw
 
 
 def _keyword_dedup(segments: Iterable[str]) -> str:

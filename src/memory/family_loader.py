@@ -132,6 +132,24 @@ class FamilyConfig:
         "keyword": "adult woman, mature features",
         "prose": "An adult woman with mature features.",
     })
+    # Single-female enforcement (2026-05-17). Unlike ``adult_anchor``
+    # (which only fires when the age-safety scan strips age-ambiguity
+    # vocabulary), ``solo_anchor`` is injected by
+    # ``_positive_solo_anchor_scan`` on EVERY composed prompt so the
+    # subject-count signal is always present in the positive prompt.
+    # ``keyword`` is the booru/SDXL form (booru families use the
+    # canonical ``1girl, solo, mature_female`` pair; SDXL realism uses
+    # natural keywords); ``prose`` is the natural-language sentence for
+    # prose families. Pony-style families' anchor is injected *after*
+    # the ``BREAK`` marker so it lands in CLIP window 2 alongside the
+    # body, not in window 1 alongside the 6-tier score prefix.
+    solo_anchor: dict[str, str] = field(default_factory=lambda: {
+        # Keep keyword form MINIMAL — CLIP 77-token budgets are tight
+        # and the solo signal only needs ~1 token to land. Booru
+        # families override to the canonical `1girl, solo` pair.
+        "keyword": "solo",
+        "prose": "A single adult woman alone in the scene.",
+    })
     # Phase 3 — comma-tokens emitted between ``quality_prefix`` and the
     # composed body. Pony realism finetunes use this to prepend
     # ``[source_photo, "photo (medium)", realistic]`` after the 6-tier

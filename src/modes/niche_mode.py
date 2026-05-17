@@ -47,6 +47,11 @@ You must respect the content tier directive provided — never exceed
 it, never SOFTEN it. If the tier directive calls for explicit nude
 content, the THEME and SUBJECT_BIAS must reflect that — do NOT plan
 a T2-style "implied nude / lingerie" set when given T4_explicit.
+
+SOLO SUBJECT INVARIANT: every niche set depicts exactly one adult
+woman as the sole human subject. The subject_bias must always read
+as a single female; NEVER plan multi-subject niches ("girlfriend
+photoshoot", "couples retreat", "group shoot"). Solo niches only.
 """
 
 _PLAN_USER_TEMPLATE = """\
@@ -98,6 +103,10 @@ T4_explicit, every scene's pose / camera / mood must be compatible
 with the directive's default state of undress. Do NOT euphemise.
 Every scene should incorporate at least one visual element from the
 niche plan.
+
+SOLO SUBJECT INVARIANT: every scene depicts exactly one adult woman.
+No partners, no groups, no "with him", no "they", no "another
+person". Subject pronouns always singular.
 """
 
 _SCENE_USER_TEMPLATE = """\

@@ -1,9 +1,9 @@
 expected:
-  prompt_text: Elara, a thirty-two-year-old woman with wavy brunette hair, hazel eyes, and an athletic
-    build. Elara stands on a sunset balcony in an ivory silk slip dress, the warm rim light catching her
-    hair as she gazes toward the horizon. Shot on a Sony A7R IV with an 85mm at f/1.4. Cinematic, soft
-    skin, photoreal, natural color grading.
-  prompt_token_count: 97
+  prompt_text: A single adult woman alone in the scene. Elara, a thirty-two-year-old woman with wavy brunette
+    hair, hazel eyes, and an athletic build. Elara stands on a sunset balcony in an ivory silk slip dress,
+    the warm rim light catching her hair as she gazes toward the horizon. Shot on a Sony A7R IV with an
+    85mm at f/1.4. Cinematic, soft skin, photoreal, natural color grading.
+  prompt_token_count: 106
   negative_prompt: ''
   ratio: portrait_23
   resolution:

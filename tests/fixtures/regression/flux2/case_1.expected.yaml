@@ -1,10 +1,10 @@
 expected:
-  prompt_text: A thirty-two-year-old woman named Elara — wavy brunette hair, hazel eyes, athletic build.
-    Elara stands on the rooftop balcony of a coastal apartment in an ivory silk slip dress. The horizon
-    glows orange behind her; warm golden-hour rim light skims her hair while a softer fill from the open
-    city below opens the shadows. The atmosphere is calm, summer-evening, contemplative. Cinematic, natural
-    color grading, soft skin texture.
-  prompt_token_count: 94
+  prompt_text: A single adult woman alone in the scene. A thirty-two-year-old woman named Elara — wavy
+    brunette hair, hazel eyes, athletic build. Elara stands on the rooftop balcony of a coastal apartment
+    in an ivory silk slip dress. The horizon glows orange behind her; warm golden-hour rim light skims
+    her hair while a softer fill from the open city below opens the shadows. The atmosphere is calm, summer-evening,
+    contemplative. Cinematic, natural color grading, soft skin texture.
+  prompt_token_count: 105
   negative_prompt: ''
   ratio: portrait_23
   resolution:
