@@ -237,10 +237,27 @@ class VocabularyLoader:
         system-prompt menu the LLM may pick from. Tags in
         :data:`_SOLO_MODE_BANNED_TAGS` are silently omitted so Venice /
         Cydonia never see them as selectable options.
+
+        Walks every top-level namespace in the YAML (realism / nsfw /
+        environment / aesthetic / narrative / composition / ...).
+        Concept-row shape determines phrasing lookup:
+
+        * NSFW concepts wrap phrasing in a ``phrasing:`` sub-dict
+          (alongside ``tier_min:``).
+        * Every other namespace puts family keys directly on the
+          concept row.
+
+        Pre-Phase-0 this iteration was hardcoded to
+        ``for top in ("realism", "nsfw"):`` — a residue from when those
+        were the only two top-level namespaces. The hardcode made every
+        new top-level namespace invisible to the LLM menu (verifier B1).
         """
         out: dict[str, list[str]] = {}
-        for top in ("realism", "nsfw"):
-            top_dict = self._data.get(top) or {}
+        for top, top_dict in self._data.items():
+            if top == "version":
+                continue  # version stamp, not a namespace
+            if not isinstance(top_dict, dict):
+                continue
             for sub, sub_dict in top_dict.items():
                 if not isinstance(sub_dict, dict):
                     continue
@@ -250,9 +267,13 @@ class VocabularyLoader:
                         continue
                     if concept in _SOLO_MODE_BANNED_TAGS:
                         continue  # solo-mode banned — hide from LLM menu
-                    phrasing = (
-                        row.get("phrasing") if top == "nsfw" else row
-                    )
+                    # Shape introspection: NSFW concepts have a
+                    # ``phrasing:`` sub-dict; all other namespaces put
+                    # family keys directly on the row. Phase 0 added
+                    # this generic detection so new top-level
+                    # namespaces ``just work`` without per-namespace
+                    # special-casing here.
+                    phrasing = row.get("phrasing") if "phrasing" in row else row
                     if isinstance(phrasing, dict) and family_id in phrasing:
                         concepts.append(concept)
                 if concepts:

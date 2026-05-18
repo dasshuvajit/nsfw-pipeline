@@ -320,6 +320,98 @@ def test_llm_vocabulary_block_omits_pony_camera_namespace(loader):
     assert "realism.art_style" not in block
 
 
+# ── Phase 0 / verifier B1 regression ───────────────────────────────
+def test_all_concepts_walks_every_top_level_namespace(tmp_path):
+    """``all_concepts_for_family`` must walk every top-level namespace,
+    not just the legacy ``realism`` + ``nsfw`` pair.
+
+    Pre-Phase-0 the iteration was hardcoded ``for top in ("realism",
+    "nsfw"):`` — which meant any new top-level namespace was INVISIBLE
+    to ``llm_vocabulary_block`` (and therefore to the LLM). This test
+    proves a custom YAML with a brand-new top-level namespace
+    (``environment``) surfaces its concept tags in the menu.
+
+    This is the foundation patch the creative-uplift plan
+    (Phase 1+) depends on — adding env / aesthetic / narrative /
+    composition namespaces requires that walking those tops Just Works.
+    """
+    yaml_path = tmp_path / "v6_skel.yaml"
+    yaml_path.write_text(
+        """
+version: 6
+
+realism:
+  lighting:
+    LIGHT_TEST:
+      sdxl: "test lighting sdxl"
+      flux: "test lighting flux"
+
+environment:
+  setting:
+    ENV_TEST_BEDROOM:
+      sdxl: "test bedroom sdxl"
+      flux: "test bedroom flux"
+
+aesthetic:
+  color_palette:
+    PALETTE_TEST_NOIR:
+      sdxl: "test noir sdxl"
+      flux: "test noir flux"
+
+narrative:
+  moment:
+    NARR_TEST_READING:
+      sdxl: "test reading sdxl"
+      flux: "test reading flux"
+
+composition:
+  principle:
+    COMP_TEST_SYMMETRY:
+      sdxl: "test symmetry sdxl"
+      flux: "test symmetry flux"
+""".lstrip()
+    )
+    custom_loader = VocabularyLoader(yaml_path)
+    sdxl_block = llm_vocabulary_block("sdxl", loader=custom_loader)
+    flux_block = llm_vocabulary_block("flux", loader=custom_loader)
+
+    # Every new top-level namespace surfaces a sub-namespace line
+    # with its tag.
+    for block in (sdxl_block, flux_block):
+        assert "realism.lighting" in block
+        assert "LIGHT_TEST" in block
+        assert "environment.setting" in block
+        assert "ENV_TEST_BEDROOM" in block
+        assert "aesthetic.color_palette" in block
+        assert "PALETTE_TEST_NOIR" in block
+        assert "narrative.moment" in block
+        assert "NARR_TEST_READING" in block
+        assert "composition.principle" in block
+        assert "COMP_TEST_SYMMETRY" in block
+
+
+def test_all_concepts_skips_version_top_level_key(tmp_path):
+    """The ``version:`` top-level key is a stamp, not a namespace —
+    iterating it would produce a ``version.X`` entry in the menu."""
+    yaml_path = tmp_path / "version_only.yaml"
+    yaml_path.write_text(
+        """
+version: 6
+
+realism:
+  lighting:
+    LIGHT_ONLY:
+      sdxl: "only lighting"
+""".lstrip()
+    )
+    loader = VocabularyLoader(yaml_path)
+    block = llm_vocabulary_block("sdxl", loader=loader)
+    assert "version" not in block.lower().split("\n")[0:5][1] if "\n" in block else True
+    # More direct: the by_ns dict shouldn't have a ``version.*`` entry
+    by_ns = loader.all_concepts_for_family("sdxl")
+    assert all(not k.startswith("version") for k in by_ns)
+
+
 # ── vocab_version 2: broadened realism + T4 act vocabulary ─────────
 
 
