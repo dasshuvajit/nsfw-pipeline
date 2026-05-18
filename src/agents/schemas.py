@@ -292,6 +292,34 @@ _ENVIRONMENT_ENUM_FIELDS = {
         "Pick an atmosphere that matches the chosen environment_setting "
         "and lighting_directive."
     ),
+    # Phase 4 (vocab v6) — environment.prop. Optional polish layer.
+    # Per verifier B6, single-tag (not comma-joined multi-tag) to
+    # avoid splitter complexity. LLM picks at most one prop per
+    # scene when it adds value.
+    "environment_prop": (
+        "Optional prop / set-dressing concept tag from environment.prop "
+        "namespace. Adds named furniture / objects to anchor the scene. "
+        "Examples: PROP_CHEVAL_MIRROR, PROP_CHAISE_LOUNGE_VELVET, "
+        "PROP_FOUR_POSTER_BED, PROP_SILK_DRAPE, PROP_TAPERED_CANDLE_CLUSTER, "
+        "PROP_HANDWRITTEN_LETTER, PROP_OIL_PAINTING_NUDE, "
+        "PROP_PEONIES_OVERBLOWN, PROP_WINE_BOTTLE_RED. Pick a prop "
+        "that fits the scene's environment_setting + narrative_moment."
+    ),
+}
+
+# Phase 4 (vocab v6) — composition.principle. Higher-order
+# compositional rules beyond angle + framing. Pony OMITS.
+_COMPOSITION_ENUM_FIELDS = {
+    "composition_principle": (
+        "Optional composition-principle concept tag from "
+        "composition.principle namespace. Beyond angle/framing, picks "
+        "higher-order compositional rules. Examples: "
+        "COMP_FRAME_WITHIN_FRAME, COMP_REFLECTION_PRIMARY, "
+        "COMP_LEADING_LINES_FLOOR, COMP_NEGATIVE_SPACE_DOMINANT, "
+        "COMP_FOREGROUND_MIDGROUND_BACKGROUND, COMP_SYMMETRY_CENTERED, "
+        "COMP_LOW_HERO_SHOT, COMP_SILHOUETTE_BACKLIT. Pony omits — "
+        "booru tags carry composition implicitly via positional tags."
+    ),
 }
 
 
@@ -332,6 +360,9 @@ class SceneFacetSDXL(BaseModel):
     environment_atmosphere: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_atmosphere"])
     # Phase 2 (vocab v6) — narrative_moment (the #1 leverage axis).
     narrative_moment: str | None = Field(default=None, description=_NARRATIVE_ENUM_FIELDS["narrative_moment"])
+    # Phase 4 (vocab v6) — environment.prop + composition.principle polish.
+    environment_prop: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_prop"])
+    composition_principle: str | None = Field(default=None, description=_COMPOSITION_ENUM_FIELDS["composition_principle"])
 
     @model_validator(mode="after")
     def _reject_avoid_words(self) -> "SceneFacetSDXL":
@@ -388,6 +419,11 @@ class SceneFacetPony(BaseModel):
     # tags carry narrative moments natively (looking_at_mirror,
     # arranging_flowers, lighting_cigarette, etc.).
     narrative_moment: str | None = Field(default=None, description=_NARRATIVE_ENUM_FIELDS["narrative_moment"])
+    # Phase 4 (vocab v6) — Pony participates in environment.prop
+    # (props have natural booru tags) but OMITS composition.principle
+    # (booru tags carry composition implicitly via from_above /
+    # from_behind / etc.).
+    environment_prop: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_prop"])
 
     @model_validator(mode="after")
     def _check_pony_invariants(self) -> "SceneFacetPony":
@@ -460,6 +496,9 @@ class SceneFacetIllustrious(BaseModel):
     environment_atmosphere: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_atmosphere"])
     # Phase 2 (vocab v6) — narrative_moment (the #1 leverage axis).
     narrative_moment: str | None = Field(default=None, description=_NARRATIVE_ENUM_FIELDS["narrative_moment"])
+    # Phase 4 (vocab v6) — environment.prop + composition.principle polish.
+    environment_prop: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_prop"])
+    composition_principle: str | None = Field(default=None, description=_COMPOSITION_ENUM_FIELDS["composition_principle"])
 
     @model_validator(mode="after")
     def _reject_appended_quality_suffix(self) -> "SceneFacetIllustrious":
@@ -518,6 +557,9 @@ class SceneFacetFluxNatural(BaseModel):
     environment_atmosphere: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_atmosphere"])
     # Phase 2 (vocab v6) — narrative_moment (the #1 leverage axis).
     narrative_moment: str | None = Field(default=None, description=_NARRATIVE_ENUM_FIELDS["narrative_moment"])
+    # Phase 4 (vocab v6) — environment.prop + composition.principle polish.
+    environment_prop: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_prop"])
+    composition_principle: str | None = Field(default=None, description=_COMPOSITION_ENUM_FIELDS["composition_principle"])
 
     @model_validator(mode="after")
     def _check_prose_shape(self) -> "SceneFacetFluxNatural":
@@ -597,6 +639,9 @@ class SceneFacetFlux2(BaseModel):
     environment_atmosphere: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_atmosphere"])
     # Phase 2 (vocab v6) — narrative_moment (the #1 leverage axis).
     narrative_moment: str | None = Field(default=None, description=_NARRATIVE_ENUM_FIELDS["narrative_moment"])
+    # Phase 4 (vocab v6) — environment.prop + composition.principle polish.
+    environment_prop: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_prop"])
+    composition_principle: str | None = Field(default=None, description=_COMPOSITION_ENUM_FIELDS["composition_principle"])
 
     @model_validator(mode="after")
     def _check_word_count_band(self) -> "SceneFacetFlux2":

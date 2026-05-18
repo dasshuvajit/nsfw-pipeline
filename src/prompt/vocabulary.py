@@ -114,6 +114,10 @@ _FIELD_TO_NAMESPACE: dict[str, tuple[str, str]] = {
     # facet's pose/setting/lighting hang off — solves the "she just
     # poses" failure mode.
     "narrative_moment": ("narrative", "moment"),
+    # Phase 4 (vocab v6) — env.prop + composition.principle polish.
+    # Optional, not tier-required — LLM picks when they add value.
+    "environment_prop":      ("environment", "prop"),
+    "composition_principle": ("composition", "principle"),
 }
 
 

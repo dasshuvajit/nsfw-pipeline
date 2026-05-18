@@ -1239,6 +1239,222 @@ environment:
       chroma:      "soft snow falling silently in the still air, large flakes drifting slowly downward"
       flux2:       "Soft snow falling silently in the still air, large flakes drifting slowly downward at random angles, every flake illuminated against the darker background"
 
+  # ── Props — 30 (vocab v6, Phase 4) ─────────────────────────────────
+  # Per-scene prop pick. Optional field; LLM picks at most one PROP_*
+  # tag per scene when it adds value. Pony participates — props have
+  # natural booru tag forms (cheval_mirror, chesterfield_sofa, etc.).
+  prop:
+    PROP_CHEVAL_MIRROR:
+      sdxl:        "tall cheval mirror in distressed gilt frame, leaning against the wall"
+      pony:        "cheval_mirror, gilt_frame, distressed, leaning_mirror, antique_mirror"
+      illustrious: "cheval_mirror, gilt_frame, distressed, leaning_against_wall"
+      flux:        "A tall cheval mirror in a distressed gilt frame, leaning against the wall behind her"
+      chroma:      "tall cheval mirror in distressed gilt frame, leaning against the wall behind her"
+      flux2:       "A tall cheval mirror in a distressed gilt frame, leaning against the wall behind her, reflecting a sliver of the room and her own form"
+    PROP_VANITY_TRIPTYCH_MIRROR:
+      sdxl:        "three-panel vanity mirror with art-deco bevels"
+      pony:        "vanity_mirror, triptych_mirror, art_deco_bevel, three_panel"
+      illustrious: "vanity_triptych_mirror, art_deco_bevel"
+      flux:        "A three-panel vanity mirror with art-deco bevels catching reflected light from multiple angles"
+      chroma:      "three-panel vanity mirror with art-deco bevels catching reflected light"
+      flux2:       "A three-panel vanity mirror with art-deco bevels catching reflected light from multiple angles, the central panel framing her face and the side panels giving fragments"
+    PROP_CHAISE_LOUNGE_VELVET:
+      sdxl:        "emerald-green velvet chaise lounge with brass studs"
+      pony:        "chaise_lounge, emerald_velvet, brass_studs, antique_furniture"
+      illustrious: "velvet_chaise_lounge, emerald, brass_studs"
+      flux:        "An emerald-green velvet chaise lounge with brass-stud detailing along the edges"
+      chroma:      "emerald-green velvet chaise lounge with brass-stud detailing along the edges"
+      flux2:       "An emerald-green velvet chaise lounge with brass-stud detailing along the edges, the fabric catching the warm light in deep folds"
+    PROP_CHESTERFIELD_LEATHER:
+      sdxl:        "cracked oxblood leather chesterfield, brass nailheads"
+      pony:        "chesterfield_sofa, oxblood_leather, brass_nailheads, cracked_leather"
+      illustrious: "leather_chesterfield, oxblood, brass_nailheads, cracked_leather"
+      flux:        "A cracked oxblood leather chesterfield sofa with brass nailheads, worn smooth by decades of use"
+      chroma:      "cracked oxblood leather chesterfield sofa with brass nailheads, worn smooth by decades"
+      flux2:       "A cracked oxblood leather chesterfield sofa with brass nailheads, the leather worn smooth and patinated by decades of use, every wrinkle telling a story"
+    PROP_FOUR_POSTER_BED:
+      sdxl:        "carved mahogany four-poster bed with sheer canopy"
+      pony:        "four_poster_bed, mahogany, sheer_canopy, carved_wood, antique_bed"
+      illustrious: "four_poster_bed, mahogany, sheer_canopy"
+      flux:        "A carved mahogany four-poster bed with a sheer white canopy draped across the top rails"
+      chroma:      "carved mahogany four-poster bed with sheer white canopy draped across the top rails"
+      flux2:       "A carved mahogany four-poster bed with a sheer white canopy draped across the top rails, the bedlinen rumpled and white against the dark wood"
+    PROP_SILK_DRAPE:
+      sdxl:        "ivory silk drape pooling onto the parquet floor"
+      pony:        "silk_drape, ivory_silk, pooling_fabric, parquet_floor"
+      illustrious: "ivory_silk_drape, pooling_on_parquet"
+      flux:        "An ivory silk drape pooling in soft folds onto the parquet floor"
+      chroma:      "ivory silk drape pooling in soft folds onto the parquet floor"
+      flux2:       "An ivory silk drape pooling in soft folds onto the parquet floor, the fabric catching the directional light along every crest of the wrinkles"
+    PROP_VELVET_CURTAIN_HEAVY:
+      sdxl:        "heavy crimson velvet curtains, half-drawn, dust visible in the shafts of light"
+      pony:        "crimson_velvet_curtain, heavy_curtain, half_drawn, dusty_curtain"
+      illustrious: "heavy_velvet_curtain, crimson, half_drawn"
+      flux:        "Heavy crimson velvet curtains half-drawn at the window, dust motes visible in the shaft of light cutting between them"
+      chroma:      "heavy crimson velvet curtains half-drawn at the window, dust motes in the shaft of light between"
+      flux2:       "Heavy crimson velvet curtains half-drawn at the window, dust motes visible in the shaft of light cutting between them, the fabric absorbing most of the room's sound and light"
+    PROP_SHEER_LINEN_CURTAIN:
+      sdxl:        "sheer linen curtains breathing in a slow breeze"
+      pony:        "sheer_linen_curtain, breeze, billowing_curtain, soft_window_treatment"
+      illustrious: "sheer_linen_curtain, breeze, billowing"
+      flux:        "Sheer linen curtains breathing in a slow breeze from the open window"
+      chroma:      "sheer linen curtains breathing in a slow breeze from the open window"
+      flux2:       "Sheer linen curtains breathing in a slow breeze from the open window, the fabric translucent against the brighter day beyond"
+    PROP_SHEEPSKIN_RUG:
+      sdxl:        "thick cream sheepskin rug at the foot of the bed"
+      pony:        "sheepskin_rug, cream_rug, thick_rug, soft_rug, fur_rug"
+      illustrious: "cream_sheepskin_rug, thick"
+      flux:        "A thick cream sheepskin rug at the foot of the bed, the fibres deep and inviting"
+      chroma:      "thick cream sheepskin rug at the foot of the bed, fibres deep and inviting"
+      flux2:       "A thick cream sheepskin rug at the foot of the bed, the fibres deep and inviting, soft enough to bury bare feet in"
+    PROP_PERSIAN_RUG_WORN:
+      sdxl:        "worn Persian rug with faded jewel tones"
+      pony:        "persian_rug, faded_colors, jewel_tones, worn_rug, oriental_rug"
+      illustrious: "worn_persian_rug, faded_jewel_tones"
+      flux:        "A worn Persian rug with faded jewel tones, the pattern still discernible despite decades of foot traffic"
+      chroma:      "worn Persian rug with faded jewel tones, the pattern still discernible despite decades"
+      flux2:       "A worn Persian rug with faded jewel tones spread across the polished floor, the pattern still discernible despite decades of foot traffic"
+    PROP_TAPERED_CANDLE_CLUSTER:
+      sdxl:        "cluster of tapered ivory candles in tarnished brass holders, melting wax pooling"
+      pony:        "tapered_candles, ivory_candles, brass_candle_holder, melting_wax, candle_cluster"
+      illustrious: "tapered_ivory_candles, tarnished_brass_holder, melting_wax"
+      flux:        "A cluster of tapered ivory candles in tarnished brass holders, wax pooling at their bases as they burn"
+      chroma:      "cluster of tapered ivory candles in tarnished brass holders, wax pooling at their bases"
+      flux2:       "A cluster of tapered ivory candles in tarnished brass holders, wax pooling at their bases as they burn, the flames flickering and casting moving shadows"
+    PROP_KEROSENE_LANTERN:
+      sdxl:        "old kerosene lantern glowing low on the floorboards"
+      pony:        "kerosene_lantern, old_lantern, low_glow, floor_lantern"
+      illustrious: "kerosene_lantern, low_glow, on_floorboards"
+      flux:        "An old kerosene lantern glowing low on the wooden floorboards, casting a small warm pool of light"
+      chroma:      "old kerosene lantern glowing low on the wooden floorboards, small warm pool of light"
+      flux2:       "An old kerosene lantern glowing low on the wooden floorboards, casting a small warm pool of light upward against the wall behind it"
+    PROP_GLASS_GLOBE_LAMP:
+      sdxl:        "art-nouveau glass-globe table lamp casting amber light"
+      pony:        "glass_globe_lamp, art_nouveau_lamp, amber_light, table_lamp"
+      illustrious: "art_nouveau_glass_globe_lamp, amber_light"
+      flux:        "An art-nouveau glass-globe table lamp casting warm amber light across the surface"
+      chroma:      "art-nouveau glass-globe table lamp casting warm amber light across the surface"
+      flux2:       "An art-nouveau glass-globe table lamp casting warm amber light across the polished surface, the curved glass distorting the bulb into a soft glowing form"
+    PROP_NEON_SIGN_REFLECTION:
+      sdxl:        "magenta neon sign reflected on wet glass"
+      pony:        "neon_sign, magenta_neon, neon_reflection, wet_glass"
+      illustrious: "magenta_neon_sign, reflected_on_wet_glass"
+      flux:        "A magenta neon sign visible only as its reflection on the wet glass of the window"
+      chroma:      "magenta neon sign visible only as its reflection on the wet glass of the window"
+      flux2:       "A magenta neon sign visible only as its reflection on the wet glass of the window, the colour saturated and pulsing slightly in the rain"
+    PROP_CRYSTAL_DECANTER_WHISKEY:
+      sdxl:        "cut-crystal decanter half-full of amber whiskey, two glasses"
+      pony:        "crystal_decanter, whiskey, amber_liquid, two_glasses, bar_setup"
+      illustrious: "cut_crystal_decanter, whiskey, amber"
+      flux:        "A cut-crystal decanter half-full of amber whiskey, two glasses on the tray beside it"
+      chroma:      "cut-crystal decanter half-full of amber whiskey, two glasses on the tray beside it"
+      flux2:       "A cut-crystal decanter half-full of amber whiskey, two crystal glasses on the silver tray beside it, the whiskey catching the warm light in golden lozenges"
+    PROP_CHAMPAGNE_COUPE_VINTAGE:
+      sdxl:        "vintage champagne coupe on a mirrored side-table"
+      pony:        "champagne_coupe, vintage_glassware, mirrored_table, champagne"
+      illustrious: "vintage_champagne_coupe, mirrored_side_table"
+      flux:        "A vintage champagne coupe on a mirrored side-table, the glass catching the lamp light"
+      chroma:      "vintage champagne coupe on a mirrored side-table, glass catching the lamp light"
+      flux2:       "A vintage champagne coupe on a mirrored side-table, the wide shallow bowl catching the lamp light and the mirror doubling its reflection"
+    PROP_WINE_BOTTLE_RED:
+      sdxl:        "uncorked bottle of red wine, a single glass beside it"
+      pony:        "wine_bottle, red_wine, uncorked, wine_glass"
+      illustrious: "uncorked_red_wine, single_glass"
+      flux:        "An uncorked bottle of red wine on the table, a single glass beside it half-poured"
+      chroma:      "uncorked bottle of red wine on the table, single glass beside it half-poured"
+      flux2:       "An uncorked bottle of red wine on the table, a single glass beside it half-poured, the cork still resting where it was pushed aside"
+    PROP_PORCELAIN_TEACUP:
+      sdxl:        "delicate floral porcelain teacup on the windowsill"
+      pony:        "porcelain_teacup, floral_pattern, windowsill, china_cup"
+      illustrious: "floral_porcelain_teacup, on_windowsill"
+      flux:        "A delicate floral porcelain teacup on the windowsill, steam still rising from the tea"
+      chroma:      "delicate floral porcelain teacup on the windowsill, steam still rising from the tea"
+      flux2:       "A delicate floral porcelain teacup on the windowsill, steam still rising from the tea, the pattern of small painted flowers wrapping the cup in muted blues"
+    PROP_HANDWRITTEN_LETTER:
+      sdxl:        "handwritten letter on cream stationery, fountain pen beside it"
+      pony:        "handwritten_letter, cream_stationery, fountain_pen, correspondence"
+      illustrious: "handwritten_letter_on_cream_stationery, fountain_pen"
+      flux:        "A handwritten letter on cream stationery beside a fountain pen, the ink not yet dry"
+      chroma:      "handwritten letter on cream stationery beside a fountain pen, ink not yet dry"
+      flux2:       "A handwritten letter on cream stationery beside a fountain pen, the ink not yet dry, the careful script visible in the angled light"
+    PROP_VINTAGE_BOOK_OPEN:
+      sdxl:        "leather-bound book lying open, pages dog-eared"
+      pony:        "leather_book, open_book, dog_eared_pages, vintage_book"
+      illustrious: "leather_bound_book_open, dog_eared_pages"
+      flux:        "A leather-bound book lying open beside her, pages dog-eared from use"
+      chroma:      "leather-bound book lying open beside her, pages dog-eared from use"
+      flux2:       "A leather-bound book lying open beside her, pages dog-eared from use, a thin silk ribbon marking a previous place"
+    PROP_PHONOGRAPH_HORN:
+      sdxl:        "brass-horn phonograph, vinyl record mid-rotation"
+      pony:        "brass_phonograph, vinyl_record, gramophone, vintage_audio"
+      illustrious: "brass_horn_phonograph, vinyl_record_spinning"
+      flux:        "A brass-horn phonograph in the corner, a vinyl record mid-rotation on the turntable"
+      chroma:      "brass-horn phonograph in the corner, vinyl record mid-rotation on the turntable"
+      flux2:       "A brass-horn phonograph in the corner, a vinyl record mid-rotation on the turntable, the music almost visible as warm wood and brass tones"
+    PROP_VINTAGE_TELEPHONE_ROTARY:
+      sdxl:        "black bakelite rotary telephone on a side-table"
+      pony:        "rotary_phone, bakelite_telephone, vintage_phone, black_phone"
+      illustrious: "bakelite_rotary_telephone, on_side_table"
+      flux:        "A black bakelite rotary telephone on the side-table, the curly cord trailing across the wood"
+      chroma:      "black bakelite rotary telephone on the side-table, curly cord trailing across the wood"
+      flux2:       "A black bakelite rotary telephone on the side-table, the curly cord trailing across the wood, the dial unblemished by decades"
+    PROP_OSTRICH_FEATHER_BOA:
+      sdxl:        "white ostrich-feather boa draped across the chair"
+      pony:        "ostrich_feather_boa, white_feathers, draped_on_chair, glamour_prop"
+      illustrious: "white_ostrich_feather_boa, draped_across_chair"
+      flux:        "A white ostrich-feather boa draped across the back of the chair, soft and unmoving"
+      chroma:      "white ostrich-feather boa draped across the back of the chair, soft and unmoving"
+      flux2:       "A white ostrich-feather boa draped across the back of the chair, soft and unmoving, the feathers catching the light at the edges"
+    PROP_PEARL_ROPE:
+      sdxl:        "long rope of pearls coiled on the dresser"
+      pony:        "pearls, pearl_necklace, coiled_pearls, jewelry, dresser"
+      illustrious: "long_pearl_rope, coiled_on_dresser"
+      flux:        "A long rope of pearls coiled on the dresser, catching the lamp light"
+      chroma:      "long rope of pearls coiled on the dresser, catching the lamp light"
+      flux2:       "A long rope of pearls coiled on the dresser, catching the lamp light in small repeated glints down its length"
+    PROP_PEONIES_OVERBLOWN:
+      sdxl:        "vase of overblown peonies, petals shedding onto the table"
+      pony:        "peonies, overblown_flowers, vase, petals_falling"
+      illustrious: "vase_of_overblown_peonies, shedding_petals"
+      flux:        "A tall vase of overblown peonies, petals shedding onto the polished table beneath"
+      chroma:      "tall vase of overblown peonies, petals shedding onto the polished table beneath"
+      flux2:       "A tall crystal vase of overblown peonies in deep pink and cream, petals shedding onto the polished table beneath, the air thick with their scent"
+    PROP_DRIED_HYDRANGEAS:
+      sdxl:        "antique vase of dried hydrangeas, washed-out blue"
+      pony:        "dried_hydrangeas, washed_out_blue, antique_vase"
+      illustrious: "dried_hydrangea_arrangement, washed_out_blue"
+      flux:        "An antique vase of dried hydrangeas, the colour washed-out blue from years of drying"
+      chroma:      "antique vase of dried hydrangeas, washed-out blue from years of drying"
+      flux2:       "An antique vase of dried hydrangeas, the colour washed-out blue from years of drying, the blooms preserved in faded fragile shape"
+    PROP_POMEGRANATE_SPLIT:
+      sdxl:        "split pomegranate spilling seeds onto a marble counter"
+      pony:        "split_pomegranate, spilled_seeds, marble_counter, still_life"
+      illustrious: "split_pomegranate_on_marble, spilled_seeds"
+      flux:        "A split pomegranate spilling its red seeds across the marble counter"
+      chroma:      "split pomegranate spilling its red seeds across the marble counter"
+      flux2:       "A split pomegranate spilling its red seeds across the white marble counter, the contrast of crimson against pale stone resonant and deliberate"
+    PROP_FIGS_PLATE:
+      sdxl:        "plate of dark figs, one cut open"
+      pony:        "plate_of_figs, dark_figs, cut_fig, still_life"
+      illustrious: "plate_of_dark_figs, one_cut_open"
+      flux:        "A small plate of dark figs, one cut open to show the pink interior"
+      chroma:      "small plate of dark figs, one cut open to show the pink interior"
+      flux2:       "A small plate of dark figs on a hand-thrown ceramic plate, one cut open to show the pink interior, the rest still glossy from washing"
+    PROP_OIL_PAINTING_NUDE:
+      sdxl:        "old-master oil painting of a reclining nude on the back wall"
+      pony:        "oil_painting, reclining_nude_painting, old_master, on_wall"
+      illustrious: "old_master_oil_painting_reclining_nude, on_back_wall"
+      flux:        "An old-master oil painting of a reclining nude on the back wall, gilt frame catching the light"
+      chroma:      "old-master oil painting of a reclining nude on the back wall, gilt frame catching the light"
+      flux2:       "An old-master oil painting of a reclining nude on the back wall, gilt frame catching the light, the painted figure mirroring or counterpointing the real subject"
+    PROP_PLASTER_BUST_CLASSICAL:
+      sdxl:        "plaster bust of Apollo on a wooden plinth"
+      pony:        "plaster_bust, apollo_bust, classical_statue, wooden_plinth"
+      illustrious: "plaster_bust_of_apollo, on_wooden_plinth"
+      flux:        "A plaster bust of Apollo on a wooden plinth in the corner of the room"
+      chroma:      "plaster bust of Apollo on a wooden plinth in the corner of the room"
+      flux2:       "A plaster bust of Apollo on a wooden plinth in the corner of the room, the white plaster catching the room's directional light cleanly"
+
 # ── Narrative vocabulary (vocab v6, Phase 2) ──────────────────────────
 # The single highest-leverage vocabulary axis per the creative-uplift
 # market research. "She reads a letter at dawn" forces window light,
@@ -1797,3 +2013,122 @@ aesthetic:
       flux:        "Composed in the Japanese Ukiyo-e woodblock tradition — flat composition, decorative pattern across every surface, calm domestic moment"
       chroma:      "Japanese Ukiyo-e woodblock, flat composition, decorative pattern, calm domestic moment"
       flux2:       "Composed in the Japanese Ukiyo-e woodblock tradition — flat composition without Western perspective, decorative pattern across every fabric surface, calm domestic moment held with quiet attention"
+
+
+# ── Composition principles vocabulary (vocab v6, Phase 4) ─────────────
+# Per-scene compositional rule pick — single tag, optional. Beyond
+# the realism.angle / realism.framing namespaces (which cover camera
+# position + shot size), this namespace addresses higher-order
+# compositional principles like leading lines, framing-in-frame,
+# reflection-as-subject. Pony OMITS — booru tags carry composition
+# implicitly via positional tags (from_above / from_behind / etc.).
+composition:
+  principle:
+    COMP_FRAME_WITHIN_FRAME:
+      sdxl:        "framed through an open doorway, subject in the inner frame"
+      illustrious: "frame_within_frame, doorway_framing, subject_in_inner_frame"
+      flux:        "Composed as a frame-within-frame — the subject visible through an open doorway, the doorway itself becoming the secondary frame"
+      chroma:      "frame-within-frame composition, subject visible through an open doorway, doorway itself becoming the secondary frame"
+      flux2:       "Composed as a frame-within-frame — the subject visible through an open doorway, the doorway itself becoming the secondary frame and concentrating attention inward"
+    COMP_FRAME_THROUGH_CURTAIN:
+      sdxl:        "viewed through a parted velvet curtain"
+      illustrious: "viewed_through_parted_curtain, velvet_curtain_frame"
+      flux:        "Composed as if viewed through a parted velvet curtain, the curtain edges framing the subject"
+      chroma:      "viewed through a parted velvet curtain, curtain edges framing the subject"
+      flux2:       "Composed as if viewed through a parted velvet curtain, the curtain edges framing the subject and giving the composition a theatrical quality"
+    COMP_REFLECTION_PRIMARY:
+      sdxl:        "primary subject visible only as reflection in a mirror, real subject out of frame"
+      illustrious: "subject_only_in_mirror_reflection, real_subject_out_of_frame"
+      flux:        "Composed with the primary subject visible only as a reflection in a mirror — the real subject is out of frame"
+      chroma:      "composition with primary subject visible only as a mirror reflection, real subject out of frame"
+      flux2:       "Composed with the primary subject visible only as a reflection in a mirror — the real subject is out of frame, the viewer seeing her only through the mediating surface"
+    COMP_REFLECTION_SECONDARY:
+      sdxl:        "subject in frame, doubled by reflection in a window or mirror"
+      illustrious: "subject_doubled_by_reflection, window_mirror_reflection"
+      flux:        "Composed with the subject in frame and additionally reflected in a window or mirror, creating a doubled presence"
+      chroma:      "subject in frame and additionally reflected in a window or mirror, doubled presence"
+      flux2:       "Composed with the subject in frame and additionally reflected in a window or mirror, creating a doubled presence that complicates the composition's reading"
+    COMP_LEADING_LINES_FLOOR:
+      sdxl:        "floorboard lines leading from foreground to subject"
+      illustrious: "leading_lines_floorboards, foreground_to_subject"
+      flux:        "Composed with floorboard lines leading from foreground to subject, the parallel grain pulling the eye inward"
+      chroma:      "composition with floorboard lines leading from foreground to subject, parallel grain pulling the eye inward"
+      flux2:       "Composed with floorboard lines leading from foreground to subject, the parallel grain pulling the eye inward and emphasising depth"
+    COMP_LEADING_LINES_BANISTER:
+      sdxl:        "banister curving up toward subject at top of stairs"
+      illustrious: "leading_lines_banister, stairway_to_subject"
+      flux:        "Composed with a banister curving up toward the subject at the top of the stairs"
+      chroma:      "banister curving up toward the subject at the top of the stairs"
+      flux2:       "Composed with a banister curving up toward the subject at the top of the stairs, the line drawing the eye unmistakably upward"
+    COMP_NEGATIVE_SPACE_DOMINANT:
+      sdxl:        "subject pushed into lower-right third, large empty wall above"
+      illustrious: "negative_space_dominant, subject_lower_right, empty_upper_two_thirds"
+      flux:        "Composed with the subject pushed into the lower-right third of the frame, large empty wall dominating the upper two-thirds"
+      chroma:      "subject pushed into the lower-right third, large empty wall dominating the upper two-thirds"
+      flux2:       "Composed with the subject pushed into the lower-right third of the frame, large empty wall dominating the upper two-thirds, the negative space carrying as much weight as the subject"
+    COMP_FOREGROUND_MIDGROUND_BACKGROUND:
+      sdxl:        "out-of-focus foreground object, subject in midground, blurred environment behind"
+      illustrious: "foreground_mid_background_layered, out_of_focus_foreground"
+      flux:        "Composed in deliberate three-layer depth — an out-of-focus foreground object (a vase, a curtain edge), the subject in midground, blurred environment behind"
+      chroma:      "deliberate three-layer composition, out-of-focus foreground object, subject in midground, blurred environment behind"
+      flux2:       "Composed in deliberate three-layer depth — an out-of-focus foreground object (a vase, a curtain edge), the subject sharp in midground, blurred environment behind, every plane reading distinctly"
+    COMP_SYMMETRY_CENTERED:
+      sdxl:        "perfectly centered symmetry, balanced architecture on both sides"
+      illustrious: "symmetrical_centered_composition, balanced_architecture"
+      flux:        "Composed in perfectly centered Wes-Anderson symmetry, balanced architecture on both sides of the subject"
+      chroma:      "perfectly centered Wes-Anderson symmetry, balanced architecture on both sides of the subject"
+      flux2:       "Composed in perfectly centered Wes-Anderson symmetry, balanced architecture on both sides of the subject, every line parallel to the frame edge"
+    COMP_DUTCH_ANGLE:
+      sdxl:        "slight Dutch tilt, off-balance composition"
+      illustrious: "dutch_angle_tilt, off_balance_composition"
+      flux:        "Composed with a slight Dutch tilt, the horizon line off-axis giving the frame an off-balance kinetic feel"
+      chroma:      "slight Dutch tilt, horizon line off-axis, off-balance kinetic feel"
+      flux2:       "Composed with a slight Dutch tilt, the horizon line off-axis giving the frame an off-balance kinetic feel, the eye tipped just enough to feel the composition's intent"
+    COMP_LOW_HERO_SHOT:
+      sdxl:        "low-hero shot from below, ceiling visible, subject monumental"
+      illustrious: "low_hero_shot, from_below, ceiling_visible, monumental_subject"
+      flux:        "Composed as a low-hero shot from below, ceiling visible above, the subject rendered monumental"
+      chroma:      "low-hero shot from below, ceiling visible above, subject rendered monumental"
+      flux2:       "Composed as a low-hero shot from below, ceiling visible above, the subject rendered monumental and towering, the perspective lending authority"
+    COMP_OVERHEAD_FLAT_LAY:
+      sdxl:        "overhead flat-lay perspective, subject lying surrounded by props"
+      illustrious: "overhead_flat_lay, from_above, surrounded_by_props"
+      flux:        "Composed as an overhead flat-lay perspective, the subject lying down and surrounded by carefully arranged props on the floor"
+      chroma:      "overhead flat-lay perspective, subject lying down surrounded by carefully arranged props"
+      flux2:       "Composed as an overhead flat-lay perspective looking straight down, the subject lying on her back surrounded by carefully arranged props on the floor"
+    COMP_OVER_SHOULDER:
+      sdxl:        "over-the-shoulder shot, back of head in soft focus foreground, mirror reflection in focus"
+      illustrious: "over_the_shoulder_shot, back_of_head_soft_focus, mirror_reflection_in_focus"
+      flux:        "Composed as an over-the-shoulder shot — the back of her head in soft focus in the foreground, a mirror reflection of her face in sharp focus beyond"
+      chroma:      "over-the-shoulder shot, back of her head in soft focus foreground, mirror reflection of her face in sharp focus beyond"
+      flux2:       "Composed as an over-the-shoulder shot — the back of her head in soft focus in the foreground, a mirror reflection of her face in sharp focus beyond, the viewer placed intimately close to her"
+    COMP_THROUGH_WET_GLASS:
+      sdxl:        "viewed through rain-streaked glass, refractions and partial occlusion"
+      illustrious: "viewed_through_rain_streaked_glass, refractions, partial_occlusion"
+      flux:        "Composed as if viewed through rain-streaked glass, refractions and partial occlusion blurring details into impression"
+      chroma:      "viewed through rain-streaked glass, refractions and partial occlusion blurring details into impression"
+      flux2:       "Composed as if viewed through rain-streaked glass, refractions and partial occlusion blurring details into atmospheric impression, the subject visible but mediated"
+    COMP_GOLDEN_RATIO_SPIRAL:
+      sdxl:        "golden-spiral composition, subject at the spiral's eye"
+      illustrious: "golden_ratio_spiral, subject_at_spiral_eye"
+      flux:        "Composed along the golden-ratio spiral, the subject's face positioned at the spiral's natural focal point"
+      chroma:      "composed along the golden-ratio spiral, subject's face positioned at the spiral's natural focal point"
+      flux2:       "Composed along the golden-ratio spiral, the subject's face positioned at the spiral's natural focal point, every other element radiating outward from her"
+    COMP_TRIANGULAR:
+      sdxl:        "triangular composition, three focal points forming the apex"
+      illustrious: "triangular_composition, three_focal_points"
+      flux:        "Composed in a triangular arrangement — three visual focal points forming the implicit triangle's vertices"
+      chroma:      "triangular composition, three visual focal points forming the implicit triangle's vertices"
+      flux2:       "Composed in a triangular arrangement — three visual focal points forming the implicit triangle's vertices, the eye moving deliberately between them"
+    COMP_SILHOUETTE_BACKLIT:
+      sdxl:        "full silhouette against a bright window"
+      illustrious: "full_silhouette_backlit, against_bright_window"
+      flux:        "Composed as a full silhouette of the subject against a bright window, every internal detail collapsed into shape"
+      chroma:      "full silhouette of the subject against a bright window, every internal detail collapsed into shape"
+      flux2:       "Composed as a full silhouette of the subject against a bright window, every internal detail collapsed into shape, only the outline carrying the figure"
+    COMP_RULE_OF_ODDS:
+      sdxl:        "three objects in the frame creating visual rhythm"
+      illustrious: "rule_of_odds, three_objects_visual_rhythm"
+      flux:        "Composed using the rule of odds — three objects of similar weight arranged in the frame, creating visual rhythm"
+      chroma:      "rule of odds composition, three objects of similar weight arranged in the frame, creating visual rhythm"
+      flux2:       "Composed using the rule of odds — three objects of similar weight arranged in the frame, creating visual rhythm that the eye naturally completes"

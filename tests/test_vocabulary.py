@@ -425,6 +425,74 @@ def test_environment_namespace_canonicalises_per_family(loader):
         ), f"family={fam} atm phrase missing dust cue: {atm_phrase!r}"
 
 
+def test_env_prop_and_composition_canonicalise(loader):
+    """Phase 4 (vocab v6) — env.prop + composition.principle
+    namespaces translate per family. Pony omits composition.principle
+    (booru tags carry composition implicitly) but participates in
+    env.prop (props have natural booru forms)."""
+    from src.prompt.vocabulary import canonicalize_facet
+
+    facet = {
+        "environment_prop": "PROP_CHEVAL_MIRROR",
+        "composition_principle": "COMP_FRAME_WITHIN_FRAME",
+    }
+    for fam in ("sdxl", "illustrious", "flux", "chroma", "flux2"):
+        phrases = canonicalize_facet(facet, fam, loader=loader)
+        assert len(phrases) == 2, (
+            f"family={fam} produced {len(phrases)} (expected 2): {phrases}"
+        )
+        joined = " ".join(phrases).lower()
+        assert "cheval" in joined or "mirror" in joined
+        assert "frame" in joined or "doorway" in joined
+
+    # Pony: env.prop yes, composition.principle no → 1 phrase
+    pony_phrases = canonicalize_facet(facet, "pony", loader=loader)
+    assert len(pony_phrases) == 1, (
+        f"pony should produce 1 phrase (env.prop only); got "
+        f"{len(pony_phrases)}: {pony_phrases}"
+    )
+    assert "mirror" in pony_phrases[0].lower()
+
+
+def test_full_phase_1_4_stack_chroma(loader):
+    """End-to-end smoke: a T4 facet with all Phase 1-4 fields
+    populated canonicalises to a coherent 9-phrase output for chroma.
+    Pre-Phase-1 the same scene composed to 4 phrases (lighting / mood /
+    nsfw_anatomy / nsfw_act). Post-Phase-4 it composes to 9 phrases
+    spanning all creative-uplift dimensions."""
+    from src.prompt.vocabulary import canonicalize_facet
+
+    facet = {
+        "lighting_directive": "LIGHT_GOLDEN_HOUR",
+        "mood_aesthetic": "MOOD_INTIMATE",
+        "environment_setting": "ENV_TUSCAN_VILLA_RENAISSANCE",
+        "environment_atmosphere": "ATM_DUST_MOTES_IN_LIGHT",
+        "environment_prop": "PROP_PEONIES_OVERBLOWN",
+        "narrative_moment": "NARR_READING_LETTER_AT_DAWN",
+        "composition_principle": "COMP_FRAME_WITHIN_FRAME",
+        "nsfw_anatomy": "NSFW_FULL_NUDE",
+        "nsfw_act": "NSFW_T4_SOLO_GAZE",
+    }
+    phrases = canonicalize_facet(
+        facet, "chroma", content_level="T4_explicit", loader=loader,
+    )
+    assert len(phrases) == 9, (
+        f"Expected 9 phrases (one per field); got {len(phrases)}: "
+        f"{phrases}"
+    )
+    joined = " ".join(phrases).lower()
+    # Every dimension represented
+    assert "golden" in joined
+    assert "intimate" in joined or "contemplative" in joined
+    assert "tuscan" in joined or "villa" in joined
+    assert "dust" in joined
+    assert "peon" in joined  # peonies
+    assert "letter" in joined or "reading" in joined
+    assert "frame" in joined or "doorway" in joined
+    assert "nude" in joined or "naked" in joined
+    assert "gaze" in joined or "eye" in joined or "contact" in joined
+
+
 def test_canonicalize_series_aesthetic_per_family(loader):
     """Phase 3 (vocab v6) — canonicalize_series_aesthetic translates
     series-level aesthetic anchors (color_palette / photographer_ref /
