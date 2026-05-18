@@ -296,10 +296,13 @@ class TestRealRegistry:
 
     def test_real_installed_llms_active(self):
         """The installed LLMs (Cydonia Heretic Vision 24B + Qwen3 30B-A3B
-        Abliterated as of 2026-05-19) both register as active.
-        Cydonia is the default + chosen quality target; Qwen3 30B-A3B
-        is the fallback (different lineage — Qwen vs Mistral)."""
+        Abliterated + Qwen3.6 27B Abliterated as of 2026-05-19) all
+        register as active. Cydonia is the default + chosen quality
+        target; Qwen3 30B-A3B is the fallback (MoE, different lineage —
+        Qwen vs Mistral); Qwen3.6 27B is a dense Qwen variant added
+        for a 3-way A/B comparison."""
         loader = LLMRegistryLoader()
         ids = {e.id for e in loader.list_llms()}
         assert "cydonia_heretic_24b" in ids
         assert "qwen3_abliterated_30b" in ids
+        assert "qwen36_abliterated_27b" in ids

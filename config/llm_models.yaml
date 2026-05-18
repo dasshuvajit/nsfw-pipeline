@@ -33,6 +33,22 @@ llms:
     families_recommended: ["all"]
     active: true
 
+  qwen36_abliterated_27b:
+    ollama_id: "huihui_ai/Qwen3.6-abliterated:27b"
+    display_name: "Qwen3.6 27B (Abliterated)"
+    description: "huihui_ai abliterated (refusal-removed) variant of Qwen3.6 27B. Dense (not MoE) — every inference uses all 27B parameters. ~17GB on disk at Q4. Newer Qwen3.6 architecture (vs the older Qwen3 30B-A3B). The abliteration drops refusal floor for explicit-tier work. Different lineage from Cydonia (Qwen vs Mistral); dense architecture provides a quality A/B target against the MoE qwen3_abliterated_30b. Registered 2026-05-19 as a third installed LLM for the 3-way comparison."
+    quant: "Q4"
+    size_gb: 17
+    context_tokens: 32768
+    refusal_rate: 2.0           # community-reported for abliterated variants
+    strengths:
+      - "low refusal floor (abliterated)"
+      - "newer Qwen3.6 architecture"
+      - "dense (27B active per token) — full-capacity inference"
+      - "different lineage from Cydonia (Qwen vs Mistral)"
+    families_recommended: ["all"]
+    active: true
+
   qwen3_abliterated_30b:
     ollama_id: "huihui_ai/qwen3-abliterated:30b-a3b"
     display_name: "Qwen3 30B-A3B (Abliterated)"
