@@ -425,6 +425,112 @@ def test_environment_namespace_canonicalises_per_family(loader):
         ), f"family={fam} atm phrase missing dust cue: {atm_phrase!r}"
 
 
+def test_canonicalize_series_aesthetic_per_family(loader):
+    """Phase 3 (vocab v6) — canonicalize_series_aesthetic translates
+    series-level aesthetic anchors (color_palette / photographer_ref /
+    art_movement) to family-shaped phrases for every family. The
+    "signature look" — pinned ONCE per series, threaded into every
+    scene by the composer."""
+    from src.prompt.vocabulary import canonicalize_series_aesthetic
+
+    series_plan = {
+        "theme": "moody noir",
+        "color_palette": "PALETTE_MONOCHROME_HIGH_CONTRAST",
+        "photographer_ref": "PHOTOG_HELMUT_NEWTON",
+        "art_movement": "ART_MOVE_FILM_NOIR_1940S",
+    }
+
+    for fam in ("sdxl", "illustrious", "flux", "chroma", "flux2"):
+        phrases = canonicalize_series_aesthetic(
+            series_plan, fam, loader=loader,
+        )
+        assert len(phrases) == 3, (
+            f"family={fam} produced {len(phrases)} aesthetic phrases "
+            f"(expected 3): {phrases}"
+        )
+        # Palette mentions monochrome/black/white
+        joined = " ".join(phrases).lower()
+        assert "monochrome" in joined or "black" in joined
+        # Photographer mentions Helmut Newton
+        assert "newton" in joined
+        # Art movement mentions noir or film
+        assert "noir" in joined
+
+    # Pony: omits photographer_ref + art_movement; only color_palette
+    # has Pony phrasing. Should return just 1 phrase.
+    pony_phrases = canonicalize_series_aesthetic(
+        series_plan, "pony", loader=loader,
+    )
+    assert len(pony_phrases) == 1, (
+        f"pony should produce 1 phrase (color_palette only); got "
+        f"{len(pony_phrases)}: {pony_phrases}"
+    )
+
+
+def test_canonicalize_series_aesthetic_empty_back_compat(loader):
+    """Old series predating Phase 3 have no aesthetic anchor fields —
+    canonicalize_series_aesthetic returns [] for back-compat. The
+    composer prepends an empty list = no change to existing prompts."""
+    from src.prompt.vocabulary import canonicalize_series_aesthetic
+    assert canonicalize_series_aesthetic(None, "chroma") == []
+    assert canonicalize_series_aesthetic({}, "chroma") == []
+    # series_plan with only legacy fields (no aesthetic anchors)
+    legacy = {
+        "theme": "boudoir",
+        "mood": "intimate",
+        "environment": "bedroom",
+        "variation_axes": ["pose"],
+    }
+    assert canonicalize_series_aesthetic(legacy, "chroma") == []
+
+
+def test_resolve_aesthetic_menu_narrows_via_compat_lists():
+    """Phase 3 — _resolve_aesthetic_menu narrows the SeriesPlanner
+    menu when style_profile.compatible_* lists are provided. This
+    is the lite I2 plumbing: SeriesPlanner only offers coherent
+    combinations the profile has validated."""
+    from src.agents.series_planner import _resolve_aesthetic_menu
+
+    # No filter → full menu
+    full = _resolve_aesthetic_menu()
+    assert len(full["color_palette"]) >= 15
+    assert len(full["photographer_ref"]) >= 12
+    assert len(full["art_movement"]) >= 12
+
+    # With filter → narrowed
+    narrow = _resolve_aesthetic_menu(
+        style_profile_compat={
+            "compatible_palettes": ["PALETTE_MONOCHROME_LOW_KEY"],
+            "compatible_photographers": [
+                "PHOTOG_HELMUT_NEWTON", "PHOTOG_BILL_HENSON",
+            ],
+            "compatible_art_movements": ["ART_MOVE_FILM_NOIR_1940S"],
+        },
+    )
+    assert narrow["color_palette"] == ["PALETTE_MONOCHROME_LOW_KEY"]
+    assert set(narrow["photographer_ref"]) == {
+        "PHOTOG_HELMUT_NEWTON", "PHOTOG_BILL_HENSON",
+    }
+    assert narrow["art_movement"] == ["ART_MOVE_FILM_NOIR_1940S"]
+
+
+def test_resolve_aesthetic_menu_falls_back_when_filter_empties_namespace():
+    """If a compat list contains only stale/unknown tags (zero
+    intersection with the live vocab), fall back to the full menu
+    for that namespace — better to offer too much than nothing."""
+    from src.agents.series_planner import _resolve_aesthetic_menu
+
+    narrow = _resolve_aesthetic_menu(
+        style_profile_compat={
+            "compatible_palettes": ["PALETTE_DOES_NOT_EXIST"],
+            "compatible_photographers": [],
+            "compatible_art_movements": [],
+        },
+    )
+    # Stale single-tag filter → empty intersection → fallback to full
+    assert len(narrow["color_palette"]) >= 15
+
+
 def test_narrative_moment_canonicalises_per_family(loader):
     """Phase 2 (vocab v6) — narrative.moment tags translate to
     family-shaped phrasing for every family. The #1 leverage axis

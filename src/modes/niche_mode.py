@@ -73,6 +73,11 @@ Allowed pose types: {allowed_pose_types}
 Previous niche themes to AVOID repeating (last 5 series in niche mode):
 {previous_themes}
 
+Series aesthetic menu (Phase 3, vocab v6) — pick coherent combo:
+  color_palette options: {color_palette_options}
+  photographer_ref options: {photographer_ref_options}
+  art_movement options: {art_movement_options}
+
 Generate a JSON object with exactly these fields:
 {{
   "theme": "<specific theme within this niche — NOT just the niche name>",
@@ -82,12 +87,19 @@ Generate a JSON object with exactly these fields:
   "core_theme": "<the central visual concept — one sentence>",
   "keyword_cluster": {cluster_keywords},
   "visual_elements": ["<prop1>", "<prop2>", "<prop3>", "<prop4>", "<prop5>"],
-  "subject_bias": "<what kind of subject/model fits this niche best>"
+  "subject_bias": "<what kind of subject/model fits this niche best>",
+  "color_palette": "<one PALETTE_* tag from the menu>",
+  "photographer_ref": "<one PHOTOG_* tag from the menu>",
+  "art_movement": "<one ART_MOVE_* tag from the menu, OR null>"
 }}
 
 visual_elements must be CONCRETE PROPS or DETAILS (e.g. "yoga mat", "leather jacket",
 "neon sign", "vintage mirror") — not abstract concepts.
 keyword_cluster should include the top SEO-relevant terms for this niche.
+
+═══ AESTHETIC COHERENCE RULE ═══════════════════════════════════════
+The (color_palette, photographer_ref, art_movement) triple MUST
+form a coherent visual world. NEVER mix incompatible worlds.
 
 Return ONLY the JSON object."""
 
@@ -201,6 +213,37 @@ class NicheMode(BaseMode):
             getattr(ctx.content_rules, "llm_directive", "")
             or f"(No directive declared for {ctx.content_level}.)"
         )
+        # Phase 3 (vocab v6) — aesthetic-anchor menu.
+        from src.agents.series_planner import _resolve_aesthetic_menu
+        style_profile_compat = {
+            "compatible_palettes": ctx.style_profile.get(
+                "compatible_palettes", []
+            ),
+            "compatible_photographers": ctx.style_profile.get(
+                "compatible_photographers", []
+            ),
+            "compatible_art_movements": ctx.style_profile.get(
+                "compatible_art_movements", []
+            ),
+        }
+        for key in (
+            "compatible_palettes",
+            "compatible_photographers",
+            "compatible_art_movements",
+        ):
+            niche_list = cluster.get(key, [])
+            if niche_list:
+                prof_list = style_profile_compat.get(key, []) or []
+                if prof_list:
+                    style_profile_compat[key] = [
+                        t for t in prof_list if t in niche_list
+                    ]
+                else:
+                    style_profile_compat[key] = list(niche_list)
+        aesthetic_menu = _resolve_aesthetic_menu(
+            style_profile_compat=style_profile_compat,
+        )
+
         user_prompt = _PLAN_USER_TEMPLATE.format(
             cluster_name=cluster["name"],
             cluster_keywords=json.dumps(keywords),
@@ -211,6 +254,9 @@ class NicheMode(BaseMode):
             tag_strategy=tag_strategy,
             allowed_pose_types=json.dumps(allowed_poses),
             previous_themes="\n".join(f"  - {t}" for t in previous_themes) or "  (none)",
+            color_palette_options=", ".join(aesthetic_menu["color_palette"]),
+            photographer_ref_options=", ".join(aesthetic_menu["photographer_ref"]),
+            art_movement_options=", ".join(aesthetic_menu["art_movement"]),
         )
 
         plan_sys = ctx.augment_system_prompt(_PLAN_SYSTEM_PROMPT)

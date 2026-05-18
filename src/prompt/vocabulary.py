@@ -292,6 +292,65 @@ class VocabularyLoader:
         return out
 
 
+# Phase 3 (vocab v6) — series-level aesthetic-anchor fields. The
+# SeriesPlanner picks these ONCE per series; the composer threads
+# them into every scene's prompt so the set carries a coherent
+# "signature look" (the commercial differentiator every top Patreon
+# boudoir creator has). Distinct from _FIELD_TO_NAMESPACE which maps
+# per-scene fields: this maps per-series fields.
+_SERIES_FIELD_TO_NAMESPACE: dict[str, tuple[str, str]] = {
+    "color_palette":    ("aesthetic", "color_palette"),
+    "photographer_ref": ("aesthetic", "photographer_ref"),
+    "art_movement":     ("aesthetic", "art_movement"),
+}
+
+
+def canonicalize_series_aesthetic(
+    series_plan: Mapping[str, Any] | None,
+    family_id: str,
+    *,
+    content_level: str | None = None,
+    loader: VocabularyLoader | None = None,
+) -> list[str]:
+    """Translate the series-plan's aesthetic-anchor concept tags to
+    family-shaped phrases that the composer threads into every scene.
+
+    The aesthetic anchors are series-level inherited fields: chosen
+    ONCE by SeriesPlanner and held constant across every scene in
+    the set. Editorial-photography convention (Hegre, Newton, Crewdson)
+    is to hold (palette + photographer + art_movement) constant
+    across a series while varying location / props / narrative
+    per-scene — that's where "signature look" comes from.
+
+    Returns empty list when:
+      * series_plan is None (back-compat for callers without a plan).
+      * series_plan has no aesthetic fields populated (back-compat
+        for older series predating Phase 3 — they continue to render
+        without aesthetic enrichment, no error).
+      * All concept lookups drop (Pony lookups for photographer_ref
+        / art_movement are silently omitted — those namespaces have
+        no Pony phrasing).
+
+    Field order in the output preserves declaration order in
+    :data:`_SERIES_FIELD_TO_NAMESPACE` so the composer's downstream
+    segment ordering stays stable.
+    """
+    if series_plan is None:
+        return []
+    loader = loader or _default_loader()
+    out: list[str] = []
+    for field_name in _SERIES_FIELD_TO_NAMESPACE:
+        concept = series_plan.get(field_name)
+        if not concept:
+            continue
+        phrase = loader.canonicalize(
+            str(concept), family_id, content_level=content_level,
+        )
+        if phrase:
+            out.append(phrase)
+    return out
+
+
 def canonicalize_facet(
     scene_facet: Mapping[str, Any],
     family_id: str,

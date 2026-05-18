@@ -936,6 +936,12 @@ class PipelineEngine:
                         trigger_words=guide.trigger_words if guide else None,
                         avoid_words=guide.avoid_words if guide else None,
                         content_level=ctx.content_level,
+                        # Phase 3 (vocab v6) — series-level aesthetic
+                        # anchors (color_palette / photographer_ref /
+                        # art_movement) thread through to the composer
+                        # so every scene in the series carries the
+                        # same signature visual world.
+                        series_plan=series_plan,
                     )
                     prompt_dict["prompt_text"] = sanitizer.sanitize_text(
                         prompt_dict["prompt_text"]

@@ -1463,3 +1463,337 @@ narrative:
       flux:        "She is watching the sunrise from a tall window, a mug of coffee cradled in both hands, the city slowly waking below"
       chroma:      "watching the sunrise from a tall window, mug of coffee cradled in both hands, city slowly waking below"
       flux2:       "She is watching the sunrise from a tall window, a mug of coffee cradled in both hands, the city slowly waking below, the morning light spilling into the room and softening every edge"
+
+# ── Aesthetic vocabulary (vocab v6, Phase 3) ──────────────────────────
+# Series-level inherited aesthetic anchors. Per editorial-photography
+# convention: pin (palette + photographer_ref + art_movement) ONCE on
+# the series, hold them constant across every scene. Vary location /
+# props / narrative at scene level. This is how Petter Hegre's Tuscany
+# Nudes works — one estate, one visual language, every photograph has
+# its own moment. The "signature look" — the commercial differentiator
+# every top Patreon boudoir creator has — comes from this consistency.
+#
+# Pony omits aesthetic.photographer_ref and aesthetic.art_movement —
+# those names don't carry as booru tags. Pony participates in
+# color_palette because palette concepts DO have booru-tag forms.
+aesthetic:
+  # ── Cinematic color grade — 17 ──────────────────────────────────────
+  color_palette:
+    PALETTE_TEAL_ORANGE_BLOCKBUSTER:
+      sdxl:        "teal shadows and warm-orange skin tones, complementary blockbuster color grade"
+      pony:        "teal_orange_palette, complementary_colors, warm_skin_cool_shadow, blockbuster_grade"
+      illustrious: "teal_orange_palette, complementary_grade, warm_skin_cool_shadow"
+      flux:        "Teal-and-orange complementary colour grade — cool teal shadows and warm orange skin tones, the classic Hollywood blockbuster look"
+      chroma:      "teal-and-orange complementary colour grade, cool teal shadows, warm orange skin tones, blockbuster look"
+      flux2:       "Teal-and-orange complementary colour grade across the whole frame — cool teal shadows balanced against warm orange skin tones, the classic Hollywood blockbuster colour signature"
+    PALETTE_WES_ANDERSON_PASTEL:
+      sdxl:        "Wes Anderson pastel palette, muted yellows, soft pinks, mint greens, symmetrical color blocks"
+      pony:        "wes_anderson_palette, pastel_yellow, soft_pink, mint_green, symmetrical_color_blocks"
+      illustrious: "wes_anderson_palette, muted_pastels, color_block_composition"
+      flux:        "Wes Anderson pastel colour palette — muted yellows, soft pinks, and mint greens arranged as symmetrical colour blocks throughout the frame"
+      chroma:      "Wes Anderson pastel palette, muted yellows, soft pinks, mint green, symmetrical colour blocks"
+      flux2:       "Wes Anderson pastel colour palette — muted lemon yellows, soft blush pinks, mint greens arranged as deliberate symmetrical colour blocks across the composition"
+    PALETTE_FINCHER_DESATURATED_GREEN:
+      sdxl:        "Fincher-style desaturated green-gray, cool shadows, low-saturation skin"
+      pony:        "fincher_palette, desaturated_green, gray_shadows, low_saturation_skin"
+      illustrious: "fincher_palette, desaturated_green_gray, cool_shadows"
+      flux:        "Fincher-style desaturated green-gray colour palette, cool shadows pulling toward muted teal, low-saturation flesh tones"
+      chroma:      "Fincher-style desaturated green-gray palette, cool shadows pulling toward muted teal, low-saturation flesh tones"
+      flux2:       "Fincher-style desaturated green-gray colour palette, cool shadows pulling toward muted teal, low-saturation flesh tones, an unsettling clinical atmosphere"
+    PALETTE_BLADE_RUNNER_NEON:
+      sdxl:        "Blade Runner neon-noir palette, cyan and magenta, deep black levels"
+      pony:        "blade_runner_palette, cyan_magenta_neon, deep_blacks, neon_noir"
+      illustrious: "blade_runner_palette, cyan_and_magenta_neon, deep_blacks"
+      flux:        "Blade Runner neon-noir colour palette — saturated cyan and magenta accents, deep black levels, urban night atmosphere"
+      chroma:      "Blade Runner neon-noir palette, saturated cyan and magenta accents, deep black levels"
+      flux2:       "Blade Runner neon-noir colour palette — saturated cyan and magenta accents bouncing across wet surfaces, deep crushed black levels, every highlight in the synthetic neon spectrum"
+    PALETTE_DEAKINS_AMBER_TUNGSTEN:
+      sdxl:        "Roger Deakins amber-tungsten interior, warm pools of light against deep shadow"
+      pony:        "deakins_palette, amber_tungsten, warm_pools_of_light, deep_shadow"
+      illustrious: "deakins_palette, amber_tungsten_interior, warm_pools_deep_shadow"
+      flux:        "Roger Deakins-style amber-tungsten interior palette, warm pools of practical light against deep clean shadow"
+      chroma:      "Roger Deakins-style amber-tungsten interior palette, warm pools of practical light against deep clean shadow"
+      flux2:       "Roger Deakins-style amber-tungsten interior palette, warm pools of practical light cast by named sources, deep clean shadow balance falling between, restrained tonal range"
+    PALETTE_LUBEZKI_NATURAL_GOLDEN:
+      sdxl:        "Lubezki naturalistic golden hour, soft directional fill, no studio light"
+      pony:        "lubezki_palette, naturalistic_golden_hour, soft_directional_fill, no_studio_light"
+      illustrious: "lubezki_palette, natural_golden_hour, soft_fill"
+      flux:        "Lubezki-style naturalistic golden-hour palette, soft directional fill, no studio light, every source visible in the scene"
+      chroma:      "Lubezki-style naturalistic golden-hour palette, soft directional fill, no studio light, every source visible in the scene"
+      flux2:       "Lubezki-style naturalistic golden-hour palette, soft directional fill from sky bounce, no studio light anywhere, every illumination source diegetic and visible in the scene"
+    PALETTE_GREAT_GATSBY_JEWEL:
+      sdxl:        "Great Gatsby jewel tones, glitzy golds, sumptuous emeralds and burgundies"
+      pony:        "gatsby_palette, jewel_tones, gold, emerald, burgundy, art_deco_colors"
+      illustrious: "gatsby_palette, jewel_tones, gold_emerald_burgundy"
+      flux:        "Great Gatsby jewel-tone palette, glitzy golds, sumptuous emerald greens and burgundy reds, 1920s opulence"
+      chroma:      "Great Gatsby jewel-tone palette, glitzy golds, sumptuous emerald greens and burgundy reds, 1920s opulence"
+      flux2:       "Great Gatsby jewel-tone palette, glitzy golds catching every highlight, sumptuous emerald greens and burgundy reds in the costuming and decor, 1920s opulence in every surface"
+    PALETTE_NORDIC_DESATURATED:
+      sdxl:        "Nordic noir desaturated blue-gray, cold daylight, muted skin"
+      pony:        "nordic_palette, desaturated_blue_gray, cold_daylight, muted_colors"
+      illustrious: "nordic_palette, desaturated_blue_gray, cold_daylight"
+      flux:        "Nordic-noir desaturated blue-gray colour palette, cold flat daylight, muted skin tones, restrained tonal range"
+      chroma:      "Nordic-noir desaturated blue-gray palette, cold flat daylight, muted skin tones, restrained tonal range"
+      flux2:       "Nordic-noir desaturated blue-gray colour palette, cold flat daylight, muted skin tones, restrained tonal range, every saturation pulled down toward grayscale"
+    PALETTE_TUSCAN_EARTH:
+      sdxl:        "Tuscan earth-tone palette, terracotta, ochre, olive, cream stone"
+      pony:        "tuscan_palette, earth_tones, terracotta, ochre, olive_green, cream"
+      illustrious: "tuscan_palette, earth_tones, terracotta_ochre_olive_cream"
+      flux:        "Tuscan earth-tone colour palette — terracotta, ochre, olive green, and cream stone tones, harmonious warm Mediterranean light"
+      chroma:      "Tuscan earth-tone palette, terracotta, ochre, olive, cream stone tones, harmonious warm Mediterranean light"
+      flux2:       "Tuscan earth-tone colour palette — terracotta, ochre, olive green, and cream stone tones across every surface, harmonious warm Mediterranean light tying the entire scene together"
+    PALETTE_MONOCHROME_HIGH_CONTRAST:
+      sdxl:        "high-contrast black and white, deep blacks, blown highlights, Tri-X grain"
+      pony:        "monochrome, black_and_white, high_contrast_bw, tri_x_grain, deep_blacks"
+      illustrious: "high_contrast_monochrome, deep_blacks, blown_highlights"
+      flux:        "High-contrast black-and-white colour palette, deep blacks dominating, blown highlights bright and white, Tri-X 400 grain structure"
+      chroma:      "high-contrast black-and-white, deep blacks, blown highlights, Tri-X 400 grain"
+      flux2:       "High-contrast black-and-white colour palette, deep blacks dominating large portions of the frame, blown highlights pure white, Tri-X 400 grain structure visible across every mid-tone"
+    PALETTE_MONOCHROME_LOW_KEY:
+      sdxl:        "low-key monochrome, deep shadows, single highlight on subject"
+      pony:        "low_key_monochrome, deep_shadows, single_highlight, dark_bw"
+      illustrious: "low_key_monochrome, deep_shadows, single_subject_highlight"
+      flux:        "Low-key monochrome colour palette, deep shadows swallowing most of the frame, a single bright highlight isolating the subject"
+      chroma:      "low-key monochrome palette, deep shadows swallowing most of the frame, single bright highlight isolating the subject"
+      flux2:       "Low-key monochrome colour palette, deep shadows swallowing most of the frame, a single bright highlight isolating the subject, the rest of the composition pulled toward velvet black"
+    PALETTE_SEPIA_PLATINUM:
+      sdxl:        "platinum-palladium sepia, warm browns, cream highlights, silver-gelatin print feel"
+      pony:        "sepia_platinum, warm_brown_tones, cream_highlights, silver_gelatin_feel"
+      illustrious: "platinum_palladium_sepia, warm_brown_cream"
+      flux:        "Platinum-palladium sepia colour palette, warm brown tones, cream highlights, the silver-gelatin print feel of an early 20th-century portrait"
+      chroma:      "platinum-palladium sepia palette, warm brown tones, cream highlights, silver-gelatin print feel"
+      flux2:       "Platinum-palladium sepia colour palette, warm brown tones across the entire frame, cream highlights catching every fold of fabric, the silver-gelatin print feel of an early 20th-century portrait"
+    PALETTE_BAROQUE_CARAVAGGIO:
+      sdxl:        "Caravaggio palette, deep umber blacks, single warm flesh-tone highlight, dramatic shadow"
+      pony:        "caravaggio_palette, dark_background, dramatic_chiaroscuro, warm_skin_highlight, deep_umber_blacks"
+      illustrious: "caravaggio_palette, deep_blacks, warm_flesh_highlight, dramatic_shadow"
+      flux:        "Caravaggio colour palette — deep umber blacks dominating the frame, a single warm flesh-tone highlight on the subject, dramatic chiaroscuro shadow falloff"
+      chroma:      "Caravaggio palette, deep umber blacks, warm flesh-tone highlight, dramatic chiaroscuro shadow"
+      flux2:       "Caravaggio colour palette — deep umber blacks dominating the frame, a single warm flesh-tone highlight on the subject's skin, dramatic chiaroscuro shadow falloff into pure black"
+    PALETTE_MUTED_EARTH_WARM:
+      sdxl:        "muted earth tones, beige, taupe, soft browns, harmonious warm balance"
+      pony:        "muted_earth_tones, beige_taupe_brown, harmonious_warm_palette"
+      illustrious: "muted_earth_tones, beige_taupe_brown_harmony"
+      flux:        "Muted earth-tone colour palette — beige, taupe, soft browns, harmoniously balanced warm neutrals"
+      chroma:      "muted earth-tone palette, beige, taupe, soft browns, harmoniously balanced warm neutrals"
+      flux2:       "Muted earth-tone colour palette — beige, taupe, soft browns across every surface and fabric, harmoniously balanced warm neutrals giving a quiet contemplative atmosphere"
+    PALETTE_PINK_AND_GOLD:
+      sdxl:        "rose-and-gold pastel palette, soft pinks, champagne accents"
+      pony:        "rose_gold_palette, soft_pink, champagne_accent, romantic_palette"
+      illustrious: "rose_gold_palette, soft_pink_champagne"
+      flux:        "Rose-and-gold pastel colour palette, soft pinks across the soft fabrics, champagne-gold accents catching every highlight"
+      chroma:      "rose-and-gold pastel palette, soft pinks across the fabrics, champagne-gold accents catching every highlight"
+      flux2:       "Rose-and-gold pastel colour palette, soft pinks across the soft fabrics, champagne-gold accents catching every highlight, a romantic luxurious atmosphere throughout"
+    PALETTE_BLACK_AND_WHITE_NIGHT:
+      sdxl:        "pure white versus dark black, no mid-tones, psychological dichotomy"
+      pony:        "pure_white_and_black, no_midtones, psychological_dichotomy"
+      illustrious: "pure_white_and_black_no_midtones"
+      flux:        "Pure white-against-black colour palette, no mid-tones anywhere, a stark psychological dichotomy carrying the entire frame"
+      chroma:      "pure white-against-black palette, no mid-tones anywhere, stark psychological dichotomy"
+      flux2:       "Pure white-against-black colour palette, no mid-tones anywhere in the frame, a stark psychological dichotomy carrying the entire composition, every element either pure white or velvet black"
+    PALETTE_VOGUE_EDITORIAL:
+      sdxl:        "desaturated cool editorial grade, slightly faded blacks, pearl-cream skin"
+      pony:        "vogue_palette, desaturated_cool, faded_blacks, pearl_cream_skin, editorial_grade"
+      illustrious: "vogue_editorial_palette, desaturated_cool, pearl_skin"
+      flux:        "Vogue-Italia editorial colour palette, desaturated cool grade, slightly faded blacks, pearl-cream skin tones"
+      chroma:      "Vogue-Italia editorial palette, desaturated cool grade, slightly faded blacks, pearl-cream skin tones"
+      flux2:       "Vogue-Italia editorial colour palette, desaturated cool grade, slightly faded blacks giving an aged-magazine feel, pearl-cream skin tones across every flesh surface"
+
+  # ── Photographer references — 15 ───────────────────────────────────
+  # PetaPixel's 2025 Midjourney study confirms photographer names are
+  # the single most-prompted reference category and measurably shift
+  # output. Mid-century-and-earlier masters skew toward strong signal;
+  # living contemporary photographers skew toward placebo — the 15
+  # below are all known-strong-signal references with 5000+ prompts
+  # of evidence on Midjourney's public dataset.
+  #
+  # Pony OMITS this namespace — booru tags don't carry photographer
+  # references usefully (no tag like ``helmut_newton_style`` in the
+  # danbooru taxonomy). The canonicalizer drops Pony lookups silently.
+  photographer_ref:
+    PHOTOG_HELMUT_NEWTON:
+      sdxl:        "Helmut Newton style, high-fashion provocative editorial, hard light, urban cool"
+      illustrious: "helmut_newton_style, fashion_editorial, hard_light, provocative"
+      flux:        "Shot in the style of Helmut Newton — high-fashion provocative editorial composition, hard directional light, urban cool atmosphere, pre-war Berlin decadence"
+      chroma:      "Helmut Newton style, high-fashion provocative editorial, hard directional light, urban cool, pre-war Berlin decadence"
+      flux2:       "Shot in the style of Helmut Newton — high-fashion provocative editorial composition, hard directional light from a single source, urban cool atmosphere, pre-war Berlin decadence in every choice"
+    PHOTOG_ANNIE_LEIBOVITZ:
+      sdxl:        "Annie Leibovitz environmental portrait, cinematic painterly staging, saturated bold colors"
+      illustrious: "annie_leibovitz_style, environmental_portrait, painterly_staging, saturated_colors"
+      flux:        "Shot in the style of Annie Leibovitz — cinematic painterly environmental portrait, subject embedded in thematic environment, saturated bold colours, storybook composition"
+      chroma:      "Annie Leibovitz cinematic painterly environmental portrait, subject embedded in thematic environment, saturated bold colours, storybook composition"
+      flux2:       "Shot in the style of Annie Leibovitz — cinematic painterly environmental portrait, subject embedded in a richly thematic environment, saturated bold colours throughout, storybook composition with every element supporting the narrative"
+    PHOTOG_GREGORY_CREWDSON:
+      sdxl:        "Gregory Crewdson cinematic staged tableau, suburban uncanny, dusk-blue and sodium-orange light mixing"
+      illustrious: "gregory_crewdson_style, cinematic_tableau, suburban_uncanny, mixed_color_temperature"
+      flux:        "Shot in the style of Gregory Crewdson — cinematic staged tableau, suburban uncanny atmosphere, dusk-blue and sodium-orange light mixing across the scene, single-frame movie aesthetic"
+      chroma:      "Gregory Crewdson cinematic staged tableau, suburban uncanny, dusk-blue and sodium-orange light mixing, single-frame movie aesthetic"
+      flux2:       "Shot in the style of Gregory Crewdson — cinematic staged tableau, suburban uncanny atmosphere, dusk-blue and sodium-orange light mixing across the scene, large-scale production design, single-frame movie aesthetic where every detail implies story"
+    PHOTOG_NAN_GOLDIN:
+      sdxl:        "Nan Goldin intimate snapshot, on-camera flash, bedrooms after dark, faded color, 1980s grain"
+      illustrious: "nan_goldin_style, intimate_snapshot, on_camera_flash, 1980s_grain"
+      flux:        "Shot in the style of Nan Goldin — intimate snapshot aesthetic, on-camera flash, bedrooms after dark, candid emotional truth, faded colour, 1980s film grain"
+      chroma:      "Nan Goldin intimate snapshot, on-camera flash, bedrooms after dark, candid emotional truth, faded colour, 1980s grain"
+      flux2:       "Shot in the style of Nan Goldin — intimate snapshot aesthetic, on-camera flash flattening the scene, bedrooms after dark with candid emotional truth, faded colour palette, distinctive 1980s film grain"
+    PHOTOG_PETRA_COLLINS:
+      sdxl:        "Petra Collins dreamlike pastel, neon-lit interior, soft grain, magenta and aqua"
+      illustrious: "petra_collins_style, dreamlike_pastel, neon_lit, soft_grain"
+      flux:        "Shot in the style of Petra Collins — dreamlike pastel palette, neon-lit interior, soft film grain, magenta and aqua accents, 1990s teen-bedroom melancholy"
+      chroma:      "Petra Collins dreamlike pastel, neon-lit interior, soft grain, magenta and aqua, 1990s teen-bedroom melancholy"
+      flux2:       "Shot in the style of Petra Collins — dreamlike pastel colour palette, neon-lit interior glowing softly, fine film grain across every surface, magenta and aqua accents, 1990s teen-bedroom melancholy atmosphere"
+    PHOTOG_PETER_LINDBERGH:
+      sdxl:        "Peter Lindbergh natural B&W portrait, minimal makeup, available light, raw documentary intimacy"
+      illustrious: "peter_lindbergh_style, natural_bw_portrait, available_light, raw_documentary"
+      flux:        "Shot in the style of Peter Lindbergh — natural black-and-white portrait, minimal makeup, available light only, raw documentary intimacy, supermodels in white shirts"
+      chroma:      "Peter Lindbergh natural B&W portrait, minimal makeup, available light, raw documentary intimacy"
+      flux2:       "Shot in the style of Peter Lindbergh — natural black-and-white portrait, minimal makeup or none at all, available light only, raw documentary intimacy, every gesture honest and unposed"
+    PHOTOG_RICHARD_AVEDON:
+      sdxl:        "Richard Avedon high-key portrait, white seamless background, harsh strobe, expressive movement"
+      illustrious: "richard_avedon_style, high_key_portrait, white_seamless, expressive_movement"
+      flux:        "Shot in the style of Richard Avedon — high-key portrait, white seamless background, harsh strobe lighting, expressive movement frozen in mid-gesture"
+      chroma:      "Richard Avedon high-key portrait, white seamless background, harsh strobe, expressive movement"
+      flux2:       "Shot in the style of Richard Avedon — high-key portrait, pure white seamless background, harsh strobe lighting carving sharp shadow lines, expressive movement frozen in mid-gesture, every detail of expression rendered with documentary precision"
+    PHOTOG_SLIM_AARONS:
+      sdxl:        "Slim Aarons golden-age glamour, poolside leisure, Riviera light, mid-century jet-set elegance, saturated daylight"
+      illustrious: "slim_aarons_style, golden_age_glamour, poolside, riviera_light, mid_century"
+      flux:        "Shot in the style of Slim Aarons — golden-age glamour, poolside leisure, Riviera light, mid-century jet-set elegance, saturated daylight"
+      chroma:      "Slim Aarons golden-age glamour, poolside leisure, Riviera light, mid-century jet-set elegance, saturated daylight"
+      flux2:       "Shot in the style of Slim Aarons — golden-age glamour photography, poolside leisure scene, Riviera light at the perfect moment, mid-century jet-set elegance, saturated daylight bathing every surface, the world of attractive people doing attractive things in attractive places"
+    PHOTOG_BILL_HENSON:
+      sdxl:        "Bill Henson cinematic chiaroscuro, deep blacks, faces emerging from darkness, ambiguous twilight landscape"
+      illustrious: "bill_henson_style, cinematic_chiaroscuro, deep_blacks, twilight_emergence"
+      flux:        "Shot in the style of Bill Henson — cinematic chiaroscuro, deep blacks dominating most of the frame, faces and forms emerging from darkness, ambiguous twilight landscape"
+      chroma:      "Bill Henson cinematic chiaroscuro, deep blacks, faces emerging from darkness, ambiguous twilight landscape"
+      flux2:       "Shot in the style of Bill Henson — cinematic chiaroscuro, deep blacks dominating most of the frame, faces and forms emerging from darkness in fragments, ambiguous twilight landscape where the boundary between subject and shadow blurs"
+    PHOTOG_SARAH_MOON:
+      sdxl:        "Sarah Moon dreamy soft-focus, muted color, painterly grain, impressionist blur"
+      illustrious: "sarah_moon_style, dreamy_soft_focus, painterly_grain, impressionist_blur"
+      flux:        "Shot in the style of Sarah Moon — dreamy soft-focus rendering, muted colour palette, painterly grain texture, impressionist blur at the edges"
+      chroma:      "Sarah Moon dreamy soft-focus, muted colour, painterly grain, impressionist blur"
+      flux2:       "Shot in the style of Sarah Moon — dreamy soft-focus rendering across the entire frame, muted desaturated colour palette, painterly grain texture, impressionist blur softening every edge into atmospheric suggestion"
+    PHOTOG_PAOLO_ROVERSI:
+      sdxl:        "Paolo Roversi ethereal large-format Polaroid, milky highlights, faded background, soft pastel"
+      illustrious: "paolo_roversi_style, ethereal_polaroid, milky_highlights, soft_pastel"
+      flux:        "Shot in the style of Paolo Roversi — ethereal large-format Polaroid aesthetic, milky highlights, faded background, soft pastel tonality"
+      chroma:      "Paolo Roversi ethereal large-format Polaroid, milky highlights, faded background, soft pastel"
+      flux2:       "Shot in the style of Paolo Roversi — ethereal large-format Polaroid aesthetic, milky highlights blooming gently, faded background pulling toward white, soft pastel tonality holding the entire palette"
+    PHOTOG_MARIO_TESTINO:
+      sdxl:        "Mario Testino editorial, glossy fashion-magazine polish, vibrant warmth"
+      illustrious: "mario_testino_style, glossy_editorial, vibrant_warmth"
+      flux:        "Shot in the style of Mario Testino — glossy fashion-magazine editorial polish, vibrant warm colour, every surface immaculately styled"
+      chroma:      "Mario Testino glossy fashion-magazine editorial, vibrant warm colour, every surface immaculately styled"
+      flux2:       "Shot in the style of Mario Testino — glossy fashion-magazine editorial polish, vibrant warm colour palette, every surface immaculately styled and lit, the high-end commercial aesthetic at its most refined"
+    PHOTOG_ROBERT_MAPPLETHORPE:
+      sdxl:        "Robert Mapplethorpe formal nude, high-contrast B&W, sculpted lighting, classical pose, marble-like skin"
+      illustrious: "mapplethorpe_style, formal_nude, high_contrast_bw, classical_pose, marble_skin"
+      flux:        "Shot in the style of Robert Mapplethorpe — formal nude composition, high-contrast black-and-white, sculpted directional lighting, classical pose, marble-like skin tonality"
+      chroma:      "Mapplethorpe formal nude, high-contrast B&W, sculpted lighting, classical pose, marble-like skin"
+      flux2:       "Shot in the style of Robert Mapplethorpe — formal nude composition with rigorous symmetry, high-contrast black-and-white tonality, sculpted directional lighting carving every form, classical pose held in absolute stillness, marble-like rendering of skin"
+    PHOTOG_PETTER_HEGRE:
+      sdxl:        "Petter Hegre naturalistic art-nude, natural light, classical Renaissance proportion, Tuscan light through villa windows, marble-still subject"
+      illustrious: "petter_hegre_style, naturalistic_art_nude, natural_light, classical_proportion, marble_still"
+      flux:        "Shot in the style of Petter Hegre — naturalistic art-nude photography, natural light only, classical Renaissance proportion, Tuscan light through villa windows, marble-still subject, no artifice anywhere"
+      chroma:      "Petter Hegre naturalistic art-nude, natural light only, classical Renaissance proportion, Tuscan light through villa windows, marble-still subject"
+      flux2:       "Shot in the style of Petter Hegre — naturalistic art-nude photography, natural light only with no artificial sources, classical Renaissance proportion in every pose, Tuscan light filtering through villa windows, marble-still subject, no artifice anywhere in the frame"
+    PHOTOG_HERB_RITTS:
+      sdxl:        "Herb Ritts black and white, sculptural figure, sun and shadow, California aesthetic"
+      illustrious: "herb_ritts_style, sculptural_bw, sun_and_shadow, california_aesthetic"
+      flux:        "Shot in the style of Herb Ritts — black-and-white photography, sculptural figure work, dramatic interplay of California sun and shadow"
+      chroma:      "Herb Ritts B&W, sculptural figure, California sun and shadow"
+      flux2:       "Shot in the style of Herb Ritts — black-and-white photography style, sculptural figure composition, dramatic interplay of California sun and deep shadow, every limb rendered as if carved"
+
+  # ── Art-movement references — 15 ────────────────────────────────────
+  # Generic enough that all five non-Pony families recognise them,
+  # specific enough to measurably move output. Pony omits — booru
+  # tagging doesn't carry art-movement references usefully.
+  art_movement:
+    ART_MOVE_PRE_RAPHAELITE:
+      sdxl:        "Pre-Raphaelite painting, lush flora, flowing red hair, Waterhouse / Millais palette"
+      illustrious: "pre_raphaelite, lush_flora, flowing_red_hair, waterhouse_millais_palette"
+      flux:        "Composed in the Pre-Raphaelite painting tradition — lush flora surrounding the subject, flowing red hair, Waterhouse and Millais colour palette"
+      chroma:      "Pre-Raphaelite painting tradition, lush flora, flowing red hair, Waterhouse / Millais palette"
+      flux2:       "Composed in the Pre-Raphaelite painting tradition — lush flora surrounding the subject, flowing red hair catching the light, Waterhouse and Millais colour palette of deep jewel tones and natural greens"
+    ART_MOVE_ART_NOUVEAU_KLIMT:
+      sdxl:        "Art Nouveau, Klimt gold-leaf palette, flowing organic line, decorative ornament"
+      illustrious: "art_nouveau_klimt, gold_leaf_palette, flowing_organic_line, decorative_ornament"
+      flux:        "Composed in the Art Nouveau tradition of Klimt — gold-leaf palette, flowing organic line throughout, decorative ornament filling every surface"
+      chroma:      "Art Nouveau Klimt-style, gold-leaf palette, flowing organic line, decorative ornament"
+      flux2:       "Composed in the Art Nouveau tradition of Klimt — gold-leaf palette dominating, flowing organic line throughout the composition, decorative ornament filling every surface with pattern"
+    ART_MOVE_BAROQUE_CARAVAGGIO:
+      sdxl:        "Caravaggio chiaroscuro, single dramatic light source, deep shadow, sculptural flesh tone"
+      illustrious: "caravaggio_chiaroscuro, single_light_source, deep_shadow, sculptural_flesh"
+      flux:        "Composed in the Baroque chiaroscuro tradition of Caravaggio — single dramatic light source from off-frame, deep shadow swallowing the rest, sculptural rendering of flesh tone"
+      chroma:      "Baroque Caravaggio chiaroscuro, single dramatic light source, deep shadow, sculptural flesh tone"
+      flux2:       "Composed in the Baroque chiaroscuro tradition of Caravaggio — single dramatic light source from off-frame, deep shadow swallowing most of the composition, sculptural rendering of flesh tone with every muscle catching the light"
+    ART_MOVE_DUTCH_GOLDEN_VERMEER:
+      sdxl:        "Vermeer Dutch Golden Age light, side window illumination, quiet domestic interior, blue and ochre"
+      illustrious: "vermeer_dutch_golden_age, side_window_light, quiet_domestic, blue_and_ochre"
+      flux:        "Composed in the Vermeer / Dutch Golden Age tradition — side window illumination, quiet domestic interior, blue and ochre dominant palette"
+      chroma:      "Vermeer Dutch Golden Age tradition, side window illumination, quiet domestic interior, blue and ochre"
+      flux2:       "Composed in the Vermeer / Dutch Golden Age tradition — soft side window illumination falling across the scene, quiet domestic interior, blue and ochre dominant palette, every detail rendered with patient observation"
+    ART_MOVE_REMBRANDT_PORTRAIT:
+      sdxl:        "Rembrandt portrait, three-quarter face, warm umber background, single key light"
+      illustrious: "rembrandt_portrait, three_quarter_face, warm_umber_background, single_key_light"
+      flux:        "Composed in the Rembrandt portrait tradition — three-quarter face turn, warm umber background, single key light shaping the form"
+      chroma:      "Rembrandt portrait tradition, three-quarter face turn, warm umber background, single key light"
+      flux2:       "Composed in the Rembrandt portrait tradition — three-quarter face turn, warm umber background pulling toward dark amber, single key light shaping the form with the classic triangle of light on the unlit cheek"
+    ART_MOVE_IMPRESSIONIST_RENOIR:
+      sdxl:        "Impressionist Renoir-style brushwork, dappled light, soft skin tones"
+      illustrious: "impressionist_renoir, brushwork_visible, dappled_light, soft_skin_tones"
+      flux:        "Composed in the Impressionist tradition of Renoir — visible brushwork texture, dappled light through leaves, soft warm skin tones"
+      chroma:      "Impressionist Renoir-style brushwork, dappled light, soft warm skin tones"
+      flux2:       "Composed in the Impressionist tradition of Renoir — visible brushwork texture across every surface, dappled light through leaves, soft warm skin tones, the whole scene rendered as if from a moment of sun-drenched joy"
+    ART_MOVE_SYMBOLIST_MOREAU:
+      sdxl:        "Symbolist tableau, mythological staging, jewelled palette, decorative pattern"
+      illustrious: "symbolist_moreau, mythological_tableau, jewelled_palette"
+      flux:        "Composed in the Symbolist tradition of Moreau — mythological tableau staging, jewelled palette, decorative pattern across every surface"
+      chroma:      "Symbolist Moreau-style mythological tableau, jewelled palette, decorative pattern"
+      flux2:       "Composed in the Symbolist tradition of Moreau — mythological tableau staging, jewelled palette of deep crimsons and golds and emeralds, decorative pattern across every surface, the whole scene saturated with allegorical weight"
+    ART_MOVE_ART_DECO_1920S:
+      sdxl:        "Art Deco geometric, lacquered ebony, brass inlay, mirrored surfaces, 1920s Paris"
+      illustrious: "art_deco_1920s, geometric_pattern, lacquered_ebony, brass_inlay, mirrored_surfaces"
+      flux:        "Composed in the Art Deco tradition of 1920s Paris — geometric pattern, lacquered ebony, brass inlay, mirrored surfaces"
+      chroma:      "Art Deco 1920s Paris, geometric pattern, lacquered ebony, brass inlay, mirrored surfaces"
+      flux2:       "Composed in the Art Deco tradition of 1920s Paris — bold geometric pattern throughout, lacquered ebony surfaces, brass inlay along every edge, mirrored surfaces reflecting and multiplying the light"
+    ART_MOVE_FILM_NOIR_1940S:
+      sdxl:        "1940s film noir, low-key high-contrast B&W, Venetian-blind shadows, rain-slicked street, smoke"
+      illustrious: "film_noir_1940s, low_key_high_contrast_bw, venetian_blind_shadows, rain_slicked_street"
+      flux:        "Composed in the 1940s film-noir tradition — low-key high-contrast black-and-white, Venetian-blind shadows striping the scene, rain-slicked street, smoke hanging in the air"
+      chroma:      "1940s film noir, low-key high-contrast B&W, Venetian-blind shadows, rain-slicked street, smoke"
+      flux2:       "Composed in the 1940s film-noir tradition — low-key high-contrast black-and-white, Venetian-blind shadows striping the scene, rain-slicked street reflecting every distant light, smoke hanging in the air, urban menace and intimacy mixed"
+    ART_MOVE_HOPPER:
+      sdxl:        "Edward Hopper American realist, lone figure, side window light, melancholy, diner / hotel-room isolation"
+      illustrious: "edward_hopper_american_realist, lone_figure, side_window_light, melancholy"
+      flux:        "Composed in the Edward Hopper American realist tradition — lone figure, side window light cutting across the room, melancholy atmosphere, diner or hotel-room isolation"
+      chroma:      "Edward Hopper American realist, lone figure, side window light, melancholy, diner / hotel-room isolation"
+      flux2:       "Composed in the Edward Hopper American realist tradition — lone figure, side window light cutting across an empty room, melancholy atmosphere of urban solitude, diner or hotel-room isolation captured at a moment of stillness"
+    ART_MOVE_WES_ANDERSON:
+      sdxl:        "Wes Anderson symmetrical centered composition, flat pastel palette, miniature dollhouse feel"
+      illustrious: "wes_anderson_style, symmetrical_centered, flat_pastel_palette, dollhouse_feel"
+      flux:        "Composed in the Wes Anderson tradition — perfectly symmetrical centered composition, flat pastel palette, miniature dollhouse feel"
+      chroma:      "Wes Anderson symmetrical centered composition, flat pastel palette, miniature dollhouse feel"
+      flux2:       "Composed in the Wes Anderson tradition — perfectly symmetrical centered composition, flat pastel colour palette, miniature dollhouse feel, every architectural element parallel to the frame edge"
+    ART_MOVE_BAUHAUS_MINIMAL:
+      sdxl:        "Bauhaus minimal, primary colors, geometric simplicity, functional design"
+      illustrious: "bauhaus_minimal, primary_colors, geometric_simplicity"
+      flux:        "Composed in the Bauhaus minimal tradition — primary colour blocks, geometric simplicity, functional design aesthetic"
+      chroma:      "Bauhaus minimal, primary colour blocks, geometric simplicity"
+      flux2:       "Composed in the Bauhaus minimal tradition — primary colour blocks arranged with geometric simplicity, functional design aesthetic, every element justifying its presence in the composition"
+    ART_MOVE_NEW_TOPOGRAPHICS:
+      sdxl:        "New Topographics 1970s, cool documentary deadpan, banal landscape, gray sky"
+      illustrious: "new_topographics_1970s, documentary_deadpan, banal_landscape, gray_sky"
+      flux:        "Composed in the New Topographics tradition of 1970s American photography — cool documentary deadpan, banal landscape, gray flat sky"
+      chroma:      "New Topographics 1970s documentary deadpan, banal landscape, gray sky"
+      flux2:       "Composed in the New Topographics tradition of 1970s American photography — cool documentary deadpan, banal post-industrial landscape, gray flat sky, every element rendered with deliberate emotional detachment"
+    ART_MOVE_SURREALIST_DALI:
+      sdxl:        "Surrealist Dalí dream-tableau, displaced objects, sharp desert horizon, hyperreal precision"
+      illustrious: "surrealist_dali, dream_tableau, displaced_objects, sharp_desert_horizon"
+      flux:        "Composed in the Surrealist tradition of Dalí — dream-tableau staging, displaced objects, sharp desert horizon, hyperreal precision"
+      chroma:      "Surrealist Dalí dream-tableau, displaced objects, sharp desert horizon, hyperreal precision"
+      flux2:       "Composed in the Surrealist tradition of Dalí — dream-tableau staging, displaced objects rendered at impossible scales, sharp desert horizon receding to infinity, hyperreal precision in every detail despite the impossibility of the scene"
+    ART_MOVE_JAPANESE_UKIYO_E:
+      sdxl:        "Ukiyo-e woodblock, flat composition, decorative pattern, calm domestic moment"
+      illustrious: "ukiyo_e_woodblock, flat_composition, decorative_pattern, calm_domestic"
+      flux:        "Composed in the Japanese Ukiyo-e woodblock tradition — flat composition, decorative pattern across every surface, calm domestic moment"
+      chroma:      "Japanese Ukiyo-e woodblock, flat composition, decorative pattern, calm domestic moment"
+      flux2:       "Composed in the Japanese Ukiyo-e woodblock tradition — flat composition without Western perspective, decorative pattern across every fabric surface, calm domestic moment held with quiet attention"

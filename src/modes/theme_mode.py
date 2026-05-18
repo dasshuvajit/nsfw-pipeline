@@ -77,18 +77,43 @@ Allowed pose types: {allowed_pose_types}
 Previous themes to AVOID repeating (last 5 series in this category):
 {previous_themes}
 
+Series aesthetic menu (Phase 3, vocab v6) — pick coherent combo:
+  color_palette options: {color_palette_options}
+  photographer_ref options: {photographer_ref_options}
+  art_movement options: {art_movement_options}
+
 Generate a JSON object with exactly these fields:
 {{
   "theme": "<specific evocative theme within this category — NOT just the category name; must reflect the tier above>",
   "mood": "<emotional tone that fits the theme AND the tier>",
   "environment": "<primary setting/location — be specific: 'rain-soaked Tokyo alley at night' not 'outdoor'>",
   "variation_axes": ["<axis1>", "<axis2>", "<axis3>", "<axis4>"],
-  "subject_description": "<brief description of the subject/model — at T3/T4, name nudity / state of undress explicitly per the tier directive; do NOT default to lingerie if T4 directive calls for fully nude>"
+  "subject_description": "<brief description of the subject/model — at T3/T4, name nudity / state of undress explicitly per the tier directive; do NOT default to lingerie if T4 directive calls for fully nude>",
+  "color_palette": "<one PALETTE_* tag from the menu above — the series's colour grade>",
+  "photographer_ref": "<one PHOTOG_* tag from the menu above — the photographer-signature for the series>",
+  "art_movement": "<one ART_MOVE_* tag from the menu, OR null if no movement reference fits>"
 }}
 
 The theme must be SPECIFIC (not vague like "beauty" or "nature").
 The subject_description must MATCH the tier directive's default state.
 Variation_axes should be 3-5 dimensions the scenes will vary across.
+
+═══ AESTHETIC COHERENCE RULE (Phase 3, vocab v6) ═══════════════════
+The (color_palette, photographer_ref, art_movement) triple MUST
+form a coherent visual world. Known-coherent pairings:
+  - PHOTOG_HELMUT_NEWTON + PALETTE_MONOCHROME_HIGH_CONTRAST +
+    ART_MOVE_FILM_NOIR_1940S  (provocative urban noir)
+  - PHOTOG_PETTER_HEGRE + PALETTE_TUSCAN_EARTH +
+    ART_MOVE_DUTCH_GOLDEN_VERMEER  (naturalistic villa nudes)
+  - PHOTOG_SLIM_AARONS + PALETTE_LUBEZKI_NATURAL_GOLDEN +
+    (omit art_movement)  (golden-age jet-set glamour)
+  - PHOTOG_PETRA_COLLINS + PALETTE_WES_ANDERSON_PASTEL +
+    ART_MOVE_WES_ANDERSON  (dreamy pastel symmetry)
+  - PHOTOG_BILL_HENSON + PALETTE_BAROQUE_CARAVAGGIO +
+    ART_MOVE_BAROQUE_CARAVAGGIO  (twilight chiaroscuro)
+NEVER mix incompatible worlds (e.g. PHOTOG_HELMUT_NEWTON +
+PALETTE_WES_ANDERSON_PASTEL — they belong to different aesthetic
+universes and the result will read as confused).
 
 Return ONLY the JSON object."""
 
@@ -197,6 +222,44 @@ class ThemeMode(BaseMode):
             getattr(ctx.content_rules, "llm_directive", "")
             or f"(No directive declared for {ctx.content_level}.)"
         )
+        # Phase 3 (vocab v6) — load the aesthetic-anchor menu narrowed
+        # by style_profile + theme compatibility lists. Defaults to full
+        # menu when lists are absent (back-compat for pre-Phase-3
+        # profiles/themes).
+        from src.agents.series_planner import _resolve_aesthetic_menu
+        style_profile_compat = {
+            "compatible_palettes": ctx.style_profile.get(
+                "compatible_palettes", []
+            ),
+            "compatible_photographers": ctx.style_profile.get(
+                "compatible_photographers", []
+            ),
+            "compatible_art_movements": ctx.style_profile.get(
+                "compatible_art_movements", []
+            ),
+        }
+        # Intersect with theme.compatible_* lists when category declares
+        # them (categories.yaml Phase 4 work; lite version: read whatever
+        # the category dict carries).
+        for key in (
+            "compatible_palettes",
+            "compatible_photographers",
+            "compatible_art_movements",
+        ):
+            theme_list = category.get(key, [])
+            if theme_list:
+                profile_list = style_profile_compat.get(key, []) or []
+                if profile_list:
+                    # Intersection of profile + theme
+                    style_profile_compat[key] = [
+                        t for t in profile_list if t in theme_list
+                    ]
+                else:
+                    style_profile_compat[key] = list(theme_list)
+        aesthetic_menu = _resolve_aesthetic_menu(
+            style_profile_compat=style_profile_compat,
+        )
+
         user_prompt = _PLAN_USER_TEMPLATE.format(
             category_name=category["name"],
             category_description=category.get("description", ""),
@@ -206,6 +269,9 @@ class ThemeMode(BaseMode):
             llm_directive=tier_directive,
             allowed_pose_types=json.dumps(allowed_poses),
             previous_themes="\n".join(f"  - {t}" for t in previous_themes) or "  (none)",
+            color_palette_options=", ".join(aesthetic_menu["color_palette"]),
+            photographer_ref_options=", ".join(aesthetic_menu["photographer_ref"]),
+            art_movement_options=", ".join(aesthetic_menu["art_movement"]),
         )
 
         plan_sys = ctx.augment_system_prompt(_PLAN_SYSTEM_PROMPT)

@@ -92,6 +92,25 @@ class CharacterMode(BaseMode):
             "series_planner", cli_llm_override=cli_llm_override,
         )
 
+        # Phase 3 (vocab v6) — read the style_profile's compatibility
+        # filters for aesthetic anchors. When the profile declares
+        # compatible_palettes / compatible_photographers /
+        # compatible_art_movements lists, SeriesPlanner narrows the
+        # LLM's menu to those — preventing incompatible combinations
+        # like Helmut-Newton + Wes-Anderson-pastel. Defaults to empty
+        # lists so legacy profiles (predating Phase 3) work unchanged.
+        style_profile_compat = {
+            "compatible_palettes": ctx.style_profile.get(
+                "compatible_palettes", []
+            ),
+            "compatible_photographers": ctx.style_profile.get(
+                "compatible_photographers", []
+            ),
+            "compatible_art_movements": ctx.style_profile.get(
+                "compatible_art_movements", []
+            ),
+        }
+
         # Build the series plan
         plan = self._planner.plan(
             character_name=ctx.character_id,
@@ -115,6 +134,7 @@ class CharacterMode(BaseMode):
             prompt_guide=ctx.model_prompt_guide,
             temperature=ctx.family.llm_temperature,
             model=planner_model,
+            style_profile_compat=style_profile_compat,
         )
 
         # Attach character metadata to the plan for downstream consumers

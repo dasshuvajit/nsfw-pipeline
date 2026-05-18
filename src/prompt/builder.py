@@ -50,7 +50,7 @@ from src.prompt.negative_axes import (
     normalize_axes,
 )
 from src.prompt.tokenizer import count_tokens, fit_to_budget
-from src.prompt.vocabulary import canonicalize_facet
+from src.prompt.vocabulary import canonicalize_facet, canonicalize_series_aesthetic
 
 
 logger = logging.getLogger(__name__)
@@ -279,6 +279,7 @@ class PromptBuilder:
         negative_prompt_override: str | None = None,
         avoid_words: Iterable[str] | None = None,
         content_level: str | None = None,
+        series_plan: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Build one prompt dict from a character/scene/profile triple.
 
@@ -297,6 +298,15 @@ class PromptBuilder:
         LLM emitted ``nsfw_anatomy=NSFW_BREAST_NATURAL``. None means
         "skip NSFW concepts entirely" (defence-in-depth).
 
+        ``series_plan`` (Phase 3) — when supplied, the series-level
+        aesthetic anchors (``color_palette``, ``photographer_ref``,
+        ``art_movement``) are canonicalized via
+        :func:`canonicalize_series_aesthetic` and prepended to the
+        prompt body. These represent the series's "signature look"
+        — chosen once per series by SeriesPlanner and held constant
+        across every scene. ``None`` is back-compat for older series
+        without aesthetic anchors (they render unchanged).
+
         Family-specific scene fields are consumed as primary signal when
         present — ``booru_tags`` (pony/illustrious), ``scene_prose``
         (flux/chroma/illustrious), ``camera_spec`` + ``clothing``
@@ -309,6 +319,14 @@ class PromptBuilder:
                 f"character is missing base_prompt: {dict(character)!r}"
             )
 
+        # Phase 3 (vocab v6) — series-level aesthetic anchors. Canonicalize
+        # the series's color_palette / photographer_ref / art_movement
+        # once and prepend to the prompt body. Empty when series_plan
+        # missing or has no aesthetic fields (back-compat).
+        series_aesthetic_phrases = canonicalize_series_aesthetic(
+            series_plan, family.id, content_level=content_level,
+        )
+
         # Phase 4a — canonicalize abstract enum-tag fields on the scene
         # facet into family-shaped phrases. Canonicalizer drops:
         #   * unknown concept tags (LLM drift),
@@ -319,6 +337,17 @@ class PromptBuilder:
         )
 
         segments: list[str] = [base_prompt]
+
+        # Phase 3 (vocab v6) — series-aesthetic phrases land RIGHT AFTER
+        # base_prompt and BEFORE scene fields, so the visual world is
+        # established before per-scene details fill it in. Per verifier
+        # B4/B7: for prose families the order is base → series_aesthetic
+        # → scene_fields → scene_vocab → style. For Pony the prose-shape
+        # phrases get filtered (no photographer/art_movement phrasings
+        # exist for Pony; only color_palette has a Pony tag form).
+        for phrase in series_aesthetic_phrases:
+            segments.append(phrase)
+
         for field in self.scene_field_order:
             value = self._field(scene, field)
             if value:
@@ -345,8 +374,9 @@ class PromptBuilder:
 
         # Combine caller-supplied extra_keywords with vocab phrases for
         # the prose-composer path (which reads extra_keywords as its
-        # own kwarg). Vocab phrases lead — they're more specific.
-        merged_extras: list[str] = list(vocab_phrases)
+        # own kwarg). Series-aesthetic + scene vocab phrases lead —
+        # they're more specific than caller extras.
+        merged_extras: list[str] = list(series_aesthetic_phrases) + list(vocab_phrases)
         for kw in extra_keywords or ():
             if kw:
                 merged_extras.append(str(kw))

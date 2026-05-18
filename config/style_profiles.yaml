@@ -40,6 +40,29 @@ profiles:
     lighting_hint: single-source hard-shadow, window slat, bedside lamp
     suited_tiers: [T2_implied, T3_artnude, T4_explicit]
     suited_families: [sdxl, chroma, flux, flux2]
+    # Phase 3 (vocab v6) — aesthetic-anchor compatibility lists.
+    # Narrow the SeriesPlanner LLM menu to coherent combinations.
+    # Boudoir noir = low-key, chiaroscuro, intimate — pairs with
+    # Newton/Mapplethorpe/Henson photographers, dark cinematic
+    # palettes, baroque/film-noir art movements.
+    compatible_palettes:
+      - PALETTE_BAROQUE_CARAVAGGIO
+      - PALETTE_MONOCHROME_LOW_KEY
+      - PALETTE_MONOCHROME_HIGH_CONTRAST
+      - PALETTE_DEAKINS_AMBER_TUNGSTEN
+      - PALETTE_SEPIA_PLATINUM
+      - PALETTE_VOGUE_EDITORIAL
+    compatible_photographers:
+      - PHOTOG_HELMUT_NEWTON
+      - PHOTOG_BILL_HENSON
+      - PHOTOG_ROBERT_MAPPLETHORPE
+      - PHOTOG_PAOLO_ROVERSI
+      - PHOTOG_PETER_LINDBERGH
+    compatible_art_movements:
+      - ART_MOVE_BAROQUE_CARAVAGGIO
+      - ART_MOVE_FILM_NOIR_1940S
+      - ART_MOVE_REMBRANDT_PORTRAIT
+      - ART_MOVE_HOPPER
 
   old_hollywood_glamour:
     name: Old Hollywood Glamour
@@ -75,6 +98,25 @@ profiles:
     lighting_hint: warm sunset rim-light + sky bounce fill
     suited_tiers: [T1_suggestive, T2_implied, T3_artnude]
     suited_families: [sdxl, flux, chroma, flux2]
+    # Phase 3 — golden-hour natural pairs with naturalistic
+    # photographers (Hegre / Lindbergh / Slim Aarons), warm/earth
+    # palettes, naturalistic art movements (Renoir / Vermeer).
+    compatible_palettes:
+      - PALETTE_LUBEZKI_NATURAL_GOLDEN
+      - PALETTE_TUSCAN_EARTH
+      - PALETTE_PINK_AND_GOLD
+      - PALETTE_MUTED_EARTH_WARM
+      - PALETTE_SEPIA_PLATINUM
+    compatible_photographers:
+      - PHOTOG_PETTER_HEGRE
+      - PHOTOG_SLIM_AARONS
+      - PHOTOG_PETER_LINDBERGH
+      - PHOTOG_SARAH_MOON
+      - PHOTOG_HERB_RITTS
+    compatible_art_movements:
+      - ART_MOVE_IMPRESSIONIST_RENOIR
+      - ART_MOVE_DUTCH_GOLDEN_VERMEER
+      - ART_MOVE_PRE_RAPHAELITE
 
   cinematic_wet_set:
     name: Cinematic Wet-Set
@@ -91,6 +133,21 @@ profiles:
     lighting_hint: neon edge-light, rain-window silhouette, wet-specular
     suited_tiers: [T2_implied, T3_artnude, T4_explicit]
     suited_families: [sdxl, chroma, flux, flux2]
+    # Phase 3 — cinematic wet-set pairs with Blade Runner / Fincher
+    # palettes, Crewdson cinematic-tableau, film-noir art movement.
+    compatible_palettes:
+      - PALETTE_BLADE_RUNNER_NEON
+      - PALETTE_FINCHER_DESATURATED_GREEN
+      - PALETTE_TEAL_ORANGE_BLOCKBUSTER
+      - PALETTE_MONOCHROME_LOW_KEY
+      - PALETTE_NORDIC_DESATURATED
+    compatible_photographers:
+      - PHOTOG_GREGORY_CREWDSON
+      - PHOTOG_BILL_HENSON
+      - PHOTOG_HELMUT_NEWTON
+    compatible_art_movements:
+      - ART_MOVE_FILM_NOIR_1940S
+      - ART_MOVE_HOPPER
 
   fine_art_figurative:
     name: Fine-Art Figurative
@@ -109,6 +166,27 @@ profiles:
     lighting_hint: rembrandt or split, single soft source, no fill
     suited_tiers: [T2_implied, T3_artnude]
     suited_families: [sdxl, flux, chroma, illustrious, flux2]
+    # Phase 3 — fine-art figurative pairs with classical photographers
+    # (Mapplethorpe / Ritts / Hegre / Lindbergh), monochrome palettes,
+    # classical painting movements (Rembrandt / Caravaggio / Vermeer).
+    compatible_palettes:
+      - PALETTE_MONOCHROME_HIGH_CONTRAST
+      - PALETTE_MONOCHROME_LOW_KEY
+      - PALETTE_SEPIA_PLATINUM
+      - PALETTE_BAROQUE_CARAVAGGIO
+      - PALETTE_MUTED_EARTH_WARM
+    compatible_photographers:
+      - PHOTOG_ROBERT_MAPPLETHORPE
+      - PHOTOG_HERB_RITTS
+      - PHOTOG_PETTER_HEGRE
+      - PHOTOG_PETER_LINDBERGH
+      - PHOTOG_SARAH_MOON
+    compatible_art_movements:
+      - ART_MOVE_BAROQUE_CARAVAGGIO
+      - ART_MOVE_REMBRANDT_PORTRAIT
+      - ART_MOVE_DUTCH_GOLDEN_VERMEER
+      - ART_MOVE_PRE_RAPHAELITE
+      - ART_MOVE_ART_NOUVEAU_KLIMT
 
   vintage_pinup_kodachrome:
     name: Vintage Pin-Up Kodachrome
@@ -195,3 +273,18 @@ profiles:
     lighting_hint: neon sign key + rain window fill + hard shadow slats
     suited_tiers: [T2_implied, T3_artnude, T4_explicit]
     suited_families: [sdxl, chroma, flux]
+    # Phase 3 — neo-noir neon pairs with Blade Runner palette,
+    # Crewdson / Henson / Petra Collins photographers, film noir.
+    compatible_palettes:
+      - PALETTE_BLADE_RUNNER_NEON
+      - PALETTE_FINCHER_DESATURATED_GREEN
+      - PALETTE_MONOCHROME_LOW_KEY
+      - PALETTE_NORDIC_DESATURATED
+    compatible_photographers:
+      - PHOTOG_GREGORY_CREWDSON
+      - PHOTOG_BILL_HENSON
+      - PHOTOG_HELMUT_NEWTON
+      - PHOTOG_PETRA_COLLINS
+    compatible_art_movements:
+      - ART_MOVE_FILM_NOIR_1940S
+      - ART_MOVE_HOPPER

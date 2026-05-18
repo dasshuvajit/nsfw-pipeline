@@ -35,6 +35,11 @@ if TYPE_CHECKING:
 
 # Kept for backward compatibility with callers that introspect the
 # expected field set; actual validation now flows through SeriesPlan.
+# Phase 3 (vocab v6) adds three series-level aesthetic-anchor fields
+# (color_palette / photographer_ref / art_movement). They are STRONGLY
+# encouraged in the system prompt but kept optional in REQUIRED_FIELDS
+# so legacy series predating Phase 3 continue to validate without
+# manual backfill.
 REQUIRED_FIELDS = {"theme", "mood", "environment", "variation_axes"}
 
 # Q6 — Pattern A persona. The 25+ age framing is upstream-verified by
@@ -67,6 +72,46 @@ OPERATING PRINCIPLES:
 You must respect the content level and allowed pose types provided — never
 exceed them. Make the theme specific and visual; vague themes ("beauty",
 "nature") are rejected downstream.
+
+═══ SERIES AESTHETIC ANCHORS (Phase 3, vocab v6) ════════════════════
+Every series MUST establish a coherent VISUAL WORLD via three
+series-level aesthetic anchors held constant across every scene:
+
+  1. ``color_palette`` — pick one PALETTE_* tag. The series's
+     cinematic colour grade; every scene inherits it.
+  2. ``photographer_ref`` — pick one PHOTOG_* tag. The photographer
+     whose signature style the series emulates.
+  3. ``art_movement`` — pick one ART_MOVE_* tag (optional but
+     encouraged). The art-movement / aesthetic tradition.
+
+These give the series a "signature look" — the commercial
+differentiator that top Patreon/Fanvue creators have. The composer
+threads the canonicalised phrases into every scene's prompt.
+
+COHERENCE RULE: the three tags MUST form a sensible aesthetic
+combination. Known-coherent example pairings:
+
+  - PHOTOG_HELMUT_NEWTON + PALETTE_MONOCHROME_HIGH_CONTRAST +
+    ART_MOVE_FILM_NOIR_1940S  (provocative urban noir)
+  - PHOTOG_PETTER_HEGRE + PALETTE_TUSCAN_EARTH +
+    ART_MOVE_DUTCH_GOLDEN_VERMEER  (naturalistic villa nudes)
+  - PHOTOG_SLIM_AARONS + PALETTE_LUBEZKI_NATURAL_GOLDEN +
+    (omit art_movement)  (golden-age jet-set glamour)
+  - PHOTOG_PETRA_COLLINS + PALETTE_WES_ANDERSON_PASTEL +
+    ART_MOVE_WES_ANDERSON  (dreamy pastel symmetry)
+  - PHOTOG_BILL_HENSON + PALETTE_BAROQUE_CARAVAGGIO +
+    ART_MOVE_BAROQUE_CARAVAGGIO  (twilight chiaroscuro)
+  - PHOTOG_PAOLO_ROVERSI + PALETTE_VOGUE_EDITORIAL +
+    (omit art_movement)  (ethereal high-fashion editorial)
+  - PHOTOG_ROBERT_MAPPLETHORPE + PALETTE_MONOCHROME_HIGH_CONTRAST +
+    ART_MOVE_BAROQUE_CARAVAGGIO  (formal nude chiaroscuro)
+
+NEVER mix incompatible worlds (e.g. PHOTOG_HELMUT_NEWTON +
+PALETTE_WES_ANDERSON_PASTEL — provocative noir does not coexist
+with dreamy pastel symmetry). When the style profile specifies
+compatible_palettes / compatible_photographers / compatible_art_movements,
+ONLY pick from within those lists — they pre-filter the menu to
+combinations the theme + profile have validated as coherent.
 """
 
 # fmt: off
@@ -92,12 +137,20 @@ Environment constraint: {environment_constraint}
 Previous themes to AVOID repeating (last 5 series for this character):
 {previous_themes}
 
+Series aesthetic menu (Phase 3, vocab v6) — pick coherent combo:
+  color_palette options: {color_palette_options}
+  photographer_ref options: {photographer_ref_options}
+  art_movement options: {art_movement_options}
+
 Generate a JSON object with exactly these fields:
 {{
   "theme": "<overarching visual/narrative theme for the set — be specific and evocative>",
   "mood": "<emotional tone — must be from the allowed mood range>",
   "environment": "<primary setting/location — be specific: 'sunlit Parisian loft' not just 'indoor'>",
-  "variation_axes": ["<axis1>", "<axis2>", "<axis3>", "<axis4>"]
+  "variation_axes": ["<axis1>", "<axis2>", "<axis3>", "<axis4>"],
+  "color_palette": "<one PALETTE_* tag from the menu above>",
+  "photographer_ref": "<one PHOTOG_* tag from the menu above>",
+  "art_movement": "<one ART_MOVE_* tag from the menu, OR null if no movement reference fits>"
 }}
 
 The variation_axes should be 3-5 specific dimensions the scenes will vary across.
@@ -106,6 +159,72 @@ Bad axes: "random", "misc", "other"
 
 Return ONLY the JSON object."""
 # fmt: on
+
+
+# Phase 3 (vocab v6) helper — build the aesthetic-anchor menu the
+# SeriesPlanner shows the LLM. Reads the global aesthetic.* vocab
+# and optionally narrows via the style_profile's compatible_* lists.
+# When narrowing is requested but a list is empty / missing, that
+# namespace shows ALL tags (back-compat for style_profiles predating
+# Phase 3 — they still work, just without coherence pre-filtering).
+def _resolve_aesthetic_menu(
+    prompt_guide: "ModelPromptGuide | None" = None,
+    style_profile_compat: dict[str, list[str]] | None = None,
+) -> dict[str, list[str]]:
+    """Return the per-namespace tag list the SeriesPlanner offers
+    to the LLM for aesthetic-anchor selection.
+
+    Returns a dict with keys ``color_palette`` / ``photographer_ref``
+    / ``art_movement``, each valued by the tag-id list the LLM may
+    pick from. When ``style_profile_compat`` provides a non-empty
+    ``compatible_palettes`` / ``compatible_photographers`` /
+    ``compatible_art_movements`` list, the menu narrows to the
+    intersection of (full vocab) ∩ (compat). Otherwise the full
+    menu is returned for that namespace.
+
+    Pony omission: photographer_ref + art_movement namespaces have
+    no Pony phrasing, so when the SeriesPlanner is invoked for a
+    Pony-only target the LLM still picks a tag (which canonicalizes
+    to phrasing for SDXL/Flux/Chroma siblings). The Pony composer
+    silently drops those at compose time via the existing canonicalizer
+    family-omission path. Behaviour is identical to how Pony has
+    always handled realism.camera / realism.lens (vocab v4).
+    """
+    from src.prompt.vocabulary import _default_loader
+    loader = _default_loader()
+    # Use SDXL as the canonical menu source — every non-Pony-omitted
+    # namespace has SDXL phrasing, so SDXL is the union of all tags.
+    full_menu = loader.all_concepts_for_family("sdxl")
+    palettes = list(full_menu.get("aesthetic.color_palette", []))
+    photographers = list(full_menu.get("aesthetic.photographer_ref", []))
+    art_movements = list(full_menu.get("aesthetic.art_movement", []))
+
+    # Apply compat-list narrowing when provided + non-empty.
+    if style_profile_compat:
+        cp = style_profile_compat.get("compatible_palettes") or []
+        cph = style_profile_compat.get("compatible_photographers") or []
+        cam = style_profile_compat.get("compatible_art_movements") or []
+        if cp:
+            palettes = [t for t in palettes if t in cp]
+        if cph:
+            photographers = [t for t in photographers if t in cph]
+        if cam:
+            art_movements = [t for t in art_movements if t in cam]
+        # Defensive: if a filter zeroed a namespace (compat list had
+        # stale tag names), fall back to the full menu for that namespace
+        # rather than offering an empty menu to the LLM.
+        if not palettes:
+            palettes = list(full_menu.get("aesthetic.color_palette", []))
+        if not photographers:
+            photographers = list(full_menu.get("aesthetic.photographer_ref", []))
+        if not art_movements:
+            art_movements = list(full_menu.get("aesthetic.art_movement", []))
+
+    return {
+        "color_palette": palettes,
+        "photographer_ref": photographers,
+        "art_movement": art_movements,
+    }
 
 
 def _build_system_prompt(prompt_guide: "ModelPromptGuide | None" = None) -> str:
@@ -166,6 +285,7 @@ class SeriesPlanner:
         prompt_guide: "ModelPromptGuide | None" = None,
         temperature: float | None = None,
         model: str | None = None,
+        style_profile_compat: dict[str, list[str]] | None = None,
     ) -> dict:
         """Generate a series plan and return it as a validated dict.
 
@@ -234,6 +354,18 @@ class SeriesPlanner:
 
         prev_str = "\n".join(f"  - {t}" for t in (previous_themes or [])) or "  (none — this is the first series)"
 
+        # Phase 3 (vocab v6) — load the aesthetic menu and narrow it
+        # via the style_profile's compatible_* lists (lite version of
+        # verifier I2). The full menu has 17 palettes + 15 photographers
+        # + 15 art movements = 47 tags; when the profile pre-filters
+        # the LLM only sees compatible combinations (no Newton + Wes
+        # Anderson pastel offered, because no profile whitelists both).
+        # When the style_profile has no compatible_* lists, the menu
+        # surfaces all tags (back-compat — existing profiles still work).
+        aesthetic_menu = _resolve_aesthetic_menu(
+            prompt_guide, style_profile_compat=style_profile_compat,
+        )
+
         user_prompt = _USER_PROMPT_TEMPLATE.format(
             character_name=character_name,
             base_prompt=base_prompt,
@@ -246,6 +378,9 @@ class SeriesPlanner:
             mood_range=json.dumps(mood_range),
             environment_constraint=environment_constraint,
             previous_themes=prev_str,
+            color_palette_options=", ".join(aesthetic_menu["color_palette"]),
+            photographer_ref_options=", ".join(aesthetic_menu["photographer_ref"]),
+            art_movement_options=", ".join(aesthetic_menu["art_movement"]),
         )
 
         system_prompt = _build_system_prompt(prompt_guide)

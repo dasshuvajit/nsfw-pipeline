@@ -75,6 +75,11 @@ Base style profile: {style_name}
 Previous styles to AVOID repeating (last 5 series in style mode):
 {previous_styles}
 
+Series aesthetic menu (Phase 3, vocab v6) — pick coherent combo:
+  color_palette options: {color_palette_options}
+  photographer_ref options: {photographer_ref_options}
+  art_movement options: {art_movement_options}
+
 Generate a JSON object with exactly these fields:
 {{
   "theme": "<the style concept as a theme name — e.g. 'Film Noir Glamour' not just 'cinematic'>",
@@ -86,11 +91,19 @@ Generate a JSON object with exactly these fields:
   "camera_bias": "<preferred camera angles and framing>",
   "composition_rules": "<rules for visual composition in this style>",
   "environment_bias": "<what kinds of environments work with this style>",
-  "style_keywords": "<comma-separated keywords that define this visual style>"
+  "style_keywords": "<comma-separated keywords that define this visual style>",
+  "color_palette": "<one PALETTE_* tag from the menu — series-level cinematic grade>",
+  "photographer_ref": "<one PHOTOG_* tag from the menu — photographer-signature>",
+  "art_movement": "<one ART_MOVE_* tag from the menu, OR null>"
 }}
 
 The style must be SPECIFIC and visual (not vague like "beautiful lighting").
 Style keywords should be concrete terms a diffusion model understands.
+
+═══ AESTHETIC COHERENCE RULE ═══════════════════════════════════════
+The (color_palette, photographer_ref, art_movement) triple MUST
+form a coherent visual world. See examples in CharacterMode planner
+prompt. NEVER mix incompatible worlds.
 
 Return ONLY the JSON object."""
 
@@ -192,6 +205,38 @@ class StyleMode(BaseMode):
             getattr(ctx.content_rules, "llm_directive", "")
             or f"(No directive declared for {ctx.content_level}.)"
         )
+        # Phase 3 (vocab v6) — aesthetic-anchor menu narrowed by
+        # style_profile + style-category compatibility lists.
+        from src.agents.series_planner import _resolve_aesthetic_menu
+        style_profile_compat = {
+            "compatible_palettes": ctx.style_profile.get(
+                "compatible_palettes", []
+            ),
+            "compatible_photographers": ctx.style_profile.get(
+                "compatible_photographers", []
+            ),
+            "compatible_art_movements": ctx.style_profile.get(
+                "compatible_art_movements", []
+            ),
+        }
+        for key in (
+            "compatible_palettes",
+            "compatible_photographers",
+            "compatible_art_movements",
+        ):
+            cat_list = category.get(key, [])
+            if cat_list:
+                prof_list = style_profile_compat.get(key, []) or []
+                if prof_list:
+                    style_profile_compat[key] = [
+                        t for t in prof_list if t in cat_list
+                    ]
+                else:
+                    style_profile_compat[key] = list(cat_list)
+        aesthetic_menu = _resolve_aesthetic_menu(
+            style_profile_compat=style_profile_compat,
+        )
+
         user_prompt = _PLAN_USER_TEMPLATE.format(
             category_name=category["name"],
             category_description=category.get("description", ""),
@@ -202,6 +247,9 @@ class StyleMode(BaseMode):
             content_level=ctx.content_level,
             llm_directive=tier_directive,
             previous_styles="\n".join(f"  - {s}" for s in previous_styles) or "  (none)",
+            color_palette_options=", ".join(aesthetic_menu["color_palette"]),
+            photographer_ref_options=", ".join(aesthetic_menu["photographer_ref"]),
+            art_movement_options=", ".join(aesthetic_menu["art_movement"]),
         )
 
         plan_sys = ctx.augment_system_prompt(_PLAN_SYSTEM_PROMPT)
