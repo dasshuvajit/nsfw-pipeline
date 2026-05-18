@@ -117,6 +117,37 @@ def _load_config() -> dict:
     return {}
 
 
+def _extract_seed_from_workflow(workflow: dict[str, Any]) -> int:
+    """Read the chosen render seed straight out of a built workflow dict.
+
+    Authoritative because ``WorkflowBuilder.build*`` patched the seed
+    field at build time; ComfyUI's history response does NOT carry the
+    seed back, so reading from the response gives 0 for renamed
+    semantic-ID ksampler nodes (the bug this helper fixes).
+
+    Family/template seed locations:
+      * ``ksampler.inputs.seed`` — SDXL, Pony, Illustrious, Flux, Flux.2,
+        and every external template (per ``_REQUIRED_NODES_EXTERNAL``).
+      * ``random_noise.inputs.noise_seed`` — Chroma's built-in
+        ``base.json`` (CFGGuider + SamplerCustomAdvanced graph).
+
+    Returns 0 only when neither node is present — that's a defensive
+    fallback for a hand-crafted template that omits both. Callers can
+    treat 0 as "seed unrecoverable" rather than a real seed value.
+    """
+    if "ksampler" in workflow:
+        inputs = workflow["ksampler"].get("inputs", {})
+        seed = inputs.get("seed")
+        if isinstance(seed, int):
+            return seed
+    if "random_noise" in workflow:
+        inputs = workflow["random_noise"].get("inputs", {})
+        seed = inputs.get("noise_seed")
+        if isinstance(seed, int):
+            return seed
+    return 0
+
+
 def _model_subfolder(family: str) -> str:
     """Return the ComfyUI ``models/<subfolder>/`` that holds this family's weights.
 
@@ -1390,6 +1421,16 @@ class PipelineEngine:
                     or rcl_inputs.get("unet_name")
                 )
 
+            # Read seed from the workflow we just built — ComfyUI's
+            # history response (RenderedImage) doesn't carry the seed
+            # back, so getattr(ci, "seed", 0) always returned 0 and
+            # broke PNG-metadata reproducibility. The workflow was
+            # patched with the chosen seed at build time, so this is
+            # the authoritative source. Handles both ksampler.seed
+            # (every family + every external template) and
+            # random_noise.noise_seed (Chroma's built-in graph).
+            seed_val = _extract_seed_from_workflow(workflow)
+
             comfy_images = None
             for attempt in range(self.max_retry):
                 try:
@@ -1421,9 +1462,6 @@ class PipelineEngine:
                 dst_name = f"{prompt['id']}_{src_path.name}"
                 dst_path = output_series_dir / dst_name
                 shutil.copy2(src_path, dst_path)
-                seed_val = (
-                    getattr(ci, "seed", 0) if hasattr(ci, "seed") else 0
-                )
                 # Phase 4b — embed AUTOMATIC1111 + nsfw_pipeline PNG
                 # metadata chunks so the file carries its own
                 # reproduction parameters even if disconnected from

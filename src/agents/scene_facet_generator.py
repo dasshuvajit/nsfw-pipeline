@@ -45,15 +45,66 @@ if TYPE_CHECKING:
     from src.memory.model_registry import ModelPromptGuide
 
 
-# Tier-required NSFW facet fields (added 2026-05-17). The llm_directive
-# at T3/T4 says these are REQUIRED but the Pydantic schema declares
-# them Optional for back-compat. We post-validate to catch LLM dodges
-# and trigger the retry loop with an explicit nudge.
-_TIER_REQUIRED_NSFW_FIELDS: dict[str, tuple[str, ...]] = {
-    "T1_suggestive": (),
-    "T2_implied":    (),
-    "T3_artnude":    ("nsfw_anatomy",),
-    "T4_explicit":   ("nsfw_anatomy", "nsfw_act"),
+# Tier-required facet fields. The Pydantic schema declares these
+# Optional[str] for back-compat and per-family schema variance, so
+# constrained decoding + Pydantic alone accept null. We post-validate
+# to catch LLM dodges (heretic-tuned or smaller LLMs nulling structured
+# fields when uncertain) and trigger the retry loop with an explicit
+# nudge.
+#
+# - ``lighting_directive`` (2026-05-18) — required at every tier
+#   across every family schema that carries it (all 5: sdxl, pony,
+#   illustrious, flux, chroma, flux2). Single biggest factor in image
+#   quality; the canonicalizer translates the enum tag into family-
+#   shaped cinematography vocabulary (`Rembrandt lighting, dramatic
+#   side-light` vs free-text `dim ambient`). Adding to every tier
+#   protects the vocab_version 2 contract — without this, the LLM can
+#   null the field and the canonicalizer becomes dead weight.
+# - ``nsfw_anatomy`` (T3+, added 2026-05-17) — explicit nudity vocab
+#   that the T3/T4 llm_directive marks REQUIRED. Booru-family
+#   relaxation: native danbooru NSFW tokens inside ``booru_tags``
+#   count as equivalent (see ``_booru_tags_carry_nsfw``).
+# - ``nsfw_act`` (T4 only, added 2026-05-17) — explicit-act vocab
+#   with no booru equivalent (strict check).
+_TIER_REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
+    "T1_suggestive": ("lighting_directive",),
+    "T2_implied":    ("lighting_directive",),
+    "T3_artnude":    ("lighting_directive", "nsfw_anatomy"),
+    "T4_explicit":   ("lighting_directive", "nsfw_anatomy", "nsfw_act"),
+}
+
+# Back-compat alias — older callers / tests may still import the
+# pre-2026-05-18 name. Keep until callers migrate.
+_TIER_REQUIRED_NSFW_FIELDS = _TIER_REQUIRED_FIELDS
+
+
+# Example concept-tag values inlined into the retry-nudge per field
+# so the second attempt's user prompt carries 4-5 concrete examples
+# instead of just naming the field. Empirically critical on heretic-
+# tuned LLMs that otherwise null structured fields under constrained
+# decoding even with the full vocabulary menu in the system prompt.
+# Pulled from ``config/prompt_vocabulary.yaml`` — covers the most
+# common scene-fitting picks per namespace. The full menu remains in
+# the system prompt; these are only nudge examples (the LLM may pick
+# any tag from the menu, not just these).
+_FIELD_EXAMPLE_TAGS: dict[str, tuple[str, ...]] = {
+    "lighting_directive": (
+        "LIGHT_GOLDEN_HOUR", "LIGHT_SOFT_FILL", "LIGHT_REMBRANDT",
+        "LIGHT_WINDOW_SIDE", "LIGHT_RIM_BACK",
+    ),
+    "nsfw_anatomy": (
+        "NSFW_FULL_NUDE", "NSFW_BREAST_NATURAL",
+        "NSFW_NIPPLES_VISIBLE", "NSFW_VULVA_VISIBLE",
+    ),
+    # Solo-only pipeline (CLAUDE.md invariant) — partnered T4 acts
+    # (EMBRACE_NUDE / KISS_PASSIONATE / PARTNERED_INTIMATE / AFTERGLOW)
+    # are filtered out of the vocab menu by ``_SOLO_MODE_BANNED_TAGS``,
+    # so NSFW_T4_SOLO_TOUCH is the only valid pick. Listing it as the
+    # sole example here keeps the nudge honest and aligned with the
+    # post-canonicalize filter.
+    "nsfw_act": (
+        "NSFW_T4_SOLO_TOUCH",
+    ),
 }
 
 # Native danbooru NSFW vocabulary — booru families (pony, illustrious)
@@ -110,13 +161,13 @@ def _booru_tags_carry_nsfw(facet: dict[str, Any] | None) -> bool:
     return False
 
 
-def _missing_required_nsfw_fields(
+def _missing_required_fields(
     facet: dict[str, Any] | None,
     content_level: str,
     prompt_style: str | None = None,
 ) -> list[str]:
-    """Return tier-required NSFW field names that are missing/null in
-    ``facet``. Empty list = facet satisfies the tier's NSFW contract.
+    """Return tier-required field names that are missing/null in
+    ``facet``. Empty list = facet satisfies the tier's contract.
 
     A field is considered "present" iff the key exists in the dict
     AND its value is a non-empty string. None, empty string, or
@@ -128,11 +179,12 @@ def _missing_required_nsfw_fields(
     any native danbooru NSFW vocabulary token — booru families
     natively express NSFW content via the tag list, not via the
     structured concept enum. ``nsfw_act`` (T4-only) has no booru
-    equivalent and remains strictly required.
-
-    No-op for T1/T2 (no required NSFW fields) — always returns [].
+    equivalent and remains strictly required. The
+    ``lighting_directive`` realism tag is required at every tier and
+    has no booru equivalent (lighting concept tags carry
+    cinematography-specific vocabulary that booru tags lack).
     """
-    required = _TIER_REQUIRED_NSFW_FIELDS.get(content_level, ())
+    required = _TIER_REQUIRED_FIELDS.get(content_level, ())
     if not required or facet is None:
         return []
     missing = []
@@ -143,11 +195,17 @@ def _missing_required_nsfw_fields(
         if isinstance(value, str) and value.strip():
             continue
         # nsfw_anatomy: accept booru-native NSFW tags as equivalent.
-        # nsfw_act (T4-only): no booru equivalent — strict check.
+        # nsfw_act (T4-only) + lighting_directive: no booru equivalent.
         if field == "nsfw_anatomy" and booru_nsfw_present:
             continue
         missing.append(field)
     return missing
+
+
+# Back-compat alias for the pre-2026-05-18 function name. Some tests
+# (and a few internal call sites in older worktrees) import the
+# narrower name; keep both pointing at the same implementation.
+_missing_required_nsfw_fields = _missing_required_fields
 
 
 # Q6 — Pattern A persona for the prose-family facet generator
@@ -476,15 +534,17 @@ class SceneFacetGenerator:
         facet = self._attempt(
             system_prompt, user_prompt, schema, effective_temp, model=model,
         )
-        # Tier-required-tags post-validation (added 2026-05-17). The
-        # Pydantic schema declares nsfw_anatomy / nsfw_act as Optional
-        # (back-compat across all tiers), but at T3/T4 they are REQUIRED
-        # per the llm_directive. Pydantic + constrained-decoding alone
-        # accept null here; if the LLM dodges (self-censoring, omitting
-        # the structured fields) we get a tame facet that bypasses the
-        # NSFW vocabulary path entirely. This post-check rejects null
-        # at T3/T4 and triggers the retry loop with an explicit nudge.
-        missing = _missing_required_nsfw_fields(
+        # Tier-required-tags post-validation. The Pydantic schema
+        # declares the structured tags Optional (back-compat across
+        # all tiers + per-family schema variance), but specific tags
+        # are REQUIRED at specific tiers per `_TIER_REQUIRED_FIELDS`
+        # — Pydantic + constrained-decoding alone accept null here;
+        # if the LLM dodges (self-censoring, omitting the structured
+        # fields, or simply not picking from the vocab menu) the
+        # canonicalizer becomes dead weight and we lose the
+        # vocab_version contract. This post-check rejects missing
+        # values and triggers the retry loop with an explicit nudge.
+        missing = _missing_required_fields(
             facet, content_level, prompt_style=prompt_style,
         )
         if facet is not None and not missing:
@@ -493,19 +553,35 @@ class SceneFacetGenerator:
         if missing:
             logger.warning(
                 "Scene facet generator: first attempt for family %s "
-                "missing tier-required NSFW field(s) %s at "
+                "missing tier-required field(s) %s at "
                 "content_level=%s; retrying with explicit nudge.",
                 family.id, missing, content_level,
             )
-            nudge = (
-                "\n\nIMPORTANT: At content_level "
-                f"{content_level}, the following field(s) are "
-                f"REQUIRED and must NOT be null: {', '.join(missing)}. "
-                "Pick one tag for each from the vocabulary menu in the "
-                "system prompt and include it in your JSON output. "
-                "Return ONLY a single JSON object."
+            # Inline example tag values per field so the retry LLM
+            # doesn't have to recall the menu from the (long) system
+            # prompt — empirically this lifts the retry hit-rate
+            # substantially on heretic-tuned models that otherwise
+            # null structured fields under constrained decoding.
+            nudge_lines = [
+                "",
+                "",
+                f"IMPORTANT: At content_level {content_level}, the "
+                f"following field(s) are REQUIRED and must NOT be "
+                f"null: {', '.join(missing)}.",
+            ]
+            for f in missing:
+                examples = _FIELD_EXAMPLE_TAGS.get(f)
+                if examples:
+                    nudge_lines.append(
+                        f"  - {f}: pick exactly one of "
+                        f"{', '.join(examples)} (or any other tag from "
+                        f"that namespace's menu in the system prompt)."
+                    )
+            nudge_lines.append(
+                "Return ONLY a single JSON object with these fields "
+                "populated."
             )
-            retry_prompt = user_prompt + nudge
+            retry_prompt = user_prompt + "\n".join(nudge_lines)
         else:
             logger.warning(
                 "Scene facet generator: first attempt failed for family "
@@ -524,16 +600,16 @@ class SceneFacetGenerator:
         )
         # Re-check tier-required fields after retry. We surface a
         # WARNING (not an error) if still missing — better to ship a
-        # partially-tame T4 facet than to fail the whole prep run.
+        # partially-tame facet than to fail the whole prep run.
         # Operator can re-prep that scene later.
         if facet is not None:
-            still_missing = _missing_required_nsfw_fields(
+            still_missing = _missing_required_fields(
                 facet, content_level, prompt_style=prompt_style,
             )
             if still_missing:
                 logger.warning(
                     "Scene facet generator: family %s still missing "
-                    "tier-required NSFW field(s) %s after retry; "
+                    "tier-required field(s) %s after retry; "
                     "shipping the facet anyway (operator can re-prep "
                     "this scene with --regen-facets to retry).",
                     family.id, still_missing,

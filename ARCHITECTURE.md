@@ -3,7 +3,36 @@
 > **Platform:** Mac M4 Pro, 48 GB unified RAM  
 > **Target:** DeviantArt, Patreon  
 > **Stack:** Python 3.11, SQLite, ComfyUI, Ollama 0.5+
-> **Last sync:** 2026-05-18 (LLM registry overhaul + routing disabled
+> **Last sync:** 2026-05-18 (Facet post-validation hardening + PNG
+> seed metadata fix — two narrow corrections shipped after end-to-end
+> validation of the heretic-vision LLM exposed gaps: (1)
+> ``lighting_directive`` joined the tier-required field list at every
+> content tier (T1-T4) in
+> ``scene_facet_generator._TIER_REQUIRED_FIELDS``. Pre-fix, every
+> realism enum-tag field (camera/lens/film_stock/lighting/mood/
+> art_style) was Optional[str] + unenforced; heretic-tuned LLMs
+> empirically nulled them all, which left the canonicalizer (the
+> whole point of vocab_version 2) as dead weight. Adding just
+> lighting_directive — the single biggest factor in image quality
+> + present in all 5 family schemas — lifts canonicalizer coverage
+> from 0% to ~87% on heretic-vision with at most one retry per
+> facet. The retry-nudge inlines 4-5 concrete tag examples per
+> missing field via the new ``_FIELD_EXAMPLE_TAGS`` table so the LLM
+> doesn't have to recall the menu from the long system prompt;
+> empirically this lifts retry hit rate 14→21 / 24 on the same
+> series. Function rename ``_missing_required_nsfw_fields`` →
+> ``_missing_required_fields`` (back-compat alias kept).
+> (2) PNG ``nsfw_pipeline`` chunk's ``seed`` field now reads from
+> the built workflow dict via the new
+> ``engine._extract_seed_from_workflow`` helper, not from the
+> ComfyUI ``RenderedImage`` response — the dataclass has no seed
+> attribute, so pre-fix every PNG recorded ``seed: 0``. Helper
+> handles both ``ksampler.seed`` (SDXL/Pony/Illustrious/Flux/Flux.2
+> + every external template) and ``random_noise.noise_seed``
+> (Chroma's built-in base.json). 25 new focused tests cover both
+> fixes; full suite 1257 passing.)
+>
+> Prior sync: 2026-05-18 (LLM registry overhaul + routing disabled
 > — the previous 3-LLM setup (`cydonia_24b_v43` + `venice_24b` +
 > `magnum_v4_22b`) is retired. New 2-LLM registry: (1) primary +
 > default for every role: `cydonia_heretic_24b` — Ollama tag
