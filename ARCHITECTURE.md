@@ -3,7 +3,47 @@
 > **Platform:** Mac M4 Pro, 48 GB unified RAM  
 > **Target:** DeviantArt, Patreon  
 > **Stack:** Python 3.11, SQLite, ComfyUI, Ollama 0.5+
-> **Last sync:** 2026-05-18 (Facet post-validation hardening + PNG
+> **Last sync:** 2026-05-18 (Prompt-generation architectural pass —
+> creativity + reliability + correctness. Five intertwined fixes
+> shipped after a thorough audit of the prompt generation pipeline,
+> all driven by quality + artistic + creativity goals for NSFW art
+> output: (1) ``nsfw.act`` vocab expanded from 1 usable solo tag to
+> 8 — pre-fix every T4 scene was locked to ``NSFW_T4_SOLO_TOUCH``
+> (the only non-banned act in the solo-only pipeline); seven new
+> SOLO_* acts (DISPLAY / RECLINING / MIRROR / BATH / GAZE / OUTDOOR
+> / PERFORMER) give T4 real creative variation. (2) ``nsfw.posture``
+> expanded from 3 to 8 — added STANDING / SEATED / DRAPED /
+> BACK_VIEW / SIDE_PROFILE canonical figure-study poses for richer
+> T3+ compositional variety. ``vocab_version`` bumped 4 → 5.
+> (3) All 18 few-shot examples (3 per family × 6 families) rewritten
+> to demonstrate the structured enum-tag fields — pre-fix the
+> examples only populated free-text fields (``camera_spec`` /
+> ``scene_prose`` / ``booru_tags``), so the LLM mirrored the pattern
+> and nulled every structured tag. Now every example fills
+> ``lighting_directive`` / ``mood_aesthetic`` and (where the schema
+> has them) ``realism_camera`` / ``realism_lens`` /
+> ``realism_film_stock`` / ``art_style_reference`` / ``nsfw_*``.
+> Also fixed a Flux.2 example bug where ``lighting_directive`` held
+> free-text prose instead of an enum tag (the canonicalizer silently
+> dropped it, teaching wrong convention). (4) ``mood_aesthetic``
+> joined ``_TIER_REQUIRED_FIELDS`` at every tier alongside
+> ``lighting_directive`` — same canonicalizer rationale, same retry
+> nudge with example tags inlined via ``_FIELD_EXAMPLE_TAGS``.
+> (5) Validator hardening — ``_missing_required_fields`` is now
+> schema-aware (skips fields not in the facet dict so future
+> required-field additions don't break Pony's narrower schema) AND
+> rejects unknown enum tags (LLM inventions like ``MOOD_ETHEREAL``
+> route to the retry-nudge with valid menu values inlined).
+> Discovered + fixed a bug where ``_attempt`` stripped None values
+> too eagerly, defeating the schema-aware check; None-filter moved
+> to a single end-of-``generate()`` step. Empirical result on a
+> regen-facets smoke: lighting_directive + mood_aesthetic
+> population went from 0/24 to 24/24 (100%); retry-fired-but-
+> recovered rate is 24/24 (every facet gets retried for the missing
+> fields and the retry succeeds with the inline-example nudge).
+> Total tests 1269 (was 1265; +4 unknown-tag cases).)
+>
+> Prior sync: 2026-05-18 (Facet post-validation hardening + PNG
 > seed metadata fix — two narrow corrections shipped after end-to-end
 > validation of the heretic-vision LLM exposed gaps: (1)
 > ``lighting_directive`` joined the tier-required field list at every

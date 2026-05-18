@@ -60,6 +60,11 @@ if TYPE_CHECKING:
 #   side-light` vs free-text `dim ambient`). Adding to every tier
 #   protects the vocab_version 2 contract — without this, the LLM can
 #   null the field and the canonicalizer becomes dead weight.
+# - ``mood_aesthetic`` (added with vocab_version 5, 2026-05-18) —
+#   required at every tier. Same rationale as lighting_directive:
+#   the canonicalizer injects family-shaped mood phrasing
+#   (`MOOD_INTIMATE` → `intimate, tender, unhurried`) that free-text
+#   `mood_note` doesn't reliably carry. All 5 schemas have it.
 # - ``nsfw_anatomy`` (T3+, added 2026-05-17) — explicit nudity vocab
 #   that the T3/T4 llm_directive marks REQUIRED. Booru-family
 #   relaxation: native danbooru NSFW tokens inside ``booru_tags``
@@ -67,10 +72,10 @@ if TYPE_CHECKING:
 # - ``nsfw_act`` (T4 only, added 2026-05-17) — explicit-act vocab
 #   with no booru equivalent (strict check).
 _TIER_REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
-    "T1_suggestive": ("lighting_directive",),
-    "T2_implied":    ("lighting_directive",),
-    "T3_artnude":    ("lighting_directive", "nsfw_anatomy"),
-    "T4_explicit":   ("lighting_directive", "nsfw_anatomy", "nsfw_act"),
+    "T1_suggestive": ("lighting_directive", "mood_aesthetic"),
+    "T2_implied":    ("lighting_directive", "mood_aesthetic"),
+    "T3_artnude":    ("lighting_directive", "mood_aesthetic", "nsfw_anatomy"),
+    "T4_explicit":   ("lighting_directive", "mood_aesthetic", "nsfw_anatomy", "nsfw_act"),
 }
 
 # Back-compat alias — older callers / tests may still import the
@@ -92,18 +97,25 @@ _FIELD_EXAMPLE_TAGS: dict[str, tuple[str, ...]] = {
         "LIGHT_GOLDEN_HOUR", "LIGHT_SOFT_FILL", "LIGHT_REMBRANDT",
         "LIGHT_WINDOW_SIDE", "LIGHT_RIM_BACK",
     ),
+    "mood_aesthetic": (
+        "MOOD_INTIMATE", "MOOD_CONFIDENT", "MOOD_SENSUAL",
+        "MOOD_SERENE", "MOOD_PLAYFUL", "MOOD_PENSIVE",
+    ),
     "nsfw_anatomy": (
         "NSFW_FULL_NUDE", "NSFW_BREAST_NATURAL",
         "NSFW_NIPPLES_VISIBLE", "NSFW_VULVA_VISIBLE",
     ),
-    # Solo-only pipeline (CLAUDE.md invariant) — partnered T4 acts
-    # (EMBRACE_NUDE / KISS_PASSIONATE / PARTNERED_INTIMATE / AFTERGLOW)
-    # are filtered out of the vocab menu by ``_SOLO_MODE_BANNED_TAGS``,
-    # so NSFW_T4_SOLO_TOUCH is the only valid pick. Listing it as the
-    # sole example here keeps the nudge honest and aligned with the
-    # post-canonicalize filter.
+    # Solo-only pipeline (CLAUDE.md invariant) — the four partnered
+    # T4 acts (EMBRACE_NUDE / KISS_PASSIONATE / PARTNERED_INTIMATE /
+    # AFTERGLOW) are filtered out of the vocab menu by
+    # ``_SOLO_MODE_BANNED_TAGS``. The 7 SOLO_* tags below were added
+    # with vocab_version 5 (2026-05-18) to give T4 scenes meaningful
+    # creative variation (pre-fix the only legal pick was SOLO_TOUCH).
     "nsfw_act": (
-        "NSFW_T4_SOLO_TOUCH",
+        "NSFW_T4_SOLO_TOUCH", "NSFW_T4_SOLO_GAZE",
+        "NSFW_T4_SOLO_DISPLAY", "NSFW_T4_SOLO_RECLINING",
+        "NSFW_T4_SOLO_MIRROR", "NSFW_T4_SOLO_BATH",
+        "NSFW_T4_SOLO_OUTDOOR", "NSFW_T4_SOLO_PERFORMER",
     ),
 }
 
@@ -165,13 +177,18 @@ def _missing_required_fields(
     facet: dict[str, Any] | None,
     content_level: str,
     prompt_style: str | None = None,
+    *,
+    family_id: str | None = None,
 ) -> list[str]:
-    """Return tier-required field names that are missing/null in
-    ``facet``. Empty list = facet satisfies the tier's contract.
+    """Return tier-required field names that are missing / null /
+    set to an unknown enum tag in ``facet``. Empty list = facet
+    satisfies the tier's contract.
 
-    A field is considered "present" iff the key exists in the dict
-    AND its value is a non-empty string. None, empty string, or
-    missing-key all count as missing.
+    A field is considered "present" iff the key exists in the dict,
+    its value is a non-empty string, AND (when a ``family_id`` is
+    provided) the value is a known concept tag in the family's
+    vocab menu. None, empty string, missing-key, or unknown-tag
+    all count as missing.
 
     Booru-family relaxation (2026-05-17): for prompt_styles in
     :data:`_BOORU_NATIVE_STYLES` (Pony, Illustrious), ``nsfw_anatomy``
@@ -179,10 +196,29 @@ def _missing_required_fields(
     any native danbooru NSFW vocabulary token — booru families
     natively express NSFW content via the tag list, not via the
     structured concept enum. ``nsfw_act`` (T4-only) has no booru
-    equivalent and remains strictly required. The
-    ``lighting_directive`` realism tag is required at every tier and
-    has no booru equivalent (lighting concept tags carry
-    cinematography-specific vocabulary that booru tags lack).
+    equivalent and remains strictly required. The realism enum tags
+    (``lighting_directive`` + ``mood_aesthetic``) are required at
+    every tier and have no booru equivalent (cinematography vocab
+    that booru tags lack).
+
+    Schema-awareness (2026-05-18): a field that is NOT in the facet
+    dict at all (e.g. ``realism_camera`` for Pony, whose schema
+    omits it) is skipped — the field simply doesn't exist in this
+    family's contract. This lets us add new required fields without
+    teaching every family schema about them. Pydantic's
+    ``model_dump()`` emits None for declared-but-null fields and
+    OMITS undeclared fields entirely, so ``field in facet`` is the
+    reliable discriminator.
+
+    Unknown-tag detection (2026-05-18): when the caller passes
+    ``family_id``, each populated enum-tag field is checked against
+    the family's vocab menu via :class:`VocabularyLoader`. LLMs
+    sometimes invent tags that look right but don't exist (e.g.
+    ``MOOD_ETHEREAL`` for ``mood_aesthetic``); the canonicalizer
+    silently drops these so the prompt loses the vocab thread.
+    Treating them as missing routes them back through the retry
+    nudge, which inlines the valid menu values per
+    :data:`_FIELD_EXAMPLE_TAGS`.
     """
     required = _TIER_REQUIRED_FIELDS.get(content_level, ())
     if not required or facet is None:
@@ -190,22 +226,79 @@ def _missing_required_fields(
     missing = []
     booru_native = prompt_style in _BOORU_NATIVE_STYLES
     booru_nsfw_present = booru_native and _booru_tags_carry_nsfw(facet)
+    # Lazy-load vocab menus once; cache per call. None when family
+    # not supplied — disables the unknown-tag check (back-compat
+    # for tests that pre-date this parameter).
+    valid_tags_by_field = (
+        _valid_tags_for_family(family_id) if family_id else None
+    )
     for field in required:
+        if field not in facet:
+            continue
         value = facet.get(field)
-        if isinstance(value, str) and value.strip():
+        if not (isinstance(value, str) and value.strip()):
+            # nsfw_anatomy: accept booru-native NSFW tags as equivalent.
+            if field == "nsfw_anatomy" and booru_nsfw_present:
+                continue
+            missing.append(field)
             continue
-        # nsfw_anatomy: accept booru-native NSFW tags as equivalent.
-        # nsfw_act (T4-only) + lighting_directive: no booru equivalent.
-        if field == "nsfw_anatomy" and booru_nsfw_present:
-            continue
-        missing.append(field)
+        # Value is a non-empty string — verify it's a known concept
+        # tag in the family's vocab menu (only when we have a loader).
+        if valid_tags_by_field is not None:
+            allowed = valid_tags_by_field.get(field)
+            if allowed is not None and value not in allowed:
+                missing.append(field)
+                continue
     return missing
+
+
+def _valid_tags_for_family(family_id: str) -> dict[str, set[str]]:
+    """Return the per-field set of valid concept tags for ``family_id``.
+
+    Keyed by Pydantic schema field name (e.g. ``lighting_directive``),
+    valued by the lowercased-or-uppercased concept-tag set that the
+    canonicalizer recognises for this family at THIS family's level
+    (i.e. including all tier-gated tags — tier-filter is applied at
+    canonicalize time, not menu time).
+
+    Uses the module-level :data:`_FIELD_TO_NAMESPACE` map from
+    :mod:`src.prompt.vocabulary` to keep the field→namespace
+    mapping single-sourced.
+    """
+    from src.prompt.vocabulary import _FIELD_TO_NAMESPACE, _default_loader
+    loader = _default_loader()
+    out: dict[str, set[str]] = {}
+    for field, (ns_group, ns) in _FIELD_TO_NAMESPACE.items():
+        concepts = loader.concepts_by_namespace(ns_group, ns)
+        # Filter to concepts that have a phrasing for this family —
+        # otherwise the menu would include tags the canonicalizer
+        # would drop for this family (e.g. Pony omits camera phrasing
+        # but the realism.camera namespace exists globally).
+        out[field] = {
+            tag for tag, body in concepts.items()
+            if isinstance(body, dict) and family_id in (body.get("phrasing") or body)
+        }
+    return out
 
 
 # Back-compat alias for the pre-2026-05-18 function name. Some tests
 # (and a few internal call sites in older worktrees) import the
 # narrower name; keep both pointing at the same implementation.
 _missing_required_nsfw_fields = _missing_required_fields
+
+
+def _strip_none_values(facet: dict[str, Any]) -> dict[str, Any]:
+    """Drop fields where the LLM emitted null. Keeps the persisted
+    dict (and DB row) clean — composers + canonicalizer treat
+    missing keys identically to None.
+
+    Called at the EXIT of ``SceneFacetGenerator.generate`` (post-
+    validation). Was previously inside ``_attempt`` but moved out
+    because ``_missing_required_fields`` needs the Nones to
+    distinguish "LLM null'd a declared field" from "field not in
+    this family's schema".
+    """
+    return {k: v for k, v in facet.items() if v is not None}
 
 
 # Q6 — Pattern A persona for the prose-family facet generator
@@ -545,10 +638,11 @@ class SceneFacetGenerator:
         # vocab_version contract. This post-check rejects missing
         # values and triggers the retry loop with an explicit nudge.
         missing = _missing_required_fields(
-            facet, content_level, prompt_style=prompt_style,
+            facet, content_level,
+            prompt_style=prompt_style, family_id=family.id,
         )
         if facet is not None and not missing:
-            return facet
+            return _strip_none_values(facet)
 
         if missing:
             logger.warning(
@@ -604,7 +698,8 @@ class SceneFacetGenerator:
         # Operator can re-prep that scene later.
         if facet is not None:
             still_missing = _missing_required_fields(
-                facet, content_level, prompt_style=prompt_style,
+                facet, content_level,
+                prompt_style=prompt_style, family_id=family.id,
             )
             if still_missing:
                 logger.warning(
@@ -614,7 +709,7 @@ class SceneFacetGenerator:
                     "this scene with --regen-facets to retry).",
                     family.id, still_missing,
                 )
-            return facet
+            return _strip_none_values(facet)
 
         raise SceneFacetGeneratorError(
             f"Failed to generate a valid {family.id} facet after 2 attempts."
@@ -656,12 +751,16 @@ class SceneFacetGenerator:
                 type(result).__name__,
             )
             return None
-        # Drop fields the LLM didn't populate. The Phase 4a structured
-        # enum-tag fields default to None on the schema; carrying the
-        # explicit Nones into the persisted dict bloats the DB row and
-        # breaks equality-based tests. Composers + canonicalizer treat
-        # missing keys identically to None.
-        return {k: v for k, v in result.items() if v is not None}
+        # Return the FULL Pydantic-validated dict including any None
+        # values. ``_missing_required_fields`` distinguishes between
+        # "LLM null'd a declared field" (value present with None) and
+        # "field not in the family's schema at all" (key missing) —
+        # the post-validator needs to see Nones to make that
+        # distinction. The None-filter happens once at the end of
+        # ``generate()`` before persisting, so the DB row still stays
+        # clean. (Pre-2026-05-18 this stripped None here, which broke
+        # the schema-aware check.)
+        return result
 
     def _build_system_prompt(
         self,

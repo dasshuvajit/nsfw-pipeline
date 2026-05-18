@@ -144,3 +144,151 @@ def test_back_compat_constant_alias():
 
 def test_none_facet_returns_empty_list():
     assert _missing_required_fields(None, "T4_explicit") == []
+
+
+# ── Unknown-tag detection (LLM invents fake enums) (2026-05-18) ──────
+
+
+def test_unknown_lighting_tag_flagged_as_missing():
+    """LLM invents ``LIGHT_ULTRAVIOLET`` (not in vocab). The
+    canonicalizer would silently drop it; the validator must catch
+    it and route to the retry-nudge instead."""
+    facet = {
+        "lighting_directive": "LIGHT_ULTRAVIOLET",  # not in vocab
+        "mood_aesthetic": "MOOD_SERENE",
+        "camera_spec": "x",
+    }
+    missing = _missing_required_fields(
+        facet, "T1_suggestive",
+        prompt_style="sdxl_keywords", family_id="sdxl",
+    )
+    assert "lighting_directive" in missing
+
+
+def test_unknown_mood_tag_flagged_as_missing():
+    """Same as above but for mood — heretic-vision was observed
+    emitting ``MOOD_ETHEREAL`` (not in vocab) in the 2026-05-18
+    smoke series."""
+    facet = {
+        "lighting_directive": "LIGHT_GOLDEN_HOUR",
+        "mood_aesthetic": "MOOD_ETHEREAL",  # invented
+        "camera_spec": "x",
+    }
+    missing = _missing_required_fields(
+        facet, "T1_suggestive",
+        prompt_style="sdxl_keywords", family_id="sdxl",
+    )
+    assert "mood_aesthetic" in missing
+
+
+def test_valid_tags_pass_unknown_tag_check():
+    """A facet with all valid known tags passes cleanly."""
+    facet = {
+        "lighting_directive": "LIGHT_GOLDEN_HOUR",
+        "mood_aesthetic": "MOOD_SERENE",
+        "camera_spec": "x",
+    }
+    missing = _missing_required_fields(
+        facet, "T1_suggestive",
+        prompt_style="sdxl_keywords", family_id="sdxl",
+    )
+    assert missing == []
+
+
+def test_unknown_tag_check_disabled_when_family_id_omitted():
+    """Back-compat: callers that don't supply ``family_id`` skip the
+    unknown-tag check entirely (and pre-existing tests still pass)."""
+    facet = {
+        "lighting_directive": "LIGHT_ULTRAVIOLET",  # would be invalid
+        "mood_aesthetic": "MOOD_SERENE",
+    }
+    # No family_id → check skipped → value treated as valid.
+    missing = _missing_required_fields(
+        facet, "T1_suggestive", prompt_style="sdxl_keywords",
+    )
+    assert missing == []
+
+
+# ── mood_aesthetic enforcement (2026-05-18) ───────────────────────────
+
+
+@pytest.mark.parametrize("tier", [
+    "T1_suggestive", "T2_implied", "T3_artnude", "T4_explicit",
+])
+def test_mood_aesthetic_required_at_every_tier(tier):
+    """mood_aesthetic joined lighting_directive as a tier-required
+    field — same reasoning, complementary canonicalizer namespace."""
+    assert "mood_aesthetic" in _TIER_REQUIRED_FIELDS[tier]
+
+
+def test_null_mood_flagged_when_lighting_present():
+    """Lighting present, mood null → only mood flagged. Each field
+    is independently checked."""
+    facet = {
+        "lighting_directive": "LIGHT_REMBRANDT",
+        "mood_aesthetic": None,
+        "camera_spec": "x",
+    }
+    missing = _missing_required_fields(
+        facet, "T2_implied", prompt_style="sdxl_keywords",
+    )
+    assert missing == ["mood_aesthetic"]
+
+
+def test_both_lighting_and_mood_required_and_flagged():
+    facet = {
+        "lighting_directive": None,
+        "mood_aesthetic": None,
+        "camera_spec": "x",
+    }
+    missing = _missing_required_fields(
+        facet, "T1_suggestive", prompt_style="sdxl_keywords",
+    )
+    assert set(missing) == {"lighting_directive", "mood_aesthetic"}
+
+
+# ── Schema-awareness: skip fields not in the facet dict (Pony) ────────
+
+
+def test_field_not_in_schema_is_skipped():
+    """Pony's schema omits realism_camera; if a future required-fields
+    addition includes it, the post-validator must skip — the field is
+    not in the facet dict at all (Pydantic omits undeclared fields).
+    Simulate by checking with a synthetic required-list patch."""
+    from src.agents import scene_facet_generator as sfg
+    # Pony facet — has lighting + mood + booru_tags, no realism_camera.
+    pony_facet = {
+        "booru_tags": "1girl, solo",
+        "source_tag": "source_photograph",
+        "lighting_directive": "LIGHT_SOFT_FILL",
+        "mood_aesthetic": "MOOD_SERENE",
+    }
+    # Temporarily extend the required-list to include a field Pony
+    # doesn't have.
+    original = sfg._TIER_REQUIRED_FIELDS["T2_implied"]
+    sfg._TIER_REQUIRED_FIELDS["T2_implied"] = original + ("realism_camera",)
+    try:
+        missing = _missing_required_fields(
+            pony_facet, "T2_implied", prompt_style="pony_danbooru",
+        )
+        # realism_camera not in pony_facet → schema-aware skip.
+        assert "realism_camera" not in missing
+        # Lighting + mood present → nothing missing.
+        assert missing == []
+    finally:
+        sfg._TIER_REQUIRED_FIELDS["T2_implied"] = original
+
+
+def test_null_field_in_schema_still_flagged():
+    """The complement: a field that IS in the facet dict (so the
+    schema declares it) but is null gets flagged correctly. The
+    schema-aware skip only protects fields the schema doesn't have."""
+    facet_with_null = {
+        "lighting_directive": None,
+        "mood_aesthetic": "MOOD_INTIMATE",
+        "camera_spec": "x",
+    }
+    missing = _missing_required_fields(
+        facet_with_null, "T1_suggestive", prompt_style="sdxl_keywords",
+    )
+    assert missing == ["lighting_directive"]

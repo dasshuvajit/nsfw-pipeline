@@ -27,7 +27,7 @@
 #   3. Bump ``version:`` at the top.
 #   4. Re-run regression suite — fixtures pin the byte-stable output.
 
-version: 4
+version: 5
 
 realism:
   # ── Lighting ─────────────────────────────────────────────────────────
@@ -569,6 +569,58 @@ nsfw:
         flux:        "Intimate explicit pose, anatomically correct proportions, tasteful framing"
         chroma:      "intimate explicit pose, anatomically correct, tasteful framing"
         flux2:       "Intimate explicit pose, anatomically correct proportions, tasteful framing of the subject"
+    # Added 2026-05-18 alongside the vocab_version bump to 5.
+    # Pre-2026-05-18 posture had only 3 tags; with the canonicalizer
+    # also dropping NSFW_INTIMATE below T4, T3 art-nude scenes had
+    # exactly 2 posture choices. The 5 entries below cover the
+    # canonical figure-study repertoire (standing / seated / draped /
+    # back view / side profile) so T3+ scenes have real compositional
+    # variety.
+    NSFW_STANDING_NUDE:
+      tier_min: T3_artnude
+      phrasing:
+        sdxl:        "standing nude pose, classical figure study, full-body composition"
+        pony:        "standing_nude, classical_pose, figure_study, full_body"
+        illustrious: "standing_nude, classical_figure_study, full_body"
+        flux:        "Standing nude pose, classical figure-study composition with the subject framed full-body and vertically oriented"
+        chroma:      "standing nude pose, classical figure-study composition, full-body framing, vertically oriented"
+        flux2:       "Standing nude pose, classical figure-study composition with the subject framed full-body and vertically oriented along the canvas"
+    NSFW_SEATED_NUDE:
+      tier_min: T3_artnude
+      phrasing:
+        sdxl:        "seated nude pose, classical figure study, contemplative seated composition"
+        pony:        "seated_nude, sitting, classical_pose, figure_study"
+        illustrious: "seated_nude, sitting, classical_figure_study"
+        flux:        "Seated nude pose, classical figure-study composition with the subject in a contemplative seated posture"
+        chroma:      "seated nude pose, classical figure-study composition, contemplative seated posture"
+        flux2:       "Seated nude pose, classical figure-study composition with the subject in a contemplative seated posture, weight distributed naturally"
+    NSFW_DRAPED_NUDE:
+      tier_min: T3_artnude
+      phrasing:
+        sdxl:        "partially draped nude, sheer fabric across body, classical fine-art composition"
+        pony:        "partially_draped, nude, sheer_fabric, classical_pose, figure_study"
+        illustrious: "partially_draped_nude, sheer_fabric, classical_figure_study"
+        flux:        "Partially draped nude with sheer fabric falling across the body, classical fine-art figure-study composition"
+        chroma:      "partially draped nude with sheer fabric falling across the body, classical fine-art figure-study"
+        flux2:       "Partially draped nude with sheer fabric falling naturally across the body, classical fine-art figure-study composition with elegant suggestion"
+    NSFW_BACK_VIEW_NUDE:
+      tier_min: T3_artnude
+      phrasing:
+        sdxl:        "nude back view, dorsal figure study, sculptural spine and shoulder composition"
+        pony:        "nude_back_view, dorsal_figure_study, from_behind, sculptural_pose"
+        illustrious: "nude_back_view, dorsal_figure_study, from_behind"
+        flux:        "Nude back-view composition framed from behind, dorsal figure-study with sculptural attention to spine and shoulder line"
+        chroma:      "nude back-view from behind, dorsal figure-study, sculptural attention to spine and shoulder line"
+        flux2:       "Nude back-view composition framed from behind, dorsal figure-study with sculptural attention to spine and shoulder line, soft light catching contours"
+    NSFW_SIDE_PROFILE_NUDE:
+      tier_min: T3_artnude
+      phrasing:
+        sdxl:        "nude side profile, lateral figure study, silhouette composition"
+        pony:        "nude_side_profile, lateral_pose, silhouette, figure_study"
+        illustrious: "nude_side_profile, lateral_figure_study, silhouette"
+        flux:        "Nude side-profile composition, lateral figure-study with the subject silhouetted against the light source"
+        chroma:      "nude side profile, lateral figure-study composition silhouetted against the light source"
+        flux2:       "Nude side-profile composition, lateral figure-study with the subject silhouetted against the light source, sculptural body line"
 
   # Phase 4-bis (vocab_version 2) — T4 explicit-act vocabulary.
   # Tier-gated to T4_explicit; canonicalizer drops below tier. Pony's
@@ -606,6 +658,77 @@ nsfw:
         flux:        "Solo intimate self-touch by an adult subject, explicit and anatomically correct, contemplative atmosphere"
         chroma:      "solo intimate self-touch, explicit, anatomically correct, contemplative"
         flux2:       "Solo intimate self-touch by an adult subject, explicit and anatomically correct, contemplative atmosphere with quiet introspection"
+    # Added 2026-05-18 alongside the vocab_version bump to 5.
+    # Pre-2026-05-18 the solo-only pipeline had exactly ONE legal
+    # nsfw_act tag (NSFW_T4_SOLO_TOUCH) because the four partnered
+    # acts above are filtered by _SOLO_MODE_BANNED_TAGS. Every T4
+    # scene was forced to the same act tag — zero creative variety.
+    # The six entries below cover the canonical solo-female art-nude
+    # repertoire (display / reclining / mirror / bath / direct gaze /
+    # outdoor / performer) so the LLM has real choice at T4.
+    NSFW_T4_SOLO_DISPLAY:
+      tier_min: T4_explicit
+      phrasing:
+        sdxl:        "confident full nude display, body presented to camera, explicit, anatomically correct"
+        pony:        "solo, full_nude_display, presenting, explicit, anatomically_correct, confident"
+        illustrious: "solo, full_nude_display, presenting, explicit, confident"
+        flux:        "A confident adult woman in a full-frontal nude display pose, her body presented openly to the camera, explicit and anatomically correct"
+        chroma:      "confident full-frontal nude display, body presented openly to the camera, explicit, anatomically correct"
+        flux2:       "A confident adult woman in a full-frontal nude display pose, her body presented openly and unselfconsciously to the camera, explicit and anatomically correct proportion"
+    NSFW_T4_SOLO_RECLINING:
+      tier_min: T4_explicit
+      phrasing:
+        sdxl:        "reclining nude, classical odalisque pose, explicit, anatomically correct"
+        pony:        "solo, reclining, nude, explicit, odalisque_pose, anatomically_correct"
+        illustrious: "solo, reclining, nude, explicit, classical_pose"
+        flux:        "An adult woman reclining nude in a classical odalisque pose, her body extended along the surface, explicit and anatomically correct"
+        chroma:      "reclining nude, classical odalisque pose extending across the surface, explicit, anatomically correct"
+        flux2:       "An adult woman reclining nude in a classical odalisque pose, her body extended along the surface in soft natural curves, explicit and anatomically correct"
+    NSFW_T4_SOLO_MIRROR:
+      tier_min: T4_explicit
+      phrasing:
+        sdxl:        "nude self-regard in mirror, intimate reflection, explicit, anatomically correct"
+        pony:        "solo, nude, looking_at_mirror, self_regard, intimate, explicit, anatomically_correct"
+        illustrious: "solo, nude, looking_at_mirror, self_regard, intimate, explicit"
+        flux:        "An adult woman nude before a mirror studying her own reflection, intimate self-regard, explicit and anatomically correct"
+        chroma:      "nude woman before a mirror studying her own reflection, intimate self-regard, explicit, anatomically correct"
+        flux2:       "An adult woman nude before a mirror studying her own reflection in quiet self-regard, intimate framing, explicit and anatomically correct"
+    NSFW_T4_SOLO_BATH:
+      tier_min: T4_explicit
+      phrasing:
+        sdxl:        "nude bath scene, water droplets on bare skin, explicit, anatomically correct, intimate"
+        pony:        "solo, nude, in_bathtub, wet_skin, water_droplets, explicit, intimate, anatomically_correct"
+        illustrious: "solo, nude, in_bathtub, wet_skin, water_droplets, explicit, intimate"
+        flux:        "An adult woman nude in an intimate bath scene, water droplets catching on her bare skin, explicit and anatomically correct"
+        chroma:      "nude bath scene, water droplets on bare skin, intimate, explicit, anatomically correct"
+        flux2:       "An adult woman nude in an intimate bath scene, water droplets catching on her bare skin in soft natural light, explicit and anatomically correct"
+    NSFW_T4_SOLO_GAZE:
+      tier_min: T4_explicit
+      phrasing:
+        sdxl:        "direct sensual gaze, full nude, eye contact with camera, explicit, anatomically correct"
+        pony:        "solo, looking_at_viewer, direct_gaze, full_nude, sensual_expression, explicit, anatomically_correct"
+        illustrious: "solo, looking_at_viewer, direct_gaze, full_nude, sensual_expression, explicit"
+        flux:        "An adult woman in full nude holding direct sensual eye-contact with the camera, explicit and anatomically correct"
+        chroma:      "full nude with direct sensual gaze holding eye-contact with the camera, explicit, anatomically correct"
+        flux2:       "An adult woman in full nude holding direct sensual eye-contact with the camera, the gaze unwavering and confident, explicit and anatomically correct"
+    NSFW_T4_SOLO_OUTDOOR:
+      tier_min: T4_explicit
+      phrasing:
+        sdxl:        "outdoor nude, natural environment, full nude in nature, explicit, anatomically correct"
+        pony:        "solo, outdoors, nude, full_nude, natural_environment, explicit, anatomically_correct"
+        illustrious: "solo, outdoors, nude, full_nude, natural_environment, explicit"
+        flux:        "An adult woman nude in a natural outdoor environment, full nude framed against landscape elements, explicit and anatomically correct"
+        chroma:      "nude woman in a natural outdoor environment, full nude framed against landscape elements, explicit, anatomically correct"
+        flux2:       "An adult woman nude in a natural outdoor environment, full nude framed against landscape elements with soft natural light, explicit and anatomically correct"
+    NSFW_T4_SOLO_PERFORMER:
+      tier_min: T4_explicit
+      phrasing:
+        sdxl:        "sensual nude self-display performance, theatrical pose, explicit, anatomically correct"
+        pony:        "solo, nude, theatrical_pose, performance, sensual, explicit, anatomically_correct"
+        illustrious: "solo, nude, theatrical_pose, performance, sensual, explicit"
+        flux:        "An adult woman in a sensual nude self-display performance, theatrical body language, explicit and anatomically correct"
+        chroma:      "sensual nude self-display performance with theatrical body language, explicit, anatomically correct"
+        flux2:       "An adult woman in a sensual nude self-display performance with theatrical body language and confident framing, explicit and anatomically correct"
     NSFW_T4_PARTNERED_INTIMATE:
       tier_min: T4_explicit
       phrasing:

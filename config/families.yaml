@@ -99,6 +99,15 @@ families:
     # Q8 — tier-stratified few-shot examples. SceneFacetGenerator picks
     # the closest-tier example at compose time so the LLM sees a
     # same-tier exemplar (T4 facets get T4 examples, etc.).
+    # IMPORTANT (vocab_version 5 — 2026-05-18): the structured enum-tag
+    # fields below (lighting_directive, mood_aesthetic, realism_camera/
+    # lens/film_stock/art_style_reference, nsfw_anatomy/posture/act)
+    # carry the ABSTRACT CONCEPT TAG (e.g. ``LIGHT_GOLDEN_HOUR``), NOT
+    # free-text prose. The canonicalizer in src/prompt/vocabulary.py
+    # translates each tag into the family-shaped phrasing at compose
+    # time. Free-text in these fields is silently dropped — the LLM
+    # learns from these examples so they must demonstrate the exact
+    # convention. See config/prompt_vocabulary.yaml for the menu.
     examples:
       - tier: T2_implied
         scene:
@@ -110,6 +119,12 @@ families:
         expected_facet:
           camera_spec: "85mm f/1.8, shallow depth of field, soft natural bokeh"
           clothing: "ivory silk slip, lace trim at neckline"
+          realism_camera: CAMERA_SONY_A7RV
+          realism_lens: LENS_85MM_F14
+          realism_film_stock: FILM_PORTRA_400
+          art_style_reference: ART_EDITORIAL_FASHION
+          lighting_directive: LIGHT_WINDOW_SIDE
+          mood_aesthetic: MOOD_SERENE
       - tier: T3_artnude
         scene:
           pose: reclined on side, three-quarter view
@@ -120,6 +135,14 @@ families:
         expected_facet:
           camera_spec: "85mm f/1.4, very shallow depth of field, smooth bokeh, fine skin detail"
           clothing: "draped sheer linen sheet, partially covering"
+          realism_camera: CAMERA_LEICA_M11
+          realism_lens: LENS_85MM_F14
+          realism_film_stock: FILM_PORTRA_400
+          art_style_reference: ART_FINE_NUDE
+          lighting_directive: LIGHT_GOLDEN_HOUR
+          mood_aesthetic: MOOD_INTIMATE
+          nsfw_anatomy: NSFW_BREAST_NATURAL
+          nsfw_posture: NSFW_RECLINED_NUDE
       - tier: T4_explicit
         scene:
           pose: lying back, one knee raised
@@ -130,6 +153,15 @@ families:
         expected_facet:
           camera_spec: "50mm f/1.4, shallow depth of field, sharp eyes, anatomically accurate skin, fine-art nude framing, bare breasts visible, natural nipples, mature adult female"
           clothing: "fully nude, no clothing, partially draped white sheet at hip exposing thigh and breasts"
+          realism_camera: CAMERA_SONY_A7RV
+          realism_lens: LENS_50MM_F18
+          realism_film_stock: FILM_PORTRA_400
+          art_style_reference: ART_FINE_NUDE
+          lighting_directive: LIGHT_SOFT_FILL
+          mood_aesthetic: MOOD_SENSUAL
+          nsfw_anatomy: NSFW_FULL_NUDE
+          nsfw_posture: NSFW_RECLINED_NUDE
+          nsfw_act: NSFW_T4_SOLO_GAZE
 
   # ── Pony V6 (CyberRealistic Pony, Pony Realism) ───────────────────────
   # MANDATORY 6-tier prefix + BREAK — verified against AstraliteHeart's
@@ -225,6 +257,11 @@ families:
     example_prompt: >-
       1girl, long_hair, looking_at_viewer, soft_lighting, indoor,
       detailed_skin, source_anime
+    # Pony schema (SceneFacetPony) does NOT carry realism_camera /
+    # realism_lens / realism_film_stock / art_style_reference — booru
+    # tag convention expresses photo realism via source_tag +
+    # booru_tags inline. Lighting and mood DO have enum-tag fields and
+    # the canonicalizer will inject family-shaped phrasing for them.
     examples:
       - tier: T2_implied
         scene:
@@ -236,6 +273,8 @@ families:
         expected_facet:
           booru_tags: "1girl, long_hair, looking_at_viewer, soft_lighting, lingerie, lace_trim, standing, indoors, detailed_skin"
           source_tag: "source_photograph"
+          lighting_directive: LIGHT_WINDOW_SIDE
+          mood_aesthetic: MOOD_SERENE
       - tier: T3_artnude
         scene:
           pose: reclined on side
@@ -246,6 +285,10 @@ families:
         expected_facet:
           booru_tags: "1girl, long_hair, looking_at_viewer, lying, sheet, partially_clothed, golden_hour, soft_skin, breasts, detailed_skin"
           source_tag: "source_photograph"
+          lighting_directive: LIGHT_GOLDEN_HOUR
+          mood_aesthetic: MOOD_INTIMATE
+          nsfw_anatomy: NSFW_BREAST_NATURAL
+          nsfw_posture: NSFW_RECLINED_NUDE
       - tier: T4_explicit
         scene:
           pose: lying back, one knee raised
@@ -256,6 +299,11 @@ families:
         expected_facet:
           booru_tags: "1girl, mature_female, long_hair, looking_at_viewer, lying, on_back, knee_up, completely_nude, breasts, medium_breasts, nipples, navel, pussy, spread_legs, anatomically_correct, detailed_skin, intimate, fine_art_nude, bedroom, sheets"
           source_tag: "source_photograph"
+          lighting_directive: LIGHT_SOFT_FILL
+          mood_aesthetic: MOOD_SENSUAL
+          nsfw_anatomy: NSFW_FULL_NUDE
+          nsfw_posture: NSFW_RECLINED_NUDE
+          nsfw_act: NSFW_T4_SOLO_GAZE
 
   # ── Illustrious XL (Perfection Realistic ILXL, etc.) ──────────────────
   # Quality SUFFIX, not prefix. String is "masterpiece, best quality,
@@ -356,6 +404,12 @@ families:
         expected_facet:
           booru_tags: "1girl, long_hair, looking_at_viewer, lingerie, lace_trim, standing, indoors, soft_lighting, detailed_skin, sharp_focus, photorealistic, cinematic_light, shallow_depth_of_field"
           scene_prose: "A confident woman in delicate lace lingerie stands in a minimalist studio, soft natural light from the window catching her features."
+          realism_camera: CAMERA_SONY_A7RV
+          realism_lens: LENS_85MM_F14
+          realism_film_stock: FILM_PORTRA_400
+          art_style_reference: ART_EDITORIAL_FASHION
+          lighting_directive: LIGHT_WINDOW_SIDE
+          mood_aesthetic: MOOD_SERENE
       - tier: T3_artnude
         scene:
           pose: reclined on side
@@ -366,6 +420,14 @@ families:
         expected_facet:
           booru_tags: "1girl, long_hair, looking_at_viewer, lying, sheet, partially_covered, golden_hour, soft_skin, breasts, detailed_skin, photorealistic, intimate"
           scene_prose: "A woman reclines on her side under a draped linen sheet, golden hour light spilling across the bed and her skin in soft warm tones."
+          realism_camera: CAMERA_LEICA_M11
+          realism_lens: LENS_85MM_F14
+          realism_film_stock: FILM_PORTRA_400
+          art_style_reference: ART_FINE_NUDE
+          lighting_directive: LIGHT_GOLDEN_HOUR
+          mood_aesthetic: MOOD_INTIMATE
+          nsfw_anatomy: NSFW_BREAST_NATURAL
+          nsfw_posture: NSFW_RECLINED_NUDE
       - tier: T4_explicit
         scene:
           pose: lying back
@@ -376,6 +438,15 @@ families:
         expected_facet:
           booru_tags: "1girl, mature_female, long_hair, looking_at_viewer, lying, on_back, knee_up, completely_nude, breasts, medium_breasts, nipples, navel, pussy, spread_legs, anatomically_correct, detailed_skin, intimate, fine_art_nude, photorealistic"
           scene_prose: "A fully nude adult woman lies on rumpled white sheets, one knee raised, bare breasts and natural nipples visible, looking directly at the camera with a sultry expression under a warm overhead practical light."
+          realism_camera: CAMERA_SONY_A7RV
+          realism_lens: LENS_50MM_F18
+          realism_film_stock: FILM_PORTRA_400
+          art_style_reference: ART_FINE_NUDE
+          lighting_directive: LIGHT_SOFT_FILL
+          mood_aesthetic: MOOD_SENSUAL
+          nsfw_anatomy: NSFW_FULL_NUDE
+          nsfw_posture: NSFW_RECLINED_NUDE
+          nsfw_act: NSFW_T4_SOLO_GAZE
 
   # ── Flux.1 Dev / Schnell (vanilla) ────────────────────────────────────
   # CFG-distilled: negatives are ignored (FluxGuidance takes over).
@@ -429,6 +500,12 @@ families:
           mood_note: calm and elegant
         expected_facet:
           scene_prose: "A confident woman in cream silk lingerie stands in a modern loft apartment, soft window light from the left catching her features. The room has warm tones, creating an intimate and elegant atmosphere with a cinematic shallow depth of field."
+          realism_camera: CAMERA_SONY_A7RV
+          realism_lens: LENS_85MM_F14
+          realism_film_stock: FILM_PORTRA_400
+          art_style_reference: ART_EDITORIAL_FASHION
+          lighting_directive: LIGHT_WINDOW_SIDE
+          mood_aesthetic: MOOD_SERENE
       - tier: T3_artnude
         scene:
           pose: reclined on side
@@ -438,6 +515,14 @@ families:
           mood_note: intimate and unhurried
         expected_facet:
           scene_prose: "A woman reclines on her side on linen sheets, half-draped under a sheer cotton wrap, golden hour light pouring through the window and warming her skin. The mood is intimate and unhurried with a soft cinematic depth of field."
+          realism_camera: CAMERA_LEICA_M11
+          realism_lens: LENS_85MM_F14
+          realism_film_stock: FILM_PORTRA_400
+          art_style_reference: ART_FINE_NUDE
+          lighting_directive: LIGHT_GOLDEN_HOUR
+          mood_aesthetic: MOOD_INTIMATE
+          nsfw_anatomy: NSFW_BREAST_NATURAL
+          nsfw_posture: NSFW_RECLINED_NUDE
       - tier: T4_explicit
         scene:
           pose: lying back, knee raised
@@ -447,6 +532,15 @@ families:
           mood_note: sultry and direct
         expected_facet:
           scene_prose: "A fully nude adult woman lies on rumpled white cotton sheets, one knee raised, the other extended, bare breasts and natural nipples visible, soft pubic shadow at the hip. She holds the camera's gaze with a direct, sultry expression. Warm overhead practical light pools across her bare skin and the bedding, sculpting collarbone, ribs, and thigh into a clean fine-art nude composition."
+          realism_camera: CAMERA_SONY_A7RV
+          realism_lens: LENS_50MM_F18
+          realism_film_stock: FILM_PORTRA_400
+          art_style_reference: ART_FINE_NUDE
+          lighting_directive: LIGHT_SOFT_FILL
+          mood_aesthetic: MOOD_SENSUAL
+          nsfw_anatomy: NSFW_FULL_NUDE
+          nsfw_posture: NSFW_RECLINED_NUDE
+          nsfw_act: NSFW_T4_SOLO_GAZE
 
   # ── FLUX.2 Klein 9B (distilled, Qwen3-8B text encoder, 32-ch VAE) ─────
   # Step-distilled + guidance-distilled from FLUX.2-[dev] 32B. No
@@ -510,6 +604,12 @@ families:
       left, warm tungsten at 3200 K, rakes across her collarbone,
       leaving the opposite cheek in deep shadow. Air feels still,
       faintly smoky.
+    # IMPORTANT (vocab_version 5 — 2026-05-18): pre-fix the flux2
+    # examples used FREE-TEXT prose in lighting_directive, but the
+    # canonicalizer expects an ENUM TAG (LIGHT_*) and silently
+    # dropped the prose. The LLM mirrored this bug → every flux2
+    # render lost the canonicalizer thread for lighting. Corrected
+    # below; subject_focus stays free-text (it IS a free-text field).
     examples:
       - tier: T2_implied
         scene:
@@ -521,7 +621,12 @@ families:
         expected_facet:
           scene_prose: "A confident woman in her late twenties stands against a matte charcoal wall in a loft studio. She wears a cream silk slip dress with visible weave texture. A single hard key light at camera left, warm tungsten at 3200 K, rakes across her collarbone, leaving the opposite cheek in deep shadow."
           subject_focus: "Woman, late 20s, cream silk slip"
-          lighting_directive: "Hard tungsten key light at camera-left at chest height, warm 3200 K colour, leaving deep chiaroscuro on the unlit half"
+          realism_camera: CAMERA_SONY_A7RV
+          realism_lens: LENS_85MM_F14
+          realism_film_stock: FILM_PORTRA_400
+          art_style_reference: ART_EDITORIAL_FASHION
+          lighting_directive: LIGHT_SPLIT
+          mood_aesthetic: MOOD_CONFIDENT
       - tier: T3_artnude
         scene:
           pose: reclined on side
@@ -532,7 +637,14 @@ families:
         expected_facet:
           scene_prose: "A woman reclines on her side on a low platform bed, draped in a sheer linen sheet that partially covers her form. Golden hour light pours through a tall window from the right, warming her skin and casting long soft shadows across the linen. The atmosphere is intimate and unhurried."
           subject_focus: "Woman, reclined, partially covered by linen sheet"
-          lighting_directive: "Warm golden hour rim light from camera-right, soft late-day quality, shallow shadow"
+          realism_camera: CAMERA_LEICA_M11
+          realism_lens: LENS_85MM_F14
+          realism_film_stock: FILM_PORTRA_400
+          art_style_reference: ART_FINE_NUDE
+          lighting_directive: LIGHT_GOLDEN_HOUR
+          mood_aesthetic: MOOD_INTIMATE
+          nsfw_anatomy: NSFW_BREAST_NATURAL
+          nsfw_posture: NSFW_RECLINED_NUDE
       - tier: T4_explicit
         scene:
           pose: lying back
@@ -543,7 +655,15 @@ families:
         expected_facet:
           scene_prose: "A fully nude adult woman lies on her back on rumpled white cotton sheets, one knee raised, the other extended. Bare breasts and natural nipples are visible. She holds the camera's gaze with a sultry, level expression. A single warm overhead practical light spills directly across her bare skin and the bedding, sculpting the curves of her collarbone, ribs, and thigh into a fine-art nude composition."
           subject_focus: "Fully nude adult woman, lying back, knee raised, bare breasts visible, direct gaze"
-          lighting_directive: "Warm overhead practical light directly above, soft natural shadow under the chin and knee, intimate close-up sculpting nude form"
+          realism_camera: CAMERA_SONY_A7RV
+          realism_lens: LENS_50MM_F18
+          realism_film_stock: FILM_PORTRA_400
+          art_style_reference: ART_FINE_NUDE
+          lighting_directive: LIGHT_SOFT_FILL
+          mood_aesthetic: MOOD_SENSUAL
+          nsfw_anatomy: NSFW_FULL_NUDE
+          nsfw_posture: NSFW_RECLINED_NUDE
+          nsfw_act: NSFW_T4_SOLO_GAZE
     guide:
       structure_order: [subject, setting, details, lighting, atmosphere]
       target_words: [30, 80]
@@ -653,6 +773,12 @@ families:
           mood_note: calm
         expected_facet:
           scene_prose: "A confident woman in cream silk lingerie stands in a modern loft, soft natural window light catching her features. Warm tones throughout the room create an intimate, elegant atmosphere with a cinematic shallow depth of field."
+          realism_camera: CAMERA_SONY_A7RV
+          realism_lens: LENS_85MM_F14
+          realism_film_stock: FILM_PORTRA_400
+          art_style_reference: ART_EDITORIAL_FASHION
+          lighting_directive: LIGHT_WINDOW_SIDE
+          mood_aesthetic: MOOD_SERENE
       - tier: T3_artnude
         scene:
           pose: reclined on side
@@ -662,6 +788,14 @@ families:
           mood_note: intimate
         expected_facet:
           scene_prose: "A woman reclines on her side draped in a sheer linen sheet, golden hour light from the window catching her skin in warm tones. The fabric drapes naturally across her form, an intimate and unhurried moment captured in soft focus."
+          realism_camera: CAMERA_LEICA_M11
+          realism_lens: LENS_85MM_F14
+          realism_film_stock: FILM_PORTRA_400
+          art_style_reference: ART_FINE_NUDE
+          lighting_directive: LIGHT_GOLDEN_HOUR
+          mood_aesthetic: MOOD_INTIMATE
+          nsfw_anatomy: NSFW_BREAST_NATURAL
+          nsfw_posture: NSFW_RECLINED_NUDE
       - tier: T4_explicit
         scene:
           pose: lying back
@@ -671,3 +805,12 @@ families:
           mood_note: sultry
         expected_facet:
           scene_prose: "A fully nude adult woman lies on rumpled white sheets, one knee raised, bare breasts and natural nipples visible against the white bedding. She holds the camera with a sultry, direct gaze. Warm overhead practical lighting carves soft shadows across her bare body, the low-key bedroom around her, a fine-art nude framing."
+          realism_camera: CAMERA_SONY_A7RV
+          realism_lens: LENS_50MM_F18
+          realism_film_stock: FILM_PORTRA_400
+          art_style_reference: ART_FINE_NUDE
+          lighting_directive: LIGHT_SOFT_FILL
+          mood_aesthetic: MOOD_SENSUAL
+          nsfw_anatomy: NSFW_FULL_NUDE
+          nsfw_posture: NSFW_RECLINED_NUDE
+          nsfw_act: NSFW_T4_SOLO_GAZE

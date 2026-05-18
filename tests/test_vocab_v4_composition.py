@@ -58,9 +58,13 @@ def db(tmp_path: Path) -> Path:
 
 
 class TestVocabularyV4:
-    def test_version_bumped_to_4(self):
+    def test_version_at_or_above_4(self):
+        """Vocab version is monotonically increasing. v4 added the
+        angle + framing namespaces this test covers; later bumps
+        (v5 added 7 new SOLO nsfw_acts + 5 new nsfw_postures) only
+        add fields, never remove."""
         loader = VocabularyLoader()
-        assert loader.version == 4
+        assert loader.version >= 4
 
     def test_angle_namespace_exists(self):
         loader = VocabularyLoader()
