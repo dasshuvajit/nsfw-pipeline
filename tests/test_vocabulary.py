@@ -390,6 +390,59 @@ composition:
         assert "COMP_TEST_SYMMETRY" in block
 
 
+def test_environment_namespace_canonicalises_per_family(loader):
+    """Phase 1 (vocab v6) — environment.setting + environment.atmosphere
+    tags translate to family-shaped phrasing for every family.
+
+    Verifies the real on-disk vocab v6, not a synthetic fixture, so
+    YAML drift on the new namespaces fails the build."""
+    from src.prompt.vocabulary import canonicalize_facet
+    facet = {
+        "environment_setting": "ENV_TUSCAN_VILLA_RENAISSANCE",
+        "environment_atmosphere": "ATM_DUST_MOTES_IN_LIGHT",
+    }
+    for fam in ("sdxl", "pony", "illustrious", "flux", "chroma", "flux2"):
+        phrases = canonicalize_facet(facet, fam, loader=loader)
+        # Both canonicalize cleanly for every family — Pony participates
+        # in environment vocab (unlike camera/lens/film_stock which it
+        # omits) because environments have natural booru tags.
+        assert len(phrases) == 2, (
+            f"family={fam} produced {len(phrases)} env phrases "
+            f"(expected 2): {phrases}"
+        )
+        env_phrase = phrases[0]
+        atm_phrase = phrases[1]
+        # Setting must mention Tuscan / villa / Renaissance
+        lower_env = env_phrase.lower()
+        assert any(
+            tok in lower_env
+            for tok in ("tuscan", "renaissance", "villa")
+        ), f"family={fam} env phrase missing setting cue: {env_phrase!r}"
+        # Atmosphere must mention dust / motes / light
+        lower_atm = atm_phrase.lower()
+        assert "dust" in lower_atm and (
+            "mote" in lower_atm or "light" in lower_atm
+        ), f"family={fam} atm phrase missing dust cue: {atm_phrase!r}"
+
+
+def test_environment_namespace_in_llm_menu_for_every_family(loader):
+    """The new environment.* namespaces show up in the LLM
+    vocabulary block for every family (including Pony — environments
+    have native booru tags)."""
+    for fam in ("sdxl", "pony", "illustrious", "flux", "chroma", "flux2"):
+        block = llm_vocabulary_block(fam, loader=loader)
+        assert "environment.setting" in block, (
+            f"family={fam}: environment.setting missing from menu"
+        )
+        assert "environment.atmosphere" in block, (
+            f"family={fam}: environment.atmosphere missing from menu"
+        )
+        # At least 30 setting tags + 20 atmosphere tags should surface
+        # (vocab v6 ships 41 + 24)
+        assert "ENV_TUSCAN_VILLA_RENAISSANCE" in block
+        assert "ATM_DUST_MOTES_IN_LIGHT" in block
+
+
 def test_all_concepts_skips_version_top_level_key(tmp_path):
     """The ``version:`` top-level key is a stamp, not a namespace —
     iterating it would produce a ``version.X`` entry in the menu."""

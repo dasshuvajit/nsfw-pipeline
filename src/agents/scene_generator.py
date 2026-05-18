@@ -89,7 +89,26 @@ OPERATING PRINCIPLES:
 
 Respect the content level and allowed pose types — never exceed them.
 Every scene must be visually distinct from the others — vary pose, camera,
-lighting, and environment_detail. Cover every variation_axis at least once.
+lighting, AND environment_detail across the set. Cover every variation_axis
+at least once.
+
+ENVIRONMENT DIVERSITY (Phase 1 / vocab v6 creative uplift):
+The series's primary environment is the OVERALL SETTING (e.g. "Tuscan
+villa", "urban loft", "Mediterranean coast") — treat it as the visual
+WORLD the set lives in, not as a single locked room. Within that world,
+each scene's ``environment_detail`` should hold a DIFFERENT sub-location
+or scene-element from the others (e.g. for a Tuscan villa: the frescoed
+hallway, the courtyard fountain, the marble bathroom, the open kitchen,
+the terrace at sunset, the wine cellar, the upstairs library — each
+scene picks a different one). Repeating the same sub-location twice
+across 24 scenes is a failure. Vary time-of-day, atmospheric quality,
+and prop emphasis alongside the sub-location.
+
+Per-scene atmospheric/location ENUM tags (``environment_setting`` and
+``environment_atmosphere``) are added by SceneFacetGenerator in the next
+phase — your job here is the high-level ``environment_detail`` prose
+that picks the sub-location and gives the facet generator a textural
+anchor to pick a matching tag.
 
 Produce ONLY the model-agnostic scene core. Do NOT include family-specific
 fields (booru_tags, scene_prose, camera_spec, clothing, source_tag) —
@@ -136,10 +155,29 @@ Each scene must be a JSON object with exactly these fields:
 
 Rules:
 - Every scene must use a DIFFERENT combination of pose + camera + lighting
+  + environment_detail. Across {scene_count} scenes, the
+  environment_detail values must NOT repeat — each scene picks a
+  different sub-location or scene-element from inside the series's
+  overall environment world. Examples of "different sub-locations
+  within one environment world":
+    Series env "Tuscan villa": frescoed hallway / courtyard fountain /
+      marble bathroom / open kitchen with terracotta floor / sunset
+      terrace / wine cellar / upstairs library / olive grove /
+      bedroom with linen curtains / cobblestone driveway.
+    Series env "urban loft": main loft / fire escape / exposed-brick
+      bedroom / clawfoot bathroom / industrial kitchen / rooftop
+      terrace / freight-elevator landing.
+    Series env "Mediterranean coast": villa terrace / pebble beach
+      / cliffside path / boat dock / whitewashed alley / pool deck /
+      shaded courtyard.
 - Spread scenes evenly across all variation axes
-- Be specific and concrete, not generic
-- Environment details should feel like they belong in the same location but highlight different elements
-- Do NOT include any family-specific fields (booru_tags, scene_prose, camera_spec, clothing, source_tag) — those are added later
+- Be specific and concrete, not generic — name furniture, materials,
+  light sources, atmospheric elements per scene
+- Vary time-of-day across scenes when the location allows
+  (morning gold / midday flat / blue hour / midnight tungsten /
+  fireplace dusk)
+- Do NOT include any family-specific fields (booru_tags, scene_prose,
+  camera_spec, clothing, source_tag) — those are added later
 
 Return ONLY the JSON array of {scene_count} scene objects."""
 # fmt: on

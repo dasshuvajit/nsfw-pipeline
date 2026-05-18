@@ -231,6 +231,44 @@ _NSFW_ENUM_FIELDS = {
     ),
 }
 
+# Phase 1 (vocab_version 6) — environment vocabulary.
+# Per-scene location + atmospheric pick from the new `environment.*`
+# top-level namespace. The canonicalizer translates the abstract tag
+# into family-shaped phrasing at compose time, so the LLM picks one
+# concept name (e.g. ENV_VICTORIAN_CONSERVATORY) and the composer
+# emits the right prose for chroma vs. the right booru tag list for
+# pony. Categories whitelist compatible_environments per theme so
+# the LLM picks from a coherent pool, not the full 40-tag library.
+# All families participate (no Pony-omission like the
+# camera/lens/film_stock/art_style realism namespaces — environments
+# DO have natural booru representations).
+_ENVIRONMENT_ENUM_FIELDS = {
+    "environment_setting": (
+        "Optional location concept tag from environment.setting "
+        "namespace. Picks the scene's specific setting. Examples: "
+        "ENV_VICTORIAN_CONSERVATORY, ENV_TUSCAN_VILLA_RENAISSANCE, "
+        "ENV_ART_DECO_HOTEL_SUITE, ENV_BRUTALIST_CONCRETE_LOFT, "
+        "ENV_MORNING_BEDROOM, ENV_CLAWFOOT_BATHROOM, "
+        "ENV_MEDITERRANEAN_COURTYARD, ENV_FOG_PINE_FOREST, "
+        "ENV_DESERT_DUNE, ENV_ROOFTOP_CITY_NIGHT, "
+        "ENV_TOKYO_LOVE_HOTEL, ENV_INDOOR_POOL_NIGHT. Required at "
+        "T3+ when the series's environment_diversity != "
+        "'single_location'. Categories whitelist compatible_environments "
+        "to keep the menu coherent with the theme."
+    ),
+    "environment_atmosphere": (
+        "Optional atmospheric-element concept tag from "
+        "environment.atmosphere namespace. Adds particulate / weather / "
+        "light / wind / optical detail beyond the lighting_directive. "
+        "Examples: ATM_DUST_MOTES_IN_LIGHT, ATM_INCENSE_SMOKE_CURL, "
+        "ATM_RAIN_ON_GLASS, ATM_FOG_ROLLING_IN, ATM_STEAM_FROM_BATH, "
+        "ATM_CREPUSCULAR_RAYS, ATM_BREEZE_IN_CURTAIN, "
+        "ATM_CINESTILL_HALATION, ATM_BOKEH_BUBBLES. Required at T3+. "
+        "Pick an atmosphere that matches the chosen environment_setting "
+        "and lighting_directive."
+    ),
+}
+
 
 class SceneFacetSDXL(BaseModel):
     """Per-scene SDXL composer inputs (camera/lens spec + garment).
@@ -264,6 +302,9 @@ class SceneFacetSDXL(BaseModel):
     # Q10 (vocab v4) — composition vocab gap-fill.
     realism_angle: str | None = Field(default=None, description=_REALISM_ENUM_FIELDS["realism_angle"])
     realism_framing: str | None = Field(default=None, description=_REALISM_ENUM_FIELDS["realism_framing"])
+    # Phase 1 (vocab v6) — environment vocab gap-fill (creative uplift).
+    environment_setting: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_setting"])
+    environment_atmosphere: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_atmosphere"])
 
     @model_validator(mode="after")
     def _reject_avoid_words(self) -> "SceneFacetSDXL":
@@ -311,6 +352,11 @@ class SceneFacetPony(BaseModel):
     nsfw_anatomy: str | None = Field(default=None, description=_NSFW_ENUM_FIELDS["nsfw_anatomy"])
     nsfw_posture: str | None = Field(default=None, description=_NSFW_ENUM_FIELDS["nsfw_posture"])
     nsfw_act: str | None = Field(default=None, description=_NSFW_ENUM_FIELDS["nsfw_act"])
+    # Phase 1 (vocab v6) — environment vocab; Pony participates because
+    # environments DO have natural booru-tag representations (unlike
+    # camera/lens/film_stock which Pony's booru convention omits).
+    environment_setting: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_setting"])
+    environment_atmosphere: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_atmosphere"])
 
     @model_validator(mode="after")
     def _check_pony_invariants(self) -> "SceneFacetPony":
@@ -378,6 +424,9 @@ class SceneFacetIllustrious(BaseModel):
     # Q10 (vocab v4) — composition vocab gap-fill.
     realism_angle: str | None = Field(default=None, description=_REALISM_ENUM_FIELDS["realism_angle"])
     realism_framing: str | None = Field(default=None, description=_REALISM_ENUM_FIELDS["realism_framing"])
+    # Phase 1 (vocab v6) — environment vocab gap-fill.
+    environment_setting: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_setting"])
+    environment_atmosphere: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_atmosphere"])
 
     @model_validator(mode="after")
     def _reject_appended_quality_suffix(self) -> "SceneFacetIllustrious":
@@ -431,6 +480,9 @@ class SceneFacetFluxNatural(BaseModel):
     # Q10 (vocab v4) — composition vocab gap-fill.
     realism_angle: str | None = Field(default=None, description=_REALISM_ENUM_FIELDS["realism_angle"])
     realism_framing: str | None = Field(default=None, description=_REALISM_ENUM_FIELDS["realism_framing"])
+    # Phase 1 (vocab v6) — environment vocab gap-fill.
+    environment_setting: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_setting"])
+    environment_atmosphere: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_atmosphere"])
 
     @model_validator(mode="after")
     def _check_prose_shape(self) -> "SceneFacetFluxNatural":
@@ -505,6 +557,9 @@ class SceneFacetFlux2(BaseModel):
     # Q10 (vocab v4) — composition vocab gap-fill.
     realism_angle: str | None = Field(default=None, description=_REALISM_ENUM_FIELDS["realism_angle"])
     realism_framing: str | None = Field(default=None, description=_REALISM_ENUM_FIELDS["realism_framing"])
+    # Phase 1 (vocab v6) — environment vocab gap-fill.
+    environment_setting: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_setting"])
+    environment_atmosphere: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_atmosphere"])
 
     @model_validator(mode="after")
     def _check_word_count_band(self) -> "SceneFacetFlux2":

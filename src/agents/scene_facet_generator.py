@@ -74,8 +74,18 @@ if TYPE_CHECKING:
 _TIER_REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
     "T1_suggestive": ("lighting_directive", "mood_aesthetic"),
     "T2_implied":    ("lighting_directive", "mood_aesthetic"),
-    "T3_artnude":    ("lighting_directive", "mood_aesthetic", "nsfw_anatomy"),
-    "T4_explicit":   ("lighting_directive", "mood_aesthetic", "nsfw_anatomy", "nsfw_act"),
+    # Phase 1 (vocab v6) — environment_setting + environment_atmosphere
+    # added at T3+ so the validator's retry-nudge forces the LLM to
+    # pick a location + atmospheric element per scene (the chief
+    # leverage point against "all 24 scenes look like the same room").
+    "T3_artnude":    (
+        "lighting_directive", "mood_aesthetic", "nsfw_anatomy",
+        "environment_setting", "environment_atmosphere",
+    ),
+    "T4_explicit":   (
+        "lighting_directive", "mood_aesthetic", "nsfw_anatomy", "nsfw_act",
+        "environment_setting", "environment_atmosphere",
+    ),
 }
 
 # Back-compat alias — older callers / tests may still import the
@@ -116,6 +126,19 @@ _FIELD_EXAMPLE_TAGS: dict[str, tuple[str, ...]] = {
         "NSFW_T4_SOLO_DISPLAY", "NSFW_T4_SOLO_RECLINING",
         "NSFW_T4_SOLO_MIRROR", "NSFW_T4_SOLO_BATH",
         "NSFW_T4_SOLO_OUTDOOR", "NSFW_T4_SOLO_PERFORMER",
+    ),
+    # Phase 1 (vocab v6) — environment-vocab retry-nudge examples.
+    # Per verifier I3 (cap inlined examples per missing field at 3
+    # to keep retry-nudge payload manageable), each ships the 3 most
+    # broadly-applicable picks. The full 40+ menu lives in the
+    # system prompt; these are only the retry-nudge anchors.
+    "environment_setting": (
+        "ENV_MORNING_BEDROOM", "ENV_VICTORIAN_PARLOUR",
+        "ENV_MEDITERRANEAN_COURTYARD",
+    ),
+    "environment_atmosphere": (
+        "ATM_DUST_MOTES_IN_LIGHT", "ATM_BREEZE_IN_CURTAIN",
+        "ATM_VOLUMETRIC_GOLDEN",
     ),
 }
 

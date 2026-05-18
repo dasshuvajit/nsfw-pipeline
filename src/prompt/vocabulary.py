@@ -103,6 +103,11 @@ _FIELD_TO_NAMESPACE: dict[str, tuple[str, str]] = {
     # Phase 4-bis (Phase B audit fix) — T4 explicit-act namespace.
     # Tier_min is T4_explicit; canonicalizer drops at T1/T2/T3.
     "nsfw_act":      ("nsfw", "act"),
+    # Phase 1 (vocab v6) — environment vocab gap-fill. All families
+    # participate; categories whitelist compatible_environments per
+    # theme to keep the LLM menu coherent.
+    "environment_setting":    ("environment", "setting"),
+    "environment_atmosphere": ("environment", "atmosphere"),
 }
 
 

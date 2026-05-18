@@ -27,7 +27,7 @@
 #   3. Bump ``version:`` at the top.
 #   4. Re-run regression suite — fixtures pin the byte-stable output.
 
-version: 5
+version: 6
 
 realism:
   # ── Lighting ─────────────────────────────────────────────────────────
@@ -747,3 +747,494 @@ nsfw:
         flux:        "A post-intimate afterglow scene, languid adult bodies entwined together, explicit nude tableau with a quiet contemplative mood"
         chroma:      "post-intimate afterglow, languid entwined bodies, explicit nude, quiet mood"
         flux2:       "A post-intimate afterglow scene, languid adult bodies entwined together, explicit nude tableau with a quiet contemplative atmosphere settling over the room"
+
+# ── Environment vocabulary (vocab v6) ─────────────────────────────────
+# Phase 1 of the creative-uplift plan. Until v5 every scene shared one
+# series-locked environment ("Sun-drenched bedroom"...) — all 24 scenes
+# in a series ran in the same room. The environment namespace gives the
+# LLM a per-scene location pick from 40 concrete archetypes (decay /
+# period luxury / industrial / domestic / outdoor / urban-cinematic /
+# theatrical / aquatic) plus 25 atmospheric elements (particulate /
+# weather / light / wind / optical) that the canonicalizer threads into
+# the prompt body. Categories whitelist compatible_environments per
+# theme so the LLM picks from a coherent pool, not the full 40.
+#
+# Pony phrasings use the booru convention (underscored / lowercase /
+# tag-shaped). SDXL uses comma-noun-phrase. Flux/Chroma/Flux2 use
+# natural-language prose tuned to each family's T5/CLIP encoder.
+# Illustrious sits between Pony (tags) and SDXL (short prose).
+environment:
+  # ── Setting archetypes — 40 ────────────────────────────────────────
+  setting:
+    # ─── Decay / Patina ───
+    ENV_VICTORIAN_CONSERVATORY:
+      sdxl:        "abandoned Victorian conservatory, broken glass panels, ivy creeping through iron frame, dappled green light"
+      pony:        "abandoned_building, conservatory, broken_glass, ivy, dappled_light, victorian_architecture, overgrown"
+      illustrious: "victorian_conservatory, broken_glass, ivy_overgrown, dappled_light, ruined_elegance"
+      flux:        "An abandoned Victorian conservatory with broken glass panels, ivy creeping through the wrought-iron framework, dappled green light filtering through the remaining panes"
+      chroma:      "abandoned Victorian conservatory, broken glass panels, ivy through iron frame, dappled green light through remaining panes"
+      flux2:       "Set inside an abandoned Victorian conservatory, broken glass panels above, ivy creeping through the wrought-iron frame at chest height, dappled green light filtering through the surviving panes, humid still air"
+    ENV_ABANDONED_BALLROOM:
+      sdxl:        "abandoned ballroom, peeling silk wallpaper, dust-covered chandelier, parquet floor scattered with leaves"
+      pony:        "abandoned_ballroom, peeling_wallpaper, dusty_chandelier, parquet_floor, leaves_on_floor, decay"
+      illustrious: "abandoned_ballroom, peeling_wallpaper, chandelier_dust, parquet_floor, fallen_leaves"
+      flux:        "An abandoned ballroom with peeling silk wallpaper, a dust-covered crystal chandelier hanging at half-height, parquet floor scattered with dead leaves"
+      chroma:      "abandoned ballroom, peeling silk wallpaper, dust-covered crystal chandelier, parquet floor scattered with fallen leaves"
+      flux2:       "Set inside an abandoned ballroom, peeling silk wallpaper of faded gold and rose, a dust-covered crystal chandelier hanging crookedly at half-height, parquet floor scattered with fallen leaves and chips of plaster"
+    ENV_DERELICT_THEATRE:
+      sdxl:        "derelict 1920s theatre, threadbare velvet seats, water-stained proscenium, sodium streetlight through high windows"
+      pony:        "derelict_theatre, velvet_seats, water_stained_walls, sodium_light_through_window, ruined_grandeur"
+      illustrious: "derelict_theatre, threadbare_velvet, water_stained_proscenium, sodium_light"
+      flux:        "A derelict 1920s theatre with threadbare crimson velvet seats, a water-stained proscenium arch, a single sodium streetlight cutting through the high broken windows"
+      chroma:      "derelict 1920s theatre, threadbare velvet seats, water-stained proscenium, single sodium streetlight through broken high windows"
+      flux2:       "Set inside a derelict 1920s theatre, threadbare crimson velvet seats in collapsed rows, a water-stained proscenium arch overhead, a single shaft of sodium streetlight cutting through the high broken windows onto the stage"
+    ENV_OVERGROWN_GREENHOUSE:
+      sdxl:        "overgrown greenhouse, broken glass panels, ferns reclaiming the floor, sunbeams cutting through humid air"
+      pony:        "overgrown_greenhouse, broken_glass, ferns, sunbeam, humid_air, plant_reclaiming"
+      illustrious: "overgrown_greenhouse, broken_glass, fern_floor, sunbeam_humid_air"
+      flux:        "An overgrown greenhouse with broken glass panels above, ferns and tropical leaves reclaiming the tiled floor, golden sunbeams cutting through the humid air at sharp angles"
+      chroma:      "overgrown greenhouse, broken glass panels, ferns reclaiming the tiled floor, golden sunbeams cutting through humid air"
+      flux2:       "Set inside an overgrown greenhouse, broken glass panels above, ferns and tropical leaves reclaiming the tiled floor, golden sunbeams cutting through the humid still air at sharp angles, the air thick with the smell of damp earth"
+    ENV_RUINED_PALAZZO:
+      sdxl:        "ruined Italian palazzo, frescoed ceiling half-collapsed, marble dust on the floor, broken statuary"
+      pony:        "ruined_palazzo, frescoed_ceiling, collapsed_ceiling, marble_dust, broken_statue, italian_ruin"
+      illustrious: "ruined_palazzo, frescoed_ceiling, marble_dust, broken_statuary"
+      flux:        "A ruined Italian palazzo with the frescoed ceiling half-collapsed overhead, marble dust on the floor, fragments of broken classical statuary against the walls"
+      chroma:      "ruined Italian palazzo, half-collapsed frescoed ceiling, marble dust on the floor, broken classical statuary fragments"
+      flux2:       "Set inside a ruined Italian palazzo, frescoed ceiling half-collapsed overhead with sky visible through the gap, marble dust on the polished floor, fragments of broken classical statuary leaning against the moss-streaked walls"
+    # ─── Period Luxury ───
+    ENV_TUSCAN_VILLA_RENAISSANCE:
+      sdxl:        "16th-century Tuscan villa, frescoed walls, terracotta floors, ancient marble statuary"
+      pony:        "tuscan_villa, frescoed_walls, terracotta_floor, marble_statue, renaissance_interior"
+      illustrious: "tuscan_villa, frescoed_walls, terracotta_floors, marble_statuary, renaissance_setting"
+      flux:        "A 16th-century Tuscan villa interior with frescoed walls in muted ochre and umber, terracotta floor tiles, ancient marble statuary placed in alcoves"
+      chroma:      "16th-century Tuscan villa, frescoed walls, terracotta tile floor, ancient marble statuary in alcoves"
+      flux2:       "Set inside a 16th-century Tuscan villa, frescoed walls catching afternoon light in muted ochre and umber, terracotta floor tiles worn smooth, ancient marble statuary placed in alcoves, cool stone interior atmosphere"
+    ENV_OLD_HOLLYWOOD_BOUDOIR:
+      sdxl:        "1930s Hollywood dressing room, satin chaise lounge, vanity with vintage perfume bottles, ostrich-feather lamp"
+      pony:        "1930s_hollywood, dressing_room, satin_chaise, vintage_vanity, perfume_bottles, ostrich_feather_lamp, glamour_interior"
+      illustrious: "1930s_hollywood_dressing_room, satin_chaise, vintage_vanity, perfume_bottles, ostrich_feather_lamp"
+      flux:        "A 1930s Hollywood dressing room with a satin chaise lounge, a vanity scattered with vintage perfume bottles, an ostrich-feather lamp casting soft amber light"
+      chroma:      "1930s Hollywood dressing room, satin chaise lounge, vanity with vintage perfume bottles, ostrich-feather lamp casting amber light"
+      flux2:       "Set inside a 1930s Hollywood dressing room, a satin chaise lounge against the wall, a vanity scattered with vintage crystal perfume bottles, an ostrich-feather table lamp casting soft amber light across the polished surface"
+    ENV_ART_DECO_HOTEL_SUITE:
+      sdxl:        "art-deco hotel suite, lacquered ebony walls, geometric brass inlay, champagne coupe on mirrored side table"
+      pony:        "art_deco_suite, lacquered_ebony, brass_inlay, geometric_pattern, champagne_coupe, mirrored_table, 1920s_interior"
+      illustrious: "art_deco_hotel_suite, lacquered_ebony, geometric_brass_inlay, mirrored_surfaces"
+      flux:        "An art-deco hotel suite with lacquered ebony walls, geometric brass inlay along the trim, a champagne coupe resting on a mirrored side-table"
+      chroma:      "art-deco hotel suite, lacquered ebony walls, geometric brass inlay, champagne coupe on a mirrored side-table"
+      flux2:       "Set inside an art-deco hotel suite, lacquered ebony walls reflecting the warm sconce light, geometric brass inlay running along the trim, a champagne coupe resting on a mirrored side-table beside a black satin chaise"
+    ENV_VICTORIAN_PARLOUR:
+      sdxl:        "Victorian parlour, oxblood wingback chair, gilt-framed oil paintings, gas-lamp glow"
+      pony:        "victorian_parlour, wingback_chair, oxblood_leather, oil_paintings, gas_lamp, victorian_interior"
+      illustrious: "victorian_parlour, oxblood_wingback, gilt_framed_paintings, gas_lamp_glow"
+      flux:        "A Victorian parlour with an oxblood leather wingback chair, gilt-framed oil paintings crowding the walls, a single gas-lamp casting amber glow"
+      chroma:      "Victorian parlour, oxblood leather wingback chair, gilt-framed oil paintings on every wall, gas-lamp amber glow"
+      flux2:       "Set inside a Victorian parlour, an oxblood leather wingback chair turned slightly toward the fireplace, gilt-framed oil paintings crowding every wall, a single gas-lamp casting amber glow across the heavy patterned carpet"
+    ENV_GEORGIAN_LIBRARY:
+      sdxl:        "Georgian library, floor-to-ceiling oak shelves, brass library lamp, leather chesterfield"
+      pony:        "georgian_library, oak_bookshelves, brass_lamp, leather_chesterfield, library_interior, books_everywhere"
+      illustrious: "georgian_library, floor_to_ceiling_books, brass_library_lamp, leather_chesterfield"
+      flux:        "A Georgian library with floor-to-ceiling oak shelves packed with leather-bound books, a brass library lamp with green glass shade, a worn leather chesterfield against the wall"
+      chroma:      "Georgian library, floor-to-ceiling oak shelves of leather-bound books, brass library lamp with green glass shade, worn leather chesterfield"
+      flux2:       "Set inside a Georgian library, floor-to-ceiling oak shelves packed with leather-bound books, a brass library lamp with green glass shade illuminating an open reading desk, a worn leather chesterfield against the far wall"
+    # ─── Industrial / Brutal ───
+    ENV_BRUTALIST_CONCRETE_LOFT:
+      sdxl:        "brutalist concrete loft, exposed rebar, single shaft of light from clerestory window"
+      pony:        "brutalist_concrete, exposed_rebar, concrete_loft, clerestory_window, single_shaft_of_light, industrial_minimal"
+      illustrious: "brutalist_concrete_loft, exposed_rebar, clerestory_window, single_shaft_light"
+      flux:        "A brutalist concrete loft with raw exposed concrete walls, exposed rebar at the ceiling junction, a single hard shaft of light from a high clerestory window"
+      chroma:      "brutalist concrete loft, raw exposed concrete walls, exposed rebar, single hard shaft of light from a high clerestory window"
+      flux2:       "Set inside a brutalist concrete loft, raw exposed concrete walls bearing the imprint of their wooden formwork, exposed rebar at the ceiling junction, a single hard shaft of light from a high clerestory window cutting diagonally across the empty floor"
+    ENV_WAREHOUSE_CONVERSION:
+      sdxl:        "converted ironworks warehouse, wooden beams overhead, chipped paint, industrial steel windows"
+      pony:        "warehouse_conversion, wooden_beams, chipped_paint, industrial_steel_windows, brick_walls, converted_industrial"
+      illustrious: "warehouse_conversion, wooden_beams, chipped_paint, industrial_windows"
+      flux:        "A converted ironworks warehouse with heavy wooden beams overhead, chipped industrial paint on the walls, tall steel-frame industrial windows running the length of one wall"
+      chroma:      "converted ironworks warehouse, heavy wooden beams overhead, chipped industrial paint walls, tall steel-frame industrial windows"
+      flux2:       "Set inside a converted ironworks warehouse, heavy wooden beams overhead spanning the long ceiling, chipped industrial paint flaking from the brick walls, tall steel-frame industrial windows running the full length of one wall and admitting flat daylight"
+    ENV_PRINT_WORKSHOP:
+      sdxl:        "abandoned print workshop, ink-stained workbenches, hanging proof sheets, single tungsten bulb"
+      pony:        "print_workshop, ink_stained_bench, hanging_papers, tungsten_bulb, abandoned_industrial, workshop_interior"
+      illustrious: "print_workshop, ink_stained_workbenches, hanging_proof_sheets, tungsten_bulb"
+      flux:        "An abandoned print workshop with ink-stained wooden workbenches, proof sheets hanging from string overhead, a single tungsten bulb casting warm pooled light"
+      chroma:      "abandoned print workshop, ink-stained workbenches, proof sheets hanging from string overhead, single tungsten bulb casting warm pooled light"
+      flux2:       "Set inside an abandoned letterpress print workshop, ink-stained wooden workbenches scarred by decades of use, proof sheets hanging from string strung overhead, a single bare tungsten bulb casting a warm pool of light over one bench"
+    # ─── Domestic / Intimate ───
+    ENV_MORNING_BEDROOM:
+      sdxl:        "rumpled white Belgian linen bedroom, sheer curtains glowing with morning sun, terracotta tiled floor"
+      pony:        "morning_bedroom, rumpled_white_sheets, belgian_linen, sheer_curtains, morning_sun, terracotta_floor, intimate_interior"
+      illustrious: "morning_bedroom, rumpled_white_linen, sheer_curtains, morning_sun, terracotta_floor"
+      flux:        "A morning bedroom with rumpled white Belgian linen sheets, sheer curtains glowing with the early sun, a terracotta tiled floor catching warm reflected light"
+      chroma:      "morning bedroom, rumpled white Belgian linen sheets, sheer curtains glowing with morning sun, terracotta tiled floor catching warm reflected light"
+      flux2:       "Set inside a morning bedroom, rumpled white Belgian linen sheets across the unmade bed, sheer linen curtains glowing with the soft early sun, a terracotta tiled floor catching warm reflected light, the room feeling slow and recently inhabited"
+    ENV_CLAWFOOT_BATHROOM:
+      sdxl:        "marble bathroom with clawfoot tub, fogged mirror, single candle on the rim"
+      pony:        "clawfoot_bathtub, marble_bathroom, fogged_mirror, candle_on_tub_rim, intimate_bathroom"
+      illustrious: "clawfoot_bathroom, marble_floor, fogged_mirror, candle_on_tub"
+      flux:        "A marble bathroom with a clawfoot porcelain tub, a fogged mirror against the wall, a single lit candle resting on the tub rim"
+      chroma:      "marble bathroom with a clawfoot porcelain tub, fogged mirror against the wall, single lit candle on the tub rim"
+      flux2:       "Set inside a marble bathroom, a clawfoot porcelain tub holding warm water, a fogged mirror against the wall above a small marble vanity, a single lit candle resting on the polished tub rim, the air thick with humid steam"
+    ENV_VANITY_DRESSING_ROOM:
+      sdxl:        "rococo dressing room, gilded vanity, perfume bottles catching low afternoon light, ostrich-feather robe over the chair"
+      pony:        "rococo_dressing_room, gilded_vanity, perfume_bottles, ostrich_feather_robe, dressing_room_interior, decorative"
+      illustrious: "rococo_dressing_room, gilded_vanity, perfume_bottles, ostrich_feather_robe"
+      flux:        "A rococo dressing room with a gilded vanity, crystal perfume bottles catching low afternoon light, an ostrich-feather robe draped across the chair"
+      chroma:      "rococo dressing room, gilded vanity, crystal perfume bottles catching low afternoon light, ostrich-feather robe draped across the chair"
+      flux2:       "Set inside a rococo dressing room, a gilded vanity with curved cabriole legs, crystal perfume bottles catching the low afternoon light in coloured refractions, an ostrich-feather robe draped casually across the back of the upholstered chair"
+    ENV_READING_NOOK:
+      sdxl:        "window-seat reading nook, stack of vintage books, knit throw, rain on the window"
+      pony:        "reading_nook, window_seat, stack_of_books, knit_throw, rain_on_window, cozy_interior"
+      illustrious: "reading_nook, window_seat, stack_of_books, knit_throw, rain_on_window"
+      flux:        "A window-seat reading nook with a stack of vintage hardcover books, a knit throw blanket, rain streaming down the window beyond"
+      chroma:      "window-seat reading nook, stack of vintage hardcover books, knit throw blanket, rain streaming down the window beyond"
+      flux2:       "Set inside a window-seat reading nook, a stack of vintage hardcover books leaning against the cushioned wall, a knit throw blanket folded loosely, rain streaming down the leaded-glass window beyond"
+    # ─── Outdoor / Natural ───
+    ENV_MEDITERRANEAN_COURTYARD:
+      sdxl:        "Mediterranean courtyard, blue tilework, bougainvillea spilling over the wall, midday white-stone glare"
+      pony:        "mediterranean_courtyard, blue_tilework, bougainvillea, white_stone_wall, midday_sun, sun_glare"
+      illustrious: "mediterranean_courtyard, blue_tilework, bougainvillea, midday_sun"
+      flux:        "A Mediterranean courtyard with cobalt-blue tilework, bougainvillea spilling magenta blooms over the whitewashed wall, midday white-stone glare on the floor"
+      chroma:      "Mediterranean courtyard, cobalt-blue tilework, bougainvillea spilling magenta blooms over the whitewashed wall, midday white-stone glare"
+      flux2:       "Set inside a Mediterranean courtyard, cobalt-blue tilework on a low fountain in the centre, bougainvillea spilling magenta blooms over the whitewashed stone wall, midday white-stone glare bouncing brightness off every surface"
+    ENV_BALINESE_VILLA:
+      sdxl:        "Balinese open-air villa, teak deck, rice-paddy view, late-afternoon honey-gold light"
+      pony:        "balinese_villa, teak_deck, rice_paddy_view, late_afternoon_sun, honey_gold_light, tropical_setting"
+      illustrious: "balinese_villa, teak_deck, rice_paddy_view, honey_gold_late_afternoon"
+      flux:        "A Balinese open-air villa with a polished teak deck, terraced rice paddies stretching to the horizon, late-afternoon honey-gold light slanting in"
+      chroma:      "Balinese open-air villa, polished teak deck, terraced rice paddies stretching to the horizon, late-afternoon honey-gold light slanting in"
+      flux2:       "Set on the teak deck of a Balinese open-air villa, terraced rice paddies stretching to the horizon beyond a low wooden balustrade, late-afternoon honey-gold light slanting in horizontally across the deck and warming every surface"
+    ENV_FOG_PINE_FOREST:
+      sdxl:        "Pacific Northwest pine forest, low fog between trunks, moss-covered fallen log"
+      pony:        "pine_forest, low_fog, moss_covered_log, pacific_northwest, foggy_outdoor"
+      illustrious: "pine_forest, low_fog_between_trunks, moss_covered_log"
+      flux:        "A Pacific Northwest pine forest with low ground fog drifting between dark trunks, a moss-covered fallen log, cool diffused light"
+      chroma:      "Pacific Northwest pine forest, low ground fog drifting between dark trunks, moss-covered fallen log, cool diffused light"
+      flux2:       "Set inside a Pacific Northwest pine forest, low ground fog drifting between dark moss-furred trunks, a moss-covered fallen log spanning the foreground, cool diffused light from an overcast canopy filtering down"
+    ENV_DESERT_DUNE:
+      sdxl:        "Sahara dune at golden hour, wind-rippled sand, single set of footprints"
+      pony:        "desert_dune, sahara, golden_hour, wind_rippled_sand, footprints, outdoor_landscape"
+      illustrious: "sahara_dune, golden_hour_sand, wind_rippled, footprints"
+      flux:        "A Sahara dune at golden hour, wind-rippled sand catching warm sidelight, a single set of footprints winding across the slope"
+      chroma:      "Sahara dune at golden hour, wind-rippled sand catching warm sidelight, single set of footprints winding across the slope"
+      flux2:       "Set on a Sahara sand dune at golden hour, wind-rippled sand catching warm sidelight in thousands of tiny crests, a single set of footprints winding across the slope and disappearing over the ridge"
+    ENV_GRASS_MEADOW_GOLDEN_HOUR:
+      sdxl:        "wildflower meadow at golden hour, knee-high grass, distant treeline backlit"
+      pony:        "wildflower_meadow, knee_high_grass, golden_hour, backlit_treeline, outdoor_natural"
+      illustrious: "wildflower_meadow, knee_high_grass, golden_hour_backlight"
+      flux:        "A wildflower meadow at golden hour, knee-high grass and wildflower stems, the distant treeline backlit by warm slanting sun"
+      chroma:      "wildflower meadow at golden hour, knee-high grass and wildflower stems, distant treeline backlit by warm slanting sun"
+      flux2:       "Set in a wildflower meadow at golden hour, knee-high grass and tall wildflower stems bending in the breeze, the distant treeline backlit by warm slanting sun, every blade of grass haloed by rim light"
+    ENV_BLACK_SAND_BEACH:
+      sdxl:        "Icelandic black-sand beach, basalt columns, low overcast sky, sea mist"
+      pony:        "black_sand_beach, iceland, basalt_columns, overcast_sky, sea_mist, dramatic_landscape"
+      illustrious: "icelandic_black_sand_beach, basalt_columns, overcast_sky, sea_mist"
+      flux:        "An Icelandic black-sand beach with hexagonal basalt columns rising from the shore, a low overcast sky, sea mist rolling in from the surf"
+      chroma:      "Icelandic black-sand beach, hexagonal basalt columns rising from the shore, low overcast sky, sea mist rolling in"
+      flux2:       "Set on an Icelandic black-sand beach, hexagonal basalt columns rising from the shore in geometric clusters, a low overcast sky merging into the horizon, sea mist rolling in from the cold surf, every surface damp and reflective"
+    # ─── Urban Cinematic ───
+    ENV_ROOFTOP_CITY_NIGHT:
+      sdxl:        "rooftop terrace, neon city skyline behind, wet concrete, single string of bulbs"
+      pony:        "rooftop_terrace, city_skyline_night, neon_lights, wet_concrete, string_lights, urban_night"
+      illustrious: "rooftop_terrace, neon_skyline_night, wet_concrete, string_of_bulbs"
+      flux:        "A rooftop terrace overlooking a neon-lit city skyline at night, wet concrete underfoot, a single string of warm bulbs strung overhead"
+      chroma:      "rooftop terrace overlooking a neon-lit city skyline at night, wet concrete underfoot, single string of warm bulbs strung overhead"
+      flux2:       "Set on a rooftop terrace overlooking a neon-lit city skyline at night, wet concrete underfoot reflecting magenta and cyan signage, a single string of warm tungsten bulbs strung overhead, the city's distant hum filling the air"
+    ENV_FIRE_ESCAPE_NEON:
+      sdxl:        "Manhattan fire escape, magenta neon sign across the street, rain on the iron grate"
+      pony:        "fire_escape, manhattan, magenta_neon_sign, rain_on_grate, iron_fire_escape, urban_night"
+      illustrious: "manhattan_fire_escape, magenta_neon_sign, rain_on_grate"
+      flux:        "A Manhattan fire escape at night, a magenta neon sign blazing across the street, rain streaming through the iron grate of the landing"
+      chroma:      "Manhattan fire escape at night, magenta neon sign blazing across the street, rain streaming through the iron grate of the landing"
+      flux2:       "Set on a Manhattan fire escape at night, a magenta neon sign blazing across the street and washing the brick wall behind it in saturated colour, rain streaming through the iron grate of the landing, the city pulsing with sound below"
+    ENV_PARIS_ATTIC_APARTMENT:
+      sdxl:        "Parisian sixth-floor attic apartment, mansard window, rooftops and chimney pots in the distance"
+      pony:        "parisian_attic_apartment, mansard_window, paris_rooftops, chimney_pots, european_interior"
+      illustrious: "parisian_attic_apartment, mansard_window, paris_rooftops_visible"
+      flux:        "A Parisian sixth-floor attic apartment with a mansard window framing distant rooftops and clay chimney pots, soft afternoon light slanting in"
+      chroma:      "Parisian sixth-floor attic apartment, mansard window framing distant rooftops and clay chimney pots, soft afternoon light slanting in"
+      flux2:       "Set inside a Parisian sixth-floor attic apartment, a mansard window framing the rooftops and clay chimney pots stretching to the horizon, soft afternoon light slanting in across worn wooden floorboards and a low daybed"
+    ENV_TOKYO_LOVE_HOTEL:
+      sdxl:        "Tokyo love-hotel room, magenta and cyan neon, mirrored ceiling, lacquered surfaces"
+      pony:        "tokyo_love_hotel, neon_room, magenta_cyan_lighting, mirrored_ceiling, lacquered_surfaces, japanese_interior"
+      illustrious: "tokyo_love_hotel, neon_room, magenta_and_cyan, mirrored_ceiling"
+      flux:        "A Tokyo love-hotel room saturated in magenta and cyan neon, a mirrored ceiling above, lacquered black surfaces catching coloured reflections"
+      chroma:      "Tokyo love-hotel room, magenta and cyan neon saturating the space, mirrored ceiling above, lacquered black surfaces catching coloured reflections"
+      flux2:       "Set inside a Tokyo love-hotel room, the space saturated in magenta and cyan neon, a mirrored ceiling reflecting the bed below, lacquered black surfaces catching the coloured neon in liquid reflections"
+    ENV_BERLIN_KREUZBERG_LOFT:
+      sdxl:        "Berlin Kreuzberg loft, exposed brick, single industrial pendant lamp"
+      pony:        "berlin_loft, kreuzberg, exposed_brick, industrial_pendant_lamp, minimal_interior, european_loft"
+      illustrious: "berlin_kreuzberg_loft, exposed_brick, industrial_pendant"
+      flux:        "A Berlin Kreuzberg loft with raw exposed brick walls, a single industrial pendant lamp hanging low, weathered hardwood floorboards"
+      chroma:      "Berlin Kreuzberg loft, raw exposed brick walls, single industrial pendant lamp hanging low, weathered hardwood floorboards"
+      flux2:       "Set inside a Berlin Kreuzberg loft, raw exposed brick walls in warm terracotta tones, a single industrial pendant lamp hanging low over a worn dining table, weathered hardwood floorboards bearing the marks of decades"
+    # ─── Cinematic / Theatrical ───
+    ENV_HOTEL_LOBBY_NOIR:
+      sdxl:        "deserted hotel lobby at 3am, brass elevator doors, single bellhop's lamp glow"
+      pony:        "deserted_hotel_lobby, brass_elevator_doors, single_lamp_glow, 3am_atmosphere, noir_interior"
+      illustrious: "hotel_lobby_noir, brass_elevator_doors, single_lamp_glow_3am"
+      flux:        "A deserted grand hotel lobby at 3am, polished brass elevator doors reflecting low light, a single bellhop's lamp casting warm pooled glow across the marble"
+      chroma:      "deserted grand hotel lobby at 3am, polished brass elevator doors reflecting low light, single bellhop's lamp casting warm pooled glow across the marble"
+      flux2:       "Set inside a deserted grand hotel lobby at 3am, polished brass elevator doors reflecting the low light, a single bellhop's lamp casting a warm pooled glow across the marble floor, the air heavy with quiet luxury"
+    ENV_BACKSTAGE_DRESSING_ROOM:
+      sdxl:        "backstage cabaret dressing room, makeup mirror with vanity bulbs, costume rack of feathered gowns"
+      pony:        "backstage_dressing_room, makeup_mirror, vanity_bulbs, costume_rack, feathered_gown, theatrical_interior"
+      illustrious: "backstage_dressing_room, makeup_mirror_vanity_bulbs, costume_rack"
+      flux:        "A backstage cabaret dressing room with a makeup mirror ringed in vanity bulbs, a costume rack hung with feathered gowns, scattered cosmetics across the dresser"
+      chroma:      "backstage cabaret dressing room, makeup mirror ringed in vanity bulbs, costume rack hung with feathered gowns, scattered cosmetics"
+      flux2:       "Set inside a backstage cabaret dressing room, a makeup mirror ringed in vanity bulbs throwing warm light across the dresser, a costume rack hung with feathered gowns and beaded fabric, scattered cosmetics and a single half-empty glass"
+    ENV_CABARET_STAGE_DARK:
+      sdxl:        "darkened cabaret stage after closing, gold curtain, single follow-spot on a velvet stool"
+      pony:        "cabaret_stage_dark, gold_curtain, follow_spot, velvet_stool, after_closing, theatrical_setting"
+      illustrious: "darkened_cabaret_stage, gold_curtain, follow_spot, velvet_stool"
+      flux:        "A darkened cabaret stage after closing, a gold velvet curtain drawn back, a single follow-spot illuminating a black velvet stool centre-stage"
+      chroma:      "darkened cabaret stage after closing, gold velvet curtain drawn back, single follow-spot on a black velvet stool centre-stage"
+      flux2:       "Set on a darkened cabaret stage after closing, a heavy gold velvet curtain drawn back at the sides, a single follow-spot illuminating a black velvet stool centre-stage, the auditorium beyond fading into pure black"
+    # ─── Aquatic ───
+    ENV_INDOOR_POOL_NIGHT:
+      sdxl:        "private indoor pool at night, underwater turquoise light, rippling reflections on tiled ceiling"
+      pony:        "indoor_pool_night, underwater_turquoise_light, rippling_reflections, tiled_ceiling, night_pool"
+      illustrious: "indoor_pool_night, underwater_turquoise_light, rippling_reflections"
+      flux:        "A private indoor pool at night, underwater turquoise lighting glowing from below the surface, rippling water-reflections playing across the tiled ceiling"
+      chroma:      "private indoor pool at night, underwater turquoise lighting glowing from below the surface, rippling water-reflections playing across the tiled ceiling"
+      flux2:       "Set beside a private indoor pool at night, underwater turquoise lighting glowing from below the still surface, rippling water-reflections playing across the tiled ceiling above, the only sound the slow lap of water at the tile edge"
+    ENV_HAMMAM_STEAM:
+      sdxl:        "Ottoman hammam, marble basin, steam catching shafts of light from domed skylight"
+      pony:        "ottoman_hammam, marble_basin, steam, shafts_of_light, domed_skylight, bathhouse_interior"
+      illustrious: "ottoman_hammam, marble_basin, steam_shafts_of_light, domed_skylight"
+      flux:        "An Ottoman hammam with a central marble basin, dense steam catching shafts of light streaming from a domed skylight overhead"
+      chroma:      "Ottoman hammam, central marble basin, dense steam catching shafts of light streaming from a domed skylight overhead"
+      flux2:       "Set inside an Ottoman hammam, a central marble basin holding warm water, dense steam catching shafts of light streaming from a domed skylight overhead, every marble surface glowing damp and reflective"
+    # ─── Additional premium-tier archetypes ───
+    ENV_STUDIO_CYC_MINIMAL:
+      sdxl:        "minimalist studio cyc, seamless cream paper, single softbox, architectural emptiness"
+      pony:        "studio_cyc, seamless_paper, cream_background, single_softbox, minimalist_studio"
+      illustrious: "studio_cyc, seamless_cream_paper, single_softbox"
+      flux:        "A minimalist studio cyc with a seamless cream paper backdrop, a single large softbox, architectural emptiness and quiet"
+      chroma:      "minimalist studio cyc, seamless cream paper backdrop, single large softbox, architectural emptiness"
+      flux2:       "Set inside a minimalist studio cyc, a seamless cream paper backdrop curving from floor to wall, a single large softbox positioned at camera-left, architectural emptiness everywhere else, every surface neutral and quiet"
+    ENV_LOG_CABIN_FIRELIT:
+      sdxl:        "log cabin interior, firelit, rough-sawn beams, sheepskin on the floorboards"
+      pony:        "log_cabin_interior, firelit, rough_sawn_beams, sheepskin_rug, rustic_interior"
+      illustrious: "log_cabin_interior, firelit_glow, rough_sawn_beams, sheepskin_rug"
+      flux:        "A log cabin interior lit by a roaring fireplace, rough-sawn ceiling beams overhead, a thick sheepskin rug on the worn floorboards"
+      chroma:      "log cabin interior lit by a roaring fireplace, rough-sawn ceiling beams overhead, thick sheepskin rug on worn floorboards"
+      flux2:       "Set inside a log cabin lit by a roaring fireplace, warm firelight casting flickering shadows across rough-sawn ceiling beams overhead, a thick sheepskin rug on the worn floorboards, every surface in warm umber and ember-orange"
+    ENV_GREEK_ISLAND_TERRACE:
+      sdxl:        "Greek island terrace, whitewashed stone, deep blue Aegean sea beyond, midday brightness"
+      pony:        "greek_island_terrace, whitewashed_stone, aegean_sea_view, midday_sun, mediterranean_terrace"
+      illustrious: "greek_island_terrace, whitewashed_stone, aegean_blue, midday_sun"
+      flux:        "A Greek island terrace, whitewashed stone walls and floor, the deep blue Aegean sea stretching beyond, midday brightness bouncing off every surface"
+      chroma:      "Greek island terrace, whitewashed stone walls and floor, deep blue Aegean sea stretching beyond, midday brightness bouncing off every surface"
+      flux2:       "Set on a Greek island terrace, whitewashed stone walls and floor in brilliant midday light, the deep blue Aegean sea stretching beyond the low wall, sun bouncing off every surface, the air thick with salt and bougainvillea"
+    ENV_SCANDINAVIAN_SAUNA:
+      sdxl:        "Scandinavian sauna, blond wood walls, low warm light, steam rising from heated stones"
+      pony:        "scandinavian_sauna, blond_wood_walls, low_warm_light, steam_from_stones, nordic_interior"
+      illustrious: "scandinavian_sauna, blond_wood, low_warm_light, steam_rising"
+      flux:        "A Scandinavian sauna with blond pine wood walls, low warm light, soft steam rising from heated stones in the corner"
+      chroma:      "Scandinavian sauna, blond pine wood walls, low warm light, soft steam rising from heated stones in the corner"
+      flux2:       "Set inside a Scandinavian sauna, blond pine wood walls and benches glowing in low warm light, soft steam rising from heated stones in the corner, every surface warm to the touch, the air dry and aromatic"
+    ENV_ARTIST_STUDIO_NORTH_LIGHT:
+      sdxl:        "artist's studio, tall north-facing windows, easels and stacked canvases, paint-spattered floor"
+      pony:        "artist_studio, north_facing_windows, easels, stacked_canvases, paint_spattered_floor, atelier"
+      illustrious: "artist_studio, north_light_window, easel, paint_spattered_floor"
+      flux:        "An artist's studio with tall north-facing windows admitting cool flat light, easels and stacked canvases against the walls, a paint-spattered hardwood floor"
+      chroma:      "artist's studio, tall north-facing windows admitting cool flat light, easels and stacked canvases against the walls, paint-spattered hardwood floor"
+      flux2:       "Set inside an artist's studio, tall north-facing windows admitting cool flat light at a perfect 4500 K, easels and stacked canvases against the walls, a paint-spattered hardwood floor bearing decades of cadmium and ultramarine"
+    ENV_JAPANESE_RYOKAN:
+      sdxl:        "traditional Japanese ryokan room, tatami floor, shoji screens, low futon, lacquered tray of tea"
+      pony:        "japanese_ryokan, tatami_floor, shoji_screen, futon, lacquered_tray, tea_set, japanese_interior"
+      illustrious: "japanese_ryokan, tatami_floor, shoji_screens, low_futon"
+      flux:        "A traditional Japanese ryokan room with tatami floor, paper shoji screens admitting soft diffused light, a low futon, a lacquered tray of tea on the floor"
+      chroma:      "traditional Japanese ryokan room, tatami floor, paper shoji screens admitting soft diffused light, low futon, lacquered tray of tea on the floor"
+      flux2:       "Set inside a traditional Japanese ryokan room, tatami floor mats arranged with quiet geometry, paper shoji screens admitting soft diffused light, a low futon along one wall, a lacquered tray with a small tea set placed on the floor"
+    ENV_DESERT_OASIS_PALMS:
+      sdxl:        "desert oasis at dusk, palm tree silhouettes, still water reflecting the sky"
+      pony:        "desert_oasis, palm_trees, silhouettes, still_water, reflection, dusk, outdoor_landscape"
+      illustrious: "desert_oasis_dusk, palm_silhouettes, still_water_reflection"
+      flux:        "A desert oasis at dusk with palm-tree silhouettes against the orange sky, still water reflecting the colours of the sky"
+      chroma:      "desert oasis at dusk, palm-tree silhouettes against the orange sky, still water reflecting the colours of the sky"
+      flux2:       "Set at a desert oasis at dusk, palm-tree silhouettes against a sky of orange and indigo, still water of a small spring reflecting the colours of the sky perfectly, the air cooling from the day's heat"
+    ENV_VICTORIAN_OBSERVATORY:
+      sdxl:        "Victorian observatory at night, brass telescope, dome open to the stars, single oil lamp"
+      pony:        "victorian_observatory, brass_telescope, dome_open, night_sky_visible, oil_lamp_glow"
+      illustrious: "victorian_observatory, brass_telescope, open_dome_night_sky, oil_lamp"
+      flux:        "A Victorian observatory at night, a large brass telescope angled toward the open dome, the night sky visible through the aperture, a single oil lamp casting warm pooled light"
+      chroma:      "Victorian observatory at night, large brass telescope angled toward the open dome, night sky visible through the aperture, single oil lamp casting warm pooled light"
+      flux2:       "Set inside a Victorian observatory at night, a large brass telescope angled toward the open dome aperture, the dark night sky and a sliver of moon visible through the opening, a single oil lamp casting warm pooled light across the polished wooden floor and brass instruments"
+
+  # ── Atmospheric elements — 25 ────────────────────────────────────
+  atmosphere:
+    # ─── Particulate / suspended ───
+    ATM_DUST_MOTES_IN_LIGHT:
+      sdxl:        "dust motes drifting through a shaft of afternoon light"
+      pony:        "dust_motes, light_shaft, particles_in_light, atmospheric_dust"
+      illustrious: "dust_motes_in_light_shaft, particles_floating"
+      flux:        "Dust motes drifting visibly through a shaft of afternoon light"
+      chroma:      "dust motes drifting visibly through a shaft of afternoon light"
+      flux2:       "Dust motes drifting visibly through a shaft of afternoon light, every particle catching the warm directional illumination"
+    ATM_INCENSE_SMOKE_CURL:
+      sdxl:        "single curl of incense smoke rising from a brass holder"
+      pony:        "incense_smoke, smoke_curl, brass_holder, smoke_trail"
+      illustrious: "incense_smoke_curl, brass_holder"
+      flux:        "A single curl of incense smoke rising elegantly from a brass holder"
+      chroma:      "single curl of incense smoke rising elegantly from a brass holder"
+      flux2:       "A single curl of incense smoke rising elegantly from a brass holder, the smoke catching the directional light and revealing its slow spiral"
+    ATM_CIGARETTE_HAZE:
+      sdxl:        "thin cigarette haze hanging at chest height"
+      pony:        "cigarette_smoke, haze, smoke_in_room, chest_height_smoke"
+      illustrious: "cigarette_haze, smoke_at_chest_height"
+      flux:        "A thin cigarette haze hanging at chest height across the room"
+      chroma:      "thin cigarette haze hanging at chest height across the room"
+      flux2:       "A thin cigarette haze hanging at chest height across the room, the smoke catching the directional light and softening every surface beyond it"
+    ATM_FIREPLACE_EMBERS:
+      sdxl:        "fireplace embers glowing low, soft warmth in the foreground"
+      pony:        "fireplace_embers, glowing_embers, warm_foreground_light, fire"
+      illustrious: "fireplace_embers, low_glow, warm_foreground"
+      flux:        "Fireplace embers glowing low and warm in the foreground, casting amber light onto the floor"
+      chroma:      "fireplace embers glowing low and warm in the foreground, casting amber light onto the floor"
+      flux2:       "Fireplace embers glowing low and warm in the foreground, the dying fire casting amber light onto the floor and walls, occasional sparks rising"
+    ATM_POLLEN_GOLDEN_AIR:
+      sdxl:        "pollen floating in slanted golden-hour air"
+      pony:        "pollen_floating, golden_hour_air, particles_in_air, summer_pollen"
+      illustrious: "pollen_in_golden_air, particles_floating"
+      flux:        "Pollen floating visibly in slanted golden-hour air"
+      chroma:      "pollen floating visibly in slanted golden-hour air"
+      flux2:       "Pollen floating visibly in slanted golden-hour air, every particle illuminated by the warm directional light, a sense of summer stillness"
+    # ─── Weather / Water ───
+    ATM_RAIN_ON_GLASS:
+      sdxl:        "rain streaming down the windowpane, refracted light beyond"
+      pony:        "rain_on_window, rain_on_glass, refracted_light, water_streaming"
+      illustrious: "rain_on_windowpane, refracted_light"
+      flux:        "Rain streaming down the windowpane, refracted light from beyond softening into bokeh"
+      chroma:      "rain streaming down the windowpane, refracted light from beyond softening into bokeh"
+      flux2:       "Rain streaming down the windowpane in slow rivulets, refracted light from beyond softening into bokeh, the world outside reduced to abstract colour and shape"
+    ATM_FOG_ROLLING_IN:
+      sdxl:        "low fog rolling in across the field at dusk"
+      pony:        "low_fog, fog_rolling, dusk_fog, atmospheric_fog"
+      illustrious: "low_fog_rolling, dusk_atmosphere"
+      flux:        "Low fog rolling in across the field at dusk, softening every distant element into silhouette"
+      chroma:      "low fog rolling in across the field at dusk, softening every distant element into silhouette"
+      flux2:       "Low fog rolling in across the field at dusk, softening every distant element into silhouette, the cool damp air settling and slowing the entire scene"
+    ATM_STEAM_FROM_BATH:
+      sdxl:        "steam rising from a hot bath, thick at the surface"
+      pony:        "steam, bath_steam, hot_water_steam, thick_steam"
+      illustrious: "steam_rising_from_bath, thick_at_surface"
+      flux:        "Dense steam rising from a hot bath, thick at the water's surface, dissipating slowly into the cooler air"
+      chroma:      "dense steam rising from a hot bath, thick at the water's surface, dissipating slowly into the cooler air"
+      flux2:       "Dense steam rising from a hot bath, thick at the water's surface, dissipating slowly into the cooler air above, condensation forming on every nearby surface"
+    ATM_HUMID_TROPICAL_AIR:
+      sdxl:        "humid tropical air, condensation on every glass surface"
+      pony:        "humid_air, tropical_humidity, condensation, glass_fog"
+      illustrious: "humid_tropical_air, condensation_on_glass"
+      flux:        "Humid tropical air, condensation forming on every cool glass surface, the air thick and slow"
+      chroma:      "humid tropical air, condensation forming on every cool glass surface, the air thick and slow"
+      flux2:       "Humid tropical air visible in the slight haze of the room, condensation forming on every cool glass surface, the air thick and slow, sweat glistening on warm skin"
+    ATM_MORNING_MIST_VALLEY:
+      sdxl:        "morning mist clinging to a low valley"
+      pony:        "morning_mist, valley_mist, low_mist, dawn_atmosphere"
+      illustrious: "morning_mist_valley, low_lying_mist"
+      flux:        "Morning mist clinging to the low valley, softening the distant treeline into pale silhouette"
+      chroma:      "morning mist clinging to the low valley, softening the distant treeline into pale silhouette"
+      flux2:       "Morning mist clinging to the low valley below, softening the distant treeline into pale silhouette, the rising sun beginning to burn through from above"
+    ATM_WET_COBBLESTONE_REFLECTION:
+      sdxl:        "rain-slicked cobblestone reflecting streetlight"
+      pony:        "wet_cobblestone, rain_reflection, streetlight_reflection, urban_wet_pavement"
+      illustrious: "wet_cobblestone, streetlight_reflection"
+      flux:        "Rain-slicked cobblestone underfoot reflecting amber streetlight in long mirrored streaks"
+      chroma:      "rain-slicked cobblestone underfoot reflecting amber streetlight in long mirrored streaks"
+      flux2:       "Rain-slicked cobblestone underfoot reflecting amber streetlight in long mirrored streaks, every uneven stone catching the light as a separate small mirror"
+    # ─── Light / Sky ───
+    ATM_CREPUSCULAR_RAYS:
+      sdxl:        "crepuscular rays breaking through cloud, god rays"
+      pony:        "crepuscular_rays, god_rays, light_through_clouds, sun_rays"
+      illustrious: "crepuscular_rays, god_rays_through_cloud"
+      flux:        "Crepuscular rays — god rays — breaking through a heavy cloud bank in distinct golden columns"
+      chroma:      "crepuscular rays — god rays — breaking through a heavy cloud bank in distinct golden columns"
+      flux2:       "Crepuscular rays — god rays — breaking through a heavy cloud bank in distinct golden columns, each ray catching airborne moisture and rendering visible the path of the light"
+    ATM_VOLUMETRIC_GOLDEN:
+      sdxl:        "volumetric light through a high window, illuminating airborne dust"
+      pony:        "volumetric_light, high_window_light, dust_in_beam, light_made_visible"
+      illustrious: "volumetric_golden_light, dust_in_light_shaft"
+      flux:        "Volumetric golden light streaming through a high window, illuminating airborne dust and rendering the very shape of the light visible"
+      chroma:      "volumetric golden light streaming through a high window, illuminating airborne dust and rendering the shape of the light visible"
+      flux2:       "Volumetric golden light streaming through a high window, illuminating airborne dust and rendering the very shape of the light visible, the beam falling diagonally across the floor"
+    ATM_OVERCAST_DIFFUSE:
+      sdxl:        "flat overcast diffuse light, no hard shadows, even tonality"
+      pony:        "overcast_light, diffuse_lighting, no_hard_shadows, flat_lighting, even_tonality"
+      illustrious: "overcast_diffuse_light, no_hard_shadow"
+      flux:        "Flat overcast diffuse light from every direction, no hard shadows anywhere, even tonality across the entire scene"
+      chroma:      "flat overcast diffuse light, no hard shadows anywhere, even tonality across the entire scene"
+      flux2:       "Flat overcast diffuse light from every direction at roughly 6500 K, no hard shadows anywhere, even tonality across the entire scene, the cloud layer acting as a vast natural softbox"
+    ATM_THUNDERSTORM_LIGHTNING:
+      sdxl:        "approaching thunderstorm, single distant lightning flash"
+      pony:        "thunderstorm_approaching, distant_lightning, storm_atmosphere, dark_sky"
+      illustrious: "approaching_thunderstorm, single_lightning_flash"
+      flux:        "An approaching thunderstorm, a single distant lightning flash briefly silhouetting the dark cloud bank"
+      chroma:      "approaching thunderstorm, single distant lightning flash briefly silhouetting the dark cloud bank"
+      flux2:       "An approaching thunderstorm, a single distant lightning flash briefly silhouetting the dark cloud bank, the pre-storm air tense and waiting"
+    # ─── Wind / Motion ───
+    ATM_BREEZE_IN_CURTAIN:
+      sdxl:        "slow breeze lifting the sheer curtain"
+      pony:        "sheer_curtain_breeze, billowing_curtain, slow_wind, fabric_in_motion"
+      illustrious: "slow_breeze_curtain, sheer_fabric_lifting"
+      flux:        "A slow breeze lifting the sheer curtain into a soft billowing arc"
+      chroma:      "slow breeze lifting the sheer curtain into a soft billowing arc"
+      flux2:       "A slow breeze lifting the sheer curtain into a soft billowing arc, the fabric translucent against the brighter light beyond, every fold caught in slow motion"
+    ATM_HAIR_MOVING_WIND:
+      sdxl:        "loose hair caught by a soft breeze, gentle motion blur in the strands"
+      pony:        "hair_in_wind, loose_hair_blowing, soft_breeze_hair, motion_in_hair"
+      illustrious: "hair_caught_by_wind, soft_motion"
+      flux:        "Loose hair caught by a soft breeze, gentle motion lifting individual strands across the face and shoulder"
+      chroma:      "loose hair caught by a soft breeze, gentle motion lifting individual strands across the face and shoulder"
+      flux2:       "Loose hair caught by a soft breeze, gentle motion lifting individual strands across the face and shoulder, the movement caught at the exact moment the hair is suspended"
+    ATM_FABRIC_FLOATING_UNDERWATER:
+      sdxl:        "fabric drifting weightlessly underwater, slow ripples"
+      pony:        "fabric_underwater, drifting_fabric, slow_ripples, underwater_motion"
+      illustrious: "fabric_drifting_underwater, weightless_motion"
+      flux:        "Fabric drifting weightlessly underwater, slow ripples of cloth suspended in the water column"
+      chroma:      "fabric drifting weightlessly underwater, slow ripples of cloth suspended in the water column"
+      flux2:       "Fabric drifting weightlessly underwater, slow ripples of cloth suspended in the water column, every fold caught in fluid motion, the surface a refracting boundary above"
+    # ─── Halation / Optical ───
+    ATM_CINESTILL_HALATION:
+      sdxl:        "Cinestill 800T halation glow around streetlamps and bright lights"
+      pony:        "cinestill_halation, halation_glow, red_halation, light_halation"
+      illustrious: "cinestill_halation_glow, red_orange_around_lights"
+      flux:        "Cinestill 800T halation glow around every streetlamp and bright light source, characteristic red-orange bleed into surrounding pixels"
+      chroma:      "Cinestill 800T halation glow around streetlamps and bright lights, red-orange bleed into surrounding pixels"
+      flux2:       "Cinestill 800T halation glow around every streetlamp and bright light source, characteristic red-orange bleed into surrounding pixels, every highlight ringed in warm scarlet"
+    ATM_LENS_FLARE_ANAMORPHIC:
+      sdxl:        "anamorphic horizontal lens flare across the frame"
+      pony:        "anamorphic_lens_flare, horizontal_flare, blue_streak_flare"
+      illustrious: "anamorphic_lens_flare, horizontal_streak"
+      flux:        "An anamorphic horizontal lens flare streaking across the frame in a long blue line"
+      chroma:      "anamorphic horizontal lens flare streaking across the frame in a long blue line"
+      flux2:       "An anamorphic horizontal lens flare streaking across the frame in a long blue line, the characteristic cinematic optical signature of an anamorphic lens"
+    ATM_BOKEH_BUBBLES:
+      sdxl:        "out-of-focus string lights creating bokeh bubbles in the background"
+      pony:        "bokeh_bubbles, out_of_focus_lights, string_lights_bokeh, background_bokeh"
+      illustrious: "bokeh_bubbles, out_of_focus_string_lights"
+      flux:        "Out-of-focus string lights in the background rendering as a field of soft bokeh bubbles"
+      chroma:      "out-of-focus string lights in the background rendering as a field of soft bokeh bubbles"
+      flux2:       "Out-of-focus string lights in the background rendering as a field of soft bokeh bubbles, every distant light source softened into a perfect glowing disc"
+    ATM_HEAT_HAZE_SHIMMER:
+      sdxl:        "heat haze shimmer rising from sun-baked stone"
+      pony:        "heat_haze, shimmer, heat_distortion, summer_heat"
+      illustrious: "heat_haze_shimmer, heat_distortion_air"
+      flux:        "Heat haze shimmer rising from sun-baked stone, distant elements wavering in the rising warm air"
+      chroma:      "heat haze shimmer rising from sun-baked stone, distant elements wavering in the rising warm air"
+      flux2:       "Heat haze shimmer rising from sun-baked stone, distant elements wavering in the rising warm air, the heat of the day rendered visible in the distorted middle distance"
+    ATM_FIREFLIES_DUSK:
+      sdxl:        "fireflies pulsing in the dusk, tiny points of golden light"
+      pony:        "fireflies, dusk_fireflies, points_of_light, golden_fireflies"
+      illustrious: "fireflies_in_dusk, points_of_golden_light"
+      flux:        "Fireflies pulsing in the dusk, tiny points of golden light scattered through the dim air"
+      chroma:      "fireflies pulsing in the dusk, tiny points of golden light scattered through the dim air"
+      flux2:       "Fireflies pulsing in the dusk, tiny points of golden light scattered through the dim air, each one briefly glowing then fading, a slow living constellation"
+    ATM_SNOW_FALLING_SOFT:
+      sdxl:        "soft snow falling silently in the still air"
+      pony:        "snow_falling, soft_snow, silent_snowfall, winter_atmosphere"
+      illustrious: "soft_snow_falling, silent_snowfall"
+      flux:        "Soft snow falling silently in the still air, large flakes drifting slowly downward"
+      chroma:      "soft snow falling silently in the still air, large flakes drifting slowly downward"
+      flux2:       "Soft snow falling silently in the still air, large flakes drifting slowly downward at random angles, every flake illuminated against the darker background"
