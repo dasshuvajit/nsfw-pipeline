@@ -106,6 +106,12 @@ llm:
   base_url: "http://localhost:11434"
   unload_after_phase: true
   keep_alive_seconds: 0
+  # Per-request HTTP timeout (seconds) for Ollama /api/generate +
+  # /api/chat calls. Default 900s (15 min) is sized for 70B-class
+  # models on M4 Pro under unified-memory pressure; 24B-class models
+  # finish well under this. Bump higher if you observe ReadTimeout
+  # errors with even larger models.
+  request_timeout_seconds: 900
 
   # The default LLM for the project lives in config/llm_models.yaml under
   # `default_llm:`. Override per-command with the --llm <id> flag. List

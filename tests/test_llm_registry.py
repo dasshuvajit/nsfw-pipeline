@@ -294,10 +294,13 @@ class TestRealRegistry:
         loader = LLMRegistryLoader()
         assert loader.default_llm_id == "cydonia_heretic_24b"
 
-    def test_real_two_llms_active(self):
-        """The two installed LLMs (Cydonia Heretic Vision + Hermes 3) are
-        active. Hermes 3 is the fallback for retries after primary refusal."""
+    def test_real_installed_llms_active(self):
+        """The installed LLMs (Cydonia Heretic Vision + Hermes 3 8B
+        + Hermes 3 70B as of 2026-05-18) all register as active.
+        Hermes 3 8B is the fallback; 70B is a stronger A/B target
+        with Llama 3.1 lineage."""
         loader = LLMRegistryLoader()
         ids = {e.id for e in loader.list_llms()}
         assert "cydonia_heretic_24b" in ids
         assert "hermes3" in ids
+        assert "hermes3_70b" in ids

@@ -33,10 +33,40 @@ llms:
     families_recommended: ["all"]
     active: true
 
+  hermes3_70b:
+    ollama_id: "hermes3:70b-llama3.1-q4_K_M"
+    display_name: "Hermes 3 70B (Llama 3.1)"
+    description: |
+      Nous Research Hermes 3 on Llama 3.1, 70B parameter Q4_K_M GGUF
+      (~40 GB on disk). HARDWARE NOTE: empirically validated 2026-05-18
+      on M4 Pro 48 GB unified memory — Ollama's model runner crashes
+      mid-inference with "resource limitations" error because the 40 GB
+      model plus 5-10 GB OS/app overhead exceeds the practical inference
+      headroom. Tested with the standalone /api/generate endpoint:
+      Ollama returns 500 "model runner has unexpectedly stopped" after
+      a 6+ min hang. Larger-RAM systems (64 GB+) or smaller quants
+      (Q3_K_M ~30 GB, Q2_K ~24 GB) would likely work.
+      To enable on this machine, either close all other apps to free
+      ~10 GB of unified memory, or downgrade to a smaller quant via
+      ``ollama pull hermes3:70b-llama3.1-q3_K_M``. Keeping the entry
+      active so the user can flip-test later; selecting via --llm
+      hermes3_70b currently surfaces the Ollama crash inside Phase A.
+    quant: "Q4_K_M"
+    size_gb: 40
+    context_tokens: 32768
+    refusal_rate: 8.0           # community-reported; Hermes 3 base is mildly permissive
+    strengths:
+      - "strong instruction-following (in theory; not validated on this hardware)"
+      - "Claude-style prose (Hermes lineage)"
+      - "different lineage from Cydonia (Llama 3.1 vs Mistral) — good A/B target on bigger hardware"
+      - "70B-class reasoning"
+    active: true
+    families_recommended: ["all"]
+
   hermes3:
     ollama_id: "hermes3:latest"
-    display_name: "Hermes 3 (latest)"
-    description: "Nous Research Hermes 3 on Llama 3.1. The :latest Ollama tag defaults to the 8B variant — smaller and faster than the 24B Cydonia primary. Used as the fallback LLM (OllamaClient.generate_json retries with this when the primary fails twice in a row), and available via --llm hermes3 for ad-hoc A/B testing."
+    display_name: "Hermes 3 8B (latest)"
+    description: "Nous Research Hermes 3 on Llama 3.1. The :latest Ollama tag defaults to the 8B variant — smaller and faster than the 24B Cydonia primary. Used as the fallback LLM (OllamaClient.generate_json retries with this when the primary fails twice in a row), and available via --llm hermes3 for fast ad-hoc smoke tests."
     quant: "Q4_K_M"
     size_gb: 5
     context_tokens: 32768

@@ -95,6 +95,13 @@ class OllamaClient:
     def __init__(self, base_url: str | None = None) -> None:
         cfg = _load_llm_config()
         self.base_url = (base_url or cfg.get("base_url", "http://localhost:11434")).rstrip("/")
+        # Per-request HTTP timeout for /api/generate + /api/chat calls.
+        # Default 900s (15 min) accommodates 70B-class models on M4 Pro
+        # under unified-memory pressure where individual generations
+        # can legitimately take 5-10 min. Smaller models (24B and
+        # below) finish well under this. Override via
+        # ``pipeline.yaml::llm.request_timeout_seconds``.
+        self.request_timeout = int(cfg.get("request_timeout_seconds", 900))
         # Track every Ollama tag we've sent a request for so
         # ``unload_all()`` can free each one at end-of-cycle. Populated
         # by ``generate()`` whenever a call fires (the model is loaded
@@ -157,7 +164,7 @@ class OllamaClient:
             resp = requests.post(
                 f"{self.base_url}/api/generate",
                 json=payload,
-                timeout=300,
+                timeout=self.request_timeout,
             )
         except requests.ConnectionError as exc:
             raise OllamaConnectionError(
@@ -488,7 +495,7 @@ class OllamaClient:
             resp = requests.post(
                 f"{self.base_url}/api/chat",
                 json=payload,
-                timeout=300,
+                timeout=self.request_timeout,
             )
         except requests.ConnectionError as exc:
             raise OllamaConnectionError(
