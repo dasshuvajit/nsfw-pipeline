@@ -242,6 +242,31 @@ _NSFW_ENUM_FIELDS = {
 # All families participate (no Pony-omission like the
 # camera/lens/film_stock/art_style realism namespaces — environments
 # DO have natural booru representations).
+# Phase 2 (vocab_version 6) — narrative_moment vocabulary.
+# THE single highest-leverage axis per market research. "She reads
+# a letter at dawn" forces window light + chair + envelope + stillness
+# — 5 axes resolved from one tag. Tier-AGNOSTIC: the moment itself
+# isn't tier-restricted; tier-appropriate anatomy/explicitness comes
+# from the nsfw_* tags. Required at EVERY tier (T1+) — every facet
+# row gets one narrative anchor so no scene is just "she poses".
+_NARRATIVE_ENUM_FIELDS = {
+    "narrative_moment": (
+        "Required narrative-anchor concept tag from narrative.moment "
+        "namespace. Describes what's happening in the scene — what "
+        "moment is being captured — rather than just naming a pose. "
+        "Examples: NARR_READING_LETTER_AT_DAWN, "
+        "NARR_JUST_WOKEN_TANGLED_SHEETS, NARR_DRESSING_FOR_EVENING, "
+        "NARR_STEPPING_FROM_BATH, NARR_LIGHTING_CIGARETTE_BALCONY, "
+        "NARR_POURING_WINE_ALONE, NARR_MIRROR_CONTEMPLATION, "
+        "NARR_LACING_CORSET_BACK, NARR_AFTER_THE_PARTY, "
+        "NARR_LISTENING_TO_RECORD, NARR_DRYING_HAIR_TOWEL_WINDOW, "
+        "NARR_BAREFOOT_AT_3AM_KITCHEN, NARR_SUNBATHING_TERRACE, "
+        "NARR_RAIN_AT_WINDOW. Pick the moment that fits the chosen "
+        "environment_setting + pose + lighting — the moment-tag is "
+        "the visual story-anchor every fine-art editorial frame needs."
+    ),
+}
+
 _ENVIRONMENT_ENUM_FIELDS = {
     "environment_setting": (
         "Optional location concept tag from environment.setting "
@@ -305,6 +330,8 @@ class SceneFacetSDXL(BaseModel):
     # Phase 1 (vocab v6) — environment vocab gap-fill (creative uplift).
     environment_setting: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_setting"])
     environment_atmosphere: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_atmosphere"])
+    # Phase 2 (vocab v6) — narrative_moment (the #1 leverage axis).
+    narrative_moment: str | None = Field(default=None, description=_NARRATIVE_ENUM_FIELDS["narrative_moment"])
 
     @model_validator(mode="after")
     def _reject_avoid_words(self) -> "SceneFacetSDXL":
@@ -357,6 +384,10 @@ class SceneFacetPony(BaseModel):
     # camera/lens/film_stock which Pony's booru convention omits).
     environment_setting: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_setting"])
     environment_atmosphere: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_atmosphere"])
+    # Phase 2 (vocab v6) — narrative_moment. Pony participates: booru
+    # tags carry narrative moments natively (looking_at_mirror,
+    # arranging_flowers, lighting_cigarette, etc.).
+    narrative_moment: str | None = Field(default=None, description=_NARRATIVE_ENUM_FIELDS["narrative_moment"])
 
     @model_validator(mode="after")
     def _check_pony_invariants(self) -> "SceneFacetPony":
@@ -427,6 +458,8 @@ class SceneFacetIllustrious(BaseModel):
     # Phase 1 (vocab v6) — environment vocab gap-fill.
     environment_setting: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_setting"])
     environment_atmosphere: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_atmosphere"])
+    # Phase 2 (vocab v6) — narrative_moment (the #1 leverage axis).
+    narrative_moment: str | None = Field(default=None, description=_NARRATIVE_ENUM_FIELDS["narrative_moment"])
 
     @model_validator(mode="after")
     def _reject_appended_quality_suffix(self) -> "SceneFacetIllustrious":
@@ -483,6 +516,8 @@ class SceneFacetFluxNatural(BaseModel):
     # Phase 1 (vocab v6) — environment vocab gap-fill.
     environment_setting: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_setting"])
     environment_atmosphere: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_atmosphere"])
+    # Phase 2 (vocab v6) — narrative_moment (the #1 leverage axis).
+    narrative_moment: str | None = Field(default=None, description=_NARRATIVE_ENUM_FIELDS["narrative_moment"])
 
     @model_validator(mode="after")
     def _check_prose_shape(self) -> "SceneFacetFluxNatural":
@@ -560,6 +595,8 @@ class SceneFacetFlux2(BaseModel):
     # Phase 1 (vocab v6) — environment vocab gap-fill.
     environment_setting: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_setting"])
     environment_atmosphere: str | None = Field(default=None, description=_ENVIRONMENT_ENUM_FIELDS["environment_atmosphere"])
+    # Phase 2 (vocab v6) — narrative_moment (the #1 leverage axis).
+    narrative_moment: str | None = Field(default=None, description=_NARRATIVE_ENUM_FIELDS["narrative_moment"])
 
     @model_validator(mode="after")
     def _check_word_count_band(self) -> "SceneFacetFlux2":

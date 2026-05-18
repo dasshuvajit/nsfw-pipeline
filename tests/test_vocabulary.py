@@ -425,6 +425,33 @@ def test_environment_namespace_canonicalises_per_family(loader):
         ), f"family={fam} atm phrase missing dust cue: {atm_phrase!r}"
 
 
+def test_narrative_moment_canonicalises_per_family(loader):
+    """Phase 2 (vocab v6) — narrative.moment tags translate to
+    family-shaped phrasing for every family. The #1 leverage axis
+    per market research: "she reads a letter at dawn" solves window
+    + chair + envelope + stillness in one tag."""
+    from src.prompt.vocabulary import canonicalize_facet
+    facet = {"narrative_moment": "NARR_READING_LETTER_AT_DAWN"}
+    for fam in ("sdxl", "pony", "illustrious", "flux", "chroma", "flux2"):
+        phrases = canonicalize_facet(facet, fam, loader=loader)
+        assert len(phrases) == 1, f"family={fam} produced {len(phrases)} (expected 1)"
+        lower = phrases[0].lower()
+        # Letter / reading / dawn / morning anchors in every phrasing
+        assert "letter" in lower or "reading" in lower, (
+            f"family={fam}: narrative phrase missing letter/reading anchor: {phrases[0]!r}"
+        )
+
+
+def test_narrative_moment_in_llm_menu_for_every_family(loader):
+    """narrative.moment surfaces in the LLM menu for every family
+    (including Pony — booru tags carry narrative naturally)."""
+    for fam in ("sdxl", "pony", "illustrious", "flux", "chroma", "flux2"):
+        block = llm_vocabulary_block(fam, loader=loader)
+        assert "narrative.moment" in block, f"family={fam}: narrative.moment missing from menu"
+        assert "NARR_READING_LETTER_AT_DAWN" in block
+        assert "NARR_STEPPING_FROM_BATH" in block
+
+
 def test_environment_namespace_in_llm_menu_for_every_family(loader):
     """The new environment.* namespaces show up in the LLM
     vocabulary block for every family (including Pony — environments

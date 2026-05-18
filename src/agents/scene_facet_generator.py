@@ -72,19 +72,23 @@ if TYPE_CHECKING:
 # - ``nsfw_act`` (T4 only, added 2026-05-17) — explicit-act vocab
 #   with no booru equivalent (strict check).
 _TIER_REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
-    "T1_suggestive": ("lighting_directive", "mood_aesthetic"),
-    "T2_implied":    ("lighting_directive", "mood_aesthetic"),
+    # Phase 2 (vocab v6) — narrative_moment required at EVERY tier
+    # (T1+). The narrative anchor solves "she just poses" — every
+    # facet gets one moment-tag so the diffusion model knows what's
+    # happening in the scene, not just what pose to render.
+    "T1_suggestive": ("lighting_directive", "mood_aesthetic", "narrative_moment"),
+    "T2_implied":    ("lighting_directive", "mood_aesthetic", "narrative_moment"),
     # Phase 1 (vocab v6) — environment_setting + environment_atmosphere
     # added at T3+ so the validator's retry-nudge forces the LLM to
     # pick a location + atmospheric element per scene (the chief
     # leverage point against "all 24 scenes look like the same room").
     "T3_artnude":    (
         "lighting_directive", "mood_aesthetic", "nsfw_anatomy",
-        "environment_setting", "environment_atmosphere",
+        "environment_setting", "environment_atmosphere", "narrative_moment",
     ),
     "T4_explicit":   (
         "lighting_directive", "mood_aesthetic", "nsfw_anatomy", "nsfw_act",
-        "environment_setting", "environment_atmosphere",
+        "environment_setting", "environment_atmosphere", "narrative_moment",
     ),
 }
 
@@ -139,6 +143,12 @@ _FIELD_EXAMPLE_TAGS: dict[str, tuple[str, ...]] = {
     "environment_atmosphere": (
         "ATM_DUST_MOTES_IN_LIGHT", "ATM_BREEZE_IN_CURTAIN",
         "ATM_VOLUMETRIC_GOLDEN",
+    ),
+    # Phase 2 (vocab v6) — 3 narrative-moment retry-nudge anchors
+    # spanning common-domestic / dressing / outdoor moods.
+    "narrative_moment": (
+        "NARR_READING_LETTER_AT_DAWN", "NARR_STEPPING_FROM_BATH",
+        "NARR_MIRROR_CONTEMPLATION",
     ),
 }
 

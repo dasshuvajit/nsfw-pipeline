@@ -108,6 +108,12 @@ _FIELD_TO_NAMESPACE: dict[str, tuple[str, str]] = {
     # theme to keep the LLM menu coherent.
     "environment_setting":    ("environment", "setting"),
     "environment_atmosphere": ("environment", "atmosphere"),
+    # Phase 2 (vocab v6) — narrative_moment (the single highest-leverage
+    # axis per market research). Tier-AGNOSTIC: one NARR_* per scene
+    # at every tier (T1+). Anchors the editorial-moment that the
+    # facet's pose/setting/lighting hang off — solves the "she just
+    # poses" failure mode.
+    "narrative_moment": ("narrative", "moment"),
 }
 
 

@@ -1238,3 +1238,228 @@ environment:
       flux:        "Soft snow falling silently in the still air, large flakes drifting slowly downward"
       chroma:      "soft snow falling silently in the still air, large flakes drifting slowly downward"
       flux2:       "Soft snow falling silently in the still air, large flakes drifting slowly downward at random angles, every flake illuminated against the darker background"
+
+# ── Narrative vocabulary (vocab v6, Phase 2) ──────────────────────────
+# The single highest-leverage vocabulary axis per the creative-uplift
+# market research. "She reads a letter at dawn" forces window light,
+# chair, envelope, fountain pen, stillness — 5 axes solved by 1 tag.
+# Editorial photography convention (Hegre, Crewdson, Newton) is built
+# on narrative moments rather than held poses. The tag is tier-agnostic
+# — "stepping from bath" works at T2_implied (towel-draped) or
+# T4_explicit (nude); tier-appropriate anatomy comes from nsfw_* tags.
+#
+# All families participate. Booru families (Pony/Illustrious) get
+# tag-shaped lists; prose families (Flux/Chroma/Flux2) get full
+# sentences; SDXL gets comma-noun-phrase.
+narrative:
+  moment:
+    NARR_READING_LETTER_AT_DAWN:
+      sdxl:        "reading a handwritten letter by morning light, fountain pen on the side table"
+      pony:        "reading_letter, morning_light, fountain_pen, sitting, contemplative_moment"
+      illustrious: "reading_letter, morning_light, fountain_pen, contemplative_moment"
+      flux:        "She is reading a handwritten letter by the morning light, a fountain pen lying on the side table beside her"
+      chroma:      "reading a handwritten letter by morning light, fountain pen resting on the side table, contemplative pause"
+      flux2:       "The subject is reading a handwritten letter in the soft morning light, a fountain pen lying on the polished side table beside her, a contemplative pause caught mid-thought"
+    NARR_JUST_WOKEN_TANGLED_SHEETS:
+      sdxl:        "just woken, hair tangled, sheets wrapped, reaching for a water glass"
+      pony:        "just_woken, tangled_hair, sheets_wrapped, reaching, morning_moment"
+      illustrious: "just_woken_moment, tangled_hair, sheets_wrapped, reaching_for_water"
+      flux:        "She has just woken, her hair tangled across the pillow, the sheets wrapped around her as she reaches for the water glass on the nightstand"
+      chroma:      "just woken with tangled hair across the pillow, sheets wrapped around her, reaching for the water glass on the nightstand"
+      flux2:       "She has just woken, hair tangled across the pillow, the sheets wrapped loosely around her as she reaches for the water glass on the nightstand, the room slow and silent"
+    NARR_DRESSING_FOR_EVENING:
+      sdxl:        "mid-zip on a black evening gown, earrings still loose"
+      pony:        "dressing, evening_gown, mid_zip, getting_ready, earrings, preparing_for_evening"
+      illustrious: "dressing_for_evening, mid_zip_gown, earrings_loose"
+      flux:        "She is mid-zip on a black silk evening gown, earrings still loose between her fingers, mirror reflection visible behind her"
+      chroma:      "mid-zip on a black silk evening gown, earrings still loose between her fingers, mirror reflection visible behind her"
+      flux2:       "She is mid-zip on a black silk evening gown, earrings still loose between her fingers, mirror reflection visible behind her, a moment of unfinished elegance"
+    NARR_UNDRESSING_AT_NIGHT:
+      sdxl:        "stepping out of a dress that has slipped to the floor"
+      pony:        "undressing, dress_on_floor, stepping_out, night_moment, intimate_moment"
+      illustrious: "undressing, dress_slipped_to_floor, stepping_out"
+      flux:        "She is stepping out of a dress that has slipped down to puddle around her ankles on the floor"
+      chroma:      "stepping out of a dress that has slipped down to puddle around her ankles on the floor"
+      flux2:       "She is stepping out of a dress that has slipped down to puddle around her ankles on the floor, the moment caught between dressed and undressed"
+    NARR_STEPPING_FROM_BATH:
+      sdxl:        "stepping from a clawfoot bath, towel half-wrapped, steam rising"
+      pony:        "stepping_out_of_bath, clawfoot_bathtub, towel, steam, wet_skin, candid_moment"
+      illustrious: "stepping_out_of_bath, clawfoot_bathtub, half_wrapped_towel, steam, wet_skin"
+      flux:        "She is stepping from a clawfoot bath, a linen towel half-wrapped around her, steam still rising from the warm water behind her"
+      chroma:      "stepping from a clawfoot bath, linen towel half-wrapped, steam rising from warm water behind her, wet skin catching the light"
+      flux2:       "The subject is stepping from a clawfoot porcelain bath, a thick linen towel half-wrapped around her body, steam still rising from the warm water behind her, water droplets catching the soft window light on her skin"
+    NARR_LIGHTING_CIGARETTE_BALCONY:
+      sdxl:        "lighting a single cigarette on a hotel balcony at 2am, city lights below"
+      pony:        "lighting_cigarette, balcony, night_city, hotel_balcony, smoking, late_night_moment"
+      illustrious: "lighting_cigarette_balcony, 2am, hotel_balcony, city_below"
+      flux:        "She is lighting a single cigarette on the railing of a hotel balcony at 2am, city lights below, a small flame briefly illuminating her face"
+      chroma:      "lighting a single cigarette on a hotel balcony at 2am, city lights below, small flame briefly illuminating her face"
+      flux2:       "She is lighting a single cigarette on the railing of a hotel balcony at 2am, city lights spread below her, a small flame briefly illuminating her face and hand, the rest of the scene falling into urban shadow"
+    NARR_POURING_WINE_ALONE:
+      sdxl:        "pouring a glass of red wine, candlelit kitchen, late night"
+      pony:        "pouring_wine, red_wine, candlelit_kitchen, late_night, alone, intimate_moment"
+      illustrious: "pouring_wine, red_wine, candlelit_kitchen, late_night"
+      flux:        "She is pouring a glass of red wine into a stemmed crystal glass, a candlelit kitchen behind her, late at night"
+      chroma:      "pouring a glass of red wine into a stemmed crystal glass, candlelit kitchen behind her, late at night"
+      flux2:       "She is pouring a glass of red wine into a stemmed crystal glass, a candlelit kitchen behind her, late at night, the only sound the soft glug of the wine"
+    NARR_MIRROR_CONTEMPLATION:
+      sdxl:        "considering her reflection in a tarnished mirror, fingertips at the throat"
+      pony:        "looking_at_mirror, contemplation, fingertips_at_throat, self_regard, intimate_moment"
+      illustrious: "considering_reflection, tarnished_mirror, fingertips_at_throat"
+      flux:        "She is considering her reflection in a tarnished antique mirror, her fingertips resting lightly at the throat, a moment of quiet self-regard"
+      chroma:      "considering her reflection in a tarnished antique mirror, fingertips resting lightly at the throat, quiet self-regard"
+      flux2:       "She is considering her reflection in a tarnished antique mirror, her fingertips resting lightly at the throat, a moment of quiet self-regard caught between confidence and vulnerability"
+    NARR_REACHING_FOR_BOOK_SHELF:
+      sdxl:        "reaching up for a book on a high shelf, light from the high window"
+      pony:        "reaching_up, bookshelf, high_window_light, library, reading_moment"
+      illustrious: "reaching_for_book, high_shelf, high_window_light"
+      flux:        "She is reaching up for a leather-bound book on a high oak shelf, soft light from the high library window catching her arm"
+      chroma:      "reaching up for a leather-bound book on a high oak shelf, soft light from the high library window catching her arm"
+      flux2:       "She is reaching up for a leather-bound book on a high oak shelf, soft light from the high library window catching her extended arm and ribcage, the rest of the library falling into warm shadow"
+    NARR_LACING_CORSET_BACK:
+      sdxl:        "lacing a corset, ribbon trailing, back to camera"
+      pony:        "lacing_corset, ribbon_trailing, back_to_camera, corset_lacing, dressing"
+      illustrious: "lacing_corset_back, ribbon_trailing, back_view"
+      flux:        "She is lacing the back of a corset, the ribbon trailing down her spine, her back turned to the camera"
+      chroma:      "lacing the back of a corset, ribbon trailing down her spine, back turned to the camera"
+      flux2:       "She is lacing the back of a corset, the silk ribbon trailing down her spine, her back turned to the camera, each pull tightening the shape of her waist"
+    NARR_AFTER_THE_PARTY:
+      sdxl:        "after the party, single shoe off, dress crumpled, champagne glass tipped"
+      pony:        "after_party, single_shoe_off, crumpled_dress, tipped_champagne_glass, late_night, exhausted_moment"
+      illustrious: "after_the_party, single_shoe_off, crumpled_dress, tipped_glass"
+      flux:        "After the party — a single shoe off and discarded, the silk dress crumpled around her, a champagne glass tipped on the floor"
+      chroma:      "after the party, single shoe off and discarded, silk dress crumpled around her, champagne glass tipped on the floor"
+      flux2:       "After the party — a single shoe off and discarded, the silk dress crumpled around her, a champagne glass tipped on the floor, the room holding the quiet of an evening just ended"
+    NARR_LISTENING_TO_RECORD:
+      sdxl:        "lying on a Persian rug, listening to a vinyl record, eyes closed"
+      pony:        "lying_on_rug, persian_rug, listening_to_record, vinyl_record, eyes_closed, relaxed_moment"
+      illustrious: "lying_on_persian_rug, listening_record, eyes_closed"
+      flux:        "She is lying on a worn Persian rug, eyes closed, listening to a vinyl record spinning on a nearby phonograph"
+      chroma:      "lying on a worn Persian rug, eyes closed, listening to a vinyl record spinning on a nearby phonograph"
+      flux2:       "She is lying on a worn Persian rug, eyes closed in concentration, listening to a vinyl record spinning on a nearby phonograph, the music almost tangible in the air"
+    NARR_LETTER_BURNING_FIRE:
+      sdxl:        "watching a handwritten letter curl in the fireplace"
+      pony:        "burning_letter, fireplace, watching_paper_curl, handwritten_letter, contemplative_moment"
+      illustrious: "watching_letter_burn, fireplace, paper_curling"
+      flux:        "She is watching a handwritten letter curl and blacken in the fireplace, the warm light catching her face"
+      chroma:      "watching a handwritten letter curl and blacken in the fireplace, warm light catching her face"
+      flux2:       "She is watching a handwritten letter curl and blacken in the fireplace, the warm orange light catching her face from below, an unreadable expression at the close of something"
+    NARR_DRYING_HAIR_TOWEL_WINDOW:
+      sdxl:        "drying long hair with a linen towel at an open window"
+      pony:        "drying_hair, linen_towel, open_window, after_bath, fresh_moment"
+      illustrious: "drying_hair_towel, open_window, after_bath"
+      flux:        "She is drying her long hair with a linen towel at an open window, the breeze lifting damp strands"
+      chroma:      "drying her long hair with a linen towel at an open window, the breeze lifting damp strands"
+      flux2:       "She is drying her long hair with a linen towel at an open window, the breeze lifting damp strands across her face, the morning light brightening every droplet"
+    NARR_BAREFOOT_AT_3AM_KITCHEN:
+      sdxl:        "barefoot at the kitchen counter at 3am, single under-cabinet light"
+      pony:        "barefoot, kitchen_at_night, 3am_moment, under_cabinet_light, late_night_kitchen"
+      illustrious: "barefoot_kitchen_3am, under_cabinet_light"
+      flux:        "She is barefoot at the kitchen counter at 3am, a single under-cabinet light casting low warm illumination across the marble"
+      chroma:      "barefoot at the kitchen counter at 3am, single under-cabinet light casting low warm illumination across the marble"
+      flux2:       "She is barefoot at the kitchen counter at 3am, a single under-cabinet light casting low warm illumination across the marble, the rest of the house asleep around her"
+    NARR_SUNBATHING_TERRACE:
+      sdxl:        "sunbathing on a stone terrace, book face-down beside her"
+      pony:        "sunbathing, stone_terrace, book_face_down, afternoon, lounging_moment"
+      illustrious: "sunbathing_on_terrace, book_face_down, afternoon_sun"
+      flux:        "She is sunbathing on a sun-warmed stone terrace, a book face-down beside her, the afternoon spread out unhurried"
+      chroma:      "sunbathing on a sun-warmed stone terrace, book face-down beside her, the afternoon spread out unhurried"
+      flux2:       "She is sunbathing on a sun-warmed stone terrace, a book face-down beside her on the cool tile, the afternoon spread out unhurried, the heat of the sun on her skin"
+    NARR_TYPEWRITER_LATE_NIGHT:
+      sdxl:        "at a typewriter under a single desk lamp, draft pages piled"
+      pony:        "at_typewriter, single_desk_lamp, draft_pages, late_night_writing, focused_moment"
+      illustrious: "typewriter_late_night, desk_lamp, draft_pages"
+      flux:        "She is at a vintage typewriter under a single desk lamp, draft pages piled to her left, fingers paused mid-thought"
+      chroma:      "at a vintage typewriter under a single desk lamp, draft pages piled to her left, fingers paused mid-thought"
+      flux2:       "She is at a vintage typewriter under a single desk lamp, draft pages piled to her left and floor scattered with discarded sheets, fingers paused mid-thought above the keys"
+    NARR_PUTTING_ON_STOCKINGS:
+      sdxl:        "seated on the edge of bed, sliding on a single sheer stocking"
+      pony:        "putting_on_stocking, seated_on_bed, sheer_stocking, dressing, intimate_moment"
+      illustrious: "putting_on_stocking, seated_edge_of_bed, sheer_stocking"
+      flux:        "She is seated on the edge of the bed, sliding on a single sheer stocking with practiced care"
+      chroma:      "seated on the edge of the bed, sliding on a single sheer stocking with practiced care"
+      flux2:       "She is seated on the edge of the bed, sliding on a single sheer stocking with practiced care, the morning light catching the silk as she smooths it up her thigh"
+    NARR_RAIN_AT_WINDOW:
+      sdxl:        "leaning against the window, palm to glass, watching rain"
+      pony:        "watching_rain, palm_on_glass, leaning_on_window, rainy_day, contemplative_moment"
+      illustrious: "leaning_against_window, palm_on_glass, watching_rain"
+      flux:        "She is leaning against the window, palm pressed to the cool glass, watching rain stream down the other side"
+      chroma:      "leaning against the window, palm pressed to the cool glass, watching rain stream down the other side"
+      flux2:       "She is leaning against the window, palm pressed to the cool glass, watching rain stream down the other side, the city beyond softened into refracted abstract colour"
+    NARR_FLOWERS_ARRANGING:
+      sdxl:        "arranging peonies in a vase, scissors and trimmings on the counter"
+      pony:        "arranging_flowers, peonies, vase, scissors, trimmings, domestic_moment"
+      illustrious: "arranging_peonies_in_vase, scissors_and_trimmings"
+      flux:        "She is arranging peonies in a tall crystal vase, scissors and stem trimmings scattered across the marble counter"
+      chroma:      "arranging peonies in a tall crystal vase, scissors and stem trimmings scattered across the marble counter"
+      flux2:       "She is arranging peonies in a tall crystal vase, scissors and stem trimmings scattered across the marble counter, the room filling with the heavy scent of the open blooms"
+    NARR_COFFEE_MORNING_PAPER:
+      sdxl:        "morning coffee and folded newspaper, soft kitchen light"
+      pony:        "morning_coffee, newspaper, folded_paper, kitchen_light, breakfast_moment"
+      illustrious: "morning_coffee_and_newspaper, kitchen_light"
+      flux:        "She is at the kitchen counter with a cup of morning coffee and a folded newspaper, soft early light filling the room"
+      chroma:      "morning coffee and folded newspaper at the kitchen counter, soft early light filling the room"
+      flux2:       "She is at the kitchen counter with a cup of morning coffee and a folded newspaper, soft early light filling the room, the day not yet begun in earnest"
+    NARR_BRUSHING_HAIR_VANITY:
+      sdxl:        "brushing long hair at a vintage vanity, slow strokes"
+      pony:        "brushing_hair, vintage_vanity, slow_strokes, dressing_room_moment, hair_brush"
+      illustrious: "brushing_long_hair_at_vanity, slow_strokes"
+      flux:        "She is brushing her long hair at a vintage vanity with slow careful strokes, perfume bottles arranged behind her"
+      chroma:      "brushing her long hair at a vintage vanity with slow careful strokes, perfume bottles arranged behind her"
+      flux2:       "She is brushing her long hair at a vintage vanity with slow careful strokes, perfume bottles arranged behind her on the polished surface, the morning ritual unhurried"
+    NARR_TYING_ROBE_SASH:
+      sdxl:        "tying the sash of a silk robe at her waist"
+      pony:        "tying_robe_sash, silk_robe, dressing, intimate_moment, getting_dressed"
+      illustrious: "tying_silk_robe_sash, dressing_moment"
+      flux:        "She is tying the silk sash of a robe at her waist, the loose fabric still settling around her"
+      chroma:      "tying the silk sash of a robe at her waist, the loose fabric still settling around her"
+      flux2:       "She is tying the silk sash of a kimono robe at her waist, the loose patterned fabric still settling around her shoulders and thighs, a moment of unhurried morning composure"
+    NARR_LEANING_DOORWAY:
+      sdxl:        "leaning in a doorway, weight on one hip, considering whether to enter"
+      pony:        "leaning_in_doorway, weight_on_hip, contemplative_pause, doorway_moment"
+      illustrious: "leaning_in_doorway, weight_on_one_hip, contemplative"
+      flux:        "She is leaning in the doorway, her weight balanced on one hip, considering whether to enter the room beyond"
+      chroma:      "leaning in the doorway, weight balanced on one hip, considering whether to enter the room beyond"
+      flux2:       "She is leaning in the doorway with her weight balanced on one hip, considering whether to enter the room beyond, the threshold itself becoming the subject of the moment"
+    NARR_LIGHTING_CANDLES_DUSK:
+      sdxl:        "lighting tall ivory candles at dusk, single match flame"
+      pony:        "lighting_candles, tall_candles, ivory_candles, dusk, match_flame, intimate_moment"
+      illustrious: "lighting_candles_at_dusk, single_match_flame"
+      flux:        "She is lighting tall ivory candles at dusk, the single match flame briefly illuminating her face before passing to the wick"
+      chroma:      "lighting tall ivory candles at dusk, single match flame briefly illuminating her face before passing to the wick"
+      flux2:       "She is lighting tall ivory candles at dusk, the single match flame briefly illuminating her face from below before passing to the wick, the room slowly filling with warm intimate glow"
+    NARR_REACHING_CLOSET_DRESS:
+      sdxl:        "reaching into the closet, choosing between two dresses on hangers"
+      pony:        "reaching_into_closet, choosing_dress, two_dresses_on_hangers, dressing_room_moment"
+      illustrious: "reaching_into_closet, choosing_between_dresses"
+      flux:        "She is reaching into the closet, choosing between two dresses on hangers — one silk and dark, one cotton and pale"
+      chroma:      "reaching into the closet, choosing between two dresses on hangers — one silk and dark, one cotton and pale"
+      flux2:       "She is reaching into the closet, choosing between two dresses on hangers — one silk and dark, one cotton and pale — a moment of small but considered decision"
+    NARR_OPENING_LETTER_KNIFE:
+      sdxl:        "slitting open an envelope with a brass letter-opener"
+      pony:        "opening_envelope, letter_opener, brass_knife, slitting_paper, correspondence_moment"
+      illustrious: "slitting_envelope_with_letter_opener, brass_knife"
+      flux:        "She is slitting open a thick cream envelope with a brass letter-opener, the desk light catching the brass"
+      chroma:      "slitting open a thick cream envelope with a brass letter-opener, desk light catching the brass"
+      flux2:       "She is slitting open a thick cream envelope with a brass letter-opener, the desk light catching the brass and her concentrated expression, the contents not yet known"
+    NARR_LACING_BOOT_LEG:
+      sdxl:        "lacing a high boot up one calf, seated on the edge of an antique chair"
+      pony:        "lacing_boot, high_boot, calf_lacing, seated_on_antique_chair, dressing_moment"
+      illustrious: "lacing_boot_on_calf, seated_on_antique_chair"
+      flux:        "She is lacing a high leather boot up one calf, seated on the edge of an antique chair, the other foot bare on the floor"
+      chroma:      "lacing a high leather boot up one calf, seated on the edge of an antique chair, the other foot bare on the floor"
+      flux2:       "She is lacing a high leather boot up one calf with practiced movement, seated on the edge of an antique chair, the other foot bare on the polished floor, a moment caught mid-preparation"
+    NARR_SMOKING_LATE_NIGHT_DESK:
+      sdxl:        "smoking at a writing desk late at night, ashtray of stubs"
+      pony:        "smoking_at_desk, writing_desk, late_night, ashtray_of_stubs, contemplative_moment"
+      illustrious: "smoking_at_writing_desk, late_night, ashtray_stubs"
+      flux:        "She is smoking at a writing desk late at night, a small ashtray beside her holding a half-dozen stubs, a single typewriter or notebook in front of her"
+      chroma:      "smoking at a writing desk late at night, small ashtray beside her holding a half-dozen stubs, single typewriter or notebook in front"
+      flux2:       "She is smoking at a writing desk late at night, a small ashtray beside her holding a half-dozen stubs, a single typewriter or notebook in front of her, every surface pooled in the warm desk-lamp light"
+    NARR_WATCHING_SUNRISE_WINDOW:
+      sdxl:        "watching the sunrise from a tall window, coffee cradled in both hands"
+      pony:        "watching_sunrise, tall_window, coffee_in_both_hands, morning_moment, contemplative"
+      illustrious: "watching_sunrise_from_window, coffee_in_both_hands"
+      flux:        "She is watching the sunrise from a tall window, a mug of coffee cradled in both hands, the city slowly waking below"
+      chroma:      "watching the sunrise from a tall window, mug of coffee cradled in both hands, city slowly waking below"
+      flux2:       "She is watching the sunrise from a tall window, a mug of coffee cradled in both hands, the city slowly waking below, the morning light spilling into the room and softening every edge"
