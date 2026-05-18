@@ -1048,9 +1048,9 @@ python scripts/prepare_prompts.py --character char_001 --level T4_explicit \
 python scripts/prepare_prompts.py --character char_001 --level T4_explicit \
     --models gonzalomo_photo_v70 --llm cydonia_heretic_24b
 
-# Override to Hermes 3 for every role (A/B test against smaller model):
+# Override to Qwen3 30B-A3B for every role (A/B test against a different lineage):
 python scripts/prepare_prompts.py --character char_001 --level T4_explicit \
-    --models gonzalomo_photo_v70 --llm hermes3
+    --models gonzalomo_photo_v70 --llm qwen3_abliterated_30b
 ```
 
 **Per-role routing mode (opt-in tuning).** Edit
@@ -1062,8 +1062,8 @@ llm:
   routing:
     scene_facet_generator:
       default:          cydonia_heretic_24b   # NSFW phrasing (default LLM)
-      flux_natural:     hermes3                # smaller/faster for flux/chroma prose
-      flux2_prose:      hermes3                # BFL 5-anchor prose
+      flux_natural:     qwen3_abliterated_30b # different lineage for flux/chroma prose
+      flux2_prose:      qwen3_abliterated_30b # BFL 5-anchor prose
     metadata_generator: cydonia_heretic_24b   # platform-metadata role
     # series_planner / scene_generator / character_creator stay on default_llm
 ```
@@ -1071,13 +1071,14 @@ llm:
 Each role automatically gets the best-fit LLM. `--llm` is reserved for
 explicit A/B testing where you want a single LLM doing every role.
 
-**Fallback retry.** `config/llm_models.yaml::fallback_llm: hermes3`
-configures the second-chance retry inside `OllamaClient.generate_json`
-— if the primary LLM (`cydonia_heretic_24b`) fails constrained
-decoding twice in a row, the agent retries once with Hermes 3.
-Different lineage (Llama 3.1 vs Mistral) gives meaningful diversity
-on the retry. Setting `fallback_llm` equal to `default_llm` collapses
-the fallback dimension (single-LLM operation).
+**Fallback retry.** `config/llm_models.yaml::fallback_llm:
+qwen3_abliterated_30b` configures the second-chance retry inside
+`OllamaClient.generate_json` — if the primary LLM
+(`cydonia_heretic_24b`) fails constrained decoding twice in a row,
+the agent retries once with Qwen3 30B-A3B. Different lineage
+(Qwen vs Mistral) gives meaningful diversity on the retry. Setting
+`fallback_llm` equal to `default_llm` collapses the fallback
+dimension (single-LLM operation).
 
 ### 16.2 A/B-compare flow (the headline use case)
 
@@ -1089,27 +1090,27 @@ the same scene rows.
 python scripts/prepare_prompts.py \
     --character char_001 --level T4_explicit --models gonzalomo_photo_v70
 
-# 2. Re-prompt the same series with Hermes 3 (scenes reused; new
-#    facets+prompts written for llm_id=hermes3).
+# 2. Re-prompt the same series with Qwen3 30B-A3B (scenes reused;
+#    new facets+prompts written for llm_id=qwen3_abliterated_30b).
 python scripts/prepare_prompts.py \
-    --series-id ser_xxx --models gonzalomo_photo_v70 --llm hermes3
+    --series-id ser_xxx --models gonzalomo_photo_v70 --llm qwen3_abliterated_30b
 
 # 3. Inspect the DB — both LLMs' prompts coexist:
 sqlite3 nsfw_pipeline.db "SELECT llm_id, COUNT(*) FROM prompts \
     WHERE series_id='ser_xxx' GROUP BY llm_id;"
 # cydonia_heretic_24b|25
-# hermes3|25
+# qwen3_abliterated_30b|25
 
 # 4. Render each LLM separately. --llm is REQUIRED here (strict
 #    ambiguity check, plan §3.5b) since both LLMs have prompts.
 python scripts/render_prompts.py --series-id ser_xxx \
     --models gonzalomo_photo_v70 --llm cydonia_heretic_24b
 python scripts/render_prompts.py --series-id ser_xxx \
-    --models gonzalomo_photo_v70 --llm hermes3
+    --models gonzalomo_photo_v70 --llm qwen3_abliterated_30b
 
 # 5. Output paths disambiguate — each LLM gets its own subdir:
 ls output/T4_explicit/ser_xxx/
-# cydonia_heretic_24b/  hermes3/
+# cydonia_heretic_24b/  qwen3_abliterated_30b/
 
 # 6. Compare manually — pick whichever LLM produced better images.
 ```
@@ -1169,14 +1170,14 @@ Roles: `series_planner`, `scene_generator`, `scene_facet_generator`,
 |---|---|
 | Use a different model as the default everywhere | `config/llm_models.yaml::default_llm` |
 | One-off run with a different LLM | `--llm <id>` on the CLI (no config change) |
-| Route a specific family through a different facet LLM | `pipeline.yaml::llm.routing.scene_facet_generator.<prompt_style>: <id>` (e.g. `flux_natural: hermes3`) |
+| Route a specific family through a different facet LLM | `pipeline.yaml::llm.routing.scene_facet_generator.<prompt_style>: <id>` (e.g. `flux_natural: qwen3_abliterated_30b`) |
 | Re-enable per-role routing | Add entries under `pipeline.yaml::llm.routing` (it's `{}` by default — every role currently falls through to `default_llm`) |
 | Swap the fallback LLM | `config/llm_models.yaml::fallback_llm: <id>` (used after two consecutive primary failures) |
 | Add a new model | `ollama pull <tag>`, add an entry to `config/llm_models.yaml::llms` |
 
-The shipped default (2026-05-18) is **Cydonia 24B v4.3 Heretic
-Vision (Q4_K_M)** for every role, with **Hermes 3 (latest)** as
-the second-chance fallback. See §16.7 for why.
+The shipped default (2026-05-19) is **Cydonia 24B v4.3 Heretic
+Vision (Q4_K_M)** for every role, with **Qwen3 30B-A3B
+Abliterated** as the second-chance fallback. See §16.7 for why.
 
 ### 16.7 When to switch LLMs (and what breaks if you do)
 
@@ -1190,21 +1191,22 @@ the second-chance fallback. See §16.7 for why.
   routing entirely on this basis. Pull:
   `ollama pull Fermi/Cydonia-24B-v4.3-heretic-vision:Q4_K_M`.
 
-- **Hermes 3 (latest tag, ~5 GB Q4_K_M) — fallback.** Nous
-  Research Hermes 3 on Llama 3.1 (`:latest` defaults to the 8B
-  variant). Smaller, faster, different lineage — a meaningful
-  diversification target for `OllamaClient.generate_json`'s
+- **Qwen3 30B-A3B Abliterated (~18 GB Q4) — fallback.** huihui_ai
+  abliterated (refusal-removed) variant of Qwen3 30B-A3B. MoE:
+  ~30B total parameters, ~3B active per token — fast inference at
+  high capacity. Different lineage (Qwen vs Mistral) gives a
+  meaningful diversification target for `OllamaClient.generate_json`'s
   second-chance retry. Set as `fallback_llm` so the agent retries
-  once with Hermes 3 if the primary fails constrained decoding
-  twice in a row. Can also be the global default for batch /
-  speed-sensitive runs via `--llm hermes3`. Pull:
-  `ollama pull hermes3:latest`.
+  once with Qwen3 30B-A3B if the primary fails constrained
+  decoding twice in a row. Can also be the global default for a
+  one-off run via `--llm qwen3_abliterated_30b`. Pull:
+  `ollama pull huihui_ai/qwen3-abliterated:30b-a3b`.
 
 **Rule of thumb:** keep the default at `cydonia_heretic_24b` for
-quality and `fallback_llm: hermes3` for diversity on retry.
-Re-enable per-role routing in `pipeline.yaml::llm.routing` only
-when a future evaluation shows a specific role benefits from a
-different LLM — the heretic tune obsoletes the prior need for a
+quality and `fallback_llm: qwen3_abliterated_30b` for diversity on
+retry. Re-enable per-role routing in `pipeline.yaml::llm.routing`
+only when a future evaluation shows a specific role benefits from
+a different LLM — the heretic tune obsoletes the prior need for a
 separate low-refusal model on facet generation.
 
 ## 17. Family-level prompt preparation (2026-05)

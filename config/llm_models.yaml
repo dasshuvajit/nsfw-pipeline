@@ -33,34 +33,19 @@ llms:
     families_recommended: ["all"]
     active: true
 
-  hermes3_8b_q8:
-    ollama_id: "hermes3:8b-llama3.1-q8_0"
-    display_name: "Hermes 3 8B (Q8_0)"
-    description: "Nous Research Hermes 3 on Llama 3.1, 8B parameter Q8_0 GGUF. Higher-precision quant than the default `hermes3:latest` (which is Q4_K_M): ~7 GB on disk vs ~5 GB, with materially less quantization noise. Better instruction-following + cleaner JSON-mode output than the Q4 variant at the cost of moderately slower inference. Good middle ground between Cydonia 24B (~14 GB, strong creative writing) and Hermes 3 8B Q4 (~5 GB, fast smoke). Different lineage from Cydonia (Llama 3.1 vs Mistral) makes it a meaningful A/B target."
-    quant: "Q8_0"
-    size_gb: 8
+  qwen3_abliterated_30b:
+    ollama_id: "huihui_ai/qwen3-abliterated:30b-a3b"
+    display_name: "Qwen3 30B-A3B (Abliterated)"
+    description: "huihui_ai abliterated (refusal-removed) variant of Qwen3 30B-A3B. Mixture-of-experts architecture: ~30B total parameters, ~3B active per token, ~18GB on disk at Q4. Compute behaves like a 3B model while capacity behaves like a 30B — fast inference with high capacity. The abliteration drops refusal floor for explicit-tier work. Different lineage from Cydonia (Qwen vs Mistral) makes it a meaningful A/B target. Registered 2026-05-19 as the second of two installed LLMs (replacing the Hermes 3 8B variants — they failed to populate structured enum-tag fields under constrained decoding)."
+    quant: "Q4"
+    size_gb: 18
     context_tokens: 32768
-    refusal_rate: 9.0           # community-reported; same base as Q4 Hermes 3, slightly more disciplined refusals at Q8
+    refusal_rate: 2.0           # community-reported for abliterated variants
     strengths:
-      - "Q8 precision (cleaner JSON-mode output than Q4)"
-      - "general-purpose instruct follower"
-      - "different lineage from Cydonia (Llama 3.1 vs Mistral) — A/B target"
-      - "lower memory footprint than 24B, fits comfortably"
-    active: true
-    families_recommended: ["all"]
-
-  hermes3:
-    ollama_id: "hermes3:latest"
-    display_name: "Hermes 3 8B (Q4_K_M latest)"
-    description: "Nous Research Hermes 3 on Llama 3.1. The `:latest` Ollama tag defaults to the 8B Q4_K_M variant — smallest + fastest installed LLM in this registry. Best for fast ad-hoc smoke tests via --llm hermes3, and used as the fallback retry target (OllamaClient.generate_json retries with this when the primary fails twice in a row)."
-    quant: "Q4_K_M"
-    size_gb: 5
-    context_tokens: 32768
-    refusal_rate: 10.0          # community-reported; Hermes is moderately permissive
-    strengths:
-      - "fast (8B; lower memory footprint)"
-      - "general-purpose instruct follower"
-      - "different lineage from primary (Llama 3.1 vs Mistral)"
+      - "low refusal floor (abliterated)"
+      - "MoE — fast (3B active params per token)"
+      - "high-capacity (30B total) at inference cost of a 3B model"
+      - "different lineage from Cydonia (Qwen vs Mistral) — A/B target"
     families_recommended: ["all"]
     active: true
 
@@ -82,4 +67,4 @@ default_llm: cydonia_heretic_24b
 # Must be a registry id of an active entry above. Set to a DIFFERENT id from
 # default_llm to gain diversity on the retry; set to the same id to collapse
 # the fallback dimension (single-LLM operation).
-fallback_llm: hermes3
+fallback_llm: qwen3_abliterated_30b

@@ -370,7 +370,7 @@ def _seed_two_llms(db_path: Path) -> None:
         "content_level) VALUES "
         "('sc_two_000', 'ser_two', 'pose', 'portrait_23', 'T2_implied')"
     )
-    for i, llm_id in enumerate(("cydonia_heretic_24b", "hermes3")):
+    for i, llm_id in enumerate(("cydonia_heretic_24b", "qwen3_abliterated_30b")):
         conn.execute(
             "INSERT INTO prompts (id, series_id, scene_id, model_id, llm_id, "
             "prompt_text, negative_prompt, prompt_hash, content_level, "
@@ -412,10 +412,10 @@ class TestLlmFilter:
             series_id="ser_two",
             scene_id=None,
             model_ids=["gonzalomo_photo_v70"],
-            llm_id="hermes3",
+            llm_id="qwen3_abliterated_30b",
         )
         assert len(out["gonzalomo_photo_v70"]) == 1
-        assert out["gonzalomo_photo_v70"][0]["prompt_text"] == "prompt from hermes3"
+        assert out["gonzalomo_photo_v70"][0]["prompt_text"] == "prompt from qwen3_abliterated_30b"
 
     def test_no_llm_filter_returns_all(
         self, compare_module, fresh_db,

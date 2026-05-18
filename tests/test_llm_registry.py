@@ -295,12 +295,11 @@ class TestRealRegistry:
         assert loader.default_llm_id == "cydonia_heretic_24b"
 
     def test_real_installed_llms_active(self):
-        """The installed LLMs (Cydonia Heretic Vision 24B + Hermes 3 8B
-        Q4 + Hermes 3 8B Q8 as of 2026-05-18) all register as active.
-        Hermes 3 Q4 is the fallback; Q8 is a higher-precision A/B
-        target on the Llama 3.1 lineage."""
+        """The installed LLMs (Cydonia Heretic Vision 24B + Qwen3 30B-A3B
+        Abliterated as of 2026-05-19) both register as active.
+        Cydonia is the default + chosen quality target; Qwen3 30B-A3B
+        is the fallback (different lineage — Qwen vs Mistral)."""
         loader = LLMRegistryLoader()
         ids = {e.id for e in loader.list_llms()}
         assert "cydonia_heretic_24b" in ids
-        assert "hermes3" in ids
-        assert "hermes3_8b_q8" in ids
+        assert "qwen3_abliterated_30b" in ids

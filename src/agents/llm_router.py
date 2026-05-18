@@ -176,7 +176,7 @@ class LLMRouter:
 
             Resolved LLMs for this run:
               series_planner                    → cydonia_heretic_24b   (--llm override; routing was: cydonia_heretic_24b)
-              scene_facet_generator.flux_natural → cydonia_heretic_24b   (--llm override; routing was: hermes3)
+              scene_facet_generator.flux_natural → cydonia_heretic_24b   (--llm override; routing was: qwen3_abliterated_30b)
               ...
         """
         rows = self._build_resolution_rows(cli_llm_override)

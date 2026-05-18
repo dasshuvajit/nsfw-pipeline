@@ -123,7 +123,7 @@ llm:
   # Ollama strings — the router resolves to the Ollama tag at call time
   # so editing the tag in the registry propagates everywhere automatically).
   #
-  # Current state (2026-05-18): ROUTING DISABLED. Every role falls back to
+  # Current state (2026-05-19): ROUTING DISABLED. Every role falls back to
   # default_llm (cydonia_heretic_24b) — the heretic-tuned variant already
   # carries a low refusal floor, so the prior split (venice_24b for facets,
   # cydonia for planner) is no longer needed. Re-enable per-role routing
@@ -135,9 +135,9 @@ llm:
     # series_planner:    cydonia_heretic_24b   # creative direction
     # scene_generator:   cydonia_heretic_24b   # 25-scene batch generation
     # scene_facet_generator:
-    #   default:          cydonia_heretic_24b  # facet generation (NSFW phrasing)
-    #   flux_natural:     hermes3              # prose flavour for flux/chroma
-    #   flux2_prose:      hermes3              # BFL 5-anchor prose for flux2
+    #   default:          cydonia_heretic_24b      # facet generation (NSFW phrasing)
+    #   flux_natural:     qwen3_abliterated_30b    # prose flavour for flux/chroma
+    #   flux2_prose:      qwen3_abliterated_30b    # BFL 5-anchor prose for flux2
     # metadata_generator: cydonia_heretic_24b
     # character_creator:  cydonia_heretic_24b
 
@@ -154,7 +154,7 @@ comfyui:
   # before each render. Sibling of output_dir on standard installs. Edit
   # this for your install. ~ is expanded by Path.expanduser().
   input_dir: "~/AI/apps/ComfyUI/input"
-  render_timeout_seconds: 300
+  render_timeout_seconds: 900
   max_retry_per_image: 3
   workflow_dir: "config/comfyui_workflows"
 

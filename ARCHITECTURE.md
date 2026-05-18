@@ -81,22 +81,20 @@
 > The "heretic" tune drops the refusal floor low enough that the
 > prior per-role split (venice for facets) is no longer needed —
 > one LLM serves planner / scene-gen / facet / character / metadata.
-> (2) fallback: `hermes3` — Ollama tag `hermes3:latest`, Nous
-> Research Hermes 3 on Llama 3.1 (default :latest = 8B). Different
-> lineage gives meaningful diversity on
+> (2) fallback: `qwen3_abliterated_30b` — Ollama tag
+> `huihui_ai/qwen3-abliterated:30b-a3b`, the huihui_ai abliterated
+> (refusal-removed) variant of Qwen3 30B-A3B. MoE: ~30B total
+> parameters, ~3B active per token, ~18GB on disk at Q4. Different
+> lineage (Qwen vs Mistral) gives meaningful diversity on
 > ``OllamaClient.generate_json``'s second-chance retry after two
 > consecutive constrained-decoding failures. Routing in
 > `pipeline.yaml::llm.routing` is now `{}` (intentionally empty);
-> every role falls through to `default_llm`. The prior routing
-> recipe (`scene_facet_generator.default: venice_24b`) is preserved
-> in commented examples for re-introduction if a future eval shows
-> a per-role split is warranted. Test count unchanged at 1232; all
-> tests pivoted from old IDs to new IDs via bulk substitute
-> (`cydonia_24b_v43` → `cydonia_heretic_24b`, `venice_24b` →
-> `cydonia_heretic_24b`, `magnum_v4_22b` → `hermes3`) — the prior
-> `test_real_three_llms_active` is renamed to
-> `test_real_two_llms_active`, and `test_real_default_is_cydonia`
-> → `test_real_default_is_cydonia_heretic`.)
+> every role falls through to `default_llm`. The 2026-05-19 LLM
+> swap replaced the Hermes 3 8B variants (Q4 + Q8) with Qwen3
+> 30B-A3B — the Hermes variants failed empirically to populate
+> structured enum-tag fields under constrained decoding on
+> T4_explicit (0–8% structured-tag fill rate vs Cydonia's 96%),
+> so a different lineage at higher capacity replaces them.)
 >
 > Prior sync: 2026-05-17 (Global single-female subject enforcement
 > — pipeline-wide constraint that EVERY render targets exactly one

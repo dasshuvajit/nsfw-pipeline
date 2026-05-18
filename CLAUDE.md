@@ -76,7 +76,7 @@ The complete architecture is documented in ARCHITECTURE.md — read it fully bef
     or `--regen-family-prompts <family>` (family-kind), each with
     `--llm <id>`. The multi-LLM upgrade (2026-05) added the `llm_id`
     dimension so the same scene can be re-prompted by any LLM in the
-    registry (currently `cydonia_heretic_24b` + `hermes3`) without
+    registry (currently `cydonia_heretic_24b` + `qwen3_abliterated_30b`) without
     overwriting prior LLMs' work — manual A/B comparison is the
     canonical user workflow.
     `scene_facets` PK extends similarly to
@@ -91,7 +91,7 @@ The complete architecture is documented in ARCHITECTURE.md — read it fully bef
   - `config/llm_models.yaml` — LLM registry (multi-LLM upgrade,
     2026-05). Maps registry ids (e.g. `cydonia_heretic_24b`) to Ollama
     tags (`Fermi/Cydonia-24B-v4.3-heretic-vision:Q4_K_M`). Declares
-    `default_llm: cydonia_heretic_24b` and `fallback_llm: hermes3`
+    `default_llm: cydonia_heretic_24b` and `fallback_llm: qwen3_abliterated_30b`
     (different lineage — used by `OllamaClient.generate_json` after
     two consecutive primary failures). Validated at startup:
     `LLMRegistryLoader` rejects an inactive default and any

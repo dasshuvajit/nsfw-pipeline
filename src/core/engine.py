@@ -981,7 +981,7 @@ class PipelineEngine:
                     # canonical A/B workflow). Pre-2026-05-18 the ID
                     # formula was just (series, target, index), which
                     # collided with the existing cydonia prompts when
-                    # retargeting with --llm hermes3 — the schema's
+                    # retargeting with a second LLM — the schema's
                     # UNIQUE(scene, kind, target, llm) was supposed to
                     # protect this but the row's PK ``id`` collided
                     # first. Fix: include llm_id in the prompt PK.
