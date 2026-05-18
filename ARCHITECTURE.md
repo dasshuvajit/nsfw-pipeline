@@ -3,7 +3,60 @@
 > **Platform:** Mac M4 Pro, 48 GB unified RAM  
 > **Target:** DeviantArt, Patreon  
 > **Stack:** Python 3.11, SQLite, ComfyUI, Ollama 0.5+
-> **Last sync:** 2026-05-18 (Prompt-generation architectural pass —
+> **Last sync:** 2026-05-19 (Creative-uplift overhaul — vocab v6 +
+> 6 namespaces + series-level aesthetic inheritance. User reported
+> rendered images were "boring, non-creative, static boring
+> backgrounds, can't generate any profit selling these". Root-cause
+> audit found three structural gaps: (1) ``SeriesPlanner`` locked
+> ONE ``environment`` per series, forcing all 24 scenes into the
+> same room; (2) ``SceneGenerator`` system prompt explicitly
+> enforced "same location" across the set; (3) vocab was photo-
+> technical only — zero coverage for environments / props /
+> atmosphere / color palettes / photographer refs / art movements /
+> narrative moments / advanced composition. Six-phase fix shipped
+> across 5 commits + verifier-agent round-trip:
+> Phase 0 — fixed ``all_concepts_for_family`` hardcode (was iterating
+>   only ``realism`` + ``nsfw`` top-level keys; new namespaces were
+>   invisible to the LLM menu). Verifier B1 blocker.
+> Phase 1 — ``environment.setting`` (41 location archetypes) +
+>   ``environment.atmosphere`` (24 atmospheric elements). Tier-required
+>   at T3+. ``SceneGenerator`` updated to push for per-scene environment
+>   variety. Pony participates (locations have natural booru forms).
+> Phase 2 — ``narrative.moment`` (30 tags). The #1 leverage axis per
+>   market research — "she reads a letter at dawn" forces window +
+>   chair + envelope + stillness in one tag. Tier-required at every
+>   tier. Placed on SceneFacet (not Scene) per verifier B2/B3 so
+>   validator + retry-nudge actually fires.
+> Phase 3 — series-level aesthetic anchors:
+>   ``aesthetic.color_palette`` (17 cinematic grades) +
+>   ``aesthetic.photographer_ref`` (15 named photographer signatures,
+>   PetaPixel-verified Midjourney-prompt-frequency) +
+>   ``aesthetic.art_movement`` (15 art-history traditions). Pinned ONCE
+>   per series by ``SeriesPlanner``, threaded into every scene via new
+>   ``canonicalize_series_aesthetic`` helper. Per-style-profile
+>   ``compatible_*`` lists narrow the menu to coherent combinations.
+>   This is the "signature look" layer — the commercial differentiator
+>   every top Patreon boudoir creator has. Pony omits photographer +
+>   art_movement (no booru equivalents); participates in color_palette.
+> Phase 4 — ``environment.prop`` (30 named-prop tags) +
+>   ``composition.principle`` (18 higher-order composition rules:
+>   frame-within-frame, reflection-primary, leading-lines, etc.).
+>   Optional polish layer; LLM picks when they add value.
+> Phase 5 — magic-word audit. Verifier I7 finding confirmed: chroma/
+>   flux/flux2 already have empty quality_prefix/suffix +
+>   correct avoid_words; ``cinematic depth of field`` usage in
+>   example_prompts is descriptive prose, not boost. No action.
+> Phase 6 — docs sync + 8 new regression tests. 1281 tests pass
+>   (1269 baseline + 12 new). Full plan + verifier critique at
+>   ``.claude/plans/creative-uplift.md``.
+>
+> End-to-end smoke: a T4 chroma facet with all Phase 1-4 fields
+> populated composes to 9 distinct phrasings (vs. 4 pre-Phase-1) —
+> golden hour + intimate mood + Tuscan villa + dust motes + reading
+> letter + peonies + frame-within-frame + full nude + sensual gaze.
+> All coherent around the "Tuscan-villa morning letter-reading" theme.
+>
+> Prior sync: 2026-05-18 (Prompt-generation architectural pass —
 > creativity + reliability + correctness. Five intertwined fixes
 > shipped after a thorough audit of the prompt generation pipeline,
 > all driven by quality + artistic + creativity goals for NSFW art
@@ -952,31 +1005,62 @@ adds a new family-kind row. `render_prompts --families flux
 prompts through any flux-family checkpoint (validated at parse
 time).
 
-### Realism vocabulary library (Phase 4a + 4-bis, vocab_version 2)
+### Realism vocabulary library (Phase 4a + 4-bis + v6 creative-uplift)
 
 `config/prompt_vocabulary.yaml` is the single source of truth for
-realism + NSFW phrasing per family. The LLM emits abstract concept
-tags (e.g. `LIGHT_REMBRANDT`, `CAMERA_SONY_A7RV`, `FILM_PORTRA_400`,
-`ART_FINE_NUDE`, `NSFW_T4_EMBRACE_NUDE`); the canonicalizer in
+realism + NSFW + environment + narrative + aesthetic + composition
+phrasing per family. The LLM emits abstract concept tags (e.g.
+`LIGHT_REMBRANDT`, `CAMERA_SONY_A7RV`, `FILM_PORTRA_400`,
+`ENV_TUSCAN_VILLA_RENAISSANCE`, `ATM_DUST_MOTES_IN_LIGHT`,
+`NARR_READING_LETTER_AT_DAWN`, `PALETTE_BAROQUE_CARAVAGGIO`,
+`PHOTOG_HELMUT_NEWTON`, `ART_MOVE_FILM_NOIR_1940S`,
+`COMP_FRAME_WITHIN_FRAME`, `PROP_CHEVAL_MIRROR`,
+`NSFW_T4_SOLO_DISPLAY`); the canonicalizer in
 `src/prompt/vocabulary.py` translates each tag to family-shaped
 phrasing at `PromptBuilder` compose time.
 
-**Two namespaces:**
+**Six top-level namespaces (vocab_version 6, 2026-05-19):**
 
-* **`realism.{lighting, camera, lens, film_stock, art_style, mood}`**
-  — always-on, ~50 concepts at version 2. Phase 4a shipped the core
-  set; Phase 4-bis broadened it (split / candlelight / blue-hour
-  lighting, Phase One IQ4 + Pentax 67 medium-format cameras, 100mm
-  macro + 70-200mm telephoto lenses, Velvia 50 + Kodak Vision3 film
-  stocks, Helmut Newton + Herb Ritts B&W + Irving Penn art-style
-  references, sensual + serene + melancholic moods).
+* **`realism.{lighting, camera, lens, film_stock, art_style, mood,
+  angle, framing}`** — always-on, ~70 concepts. Photo-technical
+  axes: camera body, lens spec, film stock, lighting setup, mood,
+  art-style reference, camera angle, shot size.
 * **`nsfw.{anatomy, posture, act}`** — tier-gated. `anatomy` +
-  `posture` at T3_artnude (Phase 4a); `act` at T4_explicit
-  (Phase 4-bis: NSFW_T4_EMBRACE_NUDE / KISS_PASSIONATE / SOLO_TOUCH /
-  PARTNERED_INTIMATE / AFTERGLOW). The canonicalizer silently drops
-  below-tier concepts, so a T2_implied scene cannot leak T3_artnude
-  vocabulary, and a T3_artnude scene cannot leak T4_explicit acts —
-  defence-in-depth on top of the existing content-tier guards.
+  `posture` at T3_artnude; `act` at T4_explicit. Solo-only pipeline
+  filters partnered acts.
+* **`environment.{setting, atmosphere, prop}`** (Phase 1 + 4, v6) —
+  per-scene location + atmospheric element + named prop pull
+  (~95 tags). Tier-required `setting` + `atmosphere` at T3+; `prop`
+  is optional polish.
+* **`narrative.moment`** (Phase 2, v6) — captured-moment anchor
+  (~30 tags). The #1 leverage axis per market research; "she reads
+  a letter at dawn" forces window light + chair + envelope +
+  stillness in one tag. Tier-required at EVERY tier.
+* **`aesthetic.{color_palette, photographer_ref, art_movement}`**
+  (Phase 3, v6) — SERIES-level inherited (47 tags). Pinned ONCE by
+  `SeriesPlanner`, threaded into every scene via new
+  `canonicalize_series_aesthetic` helper. Per-style-profile
+  `compatible_*` filter lists narrow the menu to coherent combos
+  (no Helmut-Newton + Wes-Anderson-pastel). Pony omits
+  photographer_ref + art_movement (no booru equivalents); Pony
+  DOES participate in color_palette.
+* **`composition.principle`** (Phase 4, v6) — higher-order
+  composition pulls beyond angle + framing (~18 tags:
+  frame-within-frame, reflection-primary, leading-lines,
+  negative-space-dominant, etc.). Optional. Pony omits — booru
+  tags carry composition implicitly via positional tags.
+
+The canonicalizer silently drops below-tier concepts (a T2 scene
+cannot leak T3 vocabulary), Pony-omitted namespaces, and unknown
+tags (LLM drift) — defence-in-depth on top of content-tier guards.
+
+Per-scene canonicalization via `canonicalize_facet(scene_facet,
+family_id, content_level=)`; series-level inherited canonicalization
+via `canonicalize_series_aesthetic(series_plan, family_id,
+content_level=)`. The composer threads both into the prompt body:
+series-aesthetic phrases land right after the base_prompt (visual
+world established first), scene vocab phrases land after scene
+fields (per-scene specifics).
 
 Three benefits over the pre-Phase-4a "LLM invents realism vocabulary
 every call" world:

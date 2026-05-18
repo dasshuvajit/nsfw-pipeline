@@ -127,17 +127,42 @@ The complete architecture is documented in ARCHITECTURE.md — read it fully bef
     trigger / avoid words) and PromptBuilder (per-model trigger /
     negative composition / canonicalizer thread).
   - `config/prompt_vocabulary.yaml` — versioned realism + NSFW concept
-    library (vocab_version 2). The LLM emits abstract concept tags
-    (e.g. `LIGHT_REMBRANDT`, `CAMERA_SONY_A7RV`, `FILM_PORTRA_400`,
-    `NSFW_T4_EMBRACE_NUDE`); the canonicalizer in
-    `src/prompt/vocabulary.py` translates each tag into family-shaped
-    phrasing at compose time. NSFW concepts are tier-gated by
-    `tier_min` — `nsfw.anatomy/posture` at T3_artnude (Phase 4a),
-    `nsfw.act` at T4_explicit (Phase 4-bis). Bump `version:` when
-    phrasing or concept set changes — `prompts.vocab_version`
-    records the version per row. Pony omits camera / lens /
-    film_stock / art_style namespaces since booru tagging carries
-    those implicitly via `source_photograph + booru_tags`.
+    library (vocab_version 6 — creative-uplift expansion of 2026-05-19).
+    The LLM emits abstract concept tags (e.g. `LIGHT_REMBRANDT`,
+    `CAMERA_SONY_A7RV`, `FILM_PORTRA_400`, `NSFW_T4_SOLO_DISPLAY`,
+    `ENV_TUSCAN_VILLA_RENAISSANCE`, `ATM_DUST_MOTES_IN_LIGHT`,
+    `NARR_READING_LETTER_AT_DAWN`, `PALETTE_BAROQUE_CARAVAGGIO`,
+    `PHOTOG_HELMUT_NEWTON`, `ART_MOVE_FILM_NOIR_1940S`,
+    `COMP_FRAME_WITHIN_FRAME`, `PROP_CHEVAL_MIRROR`); the canonicalizer
+    in `src/prompt/vocabulary.py` translates each tag into family-shaped
+    phrasing at compose time. Six top-level namespaces:
+      * `realism` — camera / lens / film_stock / lighting / mood /
+        art_style / angle / framing (Phase 4a + Q10/v4, ~70 tags).
+      * `nsfw` — anatomy / posture / act (tier-gated by `tier_min`).
+      * `environment` — setting / atmosphere / prop (Phase 1 + 4 v6,
+        ~95 scene-level tags). Solves "all 24 scenes look like the
+        same room" by giving the LLM 41 location archetypes + 24
+        atmospheric elements + 30 prop archetypes per scene.
+      * `narrative` — moment (Phase 2 v6, 30 tags). The #1 leverage
+        axis per market research; "she reads a letter at dawn" forces
+        window + chair + envelope + stillness in one tag. Tier-required
+        at every tier so every scene gets a narrative anchor.
+      * `aesthetic` — color_palette / photographer_ref / art_movement
+        (Phase 3 v6, 47 tags). SERIES-level inherited: chosen ONCE per
+        series, threaded into every scene's prompt via
+        `canonicalize_series_aesthetic`. This is the "signature look"
+        layer — the commercial differentiator top Patreon creators
+        have. Coherence rules in SeriesPlanner system prompt + per-
+        style-profile `compatible_*` filter lists prevent incompatible
+        combinations like Helmut-Newton + Wes-Anderson-pastel.
+      * `composition` — principle (Phase 4 v6, 18 tags). Optional
+        higher-order composition rules beyond angle + framing.
+    Bump `version:` when phrasing or concept set changes —
+    `prompts.vocab_version` records the version per row. Pony omits
+    realism.camera / lens / film_stock / art_style / angle / framing +
+    aesthetic.photographer_ref / art_movement + composition.principle
+    (booru tagging carries those implicitly or doesn't represent them
+    well); Pony participates in everything else.
   - `config/style_profiles.yaml` — aesthetic intent profiles.
   - `config/categories.yaml` — theme/style/niche categories +
     content_level rules.
@@ -216,5 +241,5 @@ External user-authored workflow templates live under config/comfyui_workflows/te
 - ARCHITECTURE.md — System design; living doc, update when code drifts (last sync: 2026-05-17 — global single-female subject enforcement + refiner contract + venice routing)
 - CLAUDE.md — This file (project context for Claude Code)
 - PROJECT_GUIDE.md — Living document: setup, run, test instructions (UPDATE after every implementation)
-- config/prompt_vocabulary.yaml — Versioned realism + NSFW concept library (Phase 4a; canonicalizer translates abstract concept tags to family phrasing at compose time)
+- config/prompt_vocabulary.yaml — Versioned realism + NSFW + environment + narrative + aesthetic + composition concept library (vocab v6, creative-uplift expansion 2026-05-19; canonicalizer translates abstract concept tags to family phrasing at compose time)
 - config/llm_models.yaml — LLM registry (multi-LLM upgrade, 2026-05). Per-CLI `--llm <id>` overrides routing + default; validated at startup.
