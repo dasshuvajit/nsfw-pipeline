@@ -33,40 +33,26 @@ llms:
     families_recommended: ["all"]
     active: true
 
-  hermes3_70b:
-    ollama_id: "hermes3:70b-llama3.1-q4_K_M"
-    display_name: "Hermes 3 70B (Llama 3.1)"
-    description: |
-      Nous Research Hermes 3 on Llama 3.1, 70B parameter Q4_K_M GGUF
-      (~40 GB on disk). HARDWARE NOTE: empirically validated 2026-05-18
-      on M4 Pro 48 GB unified memory — Ollama's model runner crashes
-      mid-inference with "resource limitations" error because the 40 GB
-      model plus 5-10 GB OS/app overhead exceeds the practical inference
-      headroom. Tested with the standalone /api/generate endpoint:
-      Ollama returns 500 "model runner has unexpectedly stopped" after
-      a 6+ min hang. Larger-RAM systems (64 GB+) or smaller quants
-      (Q3_K_M ~30 GB, Q2_K ~24 GB) would likely work.
-      To enable on this machine, either close all other apps to free
-      ~10 GB of unified memory, or downgrade to a smaller quant via
-      ``ollama pull hermes3:70b-llama3.1-q3_K_M``. Keeping the entry
-      active so the user can flip-test later; selecting via --llm
-      hermes3_70b currently surfaces the Ollama crash inside Phase A.
-    quant: "Q4_K_M"
-    size_gb: 40
+  hermes3_8b_q8:
+    ollama_id: "hermes3:8b-llama3.1-q8_0"
+    display_name: "Hermes 3 8B (Q8_0)"
+    description: "Nous Research Hermes 3 on Llama 3.1, 8B parameter Q8_0 GGUF. Higher-precision quant than the default `hermes3:latest` (which is Q4_K_M): ~7 GB on disk vs ~5 GB, with materially less quantization noise. Better instruction-following + cleaner JSON-mode output than the Q4 variant at the cost of moderately slower inference. Good middle ground between Cydonia 24B (~14 GB, strong creative writing) and Hermes 3 8B Q4 (~5 GB, fast smoke). Different lineage from Cydonia (Llama 3.1 vs Mistral) makes it a meaningful A/B target."
+    quant: "Q8_0"
+    size_gb: 8
     context_tokens: 32768
-    refusal_rate: 8.0           # community-reported; Hermes 3 base is mildly permissive
+    refusal_rate: 9.0           # community-reported; same base as Q4 Hermes 3, slightly more disciplined refusals at Q8
     strengths:
-      - "strong instruction-following (in theory; not validated on this hardware)"
-      - "Claude-style prose (Hermes lineage)"
-      - "different lineage from Cydonia (Llama 3.1 vs Mistral) — good A/B target on bigger hardware"
-      - "70B-class reasoning"
+      - "Q8 precision (cleaner JSON-mode output than Q4)"
+      - "general-purpose instruct follower"
+      - "different lineage from Cydonia (Llama 3.1 vs Mistral) — A/B target"
+      - "lower memory footprint than 24B, fits comfortably"
     active: true
     families_recommended: ["all"]
 
   hermes3:
     ollama_id: "hermes3:latest"
-    display_name: "Hermes 3 8B (latest)"
-    description: "Nous Research Hermes 3 on Llama 3.1. The :latest Ollama tag defaults to the 8B variant — smaller and faster than the 24B Cydonia primary. Used as the fallback LLM (OllamaClient.generate_json retries with this when the primary fails twice in a row), and available via --llm hermes3 for fast ad-hoc smoke tests."
+    display_name: "Hermes 3 8B (Q4_K_M latest)"
+    description: "Nous Research Hermes 3 on Llama 3.1. The `:latest` Ollama tag defaults to the 8B Q4_K_M variant — smallest + fastest installed LLM in this registry. Best for fast ad-hoc smoke tests via --llm hermes3, and used as the fallback retry target (OllamaClient.generate_json retries with this when the primary fails twice in a row)."
     quant: "Q4_K_M"
     size_gb: 5
     context_tokens: 32768
