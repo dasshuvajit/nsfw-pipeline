@@ -976,8 +976,17 @@ class PipelineEngine:
                         prompt_dict["prompt_text"]
                     )
                     prompt_dict["scene_id"] = scene_id
+                    # PK includes facet_llm_id so the same series can
+                    # carry parallel prompts from multiple LLMs (the
+                    # canonical A/B workflow). Pre-2026-05-18 the ID
+                    # formula was just (series, target, index), which
+                    # collided with the existing cydonia prompts when
+                    # retargeting with --llm hermes3 — the schema's
+                    # UNIQUE(scene, kind, target, llm) was supposed to
+                    # protect this but the row's PK ``id`` collided
+                    # first. Fix: include llm_id in the prompt PK.
                     prompt_dict["id"] = (
-                        f"{series_id}_{target_id}_prompt_"
+                        f"{series_id}_{target_id}_{facet_llm_id}_prompt_"
                         f"{len(prompts_for_target):03d}"
                     )
                     prompt_dict["content_level"] = model_ctx.content_level
