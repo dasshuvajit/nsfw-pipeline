@@ -125,6 +125,7 @@ families:
           art_style_reference: ART_EDITORIAL_FASHION
           lighting_directive: LIGHT_WINDOW_SIDE
           mood_aesthetic: MOOD_SERENE
+          narrative_moment: NARR_COFFEE_MORNING_PAPER
       - tier: T3_artnude
         scene:
           pose: reclined on side, three-quarter view
@@ -141,6 +142,9 @@ families:
           art_style_reference: ART_FINE_NUDE
           lighting_directive: LIGHT_GOLDEN_HOUR
           mood_aesthetic: MOOD_INTIMATE
+          narrative_moment: NARR_JUST_WOKEN_TANGLED_SHEETS
+          environment_setting: ENV_MORNING_BEDROOM
+          environment_atmosphere: ATM_DUST_MOTES_IN_LIGHT
           nsfw_anatomy: NSFW_BREAST_NATURAL
           nsfw_posture: NSFW_RECLINED_NUDE
       - tier: T4_explicit
@@ -159,6 +163,9 @@ families:
           art_style_reference: ART_FINE_NUDE
           lighting_directive: LIGHT_SOFT_FILL
           mood_aesthetic: MOOD_SENSUAL
+          narrative_moment: NARR_JUST_WOKEN_TANGLED_SHEETS
+          environment_setting: ENV_MORNING_BEDROOM
+          environment_atmosphere: ATM_DUST_MOTES_IN_LIGHT
           nsfw_anatomy: NSFW_FULL_NUDE
           nsfw_posture: NSFW_RECLINED_NUDE
           nsfw_act: NSFW_T4_SOLO_GAZE
@@ -275,6 +282,7 @@ families:
           source_tag: "source_photograph"
           lighting_directive: LIGHT_WINDOW_SIDE
           mood_aesthetic: MOOD_SERENE
+          narrative_moment: NARR_COFFEE_MORNING_PAPER
       - tier: T3_artnude
         scene:
           pose: reclined on side
@@ -287,6 +295,9 @@ families:
           source_tag: "source_photograph"
           lighting_directive: LIGHT_GOLDEN_HOUR
           mood_aesthetic: MOOD_INTIMATE
+          narrative_moment: NARR_JUST_WOKEN_TANGLED_SHEETS
+          environment_setting: ENV_MORNING_BEDROOM
+          environment_atmosphere: ATM_DUST_MOTES_IN_LIGHT
           nsfw_anatomy: NSFW_BREAST_NATURAL
           nsfw_posture: NSFW_RECLINED_NUDE
       - tier: T4_explicit
@@ -301,6 +312,9 @@ families:
           source_tag: "source_photograph"
           lighting_directive: LIGHT_SOFT_FILL
           mood_aesthetic: MOOD_SENSUAL
+          narrative_moment: NARR_JUST_WOKEN_TANGLED_SHEETS
+          environment_setting: ENV_MORNING_BEDROOM
+          environment_atmosphere: ATM_DUST_MOTES_IN_LIGHT
           nsfw_anatomy: NSFW_FULL_NUDE
           nsfw_posture: NSFW_RECLINED_NUDE
           nsfw_act: NSFW_T4_SOLO_GAZE
@@ -410,6 +424,7 @@ families:
           art_style_reference: ART_EDITORIAL_FASHION
           lighting_directive: LIGHT_WINDOW_SIDE
           mood_aesthetic: MOOD_SERENE
+          narrative_moment: NARR_COFFEE_MORNING_PAPER
       - tier: T3_artnude
         scene:
           pose: reclined on side
@@ -426,6 +441,9 @@ families:
           art_style_reference: ART_FINE_NUDE
           lighting_directive: LIGHT_GOLDEN_HOUR
           mood_aesthetic: MOOD_INTIMATE
+          narrative_moment: NARR_JUST_WOKEN_TANGLED_SHEETS
+          environment_setting: ENV_MORNING_BEDROOM
+          environment_atmosphere: ATM_DUST_MOTES_IN_LIGHT
           nsfw_anatomy: NSFW_BREAST_NATURAL
           nsfw_posture: NSFW_RECLINED_NUDE
       - tier: T4_explicit
@@ -444,6 +462,9 @@ families:
           art_style_reference: ART_FINE_NUDE
           lighting_directive: LIGHT_SOFT_FILL
           mood_aesthetic: MOOD_SENSUAL
+          narrative_moment: NARR_JUST_WOKEN_TANGLED_SHEETS
+          environment_setting: ENV_MORNING_BEDROOM
+          environment_atmosphere: ATM_DUST_MOTES_IN_LIGHT
           nsfw_anatomy: NSFW_FULL_NUDE
           nsfw_posture: NSFW_RECLINED_NUDE
           nsfw_act: NSFW_T4_SOLO_GAZE
@@ -506,6 +527,7 @@ families:
           art_style_reference: ART_EDITORIAL_FASHION
           lighting_directive: LIGHT_WINDOW_SIDE
           mood_aesthetic: MOOD_SERENE
+          narrative_moment: NARR_COFFEE_MORNING_PAPER
       - tier: T3_artnude
         scene:
           pose: reclined on side
@@ -521,6 +543,9 @@ families:
           art_style_reference: ART_FINE_NUDE
           lighting_directive: LIGHT_GOLDEN_HOUR
           mood_aesthetic: MOOD_INTIMATE
+          narrative_moment: NARR_JUST_WOKEN_TANGLED_SHEETS
+          environment_setting: ENV_MORNING_BEDROOM
+          environment_atmosphere: ATM_DUST_MOTES_IN_LIGHT
           nsfw_anatomy: NSFW_BREAST_NATURAL
           nsfw_posture: NSFW_RECLINED_NUDE
       - tier: T4_explicit
@@ -538,6 +563,9 @@ families:
           art_style_reference: ART_FINE_NUDE
           lighting_directive: LIGHT_SOFT_FILL
           mood_aesthetic: MOOD_SENSUAL
+          narrative_moment: NARR_JUST_WOKEN_TANGLED_SHEETS
+          environment_setting: ENV_MORNING_BEDROOM
+          environment_atmosphere: ATM_DUST_MOTES_IN_LIGHT
           nsfw_anatomy: NSFW_FULL_NUDE
           nsfw_posture: NSFW_RECLINED_NUDE
           nsfw_act: NSFW_T4_SOLO_GAZE
@@ -627,6 +655,7 @@ families:
           art_style_reference: ART_EDITORIAL_FASHION
           lighting_directive: LIGHT_SPLIT
           mood_aesthetic: MOOD_CONFIDENT
+          narrative_moment: NARR_COFFEE_MORNING_PAPER
       - tier: T3_artnude
         scene:
           pose: reclined on side
@@ -643,6 +672,9 @@ families:
           art_style_reference: ART_FINE_NUDE
           lighting_directive: LIGHT_GOLDEN_HOUR
           mood_aesthetic: MOOD_INTIMATE
+          narrative_moment: NARR_JUST_WOKEN_TANGLED_SHEETS
+          environment_setting: ENV_MORNING_BEDROOM
+          environment_atmosphere: ATM_DUST_MOTES_IN_LIGHT
           nsfw_anatomy: NSFW_BREAST_NATURAL
           nsfw_posture: NSFW_RECLINED_NUDE
       - tier: T4_explicit
@@ -661,6 +693,9 @@ families:
           art_style_reference: ART_FINE_NUDE
           lighting_directive: LIGHT_SOFT_FILL
           mood_aesthetic: MOOD_SENSUAL
+          narrative_moment: NARR_JUST_WOKEN_TANGLED_SHEETS
+          environment_setting: ENV_MORNING_BEDROOM
+          environment_atmosphere: ATM_DUST_MOTES_IN_LIGHT
           nsfw_anatomy: NSFW_FULL_NUDE
           nsfw_posture: NSFW_RECLINED_NUDE
           nsfw_act: NSFW_T4_SOLO_GAZE
@@ -779,6 +814,7 @@ families:
           art_style_reference: ART_EDITORIAL_FASHION
           lighting_directive: LIGHT_WINDOW_SIDE
           mood_aesthetic: MOOD_SERENE
+          narrative_moment: NARR_COFFEE_MORNING_PAPER
       - tier: T3_artnude
         scene:
           pose: reclined on side
@@ -794,6 +830,9 @@ families:
           art_style_reference: ART_FINE_NUDE
           lighting_directive: LIGHT_GOLDEN_HOUR
           mood_aesthetic: MOOD_INTIMATE
+          narrative_moment: NARR_JUST_WOKEN_TANGLED_SHEETS
+          environment_setting: ENV_MORNING_BEDROOM
+          environment_atmosphere: ATM_DUST_MOTES_IN_LIGHT
           nsfw_anatomy: NSFW_BREAST_NATURAL
           nsfw_posture: NSFW_RECLINED_NUDE
       - tier: T4_explicit
@@ -811,6 +850,9 @@ families:
           art_style_reference: ART_FINE_NUDE
           lighting_directive: LIGHT_SOFT_FILL
           mood_aesthetic: MOOD_SENSUAL
+          narrative_moment: NARR_JUST_WOKEN_TANGLED_SHEETS
+          environment_setting: ENV_MORNING_BEDROOM
+          environment_atmosphere: ATM_DUST_MOTES_IN_LIGHT
           nsfw_anatomy: NSFW_FULL_NUDE
           nsfw_posture: NSFW_RECLINED_NUDE
           nsfw_act: NSFW_T4_SOLO_GAZE

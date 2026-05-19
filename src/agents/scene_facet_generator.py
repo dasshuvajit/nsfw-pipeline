@@ -439,6 +439,19 @@ OPERATING PRINCIPLES:
   one human subject. Partnered NSFW act tags (``NSFW_T4_PARTNERED_*``,
   ``NSFW_T4_EMBRACE_NUDE``, ``NSFW_T4_KISS_PASSIONATE``,
   ``NSFW_T4_AFTERGLOW``) are FORBIDDEN — pick a SOLO act tag for T4.
+- KEEP NAMES OUT OF PROSE / TAGS: photographer names (Helmut Newton,
+  Petter Hegre, Saul Leiter, Gregory Crewdson, etc.), camera-body
+  brand names (Sony, Hasselblad, Leica, Canon, Nikon, etc.), lens-spec
+  brand strings, and film-stock names (Kodak Portra, Tri-X, Cinestill,
+  etc.) belong ONLY in their dedicated structured tag fields
+  (`art_style_reference`, `realism_camera`, `realism_lens`,
+  `realism_film_stock`). NEVER write them into `booru_tags`,
+  `scene_prose`, or any free-text field — the composer canonicalises
+  the structured tags into family-shaped phrasing AND the celebrity-
+  likeness sanitizer strips brand / photographer names from free-text
+  fields. Both defences are tighter when names live ONLY in the
+  structured slots. (Applies to Illustrious especially — it carries
+  both ``booru_tags`` AND ``scene_prose`` free-text fields.)
 
 TAG GUIDELINES:
 - Use 8-15 tags. Order: subject → action → setting → lighting → quality.
@@ -467,6 +480,11 @@ _BOORU_PROMPT_STYLES: frozenset[str] = frozenset({
 # fmt: off
 _USER_PROMPT_TEMPLATE = """\
 Content level: {content_level}
+
+At the active tier, the following structured-tag fields are NON-NEGOTIABLE
+and MUST receive a concrete concept tag from the vocabulary menu in the
+system prompt — null / empty / omitted values trigger an automatic retry:
+{tier_required_list}
 
 The scene's locked core fields:
 {scene_core_json}
@@ -540,7 +558,7 @@ _STRUCTURED_TAG_BODY_NON_PONY = """\
   "environment_atmosphere": "[REQUIRED — T3+] One ATM_* concept tag for atmospheric element (ATM_DUST_MOTES_IN_LIGHT, ATM_BREEZE_IN_CURTAIN, ATM_STEAM_FROM_BATH, ATM_RAIN_ON_GLASS, ATM_VOLUMETRIC_GOLDEN, etc.).",
   "nsfw_anatomy": "[REQUIRED — T3+] One NSFW_ANATOMY_* concept tag (NSFW_FULL_NUDE, NSFW_BREAST_NATURAL, NSFW_NIPPLES_VISIBLE, NSFW_VULVA_VISIBLE, etc.). At T1/T2 emit null.",
   "nsfw_act": "[REQUIRED — T4 only] One NSFW_ACT_* concept tag — SOLO acts only (NSFW_T4_SOLO_TOUCH, NSFW_T4_SOLO_DISPLAY, NSFW_T4_SOLO_MIRROR, NSFW_T4_SOLO_BATH, NSFW_T4_SOLO_RECLINING, etc.). At T1/T2/T3 emit null. Partnered tags are filtered.",
-  "nsfw_posture": "[OPTIONAL — T3+] One NSFW_POSTURE_* concept tag if the pose calls for it.",
+  "nsfw_posture": "[OPTIONAL] One NSFW_POSTURE_* concept tag if the pose calls for it (T3+ only — null at T1/T2).",
   "environment_prop": "[OPTIONAL] One PROP_* concept tag for furniture/object anchor (PROP_CHEVAL_MIRROR, PROP_HANDWRITTEN_LETTER, PROP_VELVET_CURTAIN, etc.).",
   "composition_principle": "[OPTIONAL] One COMP_* concept tag for higher-order composition (COMP_FRAME_WITHIN_FRAME, COMP_REFLECTION_PRIMARY, COMP_LEADING_LINES_FLOOR, etc.).",
   "realism_camera": "[OPTIONAL] One CAMERA_* concept tag for specific camera body (CAMERA_SONY_A7RV, CAMERA_HASSELBLAD_X2D, CAMERA_LEICA_M11, etc.).",
@@ -567,7 +585,7 @@ _STRUCTURED_TAG_BODY_PONY = """\
   "environment_atmosphere": "[REQUIRED — T3+] One ATM_* concept tag for atmospheric element matching the setting.",
   "nsfw_anatomy": "[REQUIRED — T3+] One NSFW_ANATOMY_* concept tag. At T1/T2 emit null.",
   "nsfw_act": "[REQUIRED — T4 only] One NSFW_ACT_* concept tag — SOLO acts only (NSFW_T4_SOLO_TOUCH, NSFW_T4_SOLO_DISPLAY, NSFW_T4_SOLO_MIRROR, etc.). At T1/T2/T3 emit null. Partnered tags are filtered.",
-  "nsfw_posture": "[OPTIONAL — T3+] One NSFW_POSTURE_* concept tag if the pose calls for it.",
+  "nsfw_posture": "[OPTIONAL] One NSFW_POSTURE_* concept tag if the pose calls for it (T3+ only — null at T1/T2).",
   "environment_prop": "[OPTIONAL] One PROP_* concept tag for furniture/object anchor."\
 """
 
@@ -1062,10 +1080,33 @@ class SceneFacetGenerator:
             "composition_intent", "framing_hint", "audience_target",
         )
         core = {k: scene.get(k) for k in core_keys if scene.get(k) is not None}
+        # Round-7 follow-up: render the per-tier required-fields list
+        # directly in the user prompt. Pre-fix the schema body relied
+        # entirely on [REQUIRED — T3+] bracket markers, but Cydonia
+        # still nulled T3+/T4 fields after the round-6 reorder. Adding
+        # a concrete "at THIS tier, these fields MUST be populated"
+        # list at the top of the user prompt — independent of the
+        # schema body's per-field markers — gives the LLM a second
+        # high-attention signal.
+        required_for_tier = _TIER_REQUIRED_FIELDS.get(content_level, ())
+        # Filter to fields the family's schema actually declares (Pony
+        # omits a few; back-compat with prompt_style detection).
+        prompt_style = family.prompt_style
+        is_pony = prompt_style == "pony_danbooru"
+        if is_pony:
+            # Pony omits 6 realism fields + composition_principle, but
+            # participates in all 7 tier-required fields uniformly.
+            schema_visible = set(required_for_tier)
+        else:
+            schema_visible = set(required_for_tier)
+        tier_required_list = "\n".join(
+            f"  - {f}" for f in required_for_tier if f in schema_visible
+        ) or "  (none for this tier)"
         return _USER_PROMPT_TEMPLATE.format(
             content_level=content_level,
             scene_core_json=json.dumps(core, indent=2),
             family_id=family.id,
             prompt_style=family.prompt_style,
             schema_body=schema_body,
+            tier_required_list=tier_required_list,
         )

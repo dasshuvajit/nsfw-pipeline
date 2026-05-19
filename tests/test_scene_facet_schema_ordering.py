@@ -124,13 +124,45 @@ def test_optional_fields_have_optional_marker():
         line for line in _STRUCTURED_TAG_BODY_NON_PONY.split("\n")
         if "[OPTIONAL" in line
     ]
-    assert len(optional_lines) >= 5, (
-        f"non-Pony body expected ≥5 [OPTIONAL] fields, got "
-        f"{len(optional_lines)} — round-6 fix bundles 8 OPTIONAL "
-        f"fields (camera/lens/film/art_style/angle/framing/env_prop/"
-        f"composition_principle + nsfw_posture). If this drops below "
-        f"5, schema body has drifted."
+    # Round-6 ships 9 [OPTIONAL] fields in the non-Pony body:
+    # nsfw_posture, environment_prop, composition_principle,
+    # realism_camera, realism_lens, realism_film_stock,
+    # art_style_reference, realism_angle, realism_framing.
+    assert len(optional_lines) == 9, (
+        f"non-Pony body expected 9 [OPTIONAL] fields, got "
+        f"{len(optional_lines)} — schema body has drifted from "
+        f"round-6 contract."
     )
+
+
+def test_all_required_offsets_before_all_optional_offsets():
+    """Round-7 NIT-2: tighten the ordering contract — assert that
+    EVERY [REQUIRED] marker offset is less than EVERY [OPTIONAL]
+    marker offset, not just less than the FIRST [OPTIONAL].
+
+    Pre-fix this test would have missed a REQUIRED field accidentally
+    placed at the tail of the body but still before some other
+    OPTIONAL — the original `first_optional` check only catches the
+    very last violation.
+    """
+    for label, body in [
+        ("non_pony", _STRUCTURED_TAG_BODY_NON_PONY),
+        ("pony", _STRUCTURED_TAG_BODY_PONY),
+    ]:
+        required_offsets = [
+            m.start() for m in re.finditer(r"\[REQUIRED\b", body)
+        ]
+        optional_offsets = [
+            m.start() for m in re.finditer(r"\[OPTIONAL\b", body)
+        ]
+        assert required_offsets, f"{label}: no [REQUIRED] markers found"
+        assert optional_offsets, f"{label}: no [OPTIONAL] markers found"
+        max_req = max(required_offsets)
+        min_opt = min(optional_offsets)
+        assert max_req < min_opt, (
+            f"{label}: [REQUIRED] block must end before any [OPTIONAL] "
+            f"begins. max_required={max_req}, min_optional={min_opt}"
+        )
 
 
 def test_required_lighting_directive_is_first_required():
@@ -172,6 +204,7 @@ def test_user_prompt_template_renders_with_schema_body():
     standard substitution dict the engine passes."""
     rendered = _USER_PROMPT_TEMPLATE.format(
         content_level="T4_explicit",
+        tier_required_list="  - lighting_directive\n  - mood_aesthetic",
         scene_core_json='{"pose":"x"}',
         family_id="chroma",
         prompt_style="flux_natural",
@@ -180,6 +213,13 @@ def test_user_prompt_template_renders_with_schema_body():
     assert "[REQUIRED — every tier]" in rendered
     assert "[REQUIRED — T3+]" in rendered
     assert "[REQUIRED — T4 only]" in rendered
+    # Tier-required list must appear before the schema body.
+    list_pos = rendered.find("- lighting_directive")
+    schema_pos = rendered.find("Produce the family-shaped fields")
+    assert list_pos > 0 and list_pos < schema_pos, (
+        "tier_required_list must render BEFORE the schema body so "
+        "the LLM sees the per-tier mandate first."
+    )
     # No stray template artifacts.
     assert "{n}" not in rendered, (
         "User prompt template has unfilled `{n}` literal — bad "
@@ -217,18 +257,30 @@ def test_system_prompt_blocks_photographer_names_in_prose():
     NEVER carry photographer or film-stock brand names — those belong
     to structured tags only. Without this guard, Cydonia consistently
     leaks 'Helmut Newton' / 'Kodak Portra' into scene_prose, which the
-    sanitizer then strips (lossy, brittle)."""
+    sanitizer then strips (lossy, brittle).
+
+    Round-7 BLOCKER fix: also assert on PONY_BOORU_SYSTEM_PROMPT,
+    which Illustrious uses (and Illustrious has BOTH `booru_tags`
+    AND `scene_prose` free-text fields — exactly the leak surface
+    the rule was designed to plug)."""
     from src.agents.scene_facet_generator import (
         SYSTEM_PROMPT, PONY_BOORU_SYSTEM_PROMPT,
     )
     for label, text in [
         ("SYSTEM_PROMPT", SYSTEM_PROMPT),
+        ("PONY_BOORU_SYSTEM_PROMPT", PONY_BOORU_SYSTEM_PROMPT),
     ]:
         assert "photographer names" in text.lower(), (
             f"{label} lacks the anti-leak photographer-name guard"
         )
-        assert "scene_prose" in text, (
-            f"{label} must explicitly name scene_prose in the no-leak rule"
+        # Either scene_prose (non-Pony) or booru_tags (Pony) must be
+        # explicitly named in the no-leak rule.
+        leak_target_named = (
+            "scene_prose" in text or "booru_tags" in text
+        )
+        assert leak_target_named, (
+            f"{label} must explicitly name a free-text field "
+            f"(scene_prose / booru_tags) in the no-leak rule"
         )
 
 
