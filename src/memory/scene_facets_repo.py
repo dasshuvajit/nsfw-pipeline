@@ -57,6 +57,19 @@ _FACET_FIELDS: tuple[str, ...] = (
     # omits these but the DB column accepts NULLs uniformly).
     "realism_angle",
     "realism_framing",
+    # Phase 1-4 (vocab v6, 2026-05-19) — environment + narrative +
+    # composition gap-fill. Round-5 BLOCKER fix: these 5 fields were
+    # declared on the Pydantic SceneFacet schemas (round 1-2) but
+    # missing from this tuple, so insert_facet silently dropped them
+    # at persist. The in-memory facet still carried them through the
+    # composer within a single run, but ``get_facet`` lookups on
+    # re-prep / re-render returned a row with these fields blank,
+    # and the audit trail (PNG metadata + DB row) lost them.
+    "environment_setting",
+    "environment_atmosphere",
+    "environment_prop",
+    "narrative_moment",
+    "composition_principle",
 )
 
 

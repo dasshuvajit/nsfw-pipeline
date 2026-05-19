@@ -246,6 +246,20 @@ CREATE TABLE scene_facets (
     -- the DB column accepts NULLs uniformly across families.
     realism_angle TEXT,
     realism_framing TEXT,
+    -- Phase 1-4 (vocab v6, 2026-05-19) — environment + narrative +
+    -- composition gap-fill. The LLM picks one ENV_* / ATM_* / PROP_*
+    -- / NARR_* / COMP_* tag per scene; canonicalizer translates each
+    -- into family-shaped prose at compose time. Pre-fix these 5
+    -- columns were missing — the Pydantic schemas declared them and
+    -- the engine's in-memory `scene_with_facet` consumed them, but
+    -- ``scene_facets_repo.insert_facet`` silently dropped them at
+    -- persist (round-5 BLOCKER). All families participate; Pony's
+    -- composer omits ``composition_principle`` via canonicalizer.
+    environment_setting TEXT,
+    environment_atmosphere TEXT,
+    environment_prop TEXT,
+    narrative_moment TEXT,
+    composition_principle TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (scene_id, family, llm_id)
 );
