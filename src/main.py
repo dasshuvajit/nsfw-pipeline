@@ -365,7 +365,7 @@ def main() -> None:
     # Mode routing
     if execution_mode == "manual":
         print("Execution mode is 'manual'.")
-        print("Use individual scripts (render_set.py, dry_run.py) instead.")
+        print("Use individual scripts (prepare_prompts.py, render_prompts.py, dry_run.py) instead.")
         print("To start the scheduler, set execution.mode to 'supervised' or 'automated' in pipeline.yaml.")
         sys.exit(0)
 

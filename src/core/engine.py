@@ -210,10 +210,6 @@ def _load_style_profile(db_path: Path, style_profile_id: str) -> dict[str, Any]:
         "compatible_photographers": list(p.compatible_photographers),
         "compatible_art_movements": list(p.compatible_art_movements),
         "compatible_environments": list(p.compatible_environments),
-        # Kept for signature parity with WorkflowBuilder's LoRA stage;
-        # archetypes declare an empty stack — per-model LoRA defaults
-        # go on the model YAML's prompt.extend hook.
-        "lora_stack": None,
     }
 
 

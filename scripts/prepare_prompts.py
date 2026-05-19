@@ -319,8 +319,8 @@ def main() -> int:
         help=(
             "Comma-separated model ids to fan out across "
             "(e.g. 'juggernaut_ragnarok,chroma_v10HD'). Per-model rules apply "
-            "(trigger words, avoid words, negative_embeddings, "
-            "lora_stack). Sibling-family models share scene_facets "
+            "(trigger words, avoid words, negative_embeddings). "
+            "Sibling-family models share scene_facets "
             "rows. Default when neither --models nor --families is "
             "given: [pipeline.default_model_id]."
         ),
@@ -333,7 +333,7 @@ def main() -> int:
             "(e.g. 'flux,pony,sdxl,illustrious,chroma,flux2'). "
             "Family-level prompt prep — only family-level rules "
             "apply, NO per-model trigger words / avoid words / "
-            "negative_embeddings / lora_stack. Render the resulting "
+            "negative_embeddings. Render the resulting "
             "prompts with `render_prompts --families <F> "
             "--render-with-model <M>`. May be combined with --models "
             "to prepare both kinds in one invocation."

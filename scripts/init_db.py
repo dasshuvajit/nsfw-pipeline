@@ -117,7 +117,7 @@ CREATE TABLE scenes (
 --
 -- target_kind discriminates between two preparation modes:
 --   * 'model'  — model-level prompt; per-model trigger words /
---                avoid words / negative_embeddings / lora_stack /
+--                avoid words / negative_embeddings /
 --                structure_intro all applied. model_id holds an id
 --                from config/models/*.yaml validated by
 --                ModelRegistryLoader.
@@ -394,7 +394,8 @@ def summarize(db_path: Path) -> None:
     conn = sqlite3.connect(str(db_path))
     try:
         tables = [r[0] for r in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+            "SELECT name FROM sqlite_master WHERE type='table' "
+            "AND name NOT LIKE 'sqlite_%' ORDER BY name"
         )]
         triggers = [r[0] for r in conn.execute(
             "SELECT name FROM sqlite_master WHERE type='trigger' ORDER BY name"

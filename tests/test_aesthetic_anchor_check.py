@@ -95,10 +95,10 @@ def test_no_warning_when_all_three_populated(caplog):
     }
     with caplog.at_level(logging.WARNING):
         warn_if_missing_aesthetic_anchors(
-            plan, mode_name="CharacterMode",
+            plan, mode_name="ThemeMode",
         )
     msgs = [r.getMessage() for r in caplog.records]
-    assert not any("CharacterMode" in m for m in msgs), (
+    assert not any("ThemeMode" in m for m in msgs), (
         f"unexpected warning for fully-populated plan: {msgs}"
     )
 
