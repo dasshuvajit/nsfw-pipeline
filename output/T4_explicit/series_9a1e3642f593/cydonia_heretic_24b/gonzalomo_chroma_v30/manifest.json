@@ -1,0 +1,213 @@
+{
+  "series_id": "series_9a1e3642f593",
+  "content_level": "T4_explicit",
+  "model_id": "gonzalomo_chroma_v30",
+  "target_kind": "model",
+  "target_id": "gonzalomo_chroma_v30",
+  "llm_id": "cydonia_heretic_24b",
+  "style_profile_id": "golden_hour_natural",
+  "series_plan": {
+    "theme": "Old Hollywood Starlet in Golden Hour Nude Study",
+    "mood": "Sensual and confident with classic glamour",
+    "environment": "Vintage film studio backlot during golden hour with soft rim lighting through period-accurate windows",
+    "variation_axes": [
+      "Lighting angle (front, side, backlit)",
+      "Body position (standing, reclining, kneeling)",
+      "Composition framing (full figure, medium shot, close-up)",
+      "Texture elements (satin fabric nearby, fur stole draped over chair)"
+    ],
+    "subject_description": "A mature woman with classic Hollywood features stands fully nude in a vintage studio setting during golden hour. Her bare breasts and natural nipples are visible in warm light, her exposed vulva and labia catch the golden rays streaming through period windows. She exudes confidence with her body on full display.",
+    "category_id": "old_hollywood",
+    "category_name": "Old Hollywood Glamour"
+  },
+  "image_count": 17,
+  "images": [
+    {
+      "export_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/001_series_9a1e3642f593_gonzalomo_chroma_v30_prompt_017_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00072_.png",
+      "original_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/series_9a1e3642f593_gonzalomo_chroma_v30_prompt_017_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00072_.png",
+      "seed": 0,
+      "quality_score": 0.611,
+      "aesthetic_score": 6.15,
+      "prompt_text": "A single adult woman alone in the scene. Her full body visible in the warm light. A fully nude adult woman lounges beneath top-down golden light that bathes her bare skin in warm luminescence, her content expression matching the luxurious sophistication of the period film set surrounding her with adjustable lighting panels. Golden hour, warm rim-light, haze, natural outdoor, 50mm lens, shallow depth of field, lifestyle editorial, soft glow. Fully nude, complete nudity, no clothing, bare body anatomically correct. Solo intimate self-touch, explicit, anatomically correct, contemplative. f/1.8. 35mm. photographic. natural skin texture.",
+      "aspect_ratio": "portrait_23",
+      "width": 896,
+      "height": 1152
+    },
+    {
+      "export_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/002_series_9a1e3642f593_gonzalomo_chroma_v30_prompt_010_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00065_.png",
+      "original_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/series_9a1e3642f593_gonzalomo_chroma_v30_prompt_010_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00065_.png",
+      "seed": 0,
+      "quality_score": 0.595,
+      "aesthetic_score": 5.99,
+      "prompt_text": "A single adult woman alone in the scene. She lounges with legs crossed, bare vulva exposed to camera. A fully nude woman lounges contentedly on a velvet settee, front-facing with her bare breasts illuminated by warm studio lighting that sculpts shadows across her exposed form. The decadent scene includes a crumpled fur stole beside her and weathered film canisters labeled with faded titles lining the background shelf. She wears a satisfied smile as soft light from both front and side angles creates subtle depth in her skin tones, her body completely bare against the rich fabric beneath her. Golden hour, warm rim-light, haze, natural outdoor, 50mm lens, shallow depth of field, lifestyle editorial, soft glow. Fully nude, complete nudity, no clothing, bare body anatomically correct. Solo intimate self-touch, explicit, anatomically correct, contemplative. f/1.8. 35mm. photographic. natural skin texture.",
+      "aspect_ratio": "portrait_23",
+      "width": 896,
+      "height": 1152
+    },
+    {
+      "export_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/003_series_9a1e3642f593_gonzalomo_chroma_v30_prompt_000_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00055_.png",
+      "original_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/series_9a1e3642f593_gonzalomo_chroma_v30_prompt_000_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00055_.png",
+      "seed": 0,
+      "quality_score": 0.588,
+      "aesthetic_score": 6.26,
+      "prompt_text": "A single adult woman alone in the scene. Her mature figure stands tall with hands on hips, natural breasts bare to the golden light. A confident woman stands at eye level before an ornate Art Deco vanity, her full nude form silhouetted against golden hour light streaming through period studio windows. Soft rim lighting traces the curves of her bare body\u2014visible breasts with natural nipples, exposed vulva and thighs\u2014while warm backlight casts elegant shadows across her skin. The vintage mirror reflects her serene expression and the fading sunlight that bathes this timeless, regal moment in honeyed warmth. Golden hour, warm rim-light, haze, natural outdoor, 50mm lens, shallow depth of field, lifestyle editorial, soft glow. Fully nude, complete nudity, no clothing, bare body anatomically correct. Solo intimate self-touch, explicit, anatomically correct, contemplative. f/1.8. 35mm. photographic. natural skin texture.",
+      "aspect_ratio": "portrait_23",
+      "width": 896,
+      "height": 1152
+    },
+    {
+      "export_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/004_series_9a1e3642f593_gonzalomo_chroma_v30_prompt_012_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00067_.png",
+      "original_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/series_9a1e3642f593_gonzalomo_chroma_v30_prompt_012_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00067_.png",
+      "seed": 0,
+      "quality_score": 0.584,
+      "aesthetic_score": 6.19,
+      "prompt_text": "A single adult woman alone in the scene. Her bare breasts and hips on display in profile. A fully nude woman stands confidently with hands on hips, side light carving dramatic shadows along her bare body while warm golden tones illuminate her exposed curves from the other side. Behind her, a period-accurate screenwriter's desk with vintage typewriter grounds the scene in timeless elegance. She meets the camera with a powerful smirk and gleaming eyes, embodying complete self-assurance in this artistic nude composition. Golden hour, warm rim-light, haze, natural outdoor, 50mm lens, shallow depth of field, lifestyle editorial, soft glow. Fully nude, complete nudity, no clothing, bare body anatomically correct. Solo intimate self-touch, explicit, anatomically correct, contemplative. f/1.8. 35mm. photographic. natural skin texture.",
+      "aspect_ratio": "portrait_23",
+      "width": 896,
+      "height": 1152
+    },
+    {
+      "export_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/005_series_9a1e3642f593_gonzalomo_chroma_v30_prompt_024_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00079_.png",
+      "original_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/series_9a1e3642f593_gonzalomo_chroma_v30_prompt_024_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00079_.png",
+      "seed": 0,
+      "quality_score": 0.583,
+      "aesthetic_score": 5.75,
+      "prompt_text": "A single adult woman alone in the scene. Her mature figure stands tall with hands on hips, natural breasts bare to the golden light. A confident woman stands with regal poise before vintage film equipment bathed in golden hour light streaming through studio windows, her fully nude form illuminated by soft, flattering tones that accentuate every curve and natural feature. Her serene smile carries a knowing quality as she commands the frame with timeless elegance, the warm afternoon sun creating a luminous glow across bare skin and casting subtle shadows that emphasize her standing pose. Golden hour, warm rim-light, haze, natural outdoor, 50mm lens, shallow depth of field, lifestyle editorial, soft glow. Fully nude, complete nudity, no clothing, bare body anatomically correct. Solo intimate self-touch, explicit, anatomically correct, contemplative. f/1.8. 35mm. photographic. natural skin texture.",
+      "aspect_ratio": "portrait_23",
+      "width": 896,
+      "height": 1152
+    },
+    {
+      "export_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/006_series_9a1e3642f593_gonzalomo_chroma_v30_prompt_004_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00059_.png",
+      "original_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/series_9a1e3642f593_gonzalomo_chroma_v30_prompt_004_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00059_.png",
+      "seed": 0,
+      "quality_score": 0.575,
+      "aesthetic_score": 6.18,
+      "prompt_text": "A single adult woman alone in the scene. Her bare breasts rise and fall with measured breathing. A kneeling woman is captured by vintage film equipment with spotlights positioned around her set, top lighting through skylights casting dramatic shadows along her collarbone while illuminating her face and bare form. She stares intensely upward, vulnerable yet powerful in this carefully composed shot. The period-accurate cinematography emphasizes the raw beauty of her exposed body against the classic studio setting. Golden hour, warm rim-light, haze, natural outdoor, 50mm lens, shallow depth of field, lifestyle editorial, soft glow. Fully nude, complete nudity, no clothing, bare body anatomically correct. Solo intimate self-touch, explicit, anatomically correct, contemplative. f/1.8. 35mm. photographic. natural skin texture.",
+      "aspect_ratio": "portrait_23",
+      "width": 896,
+      "height": 1152
+    },
+    {
+      "export_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/007_series_9a1e3642f593_gonzalomo_chroma_v30_prompt_019_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00074_.png",
+      "original_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/series_9a1e3642f593_gonzalomo_chroma_v30_prompt_019_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00074_.png",
+      "seed": 0,
+      "quality_score": 0.571,
+      "aesthetic_score": 6.4,
+      "prompt_text": "A single adult woman alone in the scene. Tight framing on her face with bare breasts in frame. A confident woman stands in a vintage dressing room where golden hour light streams through an unseen window, catching her bare skin with warm intensity. She poses dynamically at eye level before a reflective mirror that captures both herself and the luminous atmosphere around her, her exposed chest illuminated by the front-facing illumination. The intimate setting and determined expression create a powerful, fine-art nude composition. Golden hour, warm rim-light, haze, natural outdoor, 50mm lens, shallow depth of field, lifestyle editorial, soft glow. Topless, bare chest, breasts and nipples visible, anatomically correct. Solo intimate self-touch, explicit, anatomically correct, contemplative. f/1.8. 35mm. photographic. natural skin texture.",
+      "aspect_ratio": "portrait_23",
+      "width": 896,
+      "height": 1152
+    },
+    {
+      "export_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/008_series_9a1e3642f593_gonzalomo_chroma_v30_prompt_001_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00056_.png",
+      "original_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/series_9a1e3642f593_gonzalomo_chroma_v30_prompt_001_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00056_.png",
+      "seed": 0,
+      "quality_score": 0.569,
+      "aesthetic_score": 6.11,
+      "prompt_text": "A single adult woman alone in the scene. She reclines on one elbow, her bare breasts and natural nipples illuminated by the warm afternoon sun. A nude woman reclines on a burgundy velvet chaise lounge, her body positioned to catch warm amber side light that traces the curves of her bare skin. Her thoughtful gaze drifts away from the camera as slanted studio rays illuminate her exposed form in intimate detail. The medium shot captures her from slightly above, emphasizing the elegant composition and sensual atmosphere. Golden hour, warm rim-light, haze, natural outdoor, 50mm lens, shallow depth of field, lifestyle editorial, soft glow. f/1.8. 35mm. photographic. natural skin texture.",
+      "aspect_ratio": "landscape",
+      "width": 1152,
+      "height": 896
+    },
+    {
+      "export_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/009_series_9a1e3642f593_gonzalomo_chroma_v30_prompt_018_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00073_.png",
+      "original_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/series_9a1e3642f593_gonzalomo_chroma_v30_prompt_018_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00073_.png",
+      "seed": 0,
+      "quality_score": 0.568,
+      "aesthetic_score": 6.1,
+      "prompt_text": "A single adult woman alone in the scene. Her bare breasts rise and fall with measured breaths. An adult woman kneels on a vintage studio floor surrounded by classic film equipment, side lighting casting dramatic shadows across her bare form while a fur stole drapes over a prop chair nearby. Her melancholic gaze lifts upward with artistic vulnerability as soft light illuminates her exposed skin and the authentic studio environment around her. Golden hour, warm rim-light, haze, natural outdoor, 50mm lens, shallow depth of field, lifestyle editorial, soft glow. Fully nude, complete nudity, no clothing, bare body anatomically correct. Solo intimate self-touch, explicit, anatomically correct, contemplative. f/1.8. 35mm. photographic. natural skin texture.",
+      "aspect_ratio": "portrait_23",
+      "width": 896,
+      "height": 1152
+    },
+    {
+      "export_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/010_series_9a1e3642f593_gonzalomo_chroma_v30_prompt_014_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00069_.png",
+      "original_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/series_9a1e3642f593_gonzalomo_chroma_v30_prompt_014_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00069_.png",
+      "seed": 0,
+      "quality_score": 0.565,
+      "aesthetic_score": 5.79,
+      "prompt_text": "A single adult woman alone in the scene. Her exposed vulva catches the golden light as she strikes an athletic pose. A fully nude woman strikes a dynamic pose at eye level with medium framing, her body caught in warm side light while a satin sheet pools around her feet on the studio floor. The luxurious texture of nearby fur over a director's chair enhances the artistic sensuality of the composition. Her passionate expression meets the camera directly as natural shadows define her bare form. Golden hour, warm rim-light, haze, natural outdoor, 50mm lens, shallow depth of field, lifestyle editorial, soft glow. f/1.8. 35mm. photographic. natural skin texture.",
+      "aspect_ratio": "portrait_23",
+      "width": 896,
+      "height": 1152
+    },
+    {
+      "export_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/011_series_9a1e3642f593_gonzalomo_chroma_v30_prompt_016_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00071_.png",
+      "original_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/series_9a1e3642f593_gonzalomo_chroma_v30_prompt_016_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00071_.png",
+      "seed": 0,
+      "quality_score": 0.565,
+      "aesthetic_score": 6.14,
+      "prompt_text": "A single adult woman alone in the scene. Her bare breasts illuminated by the warm afternoon sun. A fully nude woman stands with confident posture, her bare breasts and natural nipples visible as even golden light streams from the side, casting soft shadows along her chest and shoulders. She holds a serene, almost regal expression while posing before a vintage film clapboard resting against a wooden prop table in this classic and elegant fine-art photography setup. Golden hour, warm rim-light, haze, natural outdoor, 50mm lens, shallow depth of field, lifestyle editorial, soft glow. f/1.8. 35mm. photographic. natural skin texture.",
+      "aspect_ratio": "portrait_23",
+      "width": 896,
+      "height": 1152
+    },
+    {
+      "export_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/012_series_9a1e3642f593_gonzalomo_chroma_v30_prompt_020_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00075_.png",
+      "original_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/series_9a1e3642f593_gonzalomo_chroma_v30_prompt_020_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00075_.png",
+      "seed": 0,
+      "quality_score": 0.561,
+      "aesthetic_score": 6.22,
+      "prompt_text": "A single adult woman alone in the scene. Her full body reclined with bare vulva exposed to camera. A nude woman reclines expressively on a burgundy velvet chaise as golden hour light streams through the window behind her, creating a dramatic silhouette effect while simultaneously illuminating her bare skin with warm, sensual tones. The low camera angle emphasizes her form and the period film equipment in the background adds to the artistic atmosphere. Her passionate expression and slightly parted lips capture an intimate moment of raw emotion. Golden hour, warm rim-light, haze, natural outdoor, 50mm lens, shallow depth of field, lifestyle editorial, soft glow. Fully nude, complete nudity, no clothing, bare body anatomically correct. Solo intimate self-touch, explicit, anatomically correct, contemplative. f/1.8. 35mm. photographic. natural skin texture.",
+      "aspect_ratio": "landscape",
+      "width": 1152,
+      "height": 896
+    },
+    {
+      "export_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/013_series_9a1e3642f593_gonzalomo_chroma_v30_prompt_011_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00066_.png",
+      "original_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/series_9a1e3642f593_gonzalomo_chroma_v30_prompt_011_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00066_.png",
+      "seed": 0,
+      "quality_score": 0.56,
+      "aesthetic_score": 6.22,
+      "prompt_text": "A single adult woman alone in the scene. Tight framing on her face and exposed chest. An adult woman kneels with a thoughtful expression, golden side light carving dramatic shadows across her bare neck and chest while illuminating her natural breasts. The vintage film projector casts dancing dust motes through its beam, creating an artistic and contemplative atmosphere in this intimate fine-art nude composition. Golden hour, warm rim-light, haze, natural outdoor, 50mm lens, shallow depth of field, lifestyle editorial, soft glow. Topless, bare chest, breasts and nipples visible, anatomically correct. Solo intimate self-touch, explicit, anatomically correct, contemplative. f/1.8. 35mm. photographic. natural skin texture.",
+      "aspect_ratio": "portrait_23",
+      "width": 896,
+      "height": 1152
+    },
+    {
+      "export_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/014_series_9a1e3642f593_gonzalomo_chroma_v30_prompt_021_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00076_.png",
+      "original_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/series_9a1e3642f593_gonzalomo_chroma_v30_prompt_021_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00076_.png",
+      "seed": 0,
+      "quality_score": 0.559,
+      "aesthetic_score": 5.93,
+      "prompt_text": "A single adult woman alone in the scene. Her bare breasts catch the warm light beautifully. A confident woman stands with hands on her hips in a period film studio bathed in front-facing golden light that illuminates every curve of her nude body while casting gentle shadows beneath her collarbones and along her hips. The warm amber glow from vintage lighting grids creates an intimate, glamorous atmosphere around her bare form. She holds direct eye contact with a knowing smile, radiating self-assurance in this classic pin-up composition. Golden hour, warm rim-light, haze, natural outdoor, 50mm lens, shallow depth of field, lifestyle editorial, soft glow. Full frontal nude, complete nudity, bare breasts and visible vulva, anatomically correct, fine-art framing. Solo intimate self-touch, explicit, anatomically correct, contemplative. f/1.8. 35mm. photographic. natural skin texture.",
+      "aspect_ratio": "portrait_23",
+      "width": 896,
+      "height": 1152
+    },
+    {
+      "export_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/015_series_9a1e3642f593_gonzalomo_chroma_v30_prompt_009_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00064_.png",
+      "original_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/series_9a1e3642f593_gonzalomo_chroma_v30_prompt_009_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00064_.png",
+      "seed": 0,
+      "quality_score": 0.558,
+      "aesthetic_score": 6.05,
+      "prompt_text": "A single adult woman alone in the scene. Her mature body on full display in the soft, flattering light. A fully nude woman stands with commanding confidence beneath warm golden light streaming from high windows, her bare form illuminated evenly as she gazes upward with an authoritative presence. The vintage dressing room door frames her in its threshold, a period makeup table and mirror visible behind her. Golden hour, warm rim-light, haze, natural outdoor, 50mm lens, shallow depth of field, lifestyle editorial, soft glow. Fully nude, complete nudity, no clothing, bare body anatomically correct. Solo intimate self-touch, explicit, anatomically correct, contemplative. f/1.8. 35mm. photographic. natural skin texture.",
+      "aspect_ratio": "portrait_23",
+      "width": 896,
+      "height": 1152
+    },
+    {
+      "export_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/016_series_9a1e3642f593_gonzalomo_chroma_v30_prompt_003_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00058_.png",
+      "original_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/series_9a1e3642f593_gonzalomo_chroma_v30_prompt_003_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00058_.png",
+      "seed": 0,
+      "quality_score": 0.555,
+      "aesthetic_score": 5.88,
+      "prompt_text": "A single adult woman alone in the scene. She lounges with one leg bent, her bare vulva and labia catching the warm light. A fully nude adult woman lounges in golden backlight streaming through tall studio windows, creating an ethereal halo around her bare form as she gazes into the distance with a dreamy expression. A satin sheet drapes loosely across the polished floor beside her while a vintage fur stole rests artistically on a director's chair in the corner, establishing an atmosphere of luxurious sophistication and timeless elegance. Golden hour, warm rim-light, haze, natural outdoor, 50mm lens, shallow depth of field, lifestyle editorial, soft glow. Fully nude, complete nudity, no clothing, bare body anatomically correct. Solo intimate self-touch, explicit, anatomically correct, contemplative. f/1.8. 35mm. photographic. natural skin texture.",
+      "aspect_ratio": "portrait_916",
+      "width": 896,
+      "height": 1152
+    },
+    {
+      "export_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/017_series_9a1e3642f593_gonzalomo_chroma_v30_prompt_023_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00078_.png",
+      "original_path": "/Users/shuvajit/Dev/nsfw-pipeline/output/T4_explicit/series_9a1e3642f593/cydonia_heretic_24b/gonzalomo_chroma_v30/images/series_9a1e3642f593_gonzalomo_chroma_v30_prompt_023_gonzalomoChroma_v30.safetensors_2026-05-15-204203_107_00078_.png",
+      "seed": 0,
+      "quality_score": 0.555,
+      "aesthetic_score": 5.9,
+      "prompt_text": "A single adult woman alone in the scene. Extreme close-up of her face with bare breasts visible. A nude woman lounges at eye level, golden side light caressing her bare skin and highlighting every curve of her chest with intimate precision. The warm glow emphasizes the natural texture across her body while a weathered film script rests on a vintage desk in soft focus behind her. Her dreamy expression completes this luxurious, fine-art nude composition shot with shallow depth of field. Golden hour, warm rim-light, haze, natural outdoor, 50mm lens, shallow depth of field, lifestyle editorial, soft glow. Full frontal nude, complete nudity, bare breasts and visible vulva, anatomically correct, fine-art framing. Solo intimate self-touch, explicit, anatomically correct, contemplative. f/1.8. 35mm. photographic. natural skin texture.",
+      "aspect_ratio": "portrait_916",
+      "width": 896,
+      "height": 1152
+    }
+  ]
+}

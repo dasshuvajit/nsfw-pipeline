@@ -74,8 +74,7 @@ def _print_image_models(args: argparse.Namespace) -> int:
         guides[m.id] = loader.get_prompt_guide(m.id)
 
     headers = (
-        "id", "family", "sampler", "sched", "steps", "cfg",
-        "neg", "prompt_style", "ipa", "lora", "active", "notes",
+        "id", "family", "neg", "prompt_style", "active", "notes",
     )
     rows: list[tuple[str, ...]] = []
     for m in models:
@@ -83,14 +82,8 @@ def _print_image_models(args: argparse.Namespace) -> int:
         rows.append((
             m.id,
             m.family,
-            m.default_sampler,
-            m.default_scheduler,
-            str(m.default_steps),
-            f"{m.default_cfg:.1f}",
             "Y" if (g and g.supports_negative_prompt) else "N",
             g.prompt_style if g else "sdxl_keywords",
-            "Y" if m.supports_ipadapter else "N",
-            "Y" if m.supports_lora else "N",
             "Y" if m.active else "N",
             (m.notes or "")[:50],
         ))

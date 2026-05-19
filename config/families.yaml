@@ -23,6 +23,14 @@ families:
   # ── SDXL (Juggernaut, Lustify, Jib, MOP, Gonzalomo Photo) ──────────────
   sdxl:
     prompt_style: sdxl_keywords
+    # Per-family default render template + default render model
+    # (added 2026-05-20). Used by render_prompts.py when --templates is
+    # omitted. null means the user hasn't authored an external template
+    # for this family yet — render_prompts will require --templates and
+    # raise a clear error otherwise. Add a template under
+    # config/comfyui_workflows/templates/sdxl/ and point this at it.
+    default_render_model: null
+    default_template: null
     quality_prefix: []
     quality_suffix: []
     # Phase D — 7-axis negative taxonomy. Per-model YAMLs can extend or
@@ -176,6 +184,8 @@ families:
   # OUTDATED and produce visibly worse quality.
   pony:
     prompt_style: pony_danbooru
+    default_render_model: null
+    default_template: null
     quality_prefix:
       - score_9
       - score_8_up
@@ -325,6 +335,8 @@ families:
   # not "aware". Long negatives are strongly recommended.
   illustrious:
     prompt_style: illustrious_tags
+    default_render_model: null
+    default_template: null
     quality_prefix: []
     quality_suffix:
       - masterpiece
@@ -474,6 +486,8 @@ families:
   # T5-XXL encoder window is 512 on Dev. No weighting syntax.
   flux:
     prompt_style: flux_natural
+    default_render_model: null
+    default_template: null
     quality_prefix: []
     quality_suffix: []
     # CFG-distilled — negatives are no-ops; axes stay empty. Note
@@ -580,6 +594,8 @@ families:
   # License: FLUX NCL (non-commercial only for the 9B tier).
   flux2:
     prompt_style: flux2_prose
+    default_render_model: null
+    default_template: null
     quality_prefix: []
     quality_suffix: []
     # Klein 9B is distilled — no FluxGuidance, negatives ignored.
@@ -709,6 +725,10 @@ families:
   # T5 window is 256 (Schnell-derived), not 512.
   chroma:
     prompt_style: flux_natural
+    # Default render model + template for the chroma family (D6 + D7).
+    # render_prompts.py uses these when --models / --templates are omitted.
+    default_render_model: gonzalomo_chroma_v30
+    default_template: templates/chroma/gonzaLomo_Chroma_Refiner_v11.json
     quality_prefix: []
     quality_suffix: []
     # Negative-axis vocabulary aligned with the official ChromaPipeline

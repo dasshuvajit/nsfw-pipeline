@@ -1,7 +1,6 @@
 """Mode 3 — Style-based pipeline.
 
 ARCHITECTURE.md Section 9:
-  - IPAdapter OFF
   - Category from ``style_categories`` table (weighted random)
   - Content level influence is lighter (style keywords dominate prompt)
   - LLM generates *subjects* (not scenes) — each subject is a different
@@ -107,8 +106,8 @@ Style keywords should be concrete terms a diffusion model understands.
 
 ═══ AESTHETIC COHERENCE RULE ═══════════════════════════════════════
 The (color_palette, photographer_ref, art_movement) triple MUST
-form a coherent visual world. See examples in CharacterMode planner
-prompt. NEVER mix incompatible worlds.
+form a coherent visual world. See examples in the planner system prompt.
+NEVER mix incompatible worlds.
 
 Return ONLY the JSON object."""
 
@@ -212,7 +211,7 @@ class StyleMode(BaseMode):
         )
         # Phase 3 (vocab v6) — aesthetic-anchor menu narrowed by
         # style_profile + style-category compatibility lists.
-        from src.agents.series_planner import _resolve_aesthetic_menu
+        from src.prompt.aesthetic_menu import _resolve_aesthetic_menu
         style_profile_compat = {
             "compatible_palettes": ctx.style_profile.get(
                 "compatible_palettes", []

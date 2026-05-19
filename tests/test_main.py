@@ -70,7 +70,7 @@ class TestRunSafeThreading:
 
         main_module.run_safe(
             cfg, db_path,
-            force_mode="character",
+            force_mode="theme",
             force_level="T4_explicit",
             cli_llm_override="cydonia_heretic_24b",
         )

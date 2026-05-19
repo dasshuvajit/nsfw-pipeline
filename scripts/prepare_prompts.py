@@ -25,7 +25,7 @@ Usage:
     python scripts/prepare_prompts.py --mode character --level T2_implied
 
     # Multi-model fan-out (sibling-family models share facet rows)
-    python scripts/prepare_prompts.py --character char_001 --level T3_artnude \\
+    python scripts/prepare_prompts.py --mode theme --level T3_artnude \\
         --models juggernaut_ragnarok,chroma_v10HD
 
     # Re-target an existing series for a new model
@@ -70,10 +70,6 @@ from src.core.engine import (  # noqa: E402
     _load_style_profile,
 )
 from src.core.generation_context import build_context  # noqa: E402
-from src.memory.character_manager import (  # noqa: E402
-    CharacterManager,
-    CharacterNotFound,
-)
 
 
 def _parse_csv(value: str | None) -> list[str]:
@@ -204,26 +200,6 @@ def _build_baseline_ctx(
 
     content_rules = ContentLevelLoader(engine.db_path).load(effective_level)
 
-    # Character resolution (character mode + --character flag).
-    baseline_character: dict[str, Any] | None = None
-    if args.character:
-        if mode_name != "character":
-            # --character only meaningful in character mode; if mode was
-            # randomly chosen as something else, log + ignore.
-            logging.getLogger(__name__).info(
-                "--character given but mode is %r (not character); "
-                "character will be ignored for this run", mode_name,
-            )
-        else:
-            try:
-                baseline_character = CharacterManager(
-                    engine.db_path
-                ).get_character(args.character)
-            except CharacterNotFound as exc:
-                raise EngineError(
-                    f"--character {args.character!r} not found in DB: {exc}"
-                ) from exc
-
     # Baseline ctx uses the FIRST model in --models (but the per-target
     # loop in run_phase_a rebuilds per iteration, so this is mostly
     # cosmetic for new-series + plan/scene-gen). When --models is
@@ -252,11 +228,6 @@ def _build_baseline_ctx(
         raise EngineError(
             "_build_baseline_ctx requires non-empty models or families"
         )
-    if baseline_character and baseline_character.get("model_id"):
-        # If the character has its own preferred model, use that as
-        # baseline (matches run_cycle behavior).
-        baseline_model_id = baseline_character["model_id"]
-
     ctx = build_context(
         mode=mode_name,
         content_level=effective_level,
@@ -267,9 +238,6 @@ def _build_baseline_ctx(
         model_id=baseline_model_id,
         commercial_mode=engine._commercial_mode,
     )
-    if baseline_character is not None:
-        ctx.character = baseline_character
-        ctx.character_id = args.character
     return ctx
 
 
@@ -324,17 +292,9 @@ def main() -> int:
     )
     parser.add_argument(
         "--mode",
-        choices=["character", "theme", "style", "niche", "variation"],
+        choices=["theme", "style", "niche", "variation"],
         default=None,
         help="Pipeline mode (default: weighted random selection)",
-    )
-    parser.add_argument(
-        "--character",
-        default=None,
-        help=(
-            "Character id for character mode (default: LRU pick made by "
-            "CharacterMode.plan; here we don't pre-resolve it)"
-        ),
     )
     parser.add_argument(
         "--level",
@@ -509,7 +469,6 @@ def main() -> int:
             config=config,
             dry_run=False,  # we want real DB writes
             force_mode=args.mode,
-            force_character=args.character,
         )
         style_profile = _load_style_profile(engine.db_path, style_profile_id)
 

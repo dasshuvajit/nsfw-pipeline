@@ -16,9 +16,9 @@ comparison). When None, the mode resolves each role via the
 :class:`LLMRouter` it received at construction (override → routing →
 default chain).
 
-Mode implementations live in sibling files (``character_mode.py``,
-``theme_mode.py``, etc.) and are registered with the engine's
-``mode_registry`` dict.
+Mode implementations live in sibling files (``theme_mode.py``,
+``style_mode.py``, ``niche_mode.py``, ``variation_mode.py``) and are
+registered with the engine's ``mode_registry`` dict.
 
 See ARCHITECTURE.md Section 4 (Module Map) and Sections 7–11 (Modes).
 """
@@ -69,7 +69,7 @@ class BaseMode(ABC):
 
         Returns a dict with at least: ``theme``, ``mood``, ``environment``,
         ``variation_axes`` (list of strings). May also include mode-specific
-        keys (e.g. ``character_id`` for character mode).
+        keys (e.g. ``style_keywords`` for style mode).
 
         The engine stores this as JSON in ``series.llm_series_plan``.
         """

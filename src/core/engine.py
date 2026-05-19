@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import shutil
 import sqlite3
 import time
@@ -52,10 +53,8 @@ from src.core.ratio_selector import (
     get_resolution,
     model_resolution_overrides,
 )
-from src.core.style_profile_adapter import StyleProfileForWorkflow
 from src.export.exporter import Exporter
 from src.filter.set_builder import SetBuilder, SetTooSmall
-from src.memory.character_manager import CharacterManager, CharacterNotFound
 from src.memory.memory_manager import MemoryManager
 from src.memory.scene_facets_repo import (
     delete_facets_for_family,
@@ -64,7 +63,6 @@ from src.memory.scene_facets_repo import (
     insert_facet,
 )
 from src.modes.base_mode import BaseMode
-from src.modes.character_mode import CharacterMode
 from src.modes.niche_mode import NicheMode
 from src.modes.style_mode import StyleMode
 from src.modes.theme_mode import ThemeMode
@@ -86,8 +84,6 @@ from src.render.workflow_builder import (
     _assert_external_template_inputs,
     _resolve_template_path,
 )
-from src.postprocess.face_refiner import FaceRefiner, FaceRefineError
-from src.postprocess.upscaler import Upscaler, UpscaleError
 from src.postprocess.watermarker import Watermarker
 from src.review.supervisor import Supervisor, SupervisorAbort
 from src.scoring.image_scorer import ImageScorer
@@ -120,32 +116,35 @@ def _load_config() -> dict:
 def _extract_seed_from_workflow(workflow: dict[str, Any]) -> int:
     """Read the chosen render seed straight out of a built workflow dict.
 
-    Authoritative because ``WorkflowBuilder.build*`` patched the seed
-    field at build time; ComfyUI's history response does NOT carry the
-    seed back, so reading from the response gives 0 for renamed
+    Authoritative because ``WorkflowBuilder.build_external`` patched the
+    seed field at build time; ComfyUI's history response does NOT carry
+    the seed back, so reading from the response gives 0 for renamed
     semantic-ID ksampler nodes (the bug this helper fixes).
 
-    Family/template seed locations:
-      * ``ksampler.inputs.seed`` — SDXL, Pony, Illustrious, Flux, Flux.2,
-        and every external template (per ``_REQUIRED_NODES_EXTERNAL``).
-      * ``random_noise.inputs.noise_seed`` — Chroma's built-in
-        ``base.json`` (CFGGuider + SamplerCustomAdvanced graph).
-
-    Returns 0 only when neither node is present — that's a defensive
-    fallback for a hand-crafted template that omits both. Callers can
-    treat 0 as "seed unrecoverable" rather than a real seed value.
+    Every external template carries ``ksampler.inputs.seed`` per
+    ``_REQUIRED_NODES_EXTERNAL``. Returns 0 when the field isn't an
+    integer — defensive fallback only; the preflight rejects templates
+    without ``ksampler.inputs.seed`` so this branch should be unreachable.
     """
     if "ksampler" in workflow:
         inputs = workflow["ksampler"].get("inputs", {})
         seed = inputs.get("seed")
         if isinstance(seed, int):
             return seed
-    if "random_noise" in workflow:
-        inputs = workflow["random_noise"].get("inputs", {})
-        seed = inputs.get("noise_seed")
-        if isinstance(seed, int):
-            return seed
     return 0
+
+
+# Family-match validator — extracts the family from a resolved template
+# path. Expects paths like ``templates/<family>/X.json`` (relative) or
+# ``/abs/.../templates/<family>/X.json`` (absolute). Returns None when
+# the path falls outside the convention — caller treats None as
+# "family unknown, skip the check" rather than raising.
+_TEMPLATE_FAMILY_RE = re.compile(r"templates[/\\]([a-z0-9_]+)[/\\]")
+
+
+def _extract_family_from_template_path(path: str) -> str | None:
+    m = _TEMPLATE_FAMILY_RE.search(path)
+    return m.group(1) if m else None
 
 
 def _model_subfolder(family: str) -> str:
@@ -232,9 +231,8 @@ class PipelineEngine:
     model_override : str | None
         Override model_id from CLI.
     force_mode : str | None
-        Force a specific mode (default: character).
-    force_character : str | None
-        Force a specific character id.
+        Force a specific mode (weighted random across {theme,style,niche,
+        variation} by default).
     """
 
     def __init__(
@@ -245,7 +243,6 @@ class PipelineEngine:
         dry_run: bool = False,
         model_override: str | None = None,
         force_mode: str | None = None,
-        force_character: str | None = None,
         template_override: str | None = None,
     ) -> None:
         self.config = config or _load_config()
@@ -253,7 +250,6 @@ class PipelineEngine:
         self.dry_run = dry_run
         self.model_override = model_override
         self.force_mode = force_mode
-        self.force_character = force_character
         self.template_override = template_override
 
         # Fail fast on a typo'd --model rather than surfacing it mid-
@@ -308,13 +304,11 @@ class PipelineEngine:
             auto_approve=(self.execution_mode != "supervised" or self.dry_run)
         )
 
-        # Mode registry — all 5 modes per ARCHITECTURE.md Sections 7–11.
-        # Each mode receives the LLMRouter so its plan() / generate_scenes()
-        # can resolve role → ollama_id with the override→routing→default
-        # chain. Without this, per-role routing only fires for the
-        # SceneFacetGenerator (which the engine resolves directly).
+        # Mode registry — 4 surviving modes after the 2026-05-20 cleanup
+        # (character mode deleted entirely). Each mode receives the
+        # LLMRouter so its plan() / generate_scenes() can resolve
+        # role → ollama_id with the override→routing→default chain.
         self._mode_registry: dict[str, BaseMode] = {
-            "character": CharacterMode(self.llm_client, self._llm_router),
             "theme": ThemeMode(self.llm_client, self._llm_router),
             "style": StyleMode(self.llm_client, self._llm_router),
             "niche": NicheMode(self.llm_client, self._llm_router),
@@ -327,9 +321,10 @@ class PipelineEngine:
         self.comfy_output_dir = Path(
             comfy_cfg.get("output_dir", "~/AI/apps/ComfyUI/output")
         ).expanduser()
-        self.comfy_input_dir = Path(
-            comfy_cfg.get("input_dir", "~/AI/apps/ComfyUI/input")
-        ).expanduser()
+        # input_dir is reserved for future LoadImage-style nodes inside
+        # external templates. After the 2026-05-20 cleanup (IPAdapter +
+        # postprocess Upscaler/FaceRefiner all deleted), no current code
+        # path writes here, but the YAML key is preserved.
         self.workflow_dir = _PROJECT_ROOT / comfy_cfg.get(
             "workflow_dir", "config/comfyui_workflows"
         )
@@ -339,12 +334,8 @@ class PipelineEngine:
         set_cfg = self.config.get("set_builder", {})
         self.quality_cutoff = set_cfg.get("quality_cutoff", 0.55)
 
-        # Postprocess config
-        pp_cfg = self.config.get("postprocess", {})
-        self.upscale_enabled = pp_cfg.get("upscale_enabled", False)
-        self.face_refine_enabled = pp_cfg.get("face_refine_enabled", False)
-        self.upscale_model = pp_cfg.get("upscale_model", "4x-UltraSharp.pth")
-        self.face_denoise = pp_cfg.get("face_denoise", 0.35)
+        # Postprocess subsystem deleted 2026-05-20. Post-processing
+        # (upscale, face-detailer) goes inside external templates now.
 
         # Scoring config — Phase G adds opt-in HPS v2 + ImageReward.
         score_cfg = self.config.get("scoring", {})
@@ -420,23 +411,13 @@ class PipelineEngine:
         style_profile = _load_style_profile(self.db_path, style_profile_id)
         content_rules = ContentLevelLoader(self.db_path).load(content_level)
 
-        # Resolve baseline model_id: character row (if character mode +
-        # forced) > pipeline.default_model_id. --model CLI override is
-        # applied inside build_context.
-        baseline_character: dict[str, Any] | None = None
-        if self.force_character and mode_name == "character":
-            baseline_character = CharacterManager(self.db_path).get_character(
-                self.force_character
-            )
-
+        # Resolve baseline model_id from pipeline.default_model_id.
+        # --model CLI override is applied inside build_context.
         default_model_id = pipe_cfg.get("default_model_id")
         if not default_model_id:
             raise EngineError(
                 "pipeline.default_model_id is not set in config/pipeline.yaml"
             )
-        resolved_model_id = (
-            (baseline_character or {}).get("model_id") or default_model_id
-        )
 
         ctx = build_context(
             mode=mode_name,
@@ -445,13 +426,10 @@ class PipelineEngine:
             style_profile=style_profile,
             content_rules=content_rules,
             db_path=self.db_path,
-            model_id=resolved_model_id,
+            model_id=default_model_id,
             model_override=self.model_override,
             commercial_mode=self._commercial_mode,
         )
-        if baseline_character is not None:
-            ctx.character = baseline_character
-            ctx.character_id = self.force_character
 
         logger.info(
             "Pipeline cycle: mode=%s, level=%s, model=%s (%s), exec=%s",
@@ -805,11 +783,6 @@ class PipelineEngine:
                     f"{target_id!r}: {exc}"
                 ) from exc
 
-            # Carry over character from baseline ctx.
-            if ctx.character is not None:
-                model_ctx.character = ctx.character
-                model_ctx.character_id = ctx.character_id
-
             family = model_ctx.family
             guide = model_ctx.model_prompt_guide
 
@@ -938,10 +911,12 @@ class PipelineEngine:
                 for k in ("scene_id", "family", "created_at"):
                     scene_with_facet.pop(k, None)
 
-                # Step 3: resolve character (synthetic for non-character modes).
-                scene_character = self._resolve_character_for_scene(
-                    mode_name=model_ctx.mode,
-                    base_character=model_ctx.character,
+                # Step 3: resolve synthetic character context for the
+                # composer. Character mode was deleted in the 2026-05-20
+                # cleanup; every surviving mode (theme/style/niche/
+                # variation) produces synthetic character data from the
+                # series plan + scene fields.
+                scene_character = self._synthetic_character_for_scene(
                     series_plan=series_plan,
                     style_profile=style_profile,
                     scene=scene,
@@ -1059,7 +1034,6 @@ class PipelineEngine:
                 approved = self.supervisor.approve_plan(
                     mode=model_ctx.mode,
                     content_level=model_ctx.content_level,
-                    character_id=model_ctx.character_id,
                     model_id=target_id,
                     series_plan=series_plan,
                     scenes=scenes,
@@ -1197,7 +1171,6 @@ class PipelineEngine:
             content_level = series_row["content_level"]
             style_profile_id = series_row["style_profile_id"]
             mode_name = series_row["mode"]
-            character_id = series_row["character_id"]
 
             # Reload scenes (model-agnostic).
             scenes_query = "SELECT * FROM scenes WHERE series_id = ?"
@@ -1251,22 +1224,10 @@ class PipelineEngine:
         # ── 3. Rebuild ctx for the TARGET model ─────────────────────
         # The target model may differ from the model used to create
         # the series — that's the whole point of multi-model rendering.
-        character: dict[str, Any] | None = None
-        if character_id:
-            try:
-                character = CharacterManager(self.db_path).get_character(
-                    character_id
-                )
-            except CharacterNotFound:
-                logger.warning(
-                    "character_id %r referenced by series %r not found",
-                    character_id, series_id,
-                )
-
         # Render-time ctx uses the CHECKPOINT model (which equals
         # model_id for target_kind='model', or render_model_id for
         # target_kind='family'). The render workflow needs a concrete
-        # model_config for sampler/cfg/checkpoint/family lookups.
+        # model_config for the family/checkpoint lookup.
         ctx = build_context(
             mode=mode_name,
             content_level=content_level,
@@ -1277,12 +1238,8 @@ class PipelineEngine:
             model_id=checkpoint_model_id,
             commercial_mode=self._commercial_mode,
         )
-        if character is not None:
-            ctx.character = character
-            ctx.character_id = character_id
 
-        # ── 4. Render-time preflight (checkpoint / workflow JSON /
-        # IPAdapter / external-template) ────────────────────────────
+        # ── 4. Render-time preflight (checkpoint / external-template) ─
         # Fail fast BEFORE memory/status work — a missing checkpoint
         # is cheaper to surface here than to crash inside ComfyUI.
         self._preflight_phase_b(ctx)
@@ -1319,70 +1276,11 @@ class PipelineEngine:
                 scene["resolution_w"] = res[0]
                 scene["resolution_h"] = res[1]
 
-        # ── 7. Build StyleProfileForWorkflow ────────────────────────
-        style_for_wf = StyleProfileForWorkflow(style_profile, ctx.model_config)
-
-        # ── 8. IPAdapter staging ────────────────────────────────────
-        # Same logic as before — character mode (model + reference) or
-        # variation mode inheriting from a character series. Disabled
-        # entirely under --template (external workflow is authoritative).
-        use_ipadapter = False
-        ipadapter_basename: str | None = None
-
-        if template_override:
-            if isinstance(mode, CharacterMode) and ctx.character and (
-                ctx.character.get("reference_image_path")
-            ):
-                logger.info(
-                    "external_template: IPAdapter disabled (template "
-                    "owns the workflow). Reference image for character "
-                    "%r ignored.", ctx.character_id,
-                )
-        elif isinstance(mode, CharacterMode) and mode.use_ipadapter(ctx):
-            ref_path = mode.get_reference_image_path(ctx)
-            if ref_path:
-                full_ref = _PROJECT_ROOT / ref_path
-                if full_ref.exists():
-                    dst = self.comfy_input_dir / full_ref.name
-                    shutil.copy2(full_ref, dst)
-                    ipadapter_basename = full_ref.name
-                    use_ipadapter = True
-                    logger.info("IPAdapter: staged %s → %s", ref_path, dst)
-                else:
-                    logger.warning(
-                        "IPAdapter: reference image not found: %s", full_ref,
-                    )
-
-        # Variation mode inherits character ref from the source series'
-        # llm_series_plan JSON (loaded above).
-        if (
-            not template_override
-            and isinstance(mode, VariationMode)
-            and ctx.supports_ipadapter
-        ):
-            source_mode = series_plan.get("source_mode", "")
-            var_char_id = series_plan.get("character_id")
-            if source_mode == "character" and var_char_id:
-                try:
-                    cm = CharacterManager(self.db_path)
-                    char = cm.get_character(var_char_id)
-                    ref_path = char.get("reference_image_path")
-                    if ref_path:
-                        full_ref = _PROJECT_ROOT / ref_path
-                        if full_ref.exists():
-                            dst = self.comfy_input_dir / full_ref.name
-                            shutil.copy2(full_ref, dst)
-                            ipadapter_basename = full_ref.name
-                            use_ipadapter = True
-                            logger.info(
-                                "IPAdapter (variation→character): staged "
-                                "%s for %s", ref_path, var_char_id,
-                            )
-                except Exception as exc:
-                    logger.warning(
-                        "IPAdapter (variation): failed for %s: %s",
-                        var_char_id, exc,
-                    )
+        # StyleProfileForWorkflow + IPAdapter staging removed in the
+        # 2026-05-20 cleanup. External templates carry their own sampler
+        # / scheduler / steps / cfg / VAE / CLIP / LoRA / IPAdapter
+        # wiring; the pipeline only injects positive/negative prompt
+        # text + seed + resolution.
 
         # ── 9. Render loop ──────────────────────────────────────────
         wf_builder = WorkflowBuilder(self.workflow_dir)
@@ -1415,26 +1313,33 @@ class PipelineEngine:
             resolution = (scene["resolution_w"], scene["resolution_h"])
 
             try:
-                if template_override:
-                    resolved_template = _resolve_template_path(
-                        template_override, self.workflow_dir, _PROJECT_ROOT,
+                # Resolve the template: explicit --templates override
+                # wins, otherwise fall back to the per-family default
+                # from families.yaml. Mismatched family raises a clean
+                # error so an sdxl prompt can't be rendered through a
+                # flux template.
+                resolved_template = self._resolve_template_for_render(
+                    family_id=target_family_id,
+                    override=template_override,
+                )
+                # Family-match validator — convention-only (raises only
+                # when the template path follows `templates/<family>/`
+                # AND the extracted family disagrees with the prompt's
+                # family). Out-of-convention paths skip the check.
+                tf = _extract_family_from_template_path(resolved_template)
+                if tf is not None and tf != target_family_id:
+                    raise EngineError(
+                        f"Template {resolved_template!r} belongs to "
+                        f"family {tf!r} but prompt is for family "
+                        f"{target_family_id!r}. Render mismatched "
+                        f"families is not supported."
                     )
-                    workflow = wf_builder.build_external(
-                        external_template=resolved_template,
-                        prompt_text=prompt["prompt_text"],
-                        negative_prompt=prompt["negative_prompt"],
-                        resolution=resolution,
-                    )
-                else:
-                    workflow = wf_builder.build(
-                        prompt_text=prompt["prompt_text"],
-                        negative_prompt=prompt["negative_prompt"],
-                        style_profile=style_for_wf,
-                        resolution=resolution,
-                        ipadapter_image=(
-                            ipadapter_basename if use_ipadapter else None
-                        ),
-                    )
+                workflow = wf_builder.build_external(
+                    external_template=resolved_template,
+                    prompt_text=prompt["prompt_text"],
+                    negative_prompt=prompt["negative_prompt"],
+                    resolution=resolution,
+                )
             except WorkflowTemplateError as exc:
                 logger.error("Workflow build failed: %s", exc)
                 continue
@@ -1501,11 +1406,12 @@ class PipelineEngine:
                 # metadata chunks so the file carries its own
                 # reproduction parameters even if disconnected from
                 # the SQLite DB.
-                # GenerationContext exposes the resolved model row as
-                # ``ctx.model_config`` (a ModelRegistryEntry), and the
-                # family is reachable as ``ctx.family``. Read the
-                # render-tuning defaults straight off model_config so
-                # PNG metadata captures the actual sampler/cfg/steps.
+                # After the 2026-05-20 cleanup, sampler/scheduler/steps/
+                # cfg live ONLY in the external-template JSON (model
+                # YAMLs no longer carry default_sampler etc.). Defensive
+                # `.get()` chain — missing keys produce a degraded
+                # A1111 string but do not block the render.
+                ks_inputs = workflow.get("ksampler", {}).get("inputs", {}) or {}
                 self._embed_png_metadata(
                     dst_path,
                     prompt=prompt,
@@ -1516,11 +1422,11 @@ class PipelineEngine:
                     scene=scene,
                     content_level=content_level,
                     family_id=target_family_id,
-                    sampler=ctx.model_config.default_sampler,
-                    scheduler=ctx.model_config.default_scheduler,
-                    steps=ctx.model_config.default_steps,
-                    cfg=ctx.model_config.default_cfg,
-                    clip_skip=ctx.model_config.default_clip_skip,
+                    sampler=ks_inputs.get("sampler_name"),
+                    scheduler=ks_inputs.get("scheduler"),
+                    steps=ks_inputs.get("steps"),
+                    cfg=ks_inputs.get("cfg"),
+                    clip_skip=None,  # no fixed node home in external templates
                     target_kind=target_kind,
                     render_model_id=(
                         checkpoint_model_id
@@ -1595,34 +1501,11 @@ class PipelineEngine:
                 img["image_reward_score"] = None
                 img["quality_flags"] = ["scorer_error"]
 
-        # ── 11. Postprocess ─────────────────────────────────────────
-        if self.upscale_enabled and not self.dry_run:
-            logger.info(
-                "Postprocess: upscaling %d images …", len(rendered_images),
-            )
-            try:
-                upscaler = Upscaler(
-                    self.workflow_dir, comfy_client, self.comfy_input_dir,
-                    family_id=target_family_id or "sdxl",
-                    upscale_model=self.upscale_model,
-                )
-                upscaler.upscale_batch(rendered_images)
-            except UpscaleError as exc:
-                logger.warning("Upscale pipeline error: %s", exc)
-
-        if self.face_refine_enabled and not self.dry_run:
-            logger.info(
-                "Postprocess: face refinement on %d images …",
-                len(rendered_images),
-            )
-            try:
-                refiner = FaceRefiner(
-                    self.workflow_dir, comfy_client, self.comfy_input_dir,
-                    denoise_strength=self.face_denoise,
-                )
-                refiner.refine_batch(rendered_images)
-            except FaceRefineError as exc:
-                logger.warning("Face refine pipeline error: %s", exc)
+        # Postprocess subsystem (Upscaler + FaceRefiner) deleted in the
+        # 2026-05-20 cleanup. Post-processing (upscale, face-detailer)
+        # goes inside external templates from now on — see
+        # gonzaLomo_Chroma_Refiner_v11.json for an example that wires
+        # an SDXL refiner stage + FaceDetailer after the Chroma base.
 
         # ── 12. Supervised pause 2 (image review) ───────────────────
         if ctx.execution_mode == "supervised":
@@ -1749,7 +1632,7 @@ class PipelineEngine:
                 theme=series_plan.get("theme", ""),
                 mood=series_plan.get("mood", ""),
                 environment=series_plan.get("environment", ""),
-                character_name=ctx.character_id or "",
+                character_name="",  # character mode removed 2026-05-20
                 content_level=content_level,
                 image_count=len(selected),
                 style_keywords=style_profile.get("base_style_keywords", ""),
@@ -1791,16 +1674,7 @@ class PipelineEngine:
         self.memory.record_series(
             series_plan, scenes, prompts,
             content_level=content_level,
-            character_id=ctx.character_id,
         )
-
-        # Update character usage
-        if ctx.character_id:
-            try:
-                cm = CharacterManager(self.db_path)
-                cm.update_usage(ctx.character_id, len(selected))
-            except Exception as exc:
-                logger.warning("Failed to update character usage: %s", exc)
 
         self._update_series_status(series_id, "complete")
 
@@ -1859,46 +1733,28 @@ class PipelineEngine:
         logger.info("Preflight (Phase A): Ollama reachable")
 
     def _preflight_phase_b(self, ctx: GenerationContext) -> None:
-        """Phase B (render) preflight — checkpoint, workflow, IPAdapter.
+        """Phase B (render) preflight — checkpoint + external template.
 
-        Two branches:
+        After the 2026-05-20 cleanup, rendering ONLY goes through
+        external templates (built-in `<family>/base.json` deleted).
+        Two checks:
 
-        * **System-template path** (default, ``--template`` not set):
-          checkpoint file, ``{family}/base.json``, and IPAdapter-
-          capability compatibility for character mode with a reference
-          image.
-        * **External-template path** (``--template`` set): skip the
-          system-path checks (the external graph ships its own
-          checkpoint, its own graph file, and IPAdapter is forced off);
-          instead validate that the external template is loadable and
-          carries the four contracted semantic IDs with the right
-          input fields.
+        1. **Checkpoint file** — the `.safetensors` / `.gguf` file
+           declared on the model YAML exists on disk in
+           `~/AI/apps/ComfyUI/models/<family>/<filename>`. This is
+           independent of the template (the template references the
+           checkpoint by name).
+        2. **External template** — load + validate the 4-node contract
+           + refiner-pair consistency. Template path comes from
+           `--templates` override OR the family's `default_template`
+           in `config/families.yaml`.
 
         Aggregates errors so the user sees every missing-file issue
         at once instead of one-at-a-time.
         """
         errors: list[str] = []
-        if self.template_override:
-            errors.extend(self._preflight_external_template(ctx))
-        else:
-            errors.extend(self._preflight_system_template(ctx))
 
-        if errors:
-            msg = "Preflight check(s) failed:\n" + "\n".join(
-                f"  - {e}" for e in errors
-            )
-            raise PreflightError(msg)
-
-        logger.info("Preflight (Phase B): all render-time checks passed")
-
-    def _preflight_system_template(
-        self, ctx: GenerationContext,
-    ) -> list[str]:
-        """Checks that apply when the pipeline renders through its own
-        built-in ``{family}/base.json`` or ``{family}/ipadapter.json``."""
-        errors: list[str] = []
-
-        # 2. Model checkpoint file exists.
+        # Checkpoint file existence (independent of template).
         model_dir = (
             self.comfy_output_dir.parent
             / "models"
@@ -1911,57 +1767,11 @@ class PipelineEngine:
                 f"Download {ctx.model_config.filename} to {model_dir}/"
             )
 
-        # 3. Workflow JSON exists.
-        family = ctx.model_config.family
-        base_workflow = self.workflow_dir / family / "base.json"
-        if not base_workflow.exists():
-            errors.append(
-                f"Workflow template not found: {base_workflow}\n"
-                f"See docs/COMFYUI_WORKFLOWS.md → {family}/base.json"
-            )
-
-        # 4. IPAdapter check for character mode.
-        if ctx.mode == "character" and ctx.character:
-            ref = ctx.character.get("reference_image_path")
-            if ref and not ctx.supports_ipadapter:
-                errors.append(
-                    f"Character {ctx.character_id} has a reference image but "
-                    f"model {ctx.model_id} does not support IPAdapter. "
-                    f"Pick a different model or remove the reference image."
-                )
-            # 4b. When IPAdapter WOULD be used, require the ipadapter
-            # template file. Pre-existing gap: without this, the
-            # character-with-ref-image run burned 20+ min of Phase A
-            # before failing at the first render when the file was
-            # missing. Gated on supports_ipadapter to avoid noise.
-            if ref and ctx.supports_ipadapter:
-                ipadapter_workflow = (
-                    self.workflow_dir / family / "ipadapter.json"
-                )
-                if not ipadapter_workflow.exists():
-                    errors.append(
-                        f"IPAdapter workflow template not found: "
-                        f"{ipadapter_workflow}\n"
-                        f"Character {ctx.character_id} has a reference "
-                        f"image and model {ctx.model_id} supports "
-                        f"IPAdapter, so the pipeline will try to render "
-                        f"through {family}/ipadapter.json. Create that "
-                        f"template or remove the reference image."
-                    )
-
-        return errors
-
-    def _preflight_external_template(
-        self, ctx: GenerationContext,
-    ) -> list[str]:
-        """Validate the ``--template`` path. Skips system-path checks
-        (checkpoint file, ``{family}/base.json``, IPAdapter capability)
-        because the external template ships its own graph and IPAdapter
-        is forced off for this run."""
-        errors: list[str] = []
+        # External-template validation (resolved via override or family default).
         try:
-            resolved = _resolve_template_path(
-                self.template_override, self.workflow_dir, _PROJECT_ROOT,
+            resolved = self._resolve_template_for_render(
+                family_id=ctx.model_config.family,
+                override=self.template_override,
             )
             wf_builder = WorkflowBuilder(self.workflow_dir)
             workflow = wf_builder._load(resolved)
@@ -1971,11 +1781,60 @@ class PipelineEngine:
                 _REQUIRED_NODES_EXTERNAL,
             )
             _assert_external_template_inputs(workflow, template_name)
+            # Family-match check — only when the path follows the
+            # `templates/<family>/X.json` convention. Out-of-convention
+            # paths skip the check (user gets the runtime error from
+            # the build_external call instead).
+            tf = _extract_family_from_template_path(resolved)
+            if tf is not None and tf != ctx.model_config.family:
+                errors.append(
+                    f"Template {resolved!r} belongs to family {tf!r} but "
+                    f"prompt is for family {ctx.model_config.family!r}. "
+                    f"Render mismatched families is not supported."
+                )
         except WorkflowTemplateError as exc:
-            errors.append(f"--template validation failed: {exc}")
+            errors.append(f"Template validation failed: {exc}")
+        except EngineError as exc:
+            errors.append(str(exc))
         except Exception as exc:
-            errors.append(f"--template validation failed: {exc!r}")
-        return errors
+            errors.append(f"Template validation failed: {exc!r}")
+
+        if errors:
+            msg = "Preflight check(s) failed:\n" + "\n".join(
+                f"  - {e}" for e in errors
+            )
+            raise PreflightError(msg)
+
+        logger.info("Preflight (Phase B): all render-time checks passed")
+
+    def _resolve_template_for_render(
+        self, *, family_id: str, override: str | None,
+    ) -> str:
+        """Resolve the template path for a render: explicit ``--templates``
+        override wins; otherwise fall back to the family's
+        ``default_template`` from ``config/families.yaml``.
+
+        Raises ``EngineError`` when neither is set — no silent fallback
+        to a "system default" since system templates were deleted in the
+        2026-05-20 cleanup.
+        """
+        if override:
+            return _resolve_template_path(
+                override, self.workflow_dir, _PROJECT_ROOT,
+            )
+        # Look up family default
+        from src.memory.family_loader import FamilyLoader
+        fam = FamilyLoader().get_family(family_id)
+        default = getattr(fam, "default_template", None)
+        if default:
+            return _resolve_template_path(
+                default, self.workflow_dir, _PROJECT_ROOT,
+            )
+        raise EngineError(
+            f"No default template set for family {family_id!r}. "
+            f"Set families.yaml::{family_id}::default_template or pass "
+            f"--templates <path>."
+        )
 
     def _memory_preflight(self, min_free_gb: float = 14.0) -> None:
         """Check that enough memory is free for the render phase."""
@@ -2171,16 +2030,15 @@ class PipelineEngine:
             conn.execute(
                 """
                 INSERT INTO series (
-                    id, mode, content_level, character_id, style_profile_id,
+                    id, mode, content_level, style_profile_id,
                     theme, mood, environment, variation_axes, target_count,
                     actual_count, status, llm_series_plan
-                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
                 """,
                 (
                     series_id,
                     ctx.mode,
                     ctx.content_level,
-                    ctx.character_id,
                     style_profile_id,
                     series_plan.get("theme", ""),
                     series_plan.get("mood"),
@@ -2384,52 +2242,44 @@ class PipelineEngine:
         return series_plan, scenes
 
     @staticmethod
-    def _resolve_character_for_scene(
+    def _synthetic_character_for_scene(
         *,
-        mode_name: str,
-        base_character: dict[str, Any] | None,
         series_plan: dict[str, Any],
         style_profile: dict[str, Any],
         scene: dict[str, Any],
     ) -> dict[str, Any]:
-        """Build the character dict the PromptBuilder needs for this scene.
+        """Build the synthetic character dict the PromptBuilder needs.
 
-        Character mode → use the loaded character row.
-        Theme/style/niche → synthesize from subject_description /
-            subject_detail / subject_bias (per-scene override possible
-            via ``scene["subject_detail"]``).
-        Variation → use base_character (the source series's character)
-            if present.
+        After the 2026-05-20 cleanup (character mode deleted), every
+        surviving mode (theme/style/niche/variation) produces a
+        synthetic character context from the series plan + scene fields.
+        Per-scene `subject_detail` overrides the series-level
+        `subject_description` / `subject_bias` when present.
 
-        Returns a dict with at minimum ``base_prompt`` and
-        ``negative_prompt`` keys.
+        Returns a dict with `base_prompt` + `negative_prompt` keys.
         """
-        if mode_name == "character" and base_character:
-            return base_character
-
-        # Synthetic character for non-character modes.
+        # Per-scene override wins when present.
+        sd = scene.get("subject_detail", "") if scene else ""
+        if sd:
+            return {
+                "base_prompt": sd,
+                "negative_prompt": style_profile.get(
+                    "base_negative_prompt", ""
+                ),
+            }
         subject = (
             series_plan.get("subject_description")
             or series_plan.get("subject_bias")
             or ""
         )
-        if mode_name == "style" and series_plan.get("style_keywords"):
+        # Style mode prepends style_keywords for an extra style anchor.
+        if series_plan.get("style_keywords"):
             sk = series_plan["style_keywords"]
             subject = f"{sk}, {subject}" if subject else sk
-        synthetic = {
+        return {
             "base_prompt": subject,
             "negative_prompt": style_profile.get("base_negative_prompt", ""),
         }
-
-        # Per-scene override for theme/style/niche.
-        if mode_name in ("theme", "style", "niche"):
-            sd = scene.get("subject_detail", "")
-            if sd:
-                return {
-                    "base_prompt": sd,
-                    "negative_prompt": synthetic["negative_prompt"],
-                }
-        return synthetic
 
     def _save_scene_facets(
         self,
@@ -2572,7 +2422,6 @@ class PipelineEngine:
         print(f"  Series ID:      {series_id}")
         print(f"  Mode:           {ctx.mode}")
         print(f"  Content level:  {ctx.content_level}")
-        print(f"  Character:      {ctx.character_id or '(none)'}")
         print(f"  Model:          {ctx.model_id} ({ctx.model_config.family})")
         print(f"  Execution:      {ctx.execution_mode}")
         print(f"\n  Series Plan:")
@@ -2619,7 +2468,6 @@ class PipelineEngine:
             "status": "dry_run",
             "mode": ctx.mode,
             "content_level": ctx.content_level,
-            "character_id": ctx.character_id,
             "model_id": ctx.model_id,
             "theme": series_plan.get("theme"),
             "scenes": len(scenes),

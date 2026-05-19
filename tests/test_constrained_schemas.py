@@ -17,7 +17,6 @@ import pytest
 from pydantic import ValidationError
 
 from src.agents.schemas import (
-    CharacterSchema,
     MetadataSchema,
     Scene,
     SceneList,
@@ -110,57 +109,8 @@ class TestMetadataSchema:
         assert m.title == "Valid Title"
 
 
-# ── CharacterSchema ──────────────────────────────────────────────────
-class TestCharacterSchema:
-    _VALID = {
-        "gender": "female",
-        "age_appearance": "late 20s",
-        "face": "oval face, sharp jawline, almond eyes",
-        "hair": "long dark brown wavy hair",
-        "body_type": "slim athletic",
-        "distinguishing_features": "light freckles across nose",
-        "vibe": "soft elegant",
-    }
+# CharacterSchema removed 2026-05-20 with character mode
 
-    def test_valid_character_round_trips(self):
-        c = CharacterSchema.model_validate(self._VALID)
-        assert c.gender == "female"
-        assert c.face.startswith("oval face")
-
-    def test_face_too_short_rejected(self):
-        bad = {**self._VALID, "face": "nice"}
-        with pytest.raises(ValidationError, match="face"):
-            CharacterSchema.model_validate(bad)
-
-    def test_hair_too_short_rejected(self):
-        bad = {**self._VALID, "hair": "blonde"}
-        with pytest.raises(ValidationError, match="hair"):
-            CharacterSchema.model_validate(bad)
-
-    def test_body_type_too_short_rejected(self):
-        bad = {**self._VALID, "body_type": "fit"}
-        with pytest.raises(ValidationError, match="body_type"):
-            CharacterSchema.model_validate(bad)
-
-    def test_vibe_too_short_rejected(self):
-        bad = {**self._VALID, "vibe": "yes"}
-        with pytest.raises(ValidationError, match="vibe"):
-            CharacterSchema.model_validate(bad)
-
-    def test_gender_normalised_lowercase(self):
-        bad = {**self._VALID, "gender": "FEMALE  "}
-        c = CharacterSchema.model_validate(bad)
-        assert c.gender == "female"
-
-    def test_blank_gender_rejected(self):
-        bad = {**self._VALID, "gender": "   "}
-        with pytest.raises(ValidationError, match="gender"):
-            CharacterSchema.model_validate(bad)
-
-    def test_extra_fields_allowed(self):
-        bad = {**self._VALID, "personality": "shy and curious"}
-        c = CharacterSchema.model_validate(bad)
-        assert c.face == self._VALID["face"]
 
 
 # ── SceneList sanity (already used by SceneGenerator) ────────────────

@@ -3,15 +3,6 @@ display_name: GonzalomoXL Flux v3.0
 filename: gonzalomoXLFluxPony_v30FluxDAIO.safetensors
 architecture: flux
 family: flux
-default_sampler: euler
-default_scheduler: simple
-default_steps: 12
-default_cfg: 1.0
-default_clip_skip: null
-supports_ipadapter: false
-supports_lora: false
-vae_filename: null
-text_encoder: null
 resolution_portrait: [832, 1216]
 resolution_square: [1024, 1024]
 resolution_landscape: [1216, 832]

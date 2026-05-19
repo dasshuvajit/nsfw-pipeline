@@ -26,23 +26,9 @@ def test_ksampler_workflow_returns_inputs_seed():
     assert _extract_seed_from_workflow(workflow) == 4242
 
 
-def test_random_noise_workflow_returns_noise_seed():
-    """Chroma's built-in base.json carries seed on RandomNoise, not KSampler."""
-    workflow = {
-        "random_noise": {"inputs": {"noise_seed": 9999}},
-        "sampler_advanced": {"inputs": {}},
-    }
-    assert _extract_seed_from_workflow(workflow) == 9999
-
-
-def test_ksampler_wins_when_both_present():
-    """A template wiring both nodes (synthetic edge case) prefers
-    ksampler — that's the standard external-template seed slot."""
-    workflow = {
-        "ksampler": {"inputs": {"seed": 1}},
-        "random_noise": {"inputs": {"noise_seed": 2}},
-    }
-    assert _extract_seed_from_workflow(workflow) == 1
+# random_noise / SamplerCustomAdvanced seed extraction deleted with
+# Chroma's built-in base.json (2026-05-20). External templates always
+# carry the seed on `ksampler.inputs.seed` (the 4-node contract enforces it).
 
 
 def test_neither_node_returns_zero():
@@ -58,15 +44,13 @@ def test_seed_field_missing_falls_back():
     assert _extract_seed_from_workflow(workflow) == 0
 
 
-def test_non_int_seed_falls_through_to_random_noise():
+def test_non_int_seed_returns_zero():
     """If ksampler.seed is a non-int (defensive — should never happen
-    in practice), continue to the random_noise check rather than
-    propagate a garbage value."""
+    in practice), fall back to 0 rather than propagate a garbage value."""
     workflow = {
         "ksampler": {"inputs": {"seed": "not-a-number"}},
-        "random_noise": {"inputs": {"noise_seed": 77}},
     }
-    assert _extract_seed_from_workflow(workflow) == 77
+    assert _extract_seed_from_workflow(workflow) == 0
 
 
 def test_inputs_missing_entirely_returns_zero():

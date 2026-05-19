@@ -1,12 +1,11 @@
 """Generation memory — anti-repetition tracker.
 
 Records themes, scenes, and prompts to the ``generation_memory`` table
-so the LLM doesn't repeat itself across runs. For character mode,
-scenes are checked across ALL content levels (``character_id``-based)
-because subscribers who see both soft and full should never encounter
-near-identical scenes at different intensity levels.
+so the LLM doesn't repeat itself across runs. Dedup is per-content_level
+(no cross-level character tracking after the 2026-05-20 character-mode
+deletion).
 
-See ARCHITECTURE.md Section 13 (Anti-Repetition with Cross-Level Awareness).
+See ARCHITECTURE.md Section 13 (Anti-Repetition).
 """
 
 from __future__ import annotations
@@ -32,13 +31,8 @@ class MemoryManager:
         content_type: str,
         *,
         content_level: str | None = None,
-        character_id: str | None = None,
     ) -> bool:
         """Check if ``content`` is novel. If yes, record it and return True.
-
-        For scenes with a ``character_id``: checks across ALL content levels
-        for that character (cross-level dedup). For other content: checks
-        within the same content_level.
 
         Parameters
         ----------
@@ -47,20 +41,13 @@ class MemoryManager:
         content_type : str
             One of ``'theme'``, ``'scene'``, ``'prompt'``, ``'style'``, ``'niche'``.
         content_level : str | None
-            Current content level (for non-character dedup).
-        character_id : str | None
-            Character id (for cross-level dedup in character mode).
+            Current content level for per-level dedup.
         """
         content_hash = hashlib.sha256(content.encode()).hexdigest()[:16]
 
         query = "SELECT 1 FROM generation_memory WHERE content_hash = ? AND type = ?"
         params: list[Any] = [content_hash, content_type]
-
-        # For scenes: check across levels for same character
-        if character_id and content_type == "scene":
-            query += " AND character_id = ?"
-            params.append(character_id)
-        elif content_level:
+        if content_level:
             query += " AND content_level = ?"
             params.append(content_level)
 
@@ -74,16 +61,14 @@ class MemoryManager:
             conn.execute(
                 """
                 INSERT INTO generation_memory
-                    (type, content_hash, content_preview,
-                     content_level, character_id)
-                VALUES (?, ?, ?, ?, ?)
+                    (type, content_hash, content_preview, content_level)
+                VALUES (?, ?, ?, ?)
                 """,
                 (
                     content_type,
                     content_hash,
                     content[:200],
                     content_level,
-                    character_id,
                 ),
             )
             conn.commit()
@@ -98,7 +83,6 @@ class MemoryManager:
         prompts: list[dict[str, Any]],
         *,
         content_level: str,
-        character_id: str | None = None,
     ) -> dict[str, int]:
         """Record all outputs from a pipeline run.
 
@@ -108,19 +92,13 @@ class MemoryManager:
         recorded = {"themes": 0, "scenes": 0, "prompts": 0}
         skipped = {"themes": 0, "scenes": 0, "prompts": 0}
 
-        # Record theme
         theme = series_plan.get("theme", "")
         if theme:
-            if self.is_novel(
-                theme, "theme",
-                content_level=content_level,
-                character_id=character_id,
-            ):
+            if self.is_novel(theme, "theme", content_level=content_level):
                 recorded["themes"] += 1
             else:
                 skipped["themes"] += 1
 
-        # Record scenes
         for scene in scenes:
             scene_text = " ".join(
                 filter(None, [
@@ -132,24 +110,15 @@ class MemoryManager:
                 ])
             )
             if scene_text:
-                if self.is_novel(
-                    scene_text, "scene",
-                    content_level=content_level,
-                    character_id=character_id,
-                ):
+                if self.is_novel(scene_text, "scene", content_level=content_level):
                     recorded["scenes"] += 1
                 else:
                     skipped["scenes"] += 1
 
-        # Record prompts
         for prompt in prompts:
             text = prompt.get("prompt_text", "")
             if text:
-                if self.is_novel(
-                    text, "prompt",
-                    content_level=content_level,
-                    character_id=character_id,
-                ):
+                if self.is_novel(text, "prompt", content_level=content_level):
                     recorded["prompts"] += 1
                 else:
                     skipped["prompts"] += 1

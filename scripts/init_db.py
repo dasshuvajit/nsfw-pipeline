@@ -29,8 +29,10 @@ from pathlib import Path
 import yaml
 
 # -----------------------------------------------------------------------------
-# Schema — 10 runtime-mutable tables (characters, series, scenes, prompts,
-# scene_facets, images, sets, posts, generation_memory, run_log)
+# Schema — 9 runtime-mutable tables (series, scenes, scene_facets, prompts,
+# images, sets, posts, generation_memory, run_log). The characters table +
+# protect_character_base_prompt trigger were dropped 2026-05-20 with the
+# character-mode deletion.
 # -----------------------------------------------------------------------------
 
 # Single source of truth for the family list. The `scene_facets.family`
@@ -57,50 +59,16 @@ def _family_check_clause() -> str:
 
 SCHEMA_SQL = """
 -- ============================================================
--- CHARACTERS
--- ============================================================
--- style_profile_id is a YAML id (see config/style_profiles.yaml)
--- validated at startup by StyleProfileLoader — no SQL FK.
--- model_id is a YAML id (see config/models/*.yaml) validated by
--- ModelRegistryLoader; NULL falls back to pipeline.default_model_id.
-CREATE TABLE characters (
-    id TEXT PRIMARY KEY,
-    name TEXT,
-    style_profile_id TEXT NOT NULL,
-    model_id TEXT,
-    base_prompt TEXT NOT NULL,               -- IMMUTABLE after creation
-    negative_prompt TEXT,
-    reference_image_path TEXT,
-    locked_features TEXT NOT NULL,           -- JSON
-    allowed_shift_axes TEXT NOT NULL,        -- JSON
-    outfit_pool TEXT,                        -- JSON
-    version INTEGER NOT NULL DEFAULT 1,
-    active BOOLEAN NOT NULL DEFAULT TRUE,
-    total_images_generated INTEGER DEFAULT 0,
-    last_used_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Protect base_prompt from accidental modification
-CREATE TRIGGER protect_character_base_prompt
-BEFORE UPDATE ON characters
-WHEN OLD.base_prompt != NEW.base_prompt
-BEGIN
-    SELECT RAISE(ABORT, 'base_prompt is immutable after creation. Create a new version instead.');
-END;
-
--- ============================================================
 -- SERIES
 -- ============================================================
 CREATE TABLE series (
     id TEXT PRIMARY KEY,
     mode TEXT NOT NULL CHECK (mode IN (
-        'character','theme','style','niche','variation'
+        'theme','style','niche','variation'
     )),
     content_level TEXT NOT NULL DEFAULT 'T2_implied' CHECK (content_level IN (
         'T1_suggestive','T2_implied','T3_artnude','T4_explicit'
     )),
-    character_id TEXT REFERENCES characters(id),
     style_profile_id TEXT NOT NULL,          -- YAML id, validated at startup
     theme TEXT NOT NULL,
     mood TEXT,
@@ -327,7 +295,6 @@ CREATE TABLE posts (
     post_url TEXT,
     posted_at TIMESTAMP,
     content_level TEXT,
-    character_id TEXT,
     views_24h INTEGER,
     views_72h INTEGER,
     favorites INTEGER,
@@ -348,7 +315,6 @@ CREATE TABLE generation_memory (
     content_preview TEXT,
     style_profile_id TEXT,
     content_level TEXT,
-    character_id TEXT,                        -- For cross-level scene dedup
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -380,7 +346,6 @@ CREATE TABLE run_log (
 -- ============================================================
 CREATE INDEX idx_series_mode ON series(mode);
 CREATE INDEX idx_series_status ON series(status);
-CREATE INDEX idx_series_character ON series(character_id);
 CREATE INDEX idx_series_content_level ON series(content_level);
 CREATE INDEX idx_images_series ON images(series_id);
 CREATE INDEX idx_images_selected ON images(selected);
@@ -397,10 +362,7 @@ CREATE INDEX idx_scene_facets_scene ON scene_facets(scene_id);
 CREATE INDEX idx_scene_facets_llm ON scene_facets(llm_id);
 CREATE INDEX idx_memory_hash ON generation_memory(content_hash);
 CREATE INDEX idx_memory_type ON generation_memory(type);
-CREATE INDEX idx_memory_character ON generation_memory(character_id);
-CREATE INDEX idx_characters_active ON characters(active);
 CREATE INDEX idx_posts_set ON posts(set_id);
-CREATE INDEX idx_posts_character ON posts(character_id);
 """
 
 

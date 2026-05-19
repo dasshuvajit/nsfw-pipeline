@@ -43,7 +43,6 @@ class Supervisor:
         *,
         mode: str,
         content_level: str,
-        character_id: str | None,
         model_id: str,
         series_plan: dict[str, Any],
         scenes: list[dict[str, Any]],
@@ -58,7 +57,6 @@ class Supervisor:
         print("=" * 60)
         print(f"  Mode:           {mode}")
         print(f"  Content level:  {content_level}")
-        print(f"  Character:      {character_id or '(none)'}")
         print(f"  Model:          {model_id}")
         print(f"  Theme:          {series_plan.get('theme', '?')}")
         print(f"  Mood:           {series_plan.get('mood', '?')}")

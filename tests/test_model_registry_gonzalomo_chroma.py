@@ -23,11 +23,10 @@ def test_gonzalomo_chroma_v30_registers():
     entry = loader.get_model("gonzalomo_chroma_v30")
     assert entry.family == "chroma"
     assert entry.filename == "gonzalomoChroma_v30.gguf"
-    assert entry.default_cfg == pytest.approx(1.15)
-    assert entry.default_steps == 12
-    assert entry.default_sampler == "euler"
-    assert entry.default_scheduler == "beta"
     assert entry.commercial_use is True
+    # default_sampler / scheduler / steps / cfg / VAE / text_encoder
+    # moved into external template JSONs on 2026-05-20. ModelRegistryEntry
+    # no longer carries them.
 
 
 def test_gonzalomo_chroma_v30_prompt_guide_inherits_chroma_family():

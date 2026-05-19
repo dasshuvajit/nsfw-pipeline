@@ -3,13 +3,19 @@
 > **Platform:** Mac M4 Pro, 48 GB unified RAM  
 > **Target:** DeviantArt, Patreon  
 > **Stack:** Python 3.11, SQLite, ComfyUI, Ollama 0.5+
-> **Last sync:** 2026-05-20 (Anti-grid / anti-mirror cleanup — vocab v7
-> dropped 6 mirror / reflection / frame-within-frame entries after a
-> Cydonia series produced a 4-panel image-grid hallucination and
-> mirror-doubled faces. End-to-end fix: vocab removals + HARD_BLOCK +
-> positive scan extension + theme-mode subject_description cap +
-> 43-test regression guard. See vocab_version 7 section below.)
-> **Prior sync:** 2026-05-19 (Creative-uplift overhaul — vocab v6 +
+> **Last sync:** 2026-05-20 (External-templates-only cleanup —
+> custom-workflow generation + IPAdapter + character mode + 8 legacy
+> scripts + postprocess Upscaler/FaceRefiner + workflow capability
+> flags ALL deleted. Pipeline now renders ONLY through external
+> templates under `config/comfyui_workflows/templates/<family>/`.
+> Per-family `default_template` in `config/families.yaml`. Family-
+> match validator at render time. Default render model = gonzalomo_chroma_v30.
+> mode_weights rebalanced to theme 0.50 / niche 0.25 / style 0.125 /
+> variation 0.125. DB drops to 9 tables (characters removed).
+> See `PROJECT_GUIDE.md` for the new CLI reference.)
+> **Prior sync:** 2026-05-20 (Anti-grid / anti-mirror cleanup — vocab v7
+> dropped 6 mirror / reflection / frame-within-frame entries.)
+> **Earlier sync:** 2026-05-19 (Creative-uplift overhaul — vocab v6 +
 > 6 namespaces + series-level aesthetic inheritance. User reported
 > rendered images were "boring, non-creative, static boring
 > backgrounds, can't generate any profit selling these". Root-cause

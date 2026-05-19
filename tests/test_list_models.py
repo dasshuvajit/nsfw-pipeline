@@ -75,7 +75,6 @@ class TestRouting:
             "series_planner",
             "scene_generator",
             "metadata_generator",
-            "character_creator",
         ):
             assert role in result.stdout
         # Includes facet styles

@@ -3,15 +3,6 @@ display_name: Chroma v1.0 HD
 filename: Chroma1-HD-Q8_0.gguf
 architecture: chroma
 family: chroma
-default_sampler: euler
-default_scheduler: beta
-default_steps: 26
-default_cfg: 3.8
-default_clip_skip: null
-supports_ipadapter: false
-supports_lora: false
-vae_filename: ae.safetensors
-text_encoder: t5xxl_fp16.safetensors
 resolution_portrait: [832, 1216]
 resolution_square: [1152, 1152]
 resolution_landscape: [1216, 832]

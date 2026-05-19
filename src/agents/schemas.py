@@ -767,42 +767,8 @@ class MetadataSchema(BaseModel):
         return cleaned
 
 
-# ── Character bible (output of CharacterCreator) ────────────────────
-
-
-class CharacterSchema(BaseModel):
-    """LLM-generated character identity (the "bible").
-
-    Bound to ``CharacterCreator.REQUIRED_FIELDS`` — fields that
-    bootstrap_character.py needs to write a valid ``identity.json``.
-    Additional bootstrap-only fields (``locked_features``,
-    ``allowed_shift_axes``, ``reference_image_path``) are added by the
-    CLI tool, not the LLM.
-
-    All face / hair / body fields require min_length=8 to reject
-    one-word descriptors like "pretty" or "blonde" — see ARCHITECTURE.md
-    Section 12 (be specific and visual).
-    """
-
-    model_config = ConfigDict(extra="allow", str_strip_whitespace=True)
-
-    gender: str = Field(min_length=1)  # LLM may emit non-binary descriptors; trust it
-    age_appearance: str = Field(min_length=4, max_length=60)
-    face: str = Field(min_length=8, max_length=300)
-    hair: str = Field(min_length=8, max_length=200)
-    body_type: str = Field(min_length=4, max_length=120)
-    distinguishing_features: str = Field(min_length=4, max_length=200)
-    vibe: str = Field(min_length=4, max_length=80)
-
-    @field_validator("gender")
-    @classmethod
-    def _normalise_gender(cls, v: str) -> str:
-        # Lowercase; trim; reject empties.
-        v = v.strip().lower()
-        if not v:
-            raise ValueError("gender must be a non-empty string")
-        return v
-
+# CharacterSchema (LLM-generated character identity) deleted 2026-05-20
+# with the character-mode + character_creator.py removal.
 
 # ── Few-shot example (Q8) ───────────────────────────────────────────
 

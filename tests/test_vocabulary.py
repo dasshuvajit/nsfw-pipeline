@@ -561,7 +561,7 @@ def test_resolve_aesthetic_menu_narrows_via_compat_lists():
     menu when style_profile.compatible_* lists are provided. This
     is the lite I2 plumbing: SeriesPlanner only offers coherent
     combinations the profile has validated."""
-    from src.agents.series_planner import _resolve_aesthetic_menu
+    from src.prompt.aesthetic_menu import _resolve_aesthetic_menu
 
     # No filter → full menu
     full = _resolve_aesthetic_menu()
@@ -590,7 +590,7 @@ def test_resolve_aesthetic_menu_falls_back_when_filter_empties_namespace():
     """If a compat list contains only stale/unknown tags (zero
     intersection with the live vocab), fall back to the full menu
     for that namespace — better to offer too much than nothing."""
-    from src.agents.series_planner import _resolve_aesthetic_menu
+    from src.prompt.aesthetic_menu import _resolve_aesthetic_menu
 
     narrow = _resolve_aesthetic_menu(
         style_profile_compat={

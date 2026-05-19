@@ -3,15 +3,6 @@ display_name: CyberRealistic Pony V17.0
 filename: cyberrealisticPony_v170.safetensors
 architecture: pony
 family: pony
-default_sampler: dpmpp_sde
-default_scheduler: karras
-default_steps: 30
-default_cfg: 5.0
-default_clip_skip: 2
-supports_ipadapter: true
-supports_lora: true
-vae_filename: null
-text_encoder: null
 resolution_portrait: [896, 1152]
 resolution_square: [1024, 1024]
 resolution_landscape: [1152, 896]

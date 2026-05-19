@@ -16,12 +16,14 @@ logger = logging.getLogger(__name__)
 
 # Default weights per ARCHITECTURE.md.
 # pipeline.yaml → mode_weights can override individual entries.
+# 2026-05-20: character mode deleted; remaining 4 modes proportionally
+# rescaled ×2.5 (preserves the prior relative ordering until usage
+# data justifies a tilt).
 MODE_WEIGHTS: dict[str, float] = {
-    "character": 0.60,
-    "theme": 0.20,
-    "niche": 0.10,
-    "style": 0.05,
-    "variation": 0.05,
+    "theme": 0.50,
+    "niche": 0.25,
+    "style": 0.125,
+    "variation": 0.125,
 }
 
 VALID_MODES = set(MODE_WEIGHTS)

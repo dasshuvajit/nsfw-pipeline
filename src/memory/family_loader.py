@@ -163,6 +163,14 @@ class FamilyConfig:
     # picks the closest-tier example at compose time. When empty,
     # falls back to the legacy ``example_prompt`` string.
     examples: list[dict] = field(default_factory=list)
+    # 2026-05-20 — per-family default render model + default external
+    # template. Used by render_prompts.py when --models / --templates
+    # is omitted. ``default_template`` is a path under
+    # ``config/comfyui_workflows/`` (e.g. ``templates/chroma/X.json``);
+    # validated at load time. ``None`` means "no default; explicit
+    # flag required" — render raises a clear error in that case.
+    default_render_model: str | None = None
+    default_template: str | None = None
 
     @classmethod
     def from_dict(cls, fam_id: str, d: dict) -> "FamilyConfig":
@@ -283,6 +291,14 @@ class FamilyConfig:
             solo_anchor=solo_anchor_data,
             structure_intro=intro,
             examples=examples,
+            default_render_model=(
+                str(d["default_render_model"])
+                if d.get("default_render_model") else None
+            ),
+            default_template=(
+                str(d["default_template"])
+                if d.get("default_template") else None
+            ),
         )
 
 

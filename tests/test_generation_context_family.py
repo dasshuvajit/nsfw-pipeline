@@ -105,41 +105,8 @@ def test_build_family_context_works_for_all_six_families(
         assert ctx.target_kind == "family"
 
 
-# ── 2. checkpoint-only properties raise on family-kind ──────────────
-
-
-def test_supports_ipadapter_raises_on_family_kind(
-    fresh_db, style_profile, content_rules,
-):
-    ctx = build_family_context(
-        family_id="flux",
-        mode="theme",
-        content_level="T2_implied",
-        execution_mode="manual",
-        style_profile=style_profile,
-        content_rules=content_rules,
-        db_path=fresh_db,
-        commercial_mode=False,
-    )
-    with pytest.raises(AttributeError, match="requires a model-kind"):
-        _ = ctx.supports_ipadapter
-
-
-def test_supports_lora_raises_on_family_kind(
-    fresh_db, style_profile, content_rules,
-):
-    ctx = build_family_context(
-        family_id="sdxl",
-        mode="theme",
-        content_level="T2_implied",
-        execution_mode="manual",
-        style_profile=style_profile,
-        content_rules=content_rules,
-        db_path=fresh_db,
-        commercial_mode=False,
-    )
-    with pytest.raises(AttributeError, match="requires a model-kind"):
-        _ = ctx.supports_lora
+# supports_ipadapter / supports_lora properties deleted 2026-05-20
+# with the IPAdapter + capability-flag cleanup. The tests are gone.
 
 
 def test_workflow_family_falls_back_to_family_id(
@@ -314,6 +281,3 @@ def test_build_context_returns_model_kind_by_default(
     assert ctx.target_kind == "model"
     assert ctx.model_id == "gonzalomo_photo_v70"
     assert ctx.model_config is not None
-    # supports_ipadapter / supports_lora must NOT raise on model-kind.
-    _ = ctx.supports_ipadapter
-    _ = ctx.supports_lora

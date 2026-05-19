@@ -51,7 +51,6 @@ KNOWN_ROLES: frozenset[str] = frozenset({
     "scene_generator",
     "scene_facet_generator",
     "metadata_generator",
-    "character_creator",
 })
 
 
@@ -266,7 +265,6 @@ class LLMRouter:
             "series_planner",
             "scene_generator",
             "metadata_generator",
-            "character_creator",
         ):
             _, llm_id, source = self._resolve_role_with_source(
                 role, override=cli_llm_override,

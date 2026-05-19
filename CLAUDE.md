@@ -20,8 +20,6 @@ The complete architecture is documented in ARCHITECTURE.md — read it fully bef
 
 ## Critical Constraints
 - LLM and ComfyUI NEVER run simultaneously. Always unload LLM before rendering.
-- Max 2 LoRAs per render.
-- Character base_prompt is IMMUTABLE after creation (DB trigger enforced).
 - Never mix content levels within a set. The 4 tiers are
   `T1_suggestive`, `T2_implied`, `T3_artnude`, `T4_explicit`
   (enforced by DB CHECK and by `assert_level_purity()`).
@@ -42,11 +40,11 @@ The complete architecture is documented in ARCHITECTURE.md — read it fully bef
   non-commercial checkpoint. (No NCL-licensed models are currently
   registered — flux2 family has no member YAMLs at present.)
 
-## Storage split (post 2026-04 refactor)
+## Storage split (post 2026-04 refactor; characters table removed 2026-05-20)
 - **Static config lives in YAML; SQLite is for runtime mutation only.**
-  Do not add new static-only tables. The DB holds **10 tables**:
-  characters, series, scenes, **scene_facets**, prompts, images, sets,
-  posts, generation_memory, run_log.
+  Do not add new static-only tables. The DB holds **9 tables**:
+  series, scenes, **scene_facets**, prompts, images, sets, posts,
+  generation_memory, run_log.
 - **The scenes / scene_facets / prompts split** (per-model prompts work,
   Phase 1–5 of the multi-model upgrade):
   - `scenes` — model-agnostic scene core (pose / camera / lighting /

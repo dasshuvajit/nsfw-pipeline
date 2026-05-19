@@ -59,7 +59,7 @@ def _seed_series_with_prompts(
     conn.execute(
         "INSERT INTO series (id, mode, content_level, style_profile_id, "
         "theme, target_count, status) "
-        "VALUES (?, 'character', 'T2_implied', 'golden_hour_natural', "
+        "VALUES (?, 'theme', 'T2_implied', 'golden_hour_natural', "
         "'test', 1, 'planned')",
         (series_id,),
     )
@@ -102,7 +102,8 @@ class TestParseCsv:
 class TestResolveTemplates:
     """Positional pairing rules per plan §4.5 / §4.4."""
 
-    def test_no_templates_all_system(self, render_module):
+    def test_no_templates_all_none(self, render_module):
+        # None means "engine falls back to family default_template".
         out = render_module._resolve_templates(None, ["a", "b", "c"])
         assert out == [None, None, None]
 
@@ -112,15 +113,11 @@ class TestResolveTemplates:
         )
         assert out == ["templates/x.json", "templates/x.json"]
 
-    def test_one_system_token_applied_to_all(self, render_module):
-        out = render_module._resolve_templates("system", ["a", "b"])
-        assert out == [None, None]
-
     def test_n_templates_paired_positionally(self, render_module):
         out = render_module._resolve_templates(
-            "system,templates/chroma/x.json", ["a", "b"],
+            "templates/sdxl/x.json,templates/chroma/y.json", ["a", "b"],
         )
-        assert out == [None, "templates/chroma/x.json"]
+        assert out == ["templates/sdxl/x.json", "templates/chroma/y.json"]
 
     def test_mismatched_lengths_rejected(self, render_module):
         from src.core.engine import EngineError
@@ -477,7 +474,7 @@ def test_main_template_pairing_passes_through(
         _argv(
             "--series-id", "ser_seed",
             "--models", "gonzalomo_photo_v70,chroma_v10HD",
-            "--templates", "system,templates/chroma/foo.json",
+            "--templates", "templates/sdxl/foo.json,templates/chroma/foo.json",
             "--llm", "cydonia_heretic_24b",
         ),
     )
@@ -485,10 +482,10 @@ def test_main_template_pairing_passes_through(
     rc = render_module.main()
     assert rc == 0
 
-    # Verify template pairing: model[0]→None (system), model[1]→external.
+    # Verify template pairing: model[0]→sdxl template, model[1]→chroma template.
     calls = fake_engine.run_phase_b.call_args_list
     assert calls[0].kwargs["model_id"] == "gonzalomo_photo_v70"
-    assert calls[0].kwargs["template_override"] is None
+    assert calls[0].kwargs["template_override"] == "templates/sdxl/foo.json"
     assert calls[1].kwargs["model_id"] == "chroma_v10HD"
     assert calls[1].kwargs["template_override"] == "templates/chroma/foo.json"
 

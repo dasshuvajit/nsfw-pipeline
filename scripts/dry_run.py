@@ -19,12 +19,9 @@ sensible output before committing a real render cycle (~20+ minutes).
 Pre-flight:
   - ``ollama serve`` is running
   - ``python scripts/init_db.py`` has been run
-  - For character mode: ``python scripts/bootstrap_character.py`` has populated the character
   - ComfyUI does NOT need to be running (no rendering happens)
 
 Usage:
-    python scripts/dry_run.py --character char_001 --level T2_implied
-    python scripts/dry_run.py --mode character --level T2_implied
     python scripts/dry_run.py --mode theme --level T2_implied
     python scripts/dry_run.py --mode style --level T3_artnude
     python scripts/dry_run.py --mode niche --level T1_suggestive
@@ -61,14 +58,9 @@ def main() -> None:
     )
     parser.add_argument(
         "--mode",
-        choices=["character", "theme", "style", "niche", "variation"],
+        choices=["theme", "style", "niche", "variation"],
         default=None,
         help="Pipeline mode (default: weighted random selection)",
-    )
-    parser.add_argument(
-        "--character",
-        default=None,
-        help="Character id — only used in character mode (default: LRU selection)",
     )
     parser.add_argument(
         "--level",
@@ -109,10 +101,7 @@ def main() -> None:
     )
 
     try:
-        # If --character is given without --mode, default to character mode
         force_mode = args.mode
-        if args.character and not force_mode:
-            force_mode = "character"
 
         # Validate --llm against the registry at the CLI boundary so the
         # error fires before engine construction (faster signal than
@@ -132,7 +121,6 @@ def main() -> None:
             dry_run=True,
             model_override=args.model,
             force_mode=force_mode,
-            force_character=args.character,
         )
 
         result = engine.run_cycle(

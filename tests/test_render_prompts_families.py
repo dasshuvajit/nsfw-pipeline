@@ -71,7 +71,7 @@ def _seed_family_prompts(
     conn.execute(
         "INSERT INTO series (id, mode, content_level, style_profile_id, "
         "theme, target_count, status) "
-        "VALUES (?, 'character', 'T2_implied', 'golden_hour_natural', "
+        "VALUES (?, 'theme', 'T2_implied', 'golden_hour_natural', "
         "'test', 1, 'planned')",
         (series_id,),
     )
@@ -404,7 +404,7 @@ def test_model_kind_prompts_dont_satisfy_families_query(
     conn.execute(
         "INSERT INTO series (id, mode, content_level, style_profile_id, "
         "theme, target_count, status) "
-        "VALUES ('ser_fam', 'character', 'T2_implied', "
+        "VALUES ('ser_fam', 'theme', 'T2_implied', "
         "'golden_hour_natural', 'test', 1, 'planned')",
     )
     conn.execute(

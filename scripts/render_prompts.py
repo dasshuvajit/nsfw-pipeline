@@ -35,7 +35,7 @@ Usage:
     # Per-model templates (positional pairing: model[i] uses template[i])
     python scripts/render_prompts.py --series-id ser_abc \\
         --models juggernaut_ragnarok,chroma_v10HD \\
-        --templates system,templates/chroma/chroma_done_properly.json
+        --templates templates/chroma/chroma_done_properly.json,templates/chroma/gonzaLomo_Chroma_Refiner_v11.json
 
 Exit codes:
     0 = success (every requested model rendered)
@@ -108,25 +108,25 @@ def _resolve_templates(
     """Templates pair positionally with ``models``.
 
     Rules:
-      * No --templates                → ``[None] * len(models)``     (all use system)
-      * 1 template, N models          → that template applied to all
-      * N models, N templates         → positional pair (i ↔ i)
-      * else                          → ``EngineError``
-    'system' as a token → ``None`` (built-in family template).
+      * No --templates       → ``[None] * len(models)`` (engine falls
+        back to the per-family ``default_template`` in families.yaml;
+        raises if that's null for the target family)
+      * 1 template, N models → that template applied to all
+      * N models, N templates→ positional pair (i ↔ i)
+      * else                 → ``EngineError``
     """
     parsed = _parse_csv(args_templates)
     if not parsed:
         return [None] * len(models)
     if len(parsed) == 1:
-        # Apply to all (matches compare_models.py's "single template" rule).
-        return [None if parsed[0] == "system" else parsed[0]] * len(models)
+        return [parsed[0]] * len(models)
     if len(parsed) != len(models):
         raise EngineError(
             f"--templates count ({len(parsed)}) must equal --models count "
             f"({len(models)}) for positional pairing, or be 1 (applied to "
             f"all). Got: models={models}, templates={parsed}"
         )
-    return [None if t == "system" else t for t in parsed]
+    return parsed
 
 
 def _validate_prompts_exist(
@@ -314,11 +314,11 @@ def main() -> int:
         default=None,
         help=(
             "External workflow templates (positional pairing with "
-            "--models OR --families). 'system' = built-in family "
-            "template. A single value applies to all targets. "
-            "Otherwise must equal target count. Required for refiner "
-            "workflows (e.g. chroma base + SDXL refiner via "
-            "templates/chroma/gonzaLomo_Chroma_Refiner_v11.json)."
+            "--models OR --families). Default when omitted: the family's "
+            "default_template from config/families.yaml. A single value "
+            "applies to all targets; otherwise must equal target count. "
+            "Path is resolved relative to config/comfyui_workflows/ "
+            "first, then project root."
         ),
     )
     parser.add_argument(

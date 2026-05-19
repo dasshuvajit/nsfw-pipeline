@@ -15,8 +15,10 @@
 #   - Render tuning is measured per checkpoint; it belongs next to
 #     the checkpoint, not the aesthetic.
 #
-# Characters still reference a profile via ``characters.style_profile_id``.
-# The model comes from ``images.model_id`` (or ``--model`` CLI override).
+# After 2026-05-20: the characters table was removed; style profiles
+# are referenced only via ``series.style_profile_id`` and the
+# ``--style-profile`` CLI override. The model comes from
+# ``images.model_id`` (or ``--models`` CLI override).
 #
 # Archetypes are the top-10 DA NSFW realism segments surfaced in the
 # 2026-04 market research. If you add one, also update the theme /

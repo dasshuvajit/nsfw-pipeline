@@ -55,6 +55,12 @@ class ModelRegistryEntry:
     Callers who need the full ``FamilyConfig`` should ask the loader
     via ``get_family(entry.family)`` — we keep only the string here so
     per-model rows stay decoupled from family load order.
+
+    After the 2026-05-20 cleanup, this dataclass carries ONLY identity,
+    resolution, and license/metadata. Workflow-tuning fields
+    (default_sampler / scheduler / steps / cfg / clip_skip / VAE /
+    text_encoder / supports_ipadapter / supports_lora / lora_stack)
+    all moved into the user's external ComfyUI template JSONs.
     """
 
     id: str
@@ -62,18 +68,9 @@ class ModelRegistryEntry:
     filename: str
     architecture: str
     family: str
-    default_sampler: str
-    default_scheduler: str
-    default_steps: int
-    default_cfg: float
-    default_clip_skip: int | None
-    supports_ipadapter: bool
-    supports_lora: bool
     resolution_portrait: tuple[int, int] | None
     resolution_square: tuple[int, int] | None
     resolution_landscape: tuple[int, int] | None
-    vae_filename: str | None
-    text_encoder: str | None
     notes: str | None
     active: bool
     # License metadata — only used by the commercial_mode gate. Default
@@ -81,32 +78,17 @@ class ModelRegistryEntry:
     # don't declare a license stay unchanged.
     license: str | None
     commercial_use: bool
-    # Enabled LoRAs, merged into StyleProfileForWorkflow.lora_stack when
-    # the profile provides none. Frozen tuple of {"name", "strength"}
-    # dicts — keep to the two fields the WorkflowBuilder reads.
-    lora_stack: tuple[dict[str, Any], ...] = ()
 
     @classmethod
     def from_dict(cls, d: dict[str, Any], source: Path) -> "ModelRegistryEntry":
         required = {
             "id", "display_name", "filename", "architecture", "family",
-            "default_sampler", "default_scheduler", "default_steps", "default_cfg",
+            "resolution_portrait", "resolution_square", "resolution_landscape",
         }
         missing = required - d.keys()
         if missing:
             raise ModelRegistryError(
                 f"{source}: missing required keys {sorted(missing)}"
-            )
-        raw_loras = d.get("lora_stack") or []
-        enabled_loras = tuple(
-            {"name": str(e["name"]), "strength": float(e["strength"])}
-            for e in raw_loras
-            if e.get("enabled") is True
-        )
-        if len(enabled_loras) > 2:
-            raise ModelRegistryError(
-                f"{source}: lora_stack has {len(enabled_loras)} enabled "
-                f"entries; max 2 per render (CLAUDE.md invariant)."
             )
         return cls(
             id=str(d["id"]),
@@ -114,26 +96,13 @@ class ModelRegistryEntry:
             filename=str(d["filename"]),
             architecture=str(d["architecture"]),
             family=str(d["family"]),
-            default_sampler=str(d["default_sampler"]),
-            default_scheduler=str(d["default_scheduler"]),
-            default_steps=int(d["default_steps"]),
-            default_cfg=float(d["default_cfg"]),
-            default_clip_skip=(
-                None if d.get("default_clip_skip") is None
-                else int(d["default_clip_skip"])
-            ),
-            supports_ipadapter=bool(d.get("supports_ipadapter", False)),
-            supports_lora=bool(d.get("supports_lora", False)),
             resolution_portrait=_parse_resolution(d.get("resolution_portrait")),
             resolution_square=_parse_resolution(d.get("resolution_square")),
             resolution_landscape=_parse_resolution(d.get("resolution_landscape")),
-            vae_filename=(d.get("vae_filename") or None),
-            text_encoder=(d.get("text_encoder") or None),
             notes=(d.get("notes") or None),
             active=bool(d.get("active", True)),
             license=(d.get("license") or None),
             commercial_use=bool(d.get("commercial_use", True)),
-            lora_stack=enabled_loras,
         )
 
 

@@ -54,7 +54,7 @@ class GenerationContext:
     ``target_kind='model'`` ctx with ``model_id=None``, fails fast.
     """
 
-    mode: str                           # 'character'|'theme'|'style'|'niche'|'variation'
+    mode: str                           # 'theme'|'style'|'niche'|'variation'
     content_level: str                  # 'T1_suggestive'|'T2_implied'|'T3_artnude'|'T4_explicit'
     execution_mode: str                 # 'manual'|'supervised'|'automated'
 
@@ -66,9 +66,6 @@ class GenerationContext:
     family: FamilyConfig                # always present — derived from model or supplied directly
 
     model_prompt_guide: ModelPromptGuide | None = None
-
-    character: dict[str, Any] | None = None
-    character_id: str | None = None
 
     db_path: Path | None = None
 
@@ -121,27 +118,6 @@ class GenerationContext:
         if self.model_config is None:
             return self.family.id
         return self.model_config.family
-
-    @property
-    def supports_ipadapter(self) -> bool:
-        if self.model_config is None:
-            raise AttributeError(
-                "supports_ipadapter requires a model-kind GenerationContext; "
-                "got family-kind (model_config is None). IPAdapter is a "
-                "per-model checkpoint capability and family-level prompt "
-                "preparation is checkpoint-agnostic."
-            )
-        return self.model_config.supports_ipadapter
-
-    @property
-    def supports_lora(self) -> bool:
-        if self.model_config is None:
-            raise AttributeError(
-                "supports_lora requires a model-kind GenerationContext; "
-                "got family-kind (model_config is None). LoRA support is "
-                "a per-model checkpoint capability."
-            )
-        return self.model_config.supports_lora
 
     @property
     def prompt_style(self) -> str:
@@ -264,8 +240,6 @@ def build_family_context(
     content_rules: ContentLevelRules,
     db_path: Path,
     commercial_mode: bool = False,
-    character: dict[str, Any] | None = None,
-    character_id: str | None = None,
 ) -> GenerationContext:
     """Construct a family-kind ``GenerationContext`` for family-level
     prompt preparation.
@@ -281,10 +255,6 @@ def build_family_context(
     * ``model_prompt_guide`` built via
       :meth:`ModelRegistryLoader.get_family_only_prompt_guide` — no
       per-model trigger / avoid / negative_embeddings overlay.
-
-    Reading checkpoint-only attributes (``supports_ipadapter``,
-    ``supports_lora``) on the returned ctx raises ``AttributeError``
-    with a clear message. Phase A's per-target loop never reads those.
 
     Raises ``FamilyNotFound`` if ``family_id`` is not in
     ``config/families.yaml``.
@@ -304,7 +274,5 @@ def build_family_context(
         family=family,
         model_prompt_guide=prompt_guide,
         db_path=db_path,
-        character=character,
-        character_id=character_id,
         target_kind="family",
     )

@@ -11,12 +11,12 @@ pipeline:
   runs_per_day: 3
   output_dir: "output"
   db_path: "nsfw_pipeline.db"
-  # Fallback model when a character row has no model_id and no --model
-  # override is passed. Must match an id under config/models/*.yaml.
-  default_model_id: "juggernaut_ragnarok"
-  # Fallback archetype for non-character modes (theme/style/niche/
-  # variation). Must match a key under profiles: in
-  # config/style_profiles.yaml.
+  # Default render model. Override per-command with --models <id>.
+  # Must match an id under config/models/*.yaml. Changed 2026-05-20
+  # from juggernaut_ragnarok to gonzalomo_chroma_v30 (chroma family).
+  default_model_id: "gonzalomo_chroma_v30"
+  # Default style profile archetype. Must match a key under profiles:
+  # in config/style_profiles.yaml.
   default_style_profile_id: "golden_hour_natural"
 
 execution:
@@ -25,11 +25,13 @@ execution:
   pause_after_filter: true
 
 mode_weights:
-  character: 0.60            # Update with real data from Phase 2
-  theme: 0.20
-  niche: 0.10
-  style: 0.05
-  variation: 0.05
+  # 2026-05-20: character mode deleted; remaining 4 modes proportionally
+  # rescaled ×2.5 (preserves the prior relative ordering until usage
+  # data justifies a tilt).
+  theme: 0.50
+  niche: 0.25
+  style: 0.125
+  variation: 0.125
 
 content_level_weights:
   # Sale-tier distribution: bias toward the two tiers DA Premium Gallery
@@ -139,7 +141,6 @@ llm:
     #   flux_natural:     qwen3_abliterated_30b    # prose flavour for flux/chroma
     #   flux2_prose:      qwen3_abliterated_30b    # BFL 5-anchor prose for flux2
     # metadata_generator: cydonia_heretic_24b
-    # character_creator:  cydonia_heretic_24b
 
 comfyui:
   base_url: "http://127.0.0.1:8188"
@@ -150,9 +151,9 @@ comfyui:
   # own install. ~ is expanded by Path.expanduser().
   output_dir: "~/AI/apps/ComfyUI/output"
   # ComfyUI's LoadImage node reads from this directory (NOT from the
-  # project tree). IPAdapter renders need the reference image copied here
-  # before each render. Sibling of output_dir on standard installs. Edit
-  # this for your install. ~ is expanded by Path.expanduser().
+  # project tree). Reserved for future LoadImage-style nodes in
+  # external templates. Sibling of output_dir on standard installs.
+  # Edit this for your install. ~ is expanded by Path.expanduser().
   input_dir: "~/AI/apps/ComfyUI/input"
   render_timeout_seconds: 900
   max_retry_per_image: 3
@@ -169,19 +170,10 @@ watermark:
   position: "bottom-right"         # bottom-right|bottom-left|top-right|top-left
   opacity: 0.3                     # 0.0 = invisible, 1.0 = fully opaque
 
-postprocess:
-  # Post-render ESRGAN upscale (4×-UltraSharp model, downscaled to 1.4×
-  # of the source). Templates ship for sdxl / pony / illustrious only —
-  # flux / chroma / flux2 already render natively at 1024+ so a post-hoc
-  # upscale gives marginal returns and isn't templated. The Upscaler
-  # validates template existence at construction so flipping this to
-  # ``true`` for an untemplated family fails fast with a clear error.
-  # NOTE: this is pure ESRGAN, not denoise-based hires-fix — no
-  # re-sampling through the source model.
-  upscale_enabled: false
-  face_refine_enabled: false       # Requires {family}/face_detail.json template (not yet built)
-  upscale_model: "4x-UltraSharp.pth"
-  face_denoise: 0.35
+# postprocess block deleted 2026-05-20 with the Upscaler + FaceRefiner
+# modules. Post-processing (upscale, face-detailer) goes inside external
+# templates from now on — gonzaLomo_Chroma_Refiner_v11.json already does
+# the FaceDetailer pass after its SDXL refiner stage.
 
 variation_mode:
   axis_weights:

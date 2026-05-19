@@ -5,7 +5,6 @@ ARCHITECTURE.md Section 11:
   - Source scene is a high-scoring scene from past runs
   - Level-specific pose and expression templates
   - Axis weights: pose 40%, camera 30%, lighting 20%, expression 10%
-  - IPAdapter OFF unless the base scene came from character mode
 
 The variation mode:
   1. ``plan(ctx)`` — selects a high-scoring scene from past runs
@@ -153,8 +152,9 @@ class VariationMode(BaseMode):
                 ctx, cli_llm_override=cli_llm_override,
             )
 
-        # Check if the base scene came from character mode
-        character_id = base_scene.get("character_id")
+        # Note: source_mode survives for the surviving modes
+        # (theme/style/niche/variation); character mode was deleted in
+        # the 2026-05-20 cleanup.
         source_mode = base_scene.get("source_mode", "")
 
         plan = {
@@ -165,12 +165,11 @@ class VariationMode(BaseMode):
             "base_scene": base_scene,
             "source": source,
             "source_mode": source_mode,
-            "character_id": character_id,
         }
 
         logger.info(
-            "VariationMode: plan — source=%s, base_env=%r, character=%s",
-            source, base_scene.get("environment_detail", ""), character_id,
+            "VariationMode: plan — source=%s, base_env=%r",
+            source, base_scene.get("environment_detail", ""),
         )
         return plan
 
@@ -268,11 +267,6 @@ class VariationMode(BaseMode):
         logger.info("VariationMode: %d deterministic scenes generated", len(scenes))
         return scenes
 
-    def use_ipadapter(self, ctx: GenerationContext) -> bool:
-        """IPAdapter only if the base scene came from character mode."""
-        # This is checked by the engine after plan() sets the plan
-        return False  # engine checks plan["source_mode"] directly
-
     # ---- internal helpers ------------------------------------------------
 
     @staticmethod
@@ -288,7 +282,6 @@ class VariationMode(BaseMode):
                 SELECT
                     sc.*,
                     s.mode as source_mode,
-                    s.character_id,
                     AVG(i.quality_score) as avg_score
                 FROM scenes sc
                 JOIN series s ON sc.series_id = s.id

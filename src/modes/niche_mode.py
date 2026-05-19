@@ -1,7 +1,6 @@
 """Mode 4 — Niche-based pipeline.
 
 ARCHITECTURE.md Section 10:
-  - IPAdapter OFF
   - Cluster from ``niche_clusters`` table (weighted random)
   - ``visual_elements`` (concrete props) in LLM expansion
   - SEO keywords from the cluster's keyword list injected into prompts
@@ -237,7 +236,7 @@ class NicheMode(BaseMode):
             or f"(No directive declared for {ctx.content_level}.)"
         )
         # Phase 3 (vocab v6) — aesthetic-anchor menu.
-        from src.agents.series_planner import _resolve_aesthetic_menu
+        from src.prompt.aesthetic_menu import _resolve_aesthetic_menu
         style_profile_compat = {
             "compatible_palettes": ctx.style_profile.get(
                 "compatible_palettes", []

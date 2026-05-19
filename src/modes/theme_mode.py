@@ -1,7 +1,6 @@
 """Mode 2 — Theme-based pipeline.
 
 ARCHITECTURE.md Section 8:
-  - IPAdapter OFF (no character identity lock)
   - Category from ``theme_categories`` table (weighted random)
   - Subject comes from the LLM theme plan, not the character registry
 
@@ -11,8 +10,7 @@ The theme mode:
      category. Validates the theme is not too vague and not repeated in
      recent memory.
   2. ``generate_scenes(series_plan, ctx)`` — calls ``SceneGenerator``
-     with the plan. No character identity lock; the LLM invents subjects
-     for each scene.
+     with the plan. The LLM invents subjects for each scene.
 """
 
 from __future__ import annotations
@@ -243,7 +241,7 @@ class ThemeMode(BaseMode):
         # by style_profile + theme compatibility lists. Defaults to full
         # menu when lists are absent (back-compat for pre-Phase-3
         # profiles/themes).
-        from src.agents.series_planner import _resolve_aesthetic_menu
+        from src.prompt.aesthetic_menu import _resolve_aesthetic_menu
         style_profile_compat = {
             "compatible_palettes": ctx.style_profile.get(
                 "compatible_palettes", []

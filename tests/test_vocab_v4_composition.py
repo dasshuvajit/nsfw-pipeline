@@ -42,7 +42,7 @@ def db(tmp_path: Path) -> Path:
     conn.execute(
         "INSERT INTO series (id, mode, content_level, style_profile_id, theme, "
         "target_count, status) "
-        "VALUES ('s1', 'character', 'T2_implied', 'golden_hour_natural', "
+        "VALUES ('s1', 'theme', 'T2_implied', 'golden_hour_natural', "
         "'test', 1, 'planned')"
     )
     conn.execute(

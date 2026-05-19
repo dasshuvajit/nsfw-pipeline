@@ -3,15 +3,6 @@ display_name: Juggernaut XL Ragnarok
 filename: juggernautXL_ragnarokBy.safetensors
 architecture: sdxl
 family: sdxl
-default_sampler: dpmpp_2m_sde
-default_scheduler: karras
-default_steps: 35
-default_cfg: 4.0
-default_clip_skip: null
-supports_ipadapter: true
-supports_lora: true
-vae_filename: null
-text_encoder: null
 resolution_portrait: [768, 1152]
 resolution_square: [1024, 1024]
 resolution_landscape: [1152, 768]
