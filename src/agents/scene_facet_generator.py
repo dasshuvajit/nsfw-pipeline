@@ -444,30 +444,66 @@ Return ONLY the JSON object — no array wrapper, no markdown."""
 # fmt: on
 
 
+# Phase 1+2+3+4 (vocab v6) — structured enum-tag fields shown to the
+# LLM as REQUIRED-at-tier additions on top of the family-specific
+# prose/tag fields. Pre-Phase-1 the user-prompt schema body listed
+# only the free-text fields (camera_spec / clothing / booru_tags /
+# scene_prose), biasing the LLM toward filling those and ignoring
+# the structured tags (which got nulled or under-filled). With this
+# block appended every facet schema body explicitly tells the LLM:
+# "you also emit these structured enum-tag fields — pick from the
+# vocabulary menu shown in the system prompt".
+#
+# Composer-side: the canonicalizer translates each picked tag into
+# family-shaped phrasing at compose time. Validator-side: the tier-
+# required check + retry-nudge fires on missing fields. This
+# user-prompt block is the first-attempt nudge (vs. the retry-nudge
+# which fires only after the validator catches a missing field).
+_STRUCTURED_TAG_BODY = """\
+  "lighting_directive": "<one LIGHT_* concept tag from the vocabulary menu in the system prompt — REQUIRED at every tier>",
+  "mood_aesthetic": "<one MOOD_* concept tag — REQUIRED at every tier>",
+  "narrative_moment": "<one NARR_* concept tag — REQUIRED at every tier; the captured editorial moment (reading a letter / stepping from bath / lighting cigarette / etc.)>",
+  "environment_setting": "<one ENV_* concept tag — REQUIRED at T3+; the scene's specific location (Victorian conservatory / Tuscan villa / brutalist loft / etc.). Vary this across scenes in a series>",
+  "environment_atmosphere": "<one ATM_* concept tag — REQUIRED at T3+; atmospheric element matching the setting (dust motes / steam / rain on glass / etc.)>",
+  "environment_prop": "<one PROP_* concept tag — OPTIONAL polish; named furniture/object anchor (cheval mirror / velvet curtain / handwritten letter / etc.)>",
+  "composition_principle": "<one COMP_* concept tag — OPTIONAL polish; higher-order composition (frame-within-frame / reflection-primary / leading-lines / etc.). Pony omits this field>",
+  "nsfw_anatomy": "<one NSFW_ANATOMY_* concept tag — REQUIRED at T3+>",
+  "nsfw_posture": "<one NSFW_POSTURE_* concept tag — optional T3+>",
+  "nsfw_act": "<one NSFW_ACT_* concept tag — REQUIRED at T4_explicit (solo-only acts; partnered tags are filtered)>"\
+"""
+
 # Per-prompt-style schema-body hints. These are NOT the Pydantic
 # schemas (those are in src.agents.schemas) — they're the LLM-facing
 # field descriptions injected into the user prompt. The Pydantic model
 # is the validator; this is the instruction.
+#
+# Each style starts with its family-specific FREE-TEXT fields then
+# appends the shared :data:`_STRUCTURED_TAG_BODY` so the LLM sees
+# every field it should emit in one view.
 _SCHEMA_BODY_BY_STYLE: dict[str, str] = {
-    "sdxl_keywords": """\
+    "sdxl_keywords": f"""\
   "camera_spec": "<lens + aperture spec, e.g. '85mm f/1.8, shallow DoF'>",
-  "clothing": "<garment and texture detail — silk slip, lace bodice, velvet robe, linen sheet>\"""",
+  "clothing": "<garment and texture detail — silk slip, lace bodice, velvet robe, linen sheet>",
+{_STRUCTURED_TAG_BODY}""",
 
-    "pony_danbooru": """\
+    "pony_danbooru": f"""\
   "booru_tags": "<comma-separated underscored booru tags capturing pose/setting/clothing — primary signal for the Pony composer>",
-  "source_tag": "<one of: source_photograph, source_anime, source_cartoon — use source_photograph for realism>\"""",
+  "source_tag": "<one of: source_photograph, source_anime, source_cartoon — use source_photograph for realism>",
+{_STRUCTURED_TAG_BODY}""",
 
-    "illustrious_tags": """\
+    "illustrious_tags": f"""\
   "booru_tags": "<comma-separated underscored booru tags>",
-  "scene_prose": "<one short sentence of natural-language prose describing the whole composition — used alongside the tags>\"""",
+  "scene_prose": "<one short sentence of natural-language prose describing the whole composition — used alongside the tags>",
+{_STRUCTURED_TAG_BODY}""",
 
-    "flux_natural": """\
-  "scene_prose": "<1–3 complete sentences of natural-language prose. Weave pose, lighting, lens character, environment, and mood into flowing prose. No comma-tag lists, no weighting syntax.>\"""",
+    "flux_natural": f"""\
+  "scene_prose": "<1–3 complete sentences of natural-language prose. Weave pose, lighting, lens character, environment, and mood into flowing prose. No comma-tag lists, no weighting syntax.>",
+{_STRUCTURED_TAG_BODY}""",
 
-    "flux2_prose": """\
+    "flux2_prose": f"""\
   "scene_prose": "<single paragraph, 30–80 words. Five anchors in STRICT order: subject → setting → details → lighting → atmosphere. No tags, no weighting, no BREAK. Put the most distinctive subject traits and the lighting directive near the front; word order weights heavily for Klein.>",
   "subject_focus": "<one-line distillation of the subject clause, used as an ordering QA signal>",
-  "lighting_directive": "<one-line distillation of the lighting clause — name the key direction, colour temperature in kelvin, and whether hard or soft. Example: 'single hard key at camera left, warm tungsten 3200 K'.>\"""",
+{_STRUCTURED_TAG_BODY}""",
 }
 
 

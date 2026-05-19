@@ -30,10 +30,41 @@ themes:
   - id: boudoir_lingerie
     name: Boudoir Lingerie
     weight: 1.0
-    description: Intimate bedroom / studio boudoir in lingerie or silk.
-    variations: [silk robe, lace bodysuit, vintage stockings]
+    description: Intimate boudoir spanning bedroom / dressing room / hotel suite / period parlour.
+    variations: [silk robe, lace bodysuit, vintage stockings, sheer kimono, satin chemise]
     aesthetic_affinity: [boudoir_noir, old_hollywood_glamour]
-    suited_tiers: [T1_suggestive, T2_implied]
+    suited_tiers: [T1_suggestive, T2_implied, T3_artnude, T4_explicit]
+    # Phase 3 — narrow the SeriesPlanner aesthetic menu to coherent
+    # combinations for this theme. Intersect with style_profile.compatible_*.
+    compatible_palettes:
+      - PALETTE_DEAKINS_AMBER_TUNGSTEN
+      - PALETTE_GREAT_GATSBY_JEWEL
+      - PALETTE_MONOCHROME_LOW_KEY
+      - PALETTE_SEPIA_PLATINUM
+      - PALETTE_BAROQUE_CARAVAGGIO
+      - PALETTE_VOGUE_EDITORIAL
+    compatible_photographers:
+      - PHOTOG_HELMUT_NEWTON
+      - PHOTOG_RICHARD_AVEDON
+      - PHOTOG_PAOLO_ROVERSI
+      - PHOTOG_MARIO_TESTINO
+      - PHOTOG_PETER_LINDBERGH
+    compatible_art_movements:
+      - ART_MOVE_FILM_NOIR_1940S
+      - ART_MOVE_ART_DECO_1920S
+      - ART_MOVE_HOPPER
+      - ART_MOVE_DUTCH_GOLDEN_VERMEER
+    # Phase 1 — narrow the SceneGenerator/SceneFacetGenerator
+    # environment_setting menu (when wired; currently advisory).
+    compatible_environments:
+      - ENV_MORNING_BEDROOM
+      - ENV_OLD_HOLLYWOOD_BOUDOIR
+      - ENV_ART_DECO_HOTEL_SUITE
+      - ENV_VICTORIAN_PARLOUR
+      - ENV_GEORGIAN_LIBRARY
+      - ENV_VANITY_DRESSING_ROOM
+      - ENV_READING_NOOK
+      - ENV_CLAWFOOT_BATHROOM
 
   - id: implied_nude_fineart
     name: Implied Nude Fine-Art
@@ -42,6 +73,29 @@ themes:
     variations: [drapery, silhouette, sheet-wrapped]
     aesthetic_affinity: [fine_art_figurative, moody_bw, editorial_fashion_nude]
     suited_tiers: [T2_implied, T3_artnude]
+    compatible_palettes:
+      - PALETTE_MONOCHROME_HIGH_CONTRAST
+      - PALETTE_MONOCHROME_LOW_KEY
+      - PALETTE_SEPIA_PLATINUM
+      - PALETTE_BAROQUE_CARAVAGGIO
+      - PALETTE_MUTED_EARTH_WARM
+    compatible_photographers:
+      - PHOTOG_ROBERT_MAPPLETHORPE
+      - PHOTOG_HERB_RITTS
+      - PHOTOG_PETTER_HEGRE
+      - PHOTOG_PETER_LINDBERGH
+      - PHOTOG_SARAH_MOON
+    compatible_art_movements:
+      - ART_MOVE_BAROQUE_CARAVAGGIO
+      - ART_MOVE_REMBRANDT_PORTRAIT
+      - ART_MOVE_DUTCH_GOLDEN_VERMEER
+      - ART_MOVE_PRE_RAPHAELITE
+    compatible_environments:
+      - ENV_STUDIO_CYC_MINIMAL
+      - ENV_ARTIST_STUDIO_NORTH_LIGHT
+      - ENV_TUSCAN_VILLA_RENAISSANCE
+      - ENV_RUINED_PALAZZO
+      - ENV_OVERGROWN_GREENHOUSE
 
   - id: old_hollywood
     name: Old Hollywood Glamour
@@ -50,6 +104,26 @@ themes:
     variations: [silver satin, feather boa, vintage bob]
     aesthetic_affinity: [old_hollywood_glamour, moody_bw]
     suited_tiers: [T1_suggestive, T2_implied]
+    compatible_palettes:
+      - PALETTE_MONOCHROME_HIGH_CONTRAST
+      - PALETTE_SEPIA_PLATINUM
+      - PALETTE_DEAKINS_AMBER_TUNGSTEN
+      - PALETTE_GREAT_GATSBY_JEWEL
+    compatible_photographers:
+      - PHOTOG_HELMUT_NEWTON
+      - PHOTOG_RICHARD_AVEDON
+      - PHOTOG_HERB_RITTS
+      - PHOTOG_MARIO_TESTINO
+    compatible_art_movements:
+      - ART_MOVE_ART_DECO_1920S
+      - ART_MOVE_FILM_NOIR_1940S
+      - ART_MOVE_HOPPER
+    compatible_environments:
+      - ENV_OLD_HOLLYWOOD_BOUDOIR
+      - ENV_ART_DECO_HOTEL_SUITE
+      - ENV_BACKSTAGE_DRESSING_ROOM
+      - ENV_CABARET_STAGE_DARK
+      - ENV_HOTEL_LOBBY_NOIR
 
   - id: wet_set_cinematic
     name: Cinematic Wet-Set
@@ -58,6 +132,26 @@ themes:
     variations: [rainy window, steam shower, neon wet street]
     aesthetic_affinity: [cinematic_wet_set, neo_noir_neon]
     suited_tiers: [T2_implied, T3_artnude, T4_explicit]
+    compatible_palettes:
+      - PALETTE_BLADE_RUNNER_NEON
+      - PALETTE_FINCHER_DESATURATED_GREEN
+      - PALETTE_TEAL_ORANGE_BLOCKBUSTER
+      - PALETTE_MONOCHROME_LOW_KEY
+      - PALETTE_NORDIC_DESATURATED
+    compatible_photographers:
+      - PHOTOG_GREGORY_CREWDSON
+      - PHOTOG_BILL_HENSON
+      - PHOTOG_HELMUT_NEWTON
+    compatible_art_movements:
+      - ART_MOVE_FILM_NOIR_1940S
+      - ART_MOVE_HOPPER
+    compatible_environments:
+      - ENV_FIRE_ESCAPE_NEON
+      - ENV_ROOFTOP_CITY_NIGHT
+      - ENV_TOKYO_LOVE_HOTEL
+      - ENV_CLAWFOOT_BATHROOM
+      - ENV_HAMMAM_STEAM
+      - ENV_INDOOR_POOL_NIGHT
 
   - id: vintage_pinup
     name: Vintage Pin-Up Kodachrome
@@ -66,6 +160,23 @@ themes:
     variations: [polka-dot bikini, cheesecake pose, diner booth]
     aesthetic_affinity: [vintage_pinup_kodachrome, old_hollywood_glamour]
     suited_tiers: [T1_suggestive, T2_implied]
+    compatible_palettes:
+      - PALETTE_GREAT_GATSBY_JEWEL
+      - PALETTE_PINK_AND_GOLD
+      - PALETTE_TUSCAN_EARTH
+      - PALETTE_MUTED_EARTH_WARM
+    compatible_photographers:
+      - PHOTOG_SLIM_AARONS
+      - PHOTOG_RICHARD_AVEDON
+      - PHOTOG_MARIO_TESTINO
+    compatible_art_movements:
+      - ART_MOVE_ART_DECO_1920S
+      - ART_MOVE_HOPPER
+    compatible_environments:
+      - ENV_OLD_HOLLYWOOD_BOUDOIR
+      - ENV_VANITY_DRESSING_ROOM
+      - ENV_MEDITERRANEAN_COURTYARD
+      - ENV_GREEK_ISLAND_TERRACE
 
   - id: golden_hour
     name: Golden-Hour Natural
@@ -74,6 +185,30 @@ themes:
     variations: [beach dune, rooftop terrace, wildflower field]
     aesthetic_affinity: [golden_hour_natural]
     suited_tiers: [T1_suggestive, T2_implied, T3_artnude]
+    compatible_palettes:
+      - PALETTE_LUBEZKI_NATURAL_GOLDEN
+      - PALETTE_TUSCAN_EARTH
+      - PALETTE_PINK_AND_GOLD
+      - PALETTE_MUTED_EARTH_WARM
+      - PALETTE_SEPIA_PLATINUM
+    compatible_photographers:
+      - PHOTOG_PETTER_HEGRE
+      - PHOTOG_SLIM_AARONS
+      - PHOTOG_PETER_LINDBERGH
+      - PHOTOG_SARAH_MOON
+      - PHOTOG_HERB_RITTS
+    compatible_art_movements:
+      - ART_MOVE_IMPRESSIONIST_RENOIR
+      - ART_MOVE_DUTCH_GOLDEN_VERMEER
+      - ART_MOVE_PRE_RAPHAELITE
+    compatible_environments:
+      - ENV_DESERT_DUNE
+      - ENV_GRASS_MEADOW_GOLDEN_HOUR
+      - ENV_MEDITERRANEAN_COURTYARD
+      - ENV_BALINESE_VILLA
+      - ENV_GREEK_ISLAND_TERRACE
+      - ENV_DESERT_OASIS_PALMS
+      - ENV_TUSCAN_VILLA_RENAISSANCE
 
   - id: fantasy_castlecore
     name: Fantasy Castlecore
@@ -82,6 +217,26 @@ themes:
     variations: [velvet gown, armor fragment, stone arch]
     aesthetic_affinity: [fantasy_castlecore, moody_bw]
     suited_tiers: [T1_suggestive, T2_implied, T3_artnude]
+    compatible_palettes:
+      - PALETTE_BAROQUE_CARAVAGGIO
+      - PALETTE_GREAT_GATSBY_JEWEL
+      - PALETTE_DEAKINS_AMBER_TUNGSTEN
+      - PALETTE_MONOCHROME_LOW_KEY
+    compatible_photographers:
+      - PHOTOG_BILL_HENSON
+      - PHOTOG_ROBERT_MAPPLETHORPE
+      - PHOTOG_PAOLO_ROVERSI
+    compatible_art_movements:
+      - ART_MOVE_PRE_RAPHAELITE
+      - ART_MOVE_SYMBOLIST_MOREAU
+      - ART_MOVE_BAROQUE_CARAVAGGIO
+      - ART_MOVE_REMBRANDT_PORTRAIT
+    compatible_environments:
+      - ENV_RUINED_PALAZZO
+      - ENV_ABANDONED_BALLROOM
+      - ENV_VICTORIAN_PARLOUR
+      - ENV_VICTORIAN_OBSERVATORY
+      - ENV_LOG_CABIN_FIRELIT
 
   - id: dark_boudoir_neonoir
     name: Dark Boudoir / Neo-Noir
@@ -90,6 +245,29 @@ themes:
     variations: [venetian blinds, neon sign glow, leather chaise]
     aesthetic_affinity: [boudoir_noir, neo_noir_neon]
     suited_tiers: [T2_implied, T3_artnude, T4_explicit]
+    compatible_palettes:
+      - PALETTE_BLADE_RUNNER_NEON
+      - PALETTE_FINCHER_DESATURATED_GREEN
+      - PALETTE_MONOCHROME_LOW_KEY
+      - PALETTE_BAROQUE_CARAVAGGIO
+      - PALETTE_TEAL_ORANGE_BLOCKBUSTER
+    compatible_photographers:
+      - PHOTOG_HELMUT_NEWTON
+      - PHOTOG_GREGORY_CREWDSON
+      - PHOTOG_BILL_HENSON
+      - PHOTOG_PETRA_COLLINS
+    compatible_art_movements:
+      - ART_MOVE_FILM_NOIR_1940S
+      - ART_MOVE_BAROQUE_CARAVAGGIO
+      - ART_MOVE_HOPPER
+    compatible_environments:
+      - ENV_OLD_HOLLYWOOD_BOUDOIR
+      - ENV_ART_DECO_HOTEL_SUITE
+      - ENV_FIRE_ESCAPE_NEON
+      - ENV_TOKYO_LOVE_HOTEL
+      - ENV_BERLIN_KREUZBERG_LOFT
+      - ENV_HOTEL_LOBBY_NOIR
+      - ENV_VICTORIAN_PARLOUR
 
   - id: editorial_fashion_nude
     name: Editorial Fashion Nude
@@ -98,6 +276,26 @@ themes:
     variations: [cream paper cyc, architectural minimalism, monochrome set]
     aesthetic_affinity: [editorial_fashion_nude, old_hollywood_glamour]
     suited_tiers: [T2_implied, T3_artnude]
+    compatible_palettes:
+      - PALETTE_VOGUE_EDITORIAL
+      - PALETTE_MONOCHROME_HIGH_CONTRAST
+      - PALETTE_PINK_AND_GOLD
+      - PALETTE_BLACK_AND_WHITE_NIGHT
+    compatible_photographers:
+      - PHOTOG_RICHARD_AVEDON
+      - PHOTOG_PAOLO_ROVERSI
+      - PHOTOG_MARIO_TESTINO
+      - PHOTOG_PETER_LINDBERGH
+      - PHOTOG_HELMUT_NEWTON
+    compatible_art_movements:
+      - ART_MOVE_BAUHAUS_MINIMAL
+      - ART_MOVE_ART_DECO_1920S
+    compatible_environments:
+      - ENV_STUDIO_CYC_MINIMAL
+      - ENV_ARTIST_STUDIO_NORTH_LIGHT
+      - ENV_BERLIN_KREUZBERG_LOFT
+      - ENV_BRUTALIST_CONCRETE_LOFT
+      - ENV_ART_DECO_HOTEL_SUITE
 
   - id: fine_art_studio_nude
     name: Fine-Art Studio Nude
@@ -106,6 +304,28 @@ themes:
     variations: [rembrandt split-light, sculptural pose, torn backdrop]
     aesthetic_affinity: [fine_art_figurative, moody_bw]
     suited_tiers: [T3_artnude]
+    compatible_palettes:
+      - PALETTE_MONOCHROME_HIGH_CONTRAST
+      - PALETTE_MONOCHROME_LOW_KEY
+      - PALETTE_SEPIA_PLATINUM
+      - PALETTE_BAROQUE_CARAVAGGIO
+    compatible_photographers:
+      - PHOTOG_ROBERT_MAPPLETHORPE
+      - PHOTOG_HERB_RITTS
+      - PHOTOG_PETTER_HEGRE
+      - PHOTOG_PAOLO_ROVERSI
+    compatible_art_movements:
+      - ART_MOVE_BAROQUE_CARAVAGGIO
+      - ART_MOVE_REMBRANDT_PORTRAIT
+      - ART_MOVE_DUTCH_GOLDEN_VERMEER
+      - ART_MOVE_PRE_RAPHAELITE
+      - ART_MOVE_ART_NOUVEAU_KLIMT
+    compatible_environments:
+      - ENV_STUDIO_CYC_MINIMAL
+      - ENV_ARTIST_STUDIO_NORTH_LIGHT
+      - ENV_TUSCAN_VILLA_RENAISSANCE
+      - ENV_RUINED_PALAZZO
+      - ENV_HAMMAM_STEAM
 
 # ── Style categories (Mode 3 — StyleMode) ────────────────────────────
 # lighting_bias + color_bias are consumed by StyleMode's LLM plan
