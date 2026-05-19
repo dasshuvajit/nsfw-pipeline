@@ -531,6 +531,54 @@ def test_sanitize_grid_phrases_removes_orphan_connectors():
     assert out == "She poses in front of the lamp"
 
 
+def test_sanitize_strips_bare_composition_nouns():
+    """Round-4 verifier (A5) — bare composition nouns (polyptych /
+    triptych / diptych) and the natural-prose "Composed as a X" form
+    must be stripped at the positive-side. The round-3 commit message
+    justified shrinking the SDXL negative block by claiming the
+    positive scan catches these phrases; round-4 audit proved it
+    didn't until this pattern extension landed. Without these
+    patterns, Cydonia could emit "Composed as a polyptych" in
+    scene_prose and re-trigger the 4-panel grid hallucination on
+    SDXL (where the tight negative only carries grid + mirror)."""
+    from src.prompt.builder import sanitize_grid_phrases
+    for leaked in [
+        "Composed as a polyptych.",
+        "A diptych of two moments.",
+        "She poses in a triptych arrangement.",
+        "Tiled across the frame.",
+        "Frame within frame composition.",
+        "Composed as a grid",
+        "Composed in a collage",
+    ]:
+        out, changed = sanitize_grid_phrases(leaked)
+        assert changed, f"failed to strip bare-noun grid phrase: {leaked!r}"
+        for forbidden in ("polyptych", "triptych", "diptych", "composed as a"):
+            assert forbidden.lower() not in out.lower(), (
+                f"{forbidden!r} survived in: {out!r} (from {leaked!r})"
+            )
+
+
+def test_sanitize_keeps_legit_tiled_prose():
+    """Round-4 verifier — the "tiled X" pattern must be anchored to
+    grid-context nouns (image / grid / composition / layout / across
+    the frame) so legitimate environment prose like "tiled floor" /
+    "tiled ceiling" / "tiled wall" passes through unchanged. The
+    environment vocab uses these phrases for bathroom + pool +
+    Mediterranean settings."""
+    from src.prompt.builder import sanitize_grid_phrases
+    for legit in [
+        "tiled floor catching warm light",
+        "terracotta tiled floor",
+        "blue tiled bathroom wall",
+        "tiled ceiling above the pool",
+    ]:
+        out, _ = sanitize_grid_phrases(legit)
+        assert "tiled" in out.lower(), (
+            f"legitimate 'tiled' prose was stripped: {legit!r} → {out!r}"
+        )
+
+
 def test_sanitize_strips_in_natural_poses_residual():
     """Round-2 verifier F10 BLOCKER — the original migrate left
     "in natural poses" in scene_021's prompt body after stripping

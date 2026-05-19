@@ -136,9 +136,11 @@ def migrate_series(conn: sqlite3.Connection, dry_run: bool, only_series: str | N
 
 
 def migrate_prompts(conn: sqlite3.Connection, dry_run: bool, only_series: str | None) -> dict[str, int]:
-    """Clean prompts.prompt_text + prompts.negative_prompt rows. Even
-    though the negative side now has HARD_BLOCK grid coverage, scrub
-    any in-body grid phrases that survived from old composed prompts."""
+    """Clean prompts.prompt_text rows. Negative prompts are not touched
+    — HARD_BLOCK_NEGATIVE already covers grid/mirror tokens on the
+    negative side (composer-resolved per family); this migration only
+    scrubs in-body grid phrases that historically leaked from the LLM
+    into the composed POSITIVE prompt body."""
     stats = {"prompts_scanned": 0, "prompts_changed": 0}
     where = "WHERE series_id = ?" if only_series else ""
     args = (only_series,) if only_series else ()

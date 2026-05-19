@@ -278,6 +278,21 @@ _MULTI_SUBJECT_PATTERNS: tuple[str, ...] = (
     r"frame-within-frame",
     r"doubled presence",
     r"doubled by reflection",
+    # Round-4 verifier (A5) — bare composition nouns and "composed as
+    # a X" forms. The natural-prose phrasing the LLM is most likely to
+    # emit ("Composed as a polyptych", "A diptych of moments") leaked
+    # through the round-1 anchored patterns. Stripping them here at
+    # the positive side means the encoder never sees them; the SDXL
+    # tight negative block doesn't need to carry the expensive bare
+    # nouns (each ~4-5 CLIP tokens). polyptych / triptych / diptych
+    # are art-history terms that virtually never appear in NSFW
+    # editorial prose for any reason other than grid-style
+    # composition, so bare-matching is safe.
+    r"polyptych",
+    r"triptych",
+    r"diptych",
+    r"composed (?:as|in|like) (?:a|an) (?:polyptych|triptych|diptych|grid|collage)",
+    r"tiled (?:image|grid|composition|layout|across the frame)",
 )
 
 _MULTI_SUBJECT_PATTERN = re.compile(
