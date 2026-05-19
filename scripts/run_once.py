@@ -83,7 +83,7 @@ def main() -> None:
             "(e.g. templates/chroma/chroma_done_properly.json). The "
             "template's baked-in checkpoint / LoRAs / sampler all run "
             "as authored; the pipeline injects only positive/negative "
-            "prompt, seed, and resolution. IPAdapter is forced off. "
+            "prompt, seed, and resolution. "
             "See docs/COMFYUI_WORKFLOWS.md § External templates."
         ),
     )

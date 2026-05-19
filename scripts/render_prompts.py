@@ -13,7 +13,7 @@ Use this when you want to:
     (after ``prepare_prompts --series-id S --models <other>``
     has populated that model's prompts).
   - Render a single scene across multiple models for side-by-side
-    comparison without going through ``compare_models.py``.
+    comparison (positional pairing of --models and --templates).
 
 Pre-flight:
   - ComfyUI is running at the configured URL.
