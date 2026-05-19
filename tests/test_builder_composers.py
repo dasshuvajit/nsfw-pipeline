@@ -103,6 +103,47 @@ def test_illustrious_includes_booru_and_prose_and_quality_suffix(pb, family_load
     assert text.endswith("newest") or "newest," in text  # quality suffix trailing
 
 
+def test_illustrious_threads_extra_keywords_into_body(pb, family_loader):
+    """Verifier round-2 B3 regression — Illustrious composer dropped
+    extra_keywords entirely before the fix, so series-aesthetic
+    phrases + scene vocab phrases never reached Illustrious renders.
+
+    Before fix: `assert series_kw in text` would fail.
+    After fix: extra_keywords land in body_segments, BEFORE the trailing
+    style_keywords + quality suffix.
+    """
+    family = family_loader.get_family("illustrious")
+    scene = {
+        **UNIVERSAL_SCENE,
+        "booru_tags": "1girl, solo, sitting",
+        "scene_prose": "an intimate boudoir scene at golden hour",
+    }
+    # canonicalize_series_aesthetic emits the family-shaped phrasing
+    # for the picked tag; PromptBuilder.build_one threads it via
+    # series_plan. Use a concrete vocab tag the loader recognises so
+    # the test exercises the real chain end-to-end.
+    series_plan = {
+        "color_palette": "PALETTE_TEAL_ORANGE_BLOCKBUSTER",
+    }
+    out = pb.build_one(
+        CHARACTER, scene, STYLE, family=family, series_plan=series_plan,
+    )
+    text = out["prompt_text"]
+    # The Illustrious phrasing for teal-orange landed in the body.
+    # Look for "teal" + "orange" co-occurring — the canonicalizer's
+    # output (booru-shaped underscore tags or short phrase) MUST
+    # include the colour anchors.
+    lower = text.lower()
+    assert "teal" in lower, (
+        "Illustrious dropped the series-aesthetic palette anchor — "
+        "B3 regressed."
+    )
+    assert "orange" in lower, (
+        "Illustrious dropped the series-aesthetic palette anchor — "
+        "B3 regressed."
+    )
+
+
 def test_flux_produces_prose_sentences(pb, family_loader):
     family = family_loader.get_family("flux")
     scene = {

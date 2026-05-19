@@ -164,6 +164,11 @@ _BOORU_NSFW_TOKENS: frozenset[str] = frozenset({
     "nude", "completely_nude", "fully_nude", "topless", "bare_chest",
     "bare_breasts", "breasts", "nipples", "pussy", "vulva",
     "anatomically_correct", "fine_art_nude",
+    # Verifier round-3 NIT-7 — natural T3 booru phrasings that the
+    # heuristic at line 205 ("nude" substring) didn't catch.
+    "bottomless", "bare_back", "bare_legs", "bare_thighs",
+    "bare_hips", "partially_nude", "topless_back", "see_through",
+    "sheer_lingerie", "lingerie_pull_aside",
 })
 
 # Booru prompt_style values whose facets carry NSFW content natively

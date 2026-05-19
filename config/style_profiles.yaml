@@ -63,6 +63,17 @@ profiles:
       - ART_MOVE_FILM_NOIR_1940S
       - ART_MOVE_REMBRANDT_PORTRAIT
       - ART_MOVE_HOPPER
+    # Verifier round-3 IMPORTANT-2 — environments coherent with the
+    # low-key chiaroscuro / intimate boudoir aesthetic.
+    compatible_environments:
+      - ENV_MORNING_BEDROOM
+      - ENV_OLD_HOLLYWOOD_BOUDOIR
+      - ENV_VICTORIAN_PARLOUR
+      - ENV_GEORGIAN_LIBRARY
+      - ENV_PARIS_ATTIC_APARTMENT
+      - ENV_HOTEL_LOBBY_NOIR
+      - ENV_LOG_CABIN_FIRELIT
+      - ENV_VANITY_DRESSING_ROOM
 
   old_hollywood_glamour:
     name: Old Hollywood Glamour
@@ -117,6 +128,17 @@ profiles:
       - ART_MOVE_IMPRESSIONIST_RENOIR
       - ART_MOVE_DUTCH_GOLDEN_VERMEER
       - ART_MOVE_PRE_RAPHAELITE
+    # Verifier round-3 IMPORTANT-2 — environments coherent with the
+    # outdoor naturalistic golden-hour aesthetic.
+    compatible_environments:
+      - ENV_MEDITERRANEAN_COURTYARD
+      - ENV_BALINESE_VILLA
+      - ENV_GRASS_MEADOW_GOLDEN_HOUR
+      - ENV_TUSCAN_VILLA_RENAISSANCE
+      - ENV_GREEK_ISLAND_TERRACE
+      - ENV_DESERT_OASIS_PALMS
+      - ENV_FOG_PINE_FOREST
+      - ENV_BLACK_SAND_BEACH
 
   cinematic_wet_set:
     name: Cinematic Wet-Set
@@ -148,6 +170,17 @@ profiles:
     compatible_art_movements:
       - ART_MOVE_FILM_NOIR_1940S
       - ART_MOVE_HOPPER
+    # Verifier round-3 IMPORTANT-2 — environments coherent with rain /
+    # neon / wet-specular cinematic mood.
+    compatible_environments:
+      - ENV_TOKYO_LOVE_HOTEL
+      - ENV_FIRE_ESCAPE_NEON
+      - ENV_ROOFTOP_CITY_NIGHT
+      - ENV_BERLIN_KREUZBERG_LOFT
+      - ENV_HAMMAM_STEAM
+      - ENV_INDOOR_POOL_NIGHT
+      - ENV_CLAWFOOT_BATHROOM
+      - ENV_HOTEL_LOBBY_NOIR
 
   fine_art_figurative:
     name: Fine-Art Figurative
@@ -187,6 +220,17 @@ profiles:
       - ART_MOVE_DUTCH_GOLDEN_VERMEER
       - ART_MOVE_PRE_RAPHAELITE
       - ART_MOVE_ART_NOUVEAU_KLIMT
+    # Verifier round-3 IMPORTANT-2 — environments coherent with the
+    # gallery / sculptural / painterly-light figurative aesthetic.
+    compatible_environments:
+      - ENV_ARTIST_STUDIO_NORTH_LIGHT
+      - ENV_STUDIO_CYC_MINIMAL
+      - ENV_TUSCAN_VILLA_RENAISSANCE
+      - ENV_RUINED_PALAZZO
+      - ENV_GEORGIAN_LIBRARY
+      - ENV_VICTORIAN_OBSERVATORY
+      - ENV_PRINT_WORKSHOP
+      - ENV_PARIS_ATTIC_APARTMENT
 
   vintage_pinup_kodachrome:
     name: Vintage Pin-Up Kodachrome
@@ -288,3 +332,14 @@ profiles:
     compatible_art_movements:
       - ART_MOVE_FILM_NOIR_1940S
       - ART_MOVE_HOPPER
+    # Verifier round-3 IMPORTANT-2 — environments coherent with the
+    # rainy neon-noir cyberpunk-adjacent aesthetic.
+    compatible_environments:
+      - ENV_TOKYO_LOVE_HOTEL
+      - ENV_FIRE_ESCAPE_NEON
+      - ENV_BERLIN_KREUZBERG_LOFT
+      - ENV_ROOFTOP_CITY_NIGHT
+      - ENV_HOTEL_LOBBY_NOIR
+      - ENV_BRUTALIST_CONCRETE_LOFT
+      - ENV_WAREHOUSE_CONVERSION
+      - ENV_CABARET_STAGE_DARK

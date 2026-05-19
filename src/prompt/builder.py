@@ -450,17 +450,24 @@ class PromptBuilder:
         *,
         family: FamilyConfig,
         trigger_words: Iterable[str] | None = None,
+        series_plan: Mapping[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         """Vectorized :meth:`build_one`."""
         return [
             self.build_one(
                 character, scene, style_profile, extra_keywords,
                 family=family, trigger_words=trigger_words,
+                series_plan=series_plan,
             )
             for scene in scenes
         ]
 
     # ── mode-specific helpers ──────────────────────────────────────
+    # Verifier round-3 NIT-6 — series_plan threaded through every
+    # mode-helper so a future re-wire can't silently lose Phase 3
+    # aesthetic anchors (color_palette / photographer_ref /
+    # art_movement). Currently these helpers are unused (engine.py
+    # calls build_one directly) — kept for API completeness.
     def build_character_prompt(
         self,
         character: Mapping[str, Any],
@@ -470,12 +477,14 @@ class PromptBuilder:
         family: FamilyConfig,
         trigger_words: Iterable[str] | None = None,
         negative_prompt_override: str | None = None,
+        series_plan: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         return self.build_one(
             character, scene, style_profile,
             family=family,
             trigger_words=trigger_words,
             negative_prompt_override=negative_prompt_override,
+            series_plan=series_plan,
         )
 
     def build_theme_prompt(
@@ -502,6 +511,7 @@ class PromptBuilder:
             family=family,
             trigger_words=trigger_words,
             negative_prompt_override=negative_prompt_override,
+            series_plan=series_plan,
         )
 
     def build_style_prompt(
@@ -530,6 +540,7 @@ class PromptBuilder:
             family=family,
             trigger_words=trigger_words,
             negative_prompt_override=negative_prompt_override,
+            series_plan=series_plan,
         )
 
     def build_niche_prompt(
@@ -561,6 +572,7 @@ class PromptBuilder:
             family=family,
             trigger_words=trigger_words,
             negative_prompt_override=negative_prompt_override,
+            series_plan=series_plan,
         )
 
     def build_variation_prompt(
@@ -572,6 +584,7 @@ class PromptBuilder:
         family: FamilyConfig,
         trigger_words: Iterable[str] | None = None,
         negative_prompt_override: str | None = None,
+        series_plan: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         env = self._field(base_scene, "environment_detail") or "studio"
         synthetic = {
@@ -583,6 +596,7 @@ class PromptBuilder:
             family=family,
             trigger_words=trigger_words,
             negative_prompt_override=negative_prompt_override,
+            series_plan=series_plan,
         )
 
     # ── dispatch + composers ───────────────────────────────────────

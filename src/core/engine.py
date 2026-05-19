@@ -29,7 +29,7 @@ import sqlite3
 import time
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 import psutil
 import yaml
@@ -200,6 +200,17 @@ def _load_style_profile(db_path: Path, style_profile_id: str) -> dict[str, Any]:
         "lighting_hint": p.lighting_hint,
         "suited_tiers": list(p.suited_tiers),
         "suited_families": list(p.suited_families),
+        # Verifier round-3 BLOCKER fix — Phase 3 aesthetic-menu compat
+        # lists round-trip through this dict so every mode can read
+        # ``ctx.style_profile.get("compatible_palettes", [])`` etc.
+        # Pre-fix these were silently dropped here even though the
+        # dataclass + YAML carried them, making the SeriesPlanner's
+        # menu narrowing inert. CharacterMode (which only has
+        # style_profile as a compat source) was particularly affected.
+        "compatible_palettes": list(p.compatible_palettes),
+        "compatible_photographers": list(p.compatible_photographers),
+        "compatible_art_movements": list(p.compatible_art_movements),
+        "compatible_environments": list(p.compatible_environments),
         # Kept for signature parity with WorkflowBuilder's LoRA stage;
         # archetypes declare an empty stack — per-model LoRA defaults
         # go on the model YAML's prompt.extend hook.
@@ -1518,6 +1529,7 @@ class PipelineEngine:
                     ),
                     refiner_used=refiner_used,
                     refiner_checkpoint=refiner_checkpoint,
+                    series_plan=series_plan,
                 )
                 rendered_images.append({
                     "id": uuid.uuid4().hex,
@@ -2000,6 +2012,7 @@ class PipelineEngine:
         render_model_id: str | None = None,
         refiner_used: bool = False,
         refiner_checkpoint: str | None = None,
+        series_plan: Mapping[str, Any] | None = None,
     ) -> None:
         """Attach AUTOMATIC1111 ``parameters`` + pipeline ``nsfw_pipeline``
         PNG tEXt chunks to ``path``. Best-effort: any failure logs at
@@ -2035,6 +2048,25 @@ class PipelineEngine:
                 k: scene.get(k) for k in structured_keys
                 if scene.get(k) is not None
             }
+            # Verifier round-3 IMPORTANT-4 — series-level aesthetic
+            # anchors persisted in the PNG so a forensic reader can
+            # reproduce the signature look without DB access. The 3
+            # fields are SeriesPlanner's Phase 3 output (color_palette,
+            # photographer_ref, art_movement); when missing on older
+            # series, the metadata payload simply omits the
+            # series_aesthetic sub-dict.
+            series_aesthetic: dict[str, Any] | None = None
+            if series_plan:
+                aesthetic = {
+                    k: series_plan.get(k) for k in (
+                        "color_palette",
+                        "photographer_ref",
+                        "art_movement",
+                    )
+                }
+                if any(v for v in aesthetic.values()):
+                    series_aesthetic = aesthetic
+
             pipeline_json = build_pipeline_metadata(
                 vocab_version=vocab_version,
                 family=family_id or "",
@@ -2061,6 +2093,7 @@ class PipelineEngine:
                 render_model_id=render_model_id,
                 refiner_used=refiner_used,
                 refiner_checkpoint=refiner_checkpoint,
+                series_aesthetic=series_aesthetic,
             )
             write_png_metadata(
                 path,

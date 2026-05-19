@@ -112,3 +112,88 @@ def test_flux2_suited_families_routing(loader):
         assert "flux2" not in profile.suited_families, (
             f"{aid} must NOT include flux2 (Klein mis-fits this archetype)"
         )
+
+
+# ── Verifier round-3 BLOCKER regression: aesthetic-compat fields ────
+
+
+# Five profiles declare full aesthetic-compat lists (Phase 3 vocab v6).
+# These are the seeds for the SeriesPlanner's aesthetic-anchor menu
+# narrowing; if the loader silently strips them (the bug round-3
+# found), the menu falls back to the full vocab and the signature-
+# look pinning becomes inert.
+PROFILES_WITH_COMPAT = {
+    "boudoir_noir",
+    "golden_hour_natural",
+    "cinematic_wet_set",
+    "fine_art_figurative",
+    "neo_noir_neon",
+}
+
+
+def test_profiles_with_compat_load_palette_lists(loader):
+    for pid in PROFILES_WITH_COMPAT:
+        p = loader.get_profile(pid)
+        assert p.compatible_palettes, (
+            f"{pid}: compatible_palettes is empty — YAML declares a "
+            "list but the dataclass / loader is silently stripping it. "
+            "Phase 3 menu narrowing breaks if this regresses."
+        )
+
+
+def test_profiles_with_compat_load_photographer_lists(loader):
+    for pid in PROFILES_WITH_COMPAT:
+        p = loader.get_profile(pid)
+        assert p.compatible_photographers, (
+            f"{pid}: compatible_photographers is empty"
+        )
+
+
+def test_profiles_with_compat_load_art_movement_lists(loader):
+    for pid in PROFILES_WITH_COMPAT:
+        p = loader.get_profile(pid)
+        assert p.compatible_art_movements, (
+            f"{pid}: compatible_art_movements is empty"
+        )
+
+
+def test_profiles_with_compat_load_environment_lists(loader):
+    """compatible_environments rounds out the Phase 3 quartet (added
+    round-3). Missing = the environment-menu narrowing in
+    SceneFacetGenerator is silently inert for these profiles."""
+    for pid in PROFILES_WITH_COMPAT:
+        p = loader.get_profile(pid)
+        assert p.compatible_environments, (
+            f"{pid}: compatible_environments is empty"
+        )
+
+
+def test_compat_lists_use_known_concept_tags(loader):
+    """Every compat-list tag MUST exist in the vocabulary YAML —
+    otherwise the LLM gets offered a tag the canonicalizer can't
+    translate, and the prompt loses an aesthetic anchor."""
+    from src.prompt.vocabulary import VocabularyLoader
+    vocab = VocabularyLoader()
+
+    def _tags_in_namespace(top: str, sub: str) -> set[str]:
+        return set(vocab.concepts_by_namespace(top, sub).keys())
+
+    valid = {
+        "compatible_palettes":
+            _tags_in_namespace("aesthetic", "color_palette"),
+        "compatible_photographers":
+            _tags_in_namespace("aesthetic", "photographer_ref"),
+        "compatible_art_movements":
+            _tags_in_namespace("aesthetic", "art_movement"),
+        "compatible_environments":
+            _tags_in_namespace("environment", "setting"),
+    }
+    for pid in PROFILES_WITH_COMPAT:
+        p = loader.get_profile(pid)
+        for field_name, allowed in valid.items():
+            actual = getattr(p, field_name)
+            unknown = [t for t in actual if t not in allowed]
+            assert not unknown, (
+                f"{pid}.{field_name} references unknown vocab tag(s) "
+                f"{unknown!r} — typo in the YAML or stale tag name."
+            )

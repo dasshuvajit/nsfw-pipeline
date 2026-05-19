@@ -101,6 +101,7 @@ def build_pipeline_metadata(
     render_model_id: str | None = None,
     refiner_used: bool = False,
     refiner_checkpoint: str | None = None,
+    series_aesthetic: Mapping[str, Any] | None = None,
 ) -> str:
     """Build the ``nsfw_pipeline`` JSON chunk content.
 
@@ -156,6 +157,20 @@ def build_pipeline_metadata(
         payload["structured_facet"] = {
             k: v for k, v in structured_facet.items() if v is not None
         }
+    # Verifier round-3 IMPORTANT-4 — series-level aesthetic anchors
+    # (color_palette / photographer_ref / art_movement) are the Phase
+    # 3 "signature look" pinning, set ONCE per series by SeriesPlanner
+    # and shared by every scene. Persist them here so a forensic
+    # reader inspecting only the PNG can reproduce the series's
+    # signature look without round-tripping through the DB. Drops
+    # None values to keep the chunk small; falls through when the
+    # caller doesn't supply (back-compat for older series).
+    if series_aesthetic:
+        nonempty = {
+            k: v for k, v in series_aesthetic.items() if v is not None
+        }
+        if nonempty:
+            payload["series_aesthetic"] = nonempty
     if extra:
         for k, v in extra.items():
             if v is not None and k not in payload:

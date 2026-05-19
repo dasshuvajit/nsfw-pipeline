@@ -40,6 +40,16 @@ class StyleProfile:
 
     Render tuning (sampler / steps / cfg / lora_stack / model_id) is
     intentionally absent — those come from the model YAML.
+
+    Verifier round-3 BLOCKER fix — the 4 ``compatible_*`` lists are
+    the style-profile side of the aesthetic-menu narrowing
+    (Phase 3 vocab v6). Pre-fix this dataclass declared none of them
+    and ``from_dict`` silently dropped the YAML rows; every mode read
+    ``ctx.style_profile.get("compatible_palettes", [])`` as ``[]``
+    and the SeriesPlanner's aesthetic-menu narrowing rendered inert.
+    Now they round-trip from YAML through the loader, intersect with
+    the category/cluster compat in each mode, and reach the LLM via
+    ``_resolve_aesthetic_menu`` + ``llm_vocabulary_block``.
     """
 
     id: str
@@ -51,6 +61,10 @@ class StyleProfile:
     lighting_hint: str
     suited_tiers: list[str] = field(default_factory=list)
     suited_families: list[str] = field(default_factory=list)
+    compatible_palettes: list[str] = field(default_factory=list)
+    compatible_photographers: list[str] = field(default_factory=list)
+    compatible_art_movements: list[str] = field(default_factory=list)
+    compatible_environments: list[str] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, profile_id: str, d: dict) -> "StyleProfile":
@@ -70,6 +84,16 @@ class StyleProfile:
             lighting_hint=(d.get("lighting_hint") or "").strip(),
             suited_tiers=list(d.get("suited_tiers") or []),
             suited_families=list(d.get("suited_families") or []),
+            compatible_palettes=list(d.get("compatible_palettes") or []),
+            compatible_photographers=list(
+                d.get("compatible_photographers") or []
+            ),
+            compatible_art_movements=list(
+                d.get("compatible_art_movements") or []
+            ),
+            compatible_environments=list(
+                d.get("compatible_environments") or []
+            ),
         )
 
 

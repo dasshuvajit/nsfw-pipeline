@@ -158,6 +158,83 @@ def test_pipeline_metadata_extra_field_propagates():
     assert parsed["trigger_words_used"] == ["ultra_real_v4"]
 
 
+# ── Verifier round-3 IMPORTANT-4: series_aesthetic in metadata ─────
+
+
+def test_pipeline_metadata_records_series_aesthetic():
+    """The PNG nsfw_pipeline chunk persists the series-level aesthetic
+    anchors so a forensic reader can reproduce the signature look
+    without round-tripping through the DB."""
+    raw = build_pipeline_metadata(
+        vocab_version=6,
+        family="sdxl", model_id="gonzalomo_photo_v70",
+        scene_id="scn", series_id="ser", prompt_hash=None,
+        seed=42, sampler="DPM++ 2M", scheduler="Karras",
+        steps=30, cfg=6.0, content_level="T3_artnude",
+        series_aesthetic={
+            "color_palette": "PALETTE_BAROQUE_CARAVAGGIO",
+            "photographer_ref": "PHOTOG_HELMUT_NEWTON",
+            "art_movement": "ART_MOVE_FILM_NOIR_1940S",
+        },
+    )
+    parsed = json.loads(raw)
+    assert parsed["series_aesthetic"] == {
+        "color_palette": "PALETTE_BAROQUE_CARAVAGGIO",
+        "photographer_ref": "PHOTOG_HELMUT_NEWTON",
+        "art_movement": "ART_MOVE_FILM_NOIR_1940S",
+    }
+
+
+def test_pipeline_metadata_drops_none_aesthetic_values():
+    """Pony series don't pick photographer_ref / art_movement
+    (canonicalizer omits Pony). Those keys MUST drop from the chunk."""
+    raw = build_pipeline_metadata(
+        vocab_version=6,
+        family="pony", model_id="ponyrealismV23VAE",
+        scene_id="scn", series_id="ser", prompt_hash=None,
+        seed=42, sampler="DPM++ 2M", scheduler="Karras",
+        steps=30, cfg=6.0, content_level="T3_artnude",
+        series_aesthetic={
+            "color_palette": "PALETTE_MONOCHROME_HIGH_CONTRAST",
+            "photographer_ref": None,
+            "art_movement": None,
+        },
+    )
+    parsed = json.loads(raw)
+    assert parsed["series_aesthetic"] == {
+        "color_palette": "PALETTE_MONOCHROME_HIGH_CONTRAST",
+    }
+
+
+def test_pipeline_metadata_omits_series_aesthetic_when_empty():
+    """No anchors / all None ⇒ no series_aesthetic key in payload."""
+    raw = build_pipeline_metadata(
+        vocab_version=6,
+        family="sdxl", model_id="x",
+        scene_id=None, series_id=None, prompt_hash=None,
+        seed=None, sampler=None, scheduler=None, steps=None,
+        cfg=None, content_level=None,
+        series_aesthetic=None,
+    )
+    parsed = json.loads(raw)
+    assert "series_aesthetic" not in parsed
+
+    raw_all_none = build_pipeline_metadata(
+        vocab_version=6,
+        family="sdxl", model_id="x",
+        scene_id=None, series_id=None, prompt_hash=None,
+        seed=None, sampler=None, scheduler=None, steps=None,
+        cfg=None, content_level=None,
+        series_aesthetic={
+            "color_palette": None,
+            "photographer_ref": None,
+            "art_movement": None,
+        },
+    )
+    parsed = json.loads(raw_all_none)
+    assert "series_aesthetic" not in parsed
+
+
 # ── PNG round-trip ─────────────────────────────────────────────────
 
 
