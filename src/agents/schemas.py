@@ -353,7 +353,7 @@ _ENVIRONMENT_ENUM_FIELDS = {
     "environment_prop": (
         "Optional prop / set-dressing concept tag from environment.prop "
         "namespace. Adds named furniture / objects to anchor the scene. "
-        "Examples: PROP_CHEVAL_MIRROR, PROP_CHAISE_LOUNGE_VELVET, "
+        "Examples: PROP_CHAISE_LOUNGE_VELVET, PROP_CHESTERFIELD_LEATHER, "
         "PROP_FOUR_POSTER_BED, PROP_SILK_DRAPE, PROP_TAPERED_CANDLE_CLUSTER, "
         "PROP_HANDWRITTEN_LETTER, PROP_OIL_PAINTING_NUDE, "
         "PROP_PEONIES_OVERBLOWN, PROP_WINE_BOTTLE_RED. Pick a prop "
@@ -368,11 +368,12 @@ _COMPOSITION_ENUM_FIELDS = {
         "Optional composition-principle concept tag from "
         "composition.principle namespace. Beyond angle/framing, picks "
         "higher-order compositional rules. Examples: "
-        "COMP_FRAME_WITHIN_FRAME, COMP_REFLECTION_PRIMARY, "
         "COMP_LEADING_LINES_FLOOR, COMP_NEGATIVE_SPACE_DOMINANT, "
         "COMP_FOREGROUND_MIDGROUND_BACKGROUND, COMP_SYMMETRY_CENTERED, "
-        "COMP_LOW_HERO_SHOT, COMP_SILHOUETTE_BACKLIT. Pony omits — "
-        "booru tags carry composition implicitly via positional tags."
+        "COMP_LOW_HERO_SHOT, COMP_SILHOUETTE_BACKLIT, "
+        "COMP_GOLDEN_RATIO_SPIRAL, COMP_TRIANGULAR, COMP_RULE_OF_ODDS. "
+        "Pony omits — booru tags carry composition implicitly via "
+        "positional tags."
     ),
 }
 

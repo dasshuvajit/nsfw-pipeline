@@ -62,6 +62,18 @@ as the sole human subject. NEVER plan multi-subject themes —
 no "couple at sunset", no "two friends", no "group portrait", no
 "her partner". The subject_description must read as a single woman
 in every case.
+
+SINGLE-SCENE INVARIANT (subject_description): the subject_description
+is INJECTED VERBATIM INTO EVERY SCENE's prompt body. It must describe
+ONLY the person — appearance, attire / state of undress, age signal.
+It must NEVER reference cross-scene variety, composition, framing, or
+direction. NEVER write "in varying poses", "across varying
+compositions", "in various poses across the series", "from different
+angles", "in multiple compositions", "across scenes", "throughout the
+series". Those words make the image model render a 4-panel collage
+grid because each scene's encoder reads them as a polyptych
+instruction. Keep subject_description ≤ 18 words, NO sentence-final
+"in/across/throughout" clauses, NO adverbs of variety.
 """
 
 _PLAN_USER_TEMPLATE = """\
@@ -93,7 +105,7 @@ Generate a JSON object with exactly these fields:
   "mood": "<emotional tone that fits the theme AND the tier>",
   "environment": "<primary setting/location — be specific: 'rain-soaked Tokyo alley at night' not 'outdoor'>",
   "variation_axes": ["<axis1>", "<axis2>", "<axis3>", "<axis4>"],
-  "subject_description": "<brief description of the subject/model — at T3/T4, name nudity / state of undress explicitly per the tier directive; do NOT default to lingerie if T4 directive calls for fully nude>",
+  "subject_description": "<≤ 18 WORDS describing ONLY the subject (appearance, attire / state of undress, age signal). At T3/T4, name nudity per the tier directive (do NOT default to lingerie if T4 says fully nude). NEVER include the words 'varying', 'various', 'across', 'throughout', 'multiple', 'different angles', 'compositions', 'poses' — those phrases get injected verbatim into every scene's prompt and the image model reads them as a polyptych instruction, producing a 4-panel grid. Example GOOD: 'A confident adult woman, fully nude, mature features, natural skin'. Example BAD: 'A nude woman in varying poses across different compositions'>",
   "color_palette": "<one PALETTE_* tag from the menu above — the series's colour grade>",
   "photographer_ref": "<one PHOTOG_* tag from the menu above — the photographer-signature for the series>",
   "art_movement": "<one ART_MOVE_* tag from the menu, OR null if no movement reference fits>"
@@ -292,6 +304,30 @@ class ThemeMode(BaseMode):
         plan["category_id"] = category["id"]
         plan["category_name"] = category["name"]
         plan.setdefault("subject_description", "")
+
+        # vocab v7 — server-side validator for the SINGLE-SCENE
+        # INVARIANT. The plan prompt forbids cross-scene variety
+        # language in subject_description, but Cydonia at temp≥0.7
+        # routinely ignores embedded constraints. Sanitize: strip
+        # offending phrases via the same regex the composer uses
+        # downstream. If anything was stripped, log at WARN so the
+        # drift surfaces in run_log — operator can decide whether to
+        # re-prompt or accept the cleaned version. The clean side
+        # always wins (defence-in-depth).
+        from src.prompt.builder import _MULTI_SUBJECT_PATTERN
+        raw_sd = plan.get("subject_description", "") or ""
+        if raw_sd:
+            cleaned_sd = _MULTI_SUBJECT_PATTERN.sub("", raw_sd)
+            import re as _re
+            cleaned_sd = _re.sub(r"\s{2,}", " ", cleaned_sd).strip(" ,.")
+            if cleaned_sd != raw_sd:
+                logger.warning(
+                    "ThemeMode: SINGLE-SCENE INVARIANT — LLM emitted "
+                    "cross-scene variety language in subject_description. "
+                    "Sanitized. before=%r after=%r llm=%s",
+                    raw_sd, cleaned_sd, planner_model,
+                )
+                plan["subject_description"] = cleaned_sd
         # Verifier round-2 I4 — propagate the theme category's environment
         # whitelist (intersected with the style_profile's when both
         # populated) so SceneFacetGenerator narrows the LLM's

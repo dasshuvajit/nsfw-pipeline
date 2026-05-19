@@ -27,7 +27,7 @@
 #   3. Bump ``version:`` at the top.
 #   4. Re-run regression suite — fixtures pin the byte-stable output.
 
-version: 6
+version: 7
 
 realism:
   # ── Lighting ─────────────────────────────────────────────────────────
@@ -664,8 +664,9 @@ nsfw:
     # acts above are filtered by _SOLO_MODE_BANNED_TAGS. Every T4
     # scene was forced to the same act tag — zero creative variety.
     # The six entries below cover the canonical solo-female art-nude
-    # repertoire (display / reclining / mirror / bath / direct gaze /
-    # outdoor / performer) so the LLM has real choice at T4.
+    # repertoire (display / reclining / bath / direct gaze / outdoor /
+    # performer) so the LLM has real choice at T4. Vocab v7 (2026-05-20)
+    # dropped SOLO_MIRROR — see comment below.
     NSFW_T4_SOLO_DISPLAY:
       tier_min: T4_explicit
       phrasing:
@@ -684,15 +685,11 @@ nsfw:
         flux:        "An adult woman reclining nude in a classical odalisque pose, her body extended along the surface, explicit and anatomically correct"
         chroma:      "reclining nude, classical odalisque pose extending across the surface, explicit, anatomically correct"
         flux2:       "An adult woman reclining nude in a classical odalisque pose, her body extended along the surface in soft natural curves, explicit and anatomically correct"
-    NSFW_T4_SOLO_MIRROR:
-      tier_min: T4_explicit
-      phrasing:
-        sdxl:        "nude self-regard in mirror, intimate reflection, explicit, anatomically correct"
-        pony:        "solo, nude, looking_at_mirror, self_regard, intimate, explicit, anatomically_correct"
-        illustrious: "solo, nude, looking_at_mirror, self_regard, intimate, explicit"
-        flux:        "An adult woman nude before a mirror studying her own reflection, intimate self-regard, explicit and anatomically correct"
-        chroma:      "nude woman before a mirror studying her own reflection, intimate self-regard, explicit, anatomically correct"
-        flux2:       "An adult woman nude before a mirror studying her own reflection in quiet self-regard, intimate framing, explicit and anatomically correct"
+    # NSFW_T4_SOLO_MIRROR removed (vocab v7, 2026-05-20): SDXL/Chroma
+    # consistently render mirror reflections poorly (warped faces,
+    # body-doubled hallucinations) and the user explicitly opted out of
+    # mirror-themed compositions. The seven remaining SOLO_* acts cover
+    # the creative repertoire without the failure mode.
     NSFW_T4_SOLO_BATH:
       tier_min: T4_explicit
       phrasing:
@@ -818,12 +815,12 @@ environment:
       chroma:      "1930s Hollywood dressing room, satin chaise lounge, vanity with vintage perfume bottles, ostrich-feather lamp casting amber light"
       flux2:       "Set inside a 1930s Hollywood dressing room, a satin chaise lounge against the wall, a vanity scattered with vintage crystal perfume bottles, an ostrich-feather table lamp casting soft amber light across the polished surface"
     ENV_ART_DECO_HOTEL_SUITE:
-      sdxl:        "art-deco hotel suite, lacquered ebony walls, geometric brass inlay, champagne coupe on mirrored side table"
-      pony:        "art_deco_suite, lacquered_ebony, brass_inlay, geometric_pattern, champagne_coupe, mirrored_table, 1920s_interior"
-      illustrious: "art_deco_hotel_suite, lacquered_ebony, geometric_brass_inlay, mirrored_surfaces"
-      flux:        "An art-deco hotel suite with lacquered ebony walls, geometric brass inlay along the trim, a champagne coupe resting on a mirrored side-table"
-      chroma:      "art-deco hotel suite, lacquered ebony walls, geometric brass inlay, champagne coupe on a mirrored side-table"
-      flux2:       "Set inside an art-deco hotel suite, lacquered ebony walls reflecting the warm sconce light, geometric brass inlay running along the trim, a champagne coupe resting on a mirrored side-table beside a black satin chaise"
+      sdxl:        "art-deco hotel suite, lacquered ebony walls, geometric brass inlay, champagne coupe on a polished walnut side table"
+      pony:        "art_deco_suite, lacquered_ebony, brass_inlay, geometric_pattern, champagne_coupe, walnut_side_table, 1920s_interior"
+      illustrious: "art_deco_hotel_suite, lacquered_ebony, geometric_brass_inlay, polished_walnut_surfaces"
+      flux:        "An art-deco hotel suite with lacquered ebony walls, geometric brass inlay along the trim, a champagne coupe resting on a polished walnut side-table"
+      chroma:      "art-deco hotel suite, lacquered ebony walls, geometric brass inlay, champagne coupe on a polished walnut side-table"
+      flux2:       "Set inside an art-deco hotel suite, lacquered ebony walls catching the warm sconce light, geometric brass inlay running along the trim, a champagne coupe resting on a polished walnut side-table beside a black satin chaise"
     ENV_VICTORIAN_PARLOUR:
       sdxl:        "Victorian parlour, oxblood wingback chair, gilt-framed oil paintings, gas-lamp glow"
       pony:        "victorian_parlour, wingback_chair, oxblood_leather, oil_paintings, gas_lamp, victorian_interior"
@@ -869,12 +866,12 @@ environment:
       chroma:      "morning bedroom, rumpled white Belgian linen sheets, sheer curtains glowing with morning sun, terracotta tiled floor catching warm reflected light"
       flux2:       "Set inside a morning bedroom, rumpled white Belgian linen sheets across the unmade bed, sheer linen curtains glowing with the soft early sun, a terracotta tiled floor catching warm reflected light, the room feeling slow and recently inhabited"
     ENV_CLAWFOOT_BATHROOM:
-      sdxl:        "marble bathroom with clawfoot tub, fogged mirror, single candle on the rim"
-      pony:        "clawfoot_bathtub, marble_bathroom, fogged_mirror, candle_on_tub_rim, intimate_bathroom"
-      illustrious: "clawfoot_bathroom, marble_floor, fogged_mirror, candle_on_tub"
-      flux:        "A marble bathroom with a clawfoot porcelain tub, a fogged mirror against the wall, a single lit candle resting on the tub rim"
-      chroma:      "marble bathroom with a clawfoot porcelain tub, fogged mirror against the wall, single lit candle on the tub rim"
-      flux2:       "Set inside a marble bathroom, a clawfoot porcelain tub holding warm water, a fogged mirror against the wall above a small marble vanity, a single lit candle resting on the polished tub rim, the air thick with humid steam"
+      sdxl:        "marble bathroom with clawfoot tub, marble vanity counter, single candle on the rim"
+      pony:        "clawfoot_bathtub, marble_bathroom, marble_vanity, candle_on_tub_rim, intimate_bathroom"
+      illustrious: "clawfoot_bathroom, marble_floor, marble_vanity_counter, candle_on_tub"
+      flux:        "A marble bathroom with a clawfoot porcelain tub, a marble vanity counter against the wall, a single lit candle resting on the tub rim"
+      chroma:      "marble bathroom with a clawfoot porcelain tub, marble vanity counter, single lit candle on the tub rim"
+      flux2:       "Set inside a marble bathroom, a clawfoot porcelain tub holding warm water, a marble vanity counter along the wall, a single lit candle resting on the polished tub rim, the air thick with humid steam"
     ENV_VANITY_DRESSING_ROOM:
       sdxl:        "rococo dressing room, gilded vanity, perfume bottles catching low afternoon light, ostrich-feather robe over the chair"
       pony:        "rococo_dressing_room, gilded_vanity, perfume_bottles, ostrich_feather_robe, dressing_room_interior, decorative"
@@ -955,12 +952,12 @@ environment:
       chroma:      "Parisian sixth-floor attic apartment, mansard window framing distant rooftops and clay chimney pots, soft afternoon light slanting in"
       flux2:       "Set inside a Parisian sixth-floor attic apartment, a mansard window framing the rooftops and clay chimney pots stretching to the horizon, soft afternoon light slanting in across worn wooden floorboards and a low daybed"
     ENV_TOKYO_LOVE_HOTEL:
-      sdxl:        "Tokyo love-hotel room, magenta and cyan neon, mirrored ceiling, lacquered surfaces"
-      pony:        "tokyo_love_hotel, neon_room, magenta_cyan_lighting, mirrored_ceiling, lacquered_surfaces, japanese_interior"
-      illustrious: "tokyo_love_hotel, neon_room, magenta_and_cyan, mirrored_ceiling"
-      flux:        "A Tokyo love-hotel room saturated in magenta and cyan neon, a mirrored ceiling above, lacquered black surfaces catching coloured reflections"
-      chroma:      "Tokyo love-hotel room, magenta and cyan neon saturating the space, mirrored ceiling above, lacquered black surfaces catching coloured reflections"
-      flux2:       "Set inside a Tokyo love-hotel room, the space saturated in magenta and cyan neon, a mirrored ceiling reflecting the bed below, lacquered black surfaces catching the coloured neon in liquid reflections"
+      sdxl:        "Tokyo love-hotel room, magenta and cyan neon, low lacquered ceiling, lacquered surfaces"
+      pony:        "tokyo_love_hotel, neon_room, magenta_cyan_lighting, lacquered_ceiling, lacquered_surfaces, japanese_interior"
+      illustrious: "tokyo_love_hotel, neon_room, magenta_and_cyan, lacquered_ceiling"
+      flux:        "A Tokyo love-hotel room saturated in magenta and cyan neon, a low lacquered ceiling above, lacquered black surfaces catching the coloured light"
+      chroma:      "Tokyo love-hotel room, magenta and cyan neon saturating the space, low lacquered ceiling above, lacquered black surfaces catching coloured light"
+      flux2:       "Set inside a Tokyo love-hotel room, the space saturated in magenta and cyan neon, a low lacquered ceiling above, lacquered black surfaces catching the coloured neon in a deep wet sheen"
     ENV_BERLIN_KREUZBERG_LOFT:
       sdxl:        "Berlin Kreuzberg loft, exposed brick, single industrial pendant lamp"
       pony:        "berlin_loft, kreuzberg, exposed_brick, industrial_pendant_lamp, minimal_interior, european_loft"
@@ -977,12 +974,12 @@ environment:
       chroma:      "deserted grand hotel lobby at 3am, polished brass elevator doors reflecting low light, single bellhop's lamp casting warm pooled glow across the marble"
       flux2:       "Set inside a deserted grand hotel lobby at 3am, polished brass elevator doors reflecting the low light, a single bellhop's lamp casting a warm pooled glow across the marble floor, the air heavy with quiet luxury"
     ENV_BACKSTAGE_DRESSING_ROOM:
-      sdxl:        "backstage cabaret dressing room, makeup mirror with vanity bulbs, costume rack of feathered gowns"
-      pony:        "backstage_dressing_room, makeup_mirror, vanity_bulbs, costume_rack, feathered_gown, theatrical_interior"
-      illustrious: "backstage_dressing_room, makeup_mirror_vanity_bulbs, costume_rack"
-      flux:        "A backstage cabaret dressing room with a makeup mirror ringed in vanity bulbs, a costume rack hung with feathered gowns, scattered cosmetics across the dresser"
-      chroma:      "backstage cabaret dressing room, makeup mirror ringed in vanity bulbs, costume rack hung with feathered gowns, scattered cosmetics"
-      flux2:       "Set inside a backstage cabaret dressing room, a makeup mirror ringed in vanity bulbs throwing warm light across the dresser, a costume rack hung with feathered gowns and beaded fabric, scattered cosmetics and a single half-empty glass"
+      sdxl:        "backstage cabaret dressing room, vanity counter ringed in warm bulbs, costume rack of feathered gowns"
+      pony:        "backstage_dressing_room, vanity_counter, vanity_bulbs, costume_rack, feathered_gown, theatrical_interior"
+      illustrious: "backstage_dressing_room, vanity_counter_bulbs, costume_rack"
+      flux:        "A backstage cabaret dressing room with a vanity counter ringed in warm bulbs, a costume rack hung with feathered gowns, scattered cosmetics across the dresser"
+      chroma:      "backstage cabaret dressing room, vanity counter ringed in warm bulbs, costume rack hung with feathered gowns, scattered cosmetics"
+      flux2:       "Set inside a backstage cabaret dressing room, a vanity counter ringed in warm bulbs throwing soft light across the surface, a costume rack hung with feathered gowns and beaded fabric, scattered cosmetics and a single half-empty glass"
     ENV_CABARET_STAGE_DARK:
       sdxl:        "darkened cabaret stage after closing, gold curtain, single follow-spot on a velvet stool"
       pony:        "cabaret_stage_dark, gold_curtain, follow_spot, velvet_stool, after_closing, theatrical_setting"
@@ -1244,20 +1241,12 @@ environment:
   # tag per scene when it adds value. Pony participates — props have
   # natural booru tag forms (cheval_mirror, chesterfield_sofa, etc.).
   prop:
-    PROP_CHEVAL_MIRROR:
-      sdxl:        "tall cheval mirror in distressed gilt frame, leaning against the wall"
-      pony:        "cheval_mirror, gilt_frame, distressed, leaning_mirror, antique_mirror"
-      illustrious: "cheval_mirror, gilt_frame, distressed, leaning_against_wall"
-      flux:        "A tall cheval mirror in a distressed gilt frame, leaning against the wall behind her"
-      chroma:      "tall cheval mirror in distressed gilt frame, leaning against the wall behind her"
-      flux2:       "A tall cheval mirror in a distressed gilt frame, leaning against the wall behind her, reflecting a sliver of the room and her own form"
-    PROP_VANITY_TRIPTYCH_MIRROR:
-      sdxl:        "three-panel vanity mirror with art-deco bevels"
-      pony:        "vanity_mirror, triptych_mirror, art_deco_bevel, three_panel"
-      illustrious: "vanity_triptych_mirror, art_deco_bevel"
-      flux:        "A three-panel vanity mirror with art-deco bevels catching reflected light from multiple angles"
-      chroma:      "three-panel vanity mirror with art-deco bevels catching reflected light"
-      flux2:       "A three-panel vanity mirror with art-deco bevels catching reflected light from multiple angles, the central panel framing her face and the side panels giving fragments"
+    # PROP_CHEVAL_MIRROR + PROP_VANITY_TRIPTYCH_MIRROR removed (vocab
+    # v7, 2026-05-20): the triptych prose ("three-panel ... central
+    # panel framing her face and the side panels giving fragments") is
+    # a literal polyptych instruction that SDXL/Chroma render as an
+    # image grid, and cheval-mirror reflections compound the standard
+    # mirror-rendering failure mode. User opted out of mirror props.
     PROP_CHAISE_LOUNGE_VELVET:
       sdxl:        "emerald-green velvet chaise lounge with brass studs"
       pony:        "chaise_lounge, emerald_velvet, brass_studs, antique_furniture"
@@ -1484,12 +1473,12 @@ narrative:
       chroma:      "just woken with tangled hair across the pillow, sheets wrapped around her, reaching for the water glass on the nightstand"
       flux2:       "She has just woken, hair tangled across the pillow, the sheets wrapped loosely around her as she reaches for the water glass on the nightstand, the room slow and silent"
     NARR_DRESSING_FOR_EVENING:
-      sdxl:        "mid-zip on a black evening gown, earrings still loose"
-      pony:        "dressing, evening_gown, mid_zip, getting_ready, earrings, preparing_for_evening"
-      illustrious: "dressing_for_evening, mid_zip_gown, earrings_loose"
-      flux:        "She is mid-zip on a black silk evening gown, earrings still loose between her fingers, mirror reflection visible behind her"
-      chroma:      "mid-zip on a black silk evening gown, earrings still loose between her fingers, mirror reflection visible behind her"
-      flux2:       "She is mid-zip on a black silk evening gown, earrings still loose between her fingers, mirror reflection visible behind her, a moment of unfinished elegance"
+      sdxl:        "mid-zip on a black evening gown, earrings still loose, dresser lamp glow"
+      pony:        "dressing, evening_gown, mid_zip, getting_ready, earrings, dresser_lamp, preparing_for_evening"
+      illustrious: "dressing_for_evening, mid_zip_gown, earrings_loose, dresser_lamp"
+      flux:        "She is mid-zip on a black silk evening gown, earrings still loose between her fingers, a single dresser lamp casting warm light behind her"
+      chroma:      "mid-zip on a black silk evening gown, earrings still loose between her fingers, single dresser lamp casting warm light behind her"
+      flux2:       "She is mid-zip on a black silk evening gown, earrings still loose between her fingers, a single dresser lamp casting warm light behind her, a moment of unfinished elegance"
     NARR_UNDRESSING_AT_NIGHT:
       sdxl:        "stepping out of a dress that has slipped to the floor"
       pony:        "undressing, dress_on_floor, stepping_out, night_moment, intimate_moment"
@@ -1518,13 +1507,14 @@ narrative:
       flux:        "She is pouring a glass of red wine into a stemmed crystal glass, a candlelit kitchen behind her, late at night"
       chroma:      "pouring a glass of red wine into a stemmed crystal glass, candlelit kitchen behind her, late at night"
       flux2:       "She is pouring a glass of red wine into a stemmed crystal glass, a candlelit kitchen behind her, late at night, the only sound the soft glug of the wine"
-    NARR_MIRROR_CONTEMPLATION:
-      sdxl:        "considering her reflection in a tarnished mirror, fingertips at the throat"
-      pony:        "looking_at_mirror, contemplation, fingertips_at_throat, self_regard, intimate_moment"
-      illustrious: "considering_reflection, tarnished_mirror, fingertips_at_throat"
-      flux:        "She is considering her reflection in a tarnished antique mirror, her fingertips resting lightly at the throat, a moment of quiet self-regard"
-      chroma:      "considering her reflection in a tarnished antique mirror, fingertips resting lightly at the throat, quiet self-regard"
-      flux2:       "She is considering her reflection in a tarnished antique mirror, her fingertips resting lightly at the throat, a moment of quiet self-regard caught between confidence and vulnerability"
+    # NARR_MIRROR_CONTEMPLATION removed (vocab v7, 2026-05-20): this
+    # narrative tag's entire premise is "subject considering her
+    # reflection in a mirror" — every family prose mentions mirror +
+    # reflection 2-5 times. Narrative tags are tier-required at every
+    # tier so Cydonia picked it ~1/30 scenes, re-opening the mirror-
+    # rendering failure mode this cleanup targeted. NARR_CONTEMPLATION_
+    # GAZING_OUT_WINDOW (kept) covers the "quiet self-regard moment"
+    # without the mirror.
     NARR_REACHING_FOR_BOOK_SHELF:
       sdxl:        "reaching up for a book on a high shelf, light from the high window"
       pony:        "reaching_up, bookshelf, high_window_light, library, reading_moment"
@@ -2024,30 +2014,25 @@ aesthetic:
 # implicitly via positional tags (from_above / from_behind / etc.).
 composition:
   principle:
-    COMP_FRAME_WITHIN_FRAME:
-      sdxl:        "framed through an open doorway, subject in the inner frame"
-      illustrious: "frame_within_frame, doorway_framing, subject_in_inner_frame"
-      flux:        "Composed as a frame-within-frame — the subject visible through an open doorway, the doorway itself becoming the secondary frame"
-      chroma:      "frame-within-frame composition, subject visible through an open doorway, doorway itself becoming the secondary frame"
-      flux2:       "Composed as a frame-within-frame — the subject visible through an open doorway, the doorway itself becoming the secondary frame and concentrating attention inward"
+    # COMP_FRAME_WITHIN_FRAME removed (vocab v7, 2026-05-20): "frame-
+    # within-frame" reads as a literal nested-frame instruction to
+    # SDXL/Chroma and triggers 2x2 image-grid hallucinations. The
+    # ``through a doorway`` framing intent is preserved by
+    # COMP_FRAME_THROUGH_CURTAIN below, which uses curtain edges (a
+    # single soft frame, not a hard rectangular frame).
     COMP_FRAME_THROUGH_CURTAIN:
       sdxl:        "viewed through a parted velvet curtain"
       illustrious: "viewed_through_parted_curtain, velvet_curtain_frame"
       flux:        "Composed as if viewed through a parted velvet curtain, the curtain edges framing the subject"
       chroma:      "viewed through a parted velvet curtain, curtain edges framing the subject"
       flux2:       "Composed as if viewed through a parted velvet curtain, the curtain edges framing the subject and giving the composition a theatrical quality"
-    COMP_REFLECTION_PRIMARY:
-      sdxl:        "primary subject visible only as reflection in a mirror, real subject out of frame"
-      illustrious: "subject_only_in_mirror_reflection, real_subject_out_of_frame"
-      flux:        "Composed with the primary subject visible only as a reflection in a mirror — the real subject is out of frame"
-      chroma:      "composition with primary subject visible only as a mirror reflection, real subject out of frame"
-      flux2:       "Composed with the primary subject visible only as a reflection in a mirror — the real subject is out of frame, the viewer seeing her only through the mediating surface"
-    COMP_REFLECTION_SECONDARY:
-      sdxl:        "subject in frame, doubled by reflection in a window or mirror"
-      illustrious: "subject_doubled_by_reflection, window_mirror_reflection"
-      flux:        "Composed with the subject in frame and additionally reflected in a window or mirror, creating a doubled presence"
-      chroma:      "subject in frame and additionally reflected in a window or mirror, doubled presence"
-      flux2:       "Composed with the subject in frame and additionally reflected in a window or mirror, creating a doubled presence that complicates the composition's reading"
+    # COMP_REFLECTION_PRIMARY + COMP_REFLECTION_SECONDARY removed
+    # (vocab v7, 2026-05-20): both vocab entries are LITERAL duplication
+    # instructions — "subject only as a reflection ... real subject out
+    # of frame" forces the model to render two figures, and "subject
+    # doubled by reflection ... doubled presence" is the textbook
+    # 2girls/multiple_subjects trigger. User opted out of reflection
+    # compositions entirely.
     COMP_LEADING_LINES_FLOOR:
       sdxl:        "floorboard lines leading from foreground to subject"
       illustrious: "leading_lines_floorboards, foreground_to_subject"
@@ -2097,11 +2082,11 @@ composition:
       chroma:      "overhead flat-lay perspective, subject lying down surrounded by carefully arranged props"
       flux2:       "Composed as an overhead flat-lay perspective looking straight down, the subject lying on her back surrounded by carefully arranged props on the floor"
     COMP_OVER_SHOULDER:
-      sdxl:        "over-the-shoulder shot, back of head in soft focus foreground, mirror reflection in focus"
-      illustrious: "over_the_shoulder_shot, back_of_head_soft_focus, mirror_reflection_in_focus"
-      flux:        "Composed as an over-the-shoulder shot — the back of her head in soft focus in the foreground, a mirror reflection of her face in sharp focus beyond"
-      chroma:      "over-the-shoulder shot, back of her head in soft focus foreground, mirror reflection of her face in sharp focus beyond"
-      flux2:       "Composed as an over-the-shoulder shot — the back of her head in soft focus in the foreground, a mirror reflection of her face in sharp focus beyond, the viewer placed intimately close to her"
+      sdxl:        "over-the-shoulder shot, back of head in soft focus foreground, environment beyond in sharp focus"
+      illustrious: "over_the_shoulder_shot, back_of_head_soft_focus, environment_in_focus"
+      flux:        "Composed as an over-the-shoulder shot — the back of her head in soft focus in the foreground, the environment beyond in sharp focus"
+      chroma:      "over-the-shoulder shot, back of her head in soft focus foreground, environment beyond in sharp focus"
+      flux2:       "Composed as an over-the-shoulder shot — the back of her head in soft focus in the foreground, the environment beyond in sharp focus, the viewer placed intimately close to her"
     COMP_THROUGH_WET_GLASS:
       sdxl:        "viewed through rain-streaked glass, refractions and partial occlusion"
       illustrious: "viewed_through_rain_streaked_glass, refractions, partial_occlusion"

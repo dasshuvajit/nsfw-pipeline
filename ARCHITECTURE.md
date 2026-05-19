@@ -3,7 +3,13 @@
 > **Platform:** Mac M4 Pro, 48 GB unified RAM  
 > **Target:** DeviantArt, Patreon  
 > **Stack:** Python 3.11, SQLite, ComfyUI, Ollama 0.5+
-> **Last sync:** 2026-05-19 (Creative-uplift overhaul — vocab v6 +
+> **Last sync:** 2026-05-20 (Anti-grid / anti-mirror cleanup — vocab v7
+> dropped 6 mirror / reflection / frame-within-frame entries after a
+> Cydonia series produced a 4-panel image-grid hallucination and
+> mirror-doubled faces. End-to-end fix: vocab removals + HARD_BLOCK +
+> positive scan extension + theme-mode subject_description cap +
+> 43-test regression guard. See vocab_version 7 section below.)
+> **Prior sync:** 2026-05-19 (Creative-uplift overhaul — vocab v6 +
 > 6 namespaces + series-level aesthetic inheritance. User reported
 > rendered images were "boring, non-creative, static boring
 > backgrounds, can't generate any profit selling these". Root-cause
@@ -1005,7 +1011,7 @@ adds a new family-kind row. `render_prompts --families flux
 prompts through any flux-family checkpoint (validated at parse
 time).
 
-### Realism vocabulary library (Phase 4a + 4-bis + v6 creative-uplift)
+### Realism vocabulary library (Phase 4a + 4-bis + v6 creative-uplift + v7 anti-grid cleanup)
 
 `config/prompt_vocabulary.yaml` is the single source of truth for
 realism + NSFW + environment + narrative + aesthetic + composition
@@ -1014,12 +1020,47 @@ phrasing per family. The LLM emits abstract concept tags (e.g.
 `ENV_TUSCAN_VILLA_RENAISSANCE`, `ATM_DUST_MOTES_IN_LIGHT`,
 `NARR_READING_LETTER_AT_DAWN`, `PALETTE_BAROQUE_CARAVAGGIO`,
 `PHOTOG_HELMUT_NEWTON`, `ART_MOVE_FILM_NOIR_1940S`,
-`COMP_FRAME_WITHIN_FRAME`, `PROP_CHEVAL_MIRROR`,
+`COMP_LEADING_LINES_FLOOR`, `PROP_CHAISE_LOUNGE_VELVET`,
 `NSFW_T4_SOLO_DISPLAY`); the canonicalizer in
 `src/prompt/vocabulary.py` translates each tag to family-shaped
 phrasing at `PromptBuilder` compose time.
 
-**Six top-level namespaces (vocab_version 6, 2026-05-19):**
+**vocab_version 7 (2026-05-20, anti-grid / anti-mirror cleanup):**
+After a Cydonia-planned T4 series shipped a 4-panel image-grid
+hallucination (caused by the LLM writing "in natural poses across
+varying compositions" into the series-level `subject_description`,
+which gets injected verbatim into every scene) and four other scenes
+in the same series rendered warped mirror reflections, vocab v7
+removed six entries that were proven to cause these failure modes:
+`NSFW_T4_SOLO_MIRROR`, `PROP_CHEVAL_MIRROR`,
+`PROP_VANITY_TRIPTYCH_MIRROR` (its prose literally instructed
+"three-panel ... central panel framing her face ... side panels
+giving fragments"), `COMP_FRAME_WITHIN_FRAME`,
+`COMP_REFLECTION_PRIMARY` (instructed "primary subject visible only
+as a reflection ... real subject out of frame"),
+`COMP_REFLECTION_SECONDARY` (instructed "subject doubled by
+reflection ... doubled presence"). The four mirror-mentioning
+environment entries (`ENV_ART_DECO_HOTEL_SUITE`,
+`ENV_CLAWFOOT_BATHROOM`, `ENV_TOKYO_LOVE_HOTEL`,
+`ENV_BACKSTAGE_DRESSING_ROOM`) had their family prose rewritten to
+drop "mirrored ceiling / fogged mirror / makeup mirror / mirrored
+side table" mentions. The composition `COMP_OVER_SHOULDER` lost its
+"mirror reflection of her face in sharp focus" clause. End-to-end
+defence: `HARD_BLOCK_NEGATIVE` (`src/prompt/builder.py:85`) extended
+with `grid, collage, diptych, triptych, polyptych, split_screen,
+multiple_views, panels, tiled, contact_sheet, frame_within_frame,
+mirror, mirrored, reflection, double_exposure`; the positive-side
+`_positive_subject_count_scan` extended with the LLM-generated grid
+phrases (`varying compositions, various poses, across compositions,
+across scenes, throughout the series, diptych of, doubled presence,
+doubled by reflection`, etc.); the theme-mode `subject_description`
+LLM instruction tightened to forbid those exact words and capped at
+18 words to prevent multi-clause variety language from leaking into
+every scene's prompt. The seven remaining `NSFW_T4_SOLO_*` acts +
+28 props + 15 composition principles still give the LLM plenty of
+creative range without the failure modes.
+
+**Six top-level namespaces (vocab_version 7, 2026-05-20):**
 
 * **`realism.{lighting, camera, lens, film_stock, art_style, mood,
   angle, framing}`** — always-on, ~70 concepts. Photo-technical

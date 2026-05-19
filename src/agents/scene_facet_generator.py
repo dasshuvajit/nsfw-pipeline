@@ -133,7 +133,7 @@ _FIELD_EXAMPLE_TAGS: dict[str, tuple[str, ...]] = {
     "nsfw_act": (
         "NSFW_T4_SOLO_TOUCH", "NSFW_T4_SOLO_GAZE",
         "NSFW_T4_SOLO_DISPLAY", "NSFW_T4_SOLO_RECLINING",
-        "NSFW_T4_SOLO_MIRROR", "NSFW_T4_SOLO_BATH",
+        "NSFW_T4_SOLO_BATH",
         "NSFW_T4_SOLO_OUTDOOR", "NSFW_T4_SOLO_PERFORMER",
     ),
     # Phase 1 (vocab v6) — environment-vocab retry-nudge examples.
@@ -706,14 +706,14 @@ FIRST character of your response MUST be `{{`."""
 _STRUCTURED_TAG_BODY_NON_PONY = """\
   "lighting_directive": "[REQUIRED — every tier] One LIGHT_* concept tag from the vocabulary menu in the system prompt (LIGHT_REMBRANDT, LIGHT_GOLDEN_HOUR, LIGHT_WINDOW_SIDE, LIGHT_SOFT_FILL, LIGHT_RIM_BACK, etc.). NEVER null.",
   "mood_aesthetic": "[REQUIRED — every tier] One MOOD_* concept tag (MOOD_INTIMATE, MOOD_CONFIDENT, MOOD_SENSUAL, MOOD_PENSIVE, MOOD_PLAYFUL, etc.). NEVER null.",
-  "narrative_moment": "[REQUIRED — every tier] One NARR_* concept tag for the captured editorial moment (NARR_READING_LETTER_AT_DAWN, NARR_STEPPING_FROM_BATH, NARR_MIRROR_CONTEMPLATION, NARR_LIGHTING_CIGARETTE, etc.). Vary across scenes — NEVER null.",
+  "narrative_moment": "[REQUIRED — every tier] One NARR_* concept tag for the captured editorial moment (NARR_READING_LETTER_AT_DAWN, NARR_STEPPING_FROM_BATH, NARR_LIGHTING_CIGARETTE, etc.). Vary across scenes — NEVER null.",
   "environment_setting": "[REQUIRED — T3+] One ENV_* concept tag for the scene's specific location (ENV_VICTORIAN_CONSERVATORY, ENV_TUSCAN_VILLA_RENAISSANCE, ENV_BRUTALIST_CONCRETE_LOFT, ENV_MORNING_BEDROOM, ENV_ART_DECO_HOTEL_SUITE, etc.). Vary across scenes.",
   "environment_atmosphere": "[REQUIRED — T3+] One ATM_* concept tag for atmospheric element (ATM_DUST_MOTES_IN_LIGHT, ATM_BREEZE_IN_CURTAIN, ATM_STEAM_FROM_BATH, ATM_RAIN_ON_GLASS, ATM_VOLUMETRIC_GOLDEN, etc.).",
   "nsfw_anatomy": "[REQUIRED — T3+] One NSFW_ANATOMY_* concept tag (NSFW_FULL_NUDE, NSFW_BREAST_NATURAL, NSFW_NIPPLES_VISIBLE, NSFW_VULVA_VISIBLE, etc.). At T1/T2 emit null.",
-  "nsfw_act": "[REQUIRED — T4 only] One NSFW_ACT_* concept tag — SOLO acts only (NSFW_T4_SOLO_TOUCH, NSFW_T4_SOLO_DISPLAY, NSFW_T4_SOLO_MIRROR, NSFW_T4_SOLO_BATH, NSFW_T4_SOLO_RECLINING, etc.). At T1/T2/T3 emit null. Partnered tags are filtered.",
+  "nsfw_act": "[REQUIRED — T4 only] One NSFW_ACT_* concept tag — SOLO acts only (NSFW_T4_SOLO_TOUCH, NSFW_T4_SOLO_DISPLAY, NSFW_T4_SOLO_BATH, NSFW_T4_SOLO_RECLINING, etc.). At T1/T2/T3 emit null. Partnered tags are filtered.",
   "nsfw_posture": "[OPTIONAL] One NSFW_POSTURE_* concept tag if the pose calls for it (T3+ only — null at T1/T2).",
-  "environment_prop": "[OPTIONAL] One PROP_* concept tag for furniture/object anchor (PROP_CHEVAL_MIRROR, PROP_HANDWRITTEN_LETTER, PROP_VELVET_CURTAIN, etc.).",
-  "composition_principle": "[OPTIONAL] One COMP_* concept tag for higher-order composition (COMP_FRAME_WITHIN_FRAME, COMP_REFLECTION_PRIMARY, COMP_LEADING_LINES_FLOOR, etc.).",
+  "environment_prop": "[OPTIONAL] One PROP_* concept tag for furniture/object anchor (PROP_CHAISE_LOUNGE_VELVET, PROP_HANDWRITTEN_LETTER, PROP_VELVET_CURTAIN_HEAVY, PROP_FOUR_POSTER_BED, etc.).",
+  "composition_principle": "[OPTIONAL] One COMP_* concept tag for higher-order composition (COMP_LEADING_LINES_FLOOR, COMP_NEGATIVE_SPACE_DOMINANT, COMP_SYMMETRY_CENTERED, COMP_LOW_HERO_SHOT, etc.).",
   "realism_camera": "[OPTIONAL] One CAMERA_* concept tag for specific camera body (CAMERA_SONY_A7RV, CAMERA_HASSELBLAD_X2D, CAMERA_LEICA_M11, etc.).",
   "realism_lens": "[OPTIONAL] One LENS_* concept tag for lens spec (LENS_85MM_F14, LENS_50MM_F18, LENS_35MM_F2, etc.).",
   "realism_film_stock": "[OPTIONAL] One FILM_* concept tag for film-stock emulation (FILM_PORTRA_400, FILM_CINESTILL_800T, FILM_TRIX_400, etc.).",
@@ -733,11 +733,11 @@ _STRUCTURED_TAG_BODY_NON_PONY = """\
 _STRUCTURED_TAG_BODY_PONY = """\
   "lighting_directive": "[REQUIRED — every tier] One LIGHT_* concept tag from the vocabulary menu (LIGHT_REMBRANDT, LIGHT_GOLDEN_HOUR, LIGHT_WINDOW_SIDE, etc.). NEVER null.",
   "mood_aesthetic": "[REQUIRED — every tier] One MOOD_* concept tag (MOOD_INTIMATE, MOOD_CONFIDENT, MOOD_SENSUAL, etc.). NEVER null.",
-  "narrative_moment": "[REQUIRED — every tier] One NARR_* concept tag for the captured editorial moment (NARR_MIRROR_CONTEMPLATION, NARR_ARRANGING_FLOWERS, NARR_LIGHTING_CIGARETTE, etc.) — fold this into your booru_tags too. Vary across scenes.",
+  "narrative_moment": "[REQUIRED — every tier] One NARR_* concept tag for the captured editorial moment (NARR_READING_LETTER_AT_DAWN, NARR_ARRANGING_FLOWERS, NARR_LIGHTING_CIGARETTE, etc.) — fold this into your booru_tags too. Vary across scenes.",
   "environment_setting": "[REQUIRED — T3+] One ENV_* concept tag for the scene's specific location. Pick from the vocabulary menu.",
   "environment_atmosphere": "[REQUIRED — T3+] One ATM_* concept tag for atmospheric element matching the setting.",
   "nsfw_anatomy": "[REQUIRED — T3+] One NSFW_ANATOMY_* concept tag. At T1/T2 emit null.",
-  "nsfw_act": "[REQUIRED — T4 only] One NSFW_ACT_* concept tag — SOLO acts only (NSFW_T4_SOLO_TOUCH, NSFW_T4_SOLO_DISPLAY, NSFW_T4_SOLO_MIRROR, etc.). At T1/T2/T3 emit null. Partnered tags are filtered.",
+  "nsfw_act": "[REQUIRED — T4 only] One NSFW_ACT_* concept tag — SOLO acts only (NSFW_T4_SOLO_TOUCH, NSFW_T4_SOLO_DISPLAY, NSFW_T4_SOLO_BATH, etc.). At T1/T2/T3 emit null. Partnered tags are filtered.",
   "nsfw_posture": "[OPTIONAL] One NSFW_POSTURE_* concept tag if the pose calls for it (T3+ only — null at T1/T2).",
   "environment_prop": "[OPTIONAL] One PROP_* concept tag for furniture/object anchor."\
 """

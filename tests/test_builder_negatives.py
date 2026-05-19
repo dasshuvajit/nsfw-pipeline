@@ -90,15 +90,21 @@ def test_negative_dedups_overlap_between_layers(pb):
 
 def test_negative_within_budget_passes_through_unchanged(pb, family_loader):
     """When the assembled negative fits the family's max_tokens, no
-    trim is applied — the byte-stable output stays byte-stable."""
-    family = family_loader.get_family("sdxl")
+    trim is applied — the byte-stable output stays byte-stable.
+
+    2026-05-20 — switched fixture from sdxl to chroma. The HARD_BLOCK
+    safety block was extended in vocab v7 with grid/mirror tokens and
+    is now ~128 CLIP tokens, which overflows SDXL's 77-token budget
+    even with a near-empty model_negative. Chroma's 512-token T5
+    budget still has plenty of headroom for the full block + a tiny
+    model_negative, so the byte-stable identity check holds for
+    big-budget families.
+    """
+    family = family_loader.get_family("chroma")
     neg = pb.assemble_negative_prompt(
         model_negative="blurry, low-res",
         family=family,
     )
-    # The default for SDXL's max_tokens is 77, and the assembled
-    # negative is well under that. So the family-aware path should
-    # produce the same output as the pre-Phase-3 path.
     neg_legacy = pb.assemble_negative_prompt(
         model_negative="blurry, low-res",
     )

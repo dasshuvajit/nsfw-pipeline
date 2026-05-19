@@ -759,12 +759,12 @@ content_levels:
       `NSFW_FULL_NUDE`, `NSFW_VULVA_VISIBLE`, `NSFW_NIPPLES_VISIBLE`)
       over partial ones (`NSFW_BARE_CHEST`, `NSFW_HIPS_THIGHS`)
       unless the scene's pose makes a partial framing more natural.
-      For `nsfw_act` at T4, ANY of the eight SOLO tags is valid —
+      For `nsfw_act` at T4, ANY of the seven SOLO tags is valid —
       pick the one that fits the scene's narrative_moment + pose:
       `NSFW_T4_SOLO_TOUCH`, `NSFW_T4_SOLO_DISPLAY`,
-      `NSFW_T4_SOLO_RECLINING`, `NSFW_T4_SOLO_MIRROR`,
-      `NSFW_T4_SOLO_BATH`, `NSFW_T4_SOLO_GAZE`,
-      `NSFW_T4_SOLO_OUTDOOR`, `NSFW_T4_SOLO_PERFORMER`. VARY across
+      `NSFW_T4_SOLO_RECLINING`, `NSFW_T4_SOLO_BATH`,
+      `NSFW_T4_SOLO_GAZE`, `NSFW_T4_SOLO_OUTDOOR`,
+      `NSFW_T4_SOLO_PERFORMER`. VARY across
       scenes — repeating the same SOLO_* across every scene defeats
       the diversity push. Partnered act tags (`NSFW_T4_EMBRACE_NUDE`,
       `NSFW_T4_KISS_PASSIONATE`, `NSFW_T4_PARTNERED_INTIMATE`,

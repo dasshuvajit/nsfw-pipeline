@@ -1,0 +1,486 @@
+"""Regression tests for the scene_021 / series_2547fb306a7c failure
+mode (2026-05-19): a Cydonia-planned series shipped a 4-panel image
+collage because the subject_description contained "in natural poses
+across varying compositions", and four other scenes rendered mirrors
+with warped reflections because the vocab library exposed mirror-
+themed nsfw_act / prop / composition tags.
+
+Vocab v7 (2026-05-20) closes both bugs by (a) deleting the mirror /
+reflection / frame-within-frame vocab entries, (b) extending
+HARD_BLOCK_NEGATIVE with grid / mirror / collage tokens, and (c)
+extending the positive-side multi-subject scan with the LLM-generated
+"varying compositions" / "across scenes" / "doubled presence" phrases
+that historically leaked into prompt bodies.
+
+These tests guard the regression so neither bug class can return
+without a CI failure.
+"""
+
+from __future__ import annotations
+
+import logging
+
+import pytest
+import yaml
+
+from src.memory.family_loader import FamilyLoader
+from src.prompt.builder import (
+    HARD_BLOCK_NEGATIVE,
+    PromptBuilder,
+    _positive_subject_count_scan,
+)
+
+
+@pytest.fixture
+def pb():
+    return PromptBuilder()
+
+
+@pytest.fixture
+def family_loader():
+    return FamilyLoader()
+
+
+@pytest.fixture(scope="module")
+def vocab():
+    with open(
+        "/Users/shuvajit/Dev/nsfw-pipeline/config/prompt_vocabulary.yaml"
+    ) as f:
+        return yaml.safe_load(f)
+
+
+# ── HARD_BLOCK_NEGATIVE coverage ──────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    "token",
+    [
+        # Grid / polyptych vocabulary — the literal grid hallucination
+        # triggers in SDXL / Chroma encoders. Single canonical token per
+        # concept; the verifier audit (F4) flagged the verbose 25-token
+        # list as eating SDXL's 77-token budget and dropping anatomy
+        # negatives, so the block was compacted. polyptych covers
+        # diptych/triptych/quadriptych-class instructions; the booru
+        # form of each phrase (split_screen / multiple_views /
+        # contact_sheet / frame_within_frame) is the learned token in
+        # SDXL's CLIP and matches whether the LLM writes spaced or
+        # underscored.
+        "grid", "collage", "diptych", "polyptych",
+        "split_screen", "multiple_views",
+        "tiled", "contact_sheet", "frame_within_frame",
+        # Mirror vocabulary — user opted out of mirror compositions
+        # entirely after seeing warped reflections.
+        "mirror", "reflection",
+        # Double exposure — another known duplication trigger.
+        "double_exposure",
+        # Pre-existing safety tokens that MUST still survive the v7
+        # extension (regression guard against accidental drop).
+        "child", "teen", "loli", "underage", "youthful face",
+        "2girls", "multiple_girls", "multiple_subjects",
+    ],
+)
+def test_hard_block_contains_grid_and_mirror_tokens(token):
+    """Every grid/mirror/duplication token plus every age/multi-subject
+    token from the pre-v7 block must be present in HARD_BLOCK_NEGATIVE.
+    """
+    assert token.lower() in HARD_BLOCK_NEGATIVE.lower(), (
+        f"{token!r} missing from HARD_BLOCK_NEGATIVE — anti-grid / "
+        f"anti-mirror regression. Block currently is:\n{HARD_BLOCK_NEGATIVE}"
+    )
+
+
+def test_hard_block_age_tokens_lead(pb):
+    """Age-safety tokens must appear BEFORE the v7 grid/mirror tokens —
+    fit_to_budget trims from the END of the keyword block, so on
+    tight-budget families (SDXL, Pony, Illustrious at 77 tokens) the
+    age block survives and grid/mirror tokens get pruned first."""
+    neg = pb.assemble_negative_prompt(model_negative="")
+    age_idx = neg.lower().find("child")
+    grid_idx = neg.lower().find("grid")
+    mirror_idx = neg.lower().find("mirror")
+    assert age_idx >= 0, "age block missing entirely"
+    assert grid_idx > age_idx, (
+        "grid token appears BEFORE age block — survival ordering broken; "
+        "tight-budget families would trim age tokens first."
+    )
+    assert mirror_idx > age_idx, (
+        "mirror token appears BEFORE age block — survival ordering broken."
+    )
+
+
+# ── Positive-side multi-subject / grid-phrase scan ────────────────────
+
+
+@pytest.mark.parametrize(
+    "leaked_phrase",
+    [
+        # The exact scene_021 phrase that triggered the 4-panel collage.
+        "A nude woman in varying compositions across the room.",
+        "A confident woman in various poses throughout the series.",
+        "Subject shown across compositions across scenes.",
+        "Composed as a diptych of two contemplative moments.",
+        "A frame-within-frame composition.",
+        "Body doubled by reflection in the window.",
+        "Doubled presence across the surface.",
+        "Composed as a collage of the subject.",
+        # Subtler grid-leak phrasings the LLM might pick up.
+        "A nude figure presented across the set.",
+        "Multiple compositions of a single figure.",
+    ],
+)
+def test_grid_phrases_stripped_from_positive(leaked_phrase, family_loader, caplog):
+    """The positive-side scan must remove grid/collage/duplication
+    phrases that historically leaked from the LLM into prompt bodies
+    (scene_021 regression: 'in natural poses across varying
+    compositions' produced a 2x2 image-grid hallucination).
+
+    Patterns are subject-anchored (verifier F5 — "different angles" and
+    "multiple angles" used to false-positive on legitimate lighting
+    language like "multiple angles of incident light"). Variety phrases
+    are now matched ONLY when followed by a subject-count noun
+    (poses / compositions / framings / views / scenes / series / set).
+    """
+    chroma = family_loader.get_family("chroma")
+    with caplog.at_level(logging.ERROR):
+        cleaned = _positive_subject_count_scan(leaked_phrase, chroma)
+    grid_phrases = (
+        "varying compositions", "various poses", "across compositions",
+        "throughout the series", "across scenes",
+        "diptych", "frame-within-frame", "doubled by reflection",
+        "doubled presence", "collage of", "across the set",
+        "multiple compositions",
+    )
+    for gp in grid_phrases:
+        assert gp.lower() not in cleaned.lower(), (
+            f"grid-leak phrase {gp!r} survived the scan in: {cleaned!r}"
+        )
+
+
+@pytest.mark.parametrize(
+    "legit_phrase",
+    [
+        # Photographic terminology that "different angles" / "multiple
+        # angles" should NOT match (verifier F5).
+        "Multiple angles of incident light illuminate her shoulder.",
+        "Lighting from different angles of the softbox rig.",
+        "The lens captures various textures on the wall behind her.",
+        # Single-word "varying" / "multiple" / "different" before non-
+        # subject nouns must pass through cleanly.
+        "Varying intensity of warm bulb light.",
+        "Multiple sources of soft window light.",
+        "Different qualities of shadow falling across her hip.",
+    ],
+)
+def test_legit_lighting_language_not_stripped(legit_phrase, family_loader):
+    """Verifier F5 regression — the positive-side scan must NOT strip
+    legitimate photographic/lighting language even when it shares
+    words with the grid-phrase list. False positives are bad for
+    quality (they cut real scene description) and erode trust in the
+    scan's precision."""
+    chroma = family_loader.get_family("chroma")
+    cleaned = _positive_subject_count_scan(legit_phrase, chroma)
+    assert cleaned == legit_phrase, (
+        f"legitimate phrase was stripped: before={legit_phrase!r} "
+        f"after={cleaned!r}"
+    )
+
+
+def test_clean_positive_passes_through_unchanged(family_loader):
+    """A clean positive prompt must pass the scan byte-stable — no
+    spurious false-positives on legitimate solo-female prose."""
+    chroma = family_loader.get_family("chroma")
+    clean = (
+        "A single adult woman alone in the scene. Soft window light "
+        "from the left, the camera at eye level, the subject's gaze "
+        "directed slightly past the lens."
+    )
+    assert _positive_subject_count_scan(clean, chroma) == clean
+
+
+# ── Vocab v7 removal guards ───────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    "removed_tag",
+    [
+        "NSFW_T4_SOLO_MIRROR",
+        "PROP_CHEVAL_MIRROR",
+        "PROP_VANITY_TRIPTYCH_MIRROR",
+        "COMP_FRAME_WITHIN_FRAME",
+        "COMP_REFLECTION_PRIMARY",
+        "COMP_REFLECTION_SECONDARY",
+    ],
+)
+def test_vocab_v7_removed_entries_not_present(vocab, removed_tag):
+    """Each of the six vocab v7 removals must stay removed — a future
+    rebase that accidentally re-introduces one would re-open the
+    mirror/grid regression class."""
+    import json
+    flat = json.dumps(vocab)
+    assert removed_tag not in flat, (
+        f"{removed_tag} re-introduced into prompt_vocabulary.yaml — "
+        f"this is one of the six vocab v7 removals that closed the "
+        f"scene_021 mirror/grid regression class."
+    )
+
+
+def test_vocab_version_is_at_least_7(vocab):
+    """vocab_version must track the v7 bump so prompts table records
+    the correct version when re-rendering."""
+    assert vocab["version"] >= 7, (
+        f"vocab_version={vocab['version']} — should be >= 7 after the "
+        f"mirror/grid removal."
+    )
+
+
+@pytest.mark.parametrize(
+    "removed_narrative",
+    [
+        # Verifier F1 — narrative moments that mention subject mirrors
+        # are tier-required at every tier, so even one stale entry
+        # re-opens the failure mode at the next theme run that picks it.
+        "NARR_MIRROR_CONTEMPLATION",
+    ],
+)
+def test_vocab_v7_narrative_mirror_entries_removed(vocab, removed_narrative):
+    """Narrative tags whose entire premise is 'subject + mirror' must
+    not exist — vocabulary.canonicalize_facet treats narrative_moment
+    as tier-required at every tier, so a single stale entry forces
+    Cydonia to pick it ~1/30 scenes."""
+    narratives = vocab["narrative"]["moment"]
+    assert removed_narrative not in narratives, (
+        f"{removed_narrative} still present in narrative.moment — "
+        f"this re-opens the mirror-rendering failure mode."
+    )
+
+
+def test_narrative_dressing_for_evening_strips_mirror(vocab):
+    """Verifier F1 — NARR_DRESSING_FOR_EVENING used to embed
+    'mirror reflection visible behind her' in flux/chroma/flux2
+    prose. The flux2 family pulls the longest prose so it's the
+    canary."""
+    entry = vocab["narrative"]["moment"]["NARR_DRESSING_FOR_EVENING"]
+    for family, prose in entry.items():
+        assert "mirror" not in prose.lower(), (
+            f"NARR_DRESSING_FOR_EVENING.{family} still mentions a mirror: "
+            f"{prose!r}"
+        )
+
+
+def test_comp_over_shoulder_strips_mirror(vocab):
+    """Verifier F8 — COMP_OVER_SHOULDER used to end with 'mirror
+    reflection of her face in sharp focus beyond'. After v7 rewrite
+    it ends with 'environment beyond in sharp focus'. Without this
+    test a future LLM-suggested rewrite could silently re-add the
+    mirror clause."""
+    entry = vocab["composition"]["principle"]["COMP_OVER_SHOULDER"]
+    for family, prose in entry.items():
+        assert "mirror" not in prose.lower(), (
+            f"COMP_OVER_SHOULDER.{family} still mentions a mirror: {prose!r}"
+        )
+        assert "reflection" not in prose.lower(), (
+            f"COMP_OVER_SHOULDER.{family} still mentions a reflection: "
+            f"{prose!r}"
+        )
+
+
+def test_age_tokens_survive_sdxl_budget_with_real_model_axes(family_loader):
+    """Verifier F4 — quantify HARD_BLOCK budget impact on tight 77-token
+    families with a representative model_negative_axes payload from a
+    real model YAML. The age-safety sub-block MUST survive trim along
+    with at least SOME caller-provided quality/watermark tokens. Pre-v7
+    HARD_BLOCK was 122 CLIP tokens which dropped all caller negatives
+    on SDXL; the compact v7 block (~33 tokens) leaves real headroom.
+
+    fit_to_budget preserves prefix (first 30 tokens, where age safety
+    lives) + suffix (last 20 tokens, where the style negative tail
+    lives) and trims the middle. So the surviving set on SDXL with a
+    full axis load is: age safety + leading composition tokens
+    (grid/collage/diptych/polyptych) + tail-end caller tokens. Mid-
+    string caller axes (e.g. anatomy) may get trimmed; that's an
+    inherent SDXL CLIP-77 limit, not a v7 regression.
+    """
+    from src.prompt.tokenizer import count_tokens
+    pb = PromptBuilder()
+    sdxl = family_loader.get_family("sdxl")
+    # Representative SDXL model_negative_axes — these are the kinds of
+    # tokens that prevent warped hands / extra digits / JPEG artifacts
+    # on real renders. The 7-axis structure mirrors what
+    # config/models/*.yaml carries.
+    model_axes = {
+        "anatomy": [
+            "bad anatomy", "bad hands", "extra digits", "deformed",
+            "missing limbs", "extra limbs",
+        ],
+        "quality": ["low quality", "lowres", "worst quality", "jpeg artifacts"],
+        "skin": ["plastic skin", "doll skin"],
+        "watermark": ["watermark", "signature", "text"],
+        "medium": [],
+        "censor": [],
+        "safety": [],
+    }
+    neg = pb.assemble_negative_prompt(
+        model_negative_axes=model_axes,
+        style_negative="harsh overhead light",
+        family=sdxl,
+    )
+    # Age-safety tokens MUST survive — they ride at the start of
+    # HARD_BLOCK and the prefix-preserve window (30 tokens) keeps them.
+    for age_token in ("child", "teen", "loli", "minor"):
+        assert age_token in neg.lower(), (
+            f"age-safety token {age_token!r} got trimmed — HARD_BLOCK "
+            f"budget regression. Final negative ({count_tokens(neg, sdxl.tokenizer_id)} "
+            f"tokens):\n{neg}"
+        )
+    # The leading composition safety tokens (grid/collage/diptych/
+    # polyptych) must also survive — they ride in the second half of
+    # the prefix-preserve window after age safety.
+    for grid_token in ("grid", "collage", "diptych", "polyptych"):
+        assert grid_token in neg.lower(), (
+            f"composition-safety token {grid_token!r} got trimmed — "
+            f"HARD_BLOCK budget regression. Final negative:\n{neg}"
+        )
+    # At least SOME caller-provided tokens must survive — F4 BLOCKER
+    # was that ALL caller negatives dropped. After v7 compaction the
+    # suffix-preserve window (20 tokens) keeps the tail-end of the
+    # caller layers + style negative. Quality + watermark + style
+    # collectively occupy enough trailing space that one of each
+    # category survives.
+    survived_quality = any(
+        t in neg.lower() for t in ("lowres", "low quality", "worst quality", "jpeg")
+    )
+    survived_watermark = any(
+        t in neg.lower() for t in ("watermark", "signature", "text")
+    )
+    survived_style = "harsh overhead" in neg.lower()
+    assert survived_quality, (
+        f"NO caller quality negative survived on SDXL — F4 budget "
+        f"regression. Final negative:\n{neg}"
+    )
+    assert survived_watermark, (
+        f"NO caller watermark negative survived on SDXL — F4 budget "
+        f"regression. Final negative:\n{neg}"
+    )
+    assert survived_style, (
+        f"style negative was dropped — suffix-preserve window broken. "
+        f"Final negative:\n{neg}"
+    )
+
+
+def test_chroma_full_budget_preserves_everything(family_loader):
+    """Chroma (T5, 512-token budget) has plenty of headroom for the
+    full HARD_BLOCK + all caller axes — every token type must survive
+    on prose families. Counterpart to the SDXL tight-budget test."""
+    pb = PromptBuilder()
+    chroma = family_loader.get_family("chroma")
+    model_axes = {
+        "anatomy": ["bad anatomy", "bad hands", "extra digits", "deformed"],
+        "quality": ["low quality", "lowres", "worst quality", "jpeg artifacts"],
+        "skin": ["plastic skin"],
+        "watermark": ["watermark", "signature", "text"],
+        "medium": [], "censor": [], "safety": [],
+    }
+    neg = pb.assemble_negative_prompt(
+        model_negative_axes=model_axes,
+        family=chroma,
+    )
+    # Every category must survive — Chroma has 512 tokens of budget.
+    for token in (
+        # Age safety
+        "child", "teen", "loli", "underage", "2girls", "multiple_girls",
+        # Composition safety (full set survives on Chroma — no trim)
+        "grid", "collage", "diptych", "polyptych", "split_screen",
+        "multiple_views", "tiled", "contact_sheet", "frame_within_frame",
+        "mirror", "reflection", "double_exposure",
+        # Caller anatomy (would be trimmed on SDXL, survives on Chroma)
+        "bad anatomy", "bad hands", "extra digits", "deformed",
+        # Caller quality + watermark
+        "lowres", "worst quality", "jpeg artifacts",
+        "watermark", "signature",
+    ):
+        assert token in neg.lower(), (
+            f"{token!r} missing from Chroma negative — should NOT be "
+            f"trimmed on a 512-token-budget family. Final:\n{neg}"
+        )
+
+
+def test_theme_mode_subject_description_validator_present():
+    """Verifier F6 — theme_mode must run a server-side sanitizer on
+    the LLM-emitted subject_description, not just rely on the prompt
+    instruction. Cydonia ignores embedded constraints at temp≥0.7."""
+    import src.modes.theme_mode as tm
+    source = tm.__file__
+    with open(source) as f:
+        content = f.read()
+    assert "_MULTI_SUBJECT_PATTERN.sub" in content, (
+        "theme_mode.plan() must call _MULTI_SUBJECT_PATTERN.sub on "
+        "subject_description as a server-side defense — the LLM "
+        "instruction alone is not enforceable."
+    )
+
+
+def test_niche_mode_subject_bias_validator_present():
+    """Verifier F7 — niche_mode has the same injection pattern as
+    theme_mode (subject_bias + visual_elements + core_theme all
+    flow into every scene). It must run the same server-side
+    sanitizer."""
+    import src.modes.niche_mode as nm
+    source = nm.__file__
+    with open(source) as f:
+        content = f.read()
+    assert "_MULTI_SUBJECT_PATTERN.sub" in content, (
+        "niche_mode.plan() must call _MULTI_SUBJECT_PATTERN.sub on "
+        "subject_bias / core_theme / visual_elements — parallel to "
+        "theme_mode's defense."
+    )
+
+
+def test_theme_mode_plan_template_forbids_variety_words():
+    """Verifier F8 — the plan-time LLM prompt must instruct the LLM
+    to avoid variety words. Future rewrites of the template that
+    omit this constraint would silently re-open the bug class on
+    fresh series. The user-facing instruction is the first line of
+    defense (server-side sanitizer is the second)."""
+    import src.modes.theme_mode as tm
+    template = tm._PLAN_USER_TEMPLATE
+    # Must mention the forbidden vocabulary explicitly so a careless
+    # rewrite catches the breakage at code-review time.
+    for forbidden in ("varying", "across", "compositions"):
+        assert forbidden in template, (
+            f"theme_mode plan template no longer warns the LLM about "
+            f"the forbidden word {forbidden!r} — server-side sanitizer "
+            f"will still catch it, but the LLM-facing instruction is "
+            f"the first defense layer."
+        )
+
+
+def test_theme_mode_system_prompt_has_single_scene_invariant():
+    """Verifier F8 — theme_mode system prompt must carry the
+    SINGLE-SCENE INVARIANT clause explaining WHY subject_description
+    cannot contain variety language. Without this, future edits could
+    soften the constraint thinking it's redundant with the user-prompt
+    instruction."""
+    import src.modes.theme_mode as tm
+    assert "SINGLE-SCENE INVARIANT" in tm._PLAN_SYSTEM_PROMPT, (
+        "theme_mode system prompt missing SINGLE-SCENE INVARIANT clause"
+    )
+
+
+def test_environment_vocab_strips_mirror_mentions(vocab):
+    """The four environment_setting entries that historically embedded
+    'mirrored ceiling' / 'fogged mirror' / 'makeup mirror' /
+    'mirrored side table' in their family prose must no longer mention
+    those tokens."""
+    settings = vocab["environment"]["setting"]
+    for tag_name in (
+        "ENV_ART_DECO_HOTEL_SUITE",
+        "ENV_CLAWFOOT_BATHROOM",
+        "ENV_TOKYO_LOVE_HOTEL",
+        "ENV_BACKSTAGE_DRESSING_ROOM",
+    ):
+        entry = settings.get(tag_name)
+        assert entry is not None, f"{tag_name} missing"
+        for family, prose in entry.items():
+            assert "mirror" not in prose.lower(), (
+                f"{tag_name}.{family} still mentions a mirror: {prose!r}"
+            )

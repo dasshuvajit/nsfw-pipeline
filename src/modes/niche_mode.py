@@ -57,6 +57,23 @@ SOLO SUBJECT INVARIANT: every niche set depicts exactly one adult
 woman as the sole human subject. The subject_bias must always read
 as a single female; NEVER plan multi-subject niches ("girlfriend
 photoshoot", "couples retreat", "group shoot"). Solo niches only.
+
+SINGLE-SCENE INVARIANT (subject_bias + visual_elements + core_theme):
+these three plan-level fields are injected into every scene's prompt
+body. They must describe the SUBJECT and the SCENE ELEMENTS only —
+NEVER cross-scene variety language. NEVER write "in varying poses",
+"across varying compositions", "from different angles", "in multiple
+compositions", "across scenes", "throughout the series". Those words
+make the image model render a 4-panel collage because each scene's
+encoder reads them as a polyptych instruction. Keep subject_bias ≤
+18 words, NO sentence-final "in/across/throughout" clauses, NO
+adverbs of variety.
+
+VOCABULARY EXCLUSIONS (vocab v7, 2026-05-20): NEVER include "mirror",
+"reflection", "mirrored", or any object whose primary feature is its
+reflective surface in visual_elements, subject_bias, or core_theme.
+SDXL/Chroma render mirror reflections as warped faces / body doubles;
+the user opted out of mirror compositions entirely.
 """
 
 _PLAN_USER_TEMPLATE = """\
@@ -92,14 +109,15 @@ Generate a JSON object with exactly these fields:
   "core_theme": "<the central visual concept — one sentence>",
   "keyword_cluster": {cluster_keywords},
   "visual_elements": ["<prop1>", "<prop2>", "<prop3>", "<prop4>", "<prop5>"],
-  "subject_bias": "<what kind of subject/model fits this niche best>",
+  "subject_bias": "<≤ 18 WORDS describing ONLY the subject (appearance, attire, age signal). NEVER include the words 'varying', 'various', 'across', 'throughout', 'multiple', 'different angles', 'compositions', 'poses' — those get injected verbatim into every scene's prompt and produce a 4-panel grid. Example GOOD: 'A confident adult woman, athletic build, mature features'. Example BAD: 'A nude woman in varying poses across different compositions'>",
   "color_palette": "<one PALETTE_* tag from the menu>",
   "photographer_ref": "<one PHOTOG_* tag from the menu>",
   "art_movement": "<one ART_MOVE_* tag from the menu, OR null>"
 }}
 
 visual_elements must be CONCRETE PROPS or DETAILS (e.g. "yoga mat", "leather jacket",
-"neon sign", "vintage mirror") — not abstract concepts.
+"neon sign", "velvet chaise") — not abstract concepts. NEVER list a
+mirror / reflective surface as a visual element (vocab v7 exclusion).
 keyword_cluster should include the top SEO-relevant terms for this niche.
 
 ═══ AESTHETIC COHERENCE RULE ═══════════════════════════════════════
@@ -275,6 +293,43 @@ class NicheMode(BaseMode):
 
         plan["cluster_id"] = cluster["id"]
         plan["cluster_name"] = cluster["name"]
+
+        # vocab v7 — server-side validator for the SINGLE-SCENE
+        # INVARIANT. Same pattern as theme_mode: strip cross-scene
+        # variety language from subject_bias / core_theme using the
+        # composer's regex. visual_elements is a list — sanitize each
+        # element and drop any that becomes empty. Log at WARN when
+        # anything was changed so operator drift surfaces in run_log.
+        from src.prompt.builder import _MULTI_SUBJECT_PATTERN
+        import re as _re
+
+        def _sanitize_field(name: str, value: str) -> str:
+            cleaned = _MULTI_SUBJECT_PATTERN.sub("", value)
+            cleaned = _re.sub(r"\s{2,}", " ", cleaned).strip(" ,.")
+            if cleaned != value:
+                logger.warning(
+                    "NicheMode: SINGLE-SCENE INVARIANT — LLM emitted "
+                    "cross-scene variety language in %s. Sanitized. "
+                    "before=%r after=%r llm=%s",
+                    name, value, cleaned, planner_model,
+                )
+            return cleaned
+
+        for fld in ("subject_bias", "core_theme"):
+            raw = plan.get(fld, "") or ""
+            if raw:
+                plan[fld] = _sanitize_field(fld, raw)
+
+        ve_raw = plan.get("visual_elements", []) or []
+        if isinstance(ve_raw, list):
+            plan["visual_elements"] = [
+                ve
+                for ve in (
+                    _sanitize_field(f"visual_elements[{i}]", str(v))
+                    for i, v in enumerate(ve_raw)
+                )
+                if ve
+            ]
         # Verifier round-2 I4 — propagate the niche cluster's environment
         # whitelist (intersected with the style_profile's when both
         # populated) so SceneFacetGenerator can narrow the LLM's

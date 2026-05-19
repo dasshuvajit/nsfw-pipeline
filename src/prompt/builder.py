@@ -82,10 +82,42 @@ _SCENE_FIELD_ORDER: tuple[str, ...] = (
 # also fire on Chroma (which has its own prose-shaped axis tokens) for
 # defence-in-depth. Pony's CLIP tokenizer treats e.g. ``2girls`` as a
 # single learned token regardless of family-style preference.
-HARD_BLOCK_NEGATIVE = (
+#
+# 2026-05-20 — extended with a COMPACT grid / mirror block. After a
+# Cydonia series shipped 4-panel collage hallucinations (a "varying
+# compositions" phrase in subject_description triggered a 2x2 grid) and
+# the user explicitly opted out of mirror compositions, the negative
+# side now blocks grid/polyptych and mirror vocab. The block is split
+# into two ordered sub-blocks for SDXL/Pony/Illustrious's tight 77-token
+# CLIP budget:
+#
+#   1. _AGE_SAFETY  (~17 tokens) — age-ambiguity + multi-subject. MUST
+#      survive trim on every family. Ordered first so fit_to_budget
+#      (which trims from the END) keeps it whole.
+#   2. _COMPOSITION_SAFETY  (~16 tokens) — grid / mirror / collage.
+#      Single canonical token per concept; the booru tokenizer maps
+#      ``grid`` / ``mirror`` to learned tokens regardless of which
+#      duplicate phrasing we'd otherwise include. Deduped down from
+#      the original 25-token block so the safety floor + the
+#      composition floor leave headroom (~44 tokens) for caller
+#      anatomy / quality / character negatives on 77-token families.
+#
+# Note ``mirrorless`` / ``film_noir`` etc. are safe — these are
+# whole-word token matches at the encoder, not substring.
+_HARD_BLOCK_AGE_SAFETY = (
     "child, kid, young, minor, teen, schoolgirl, loli, shota, "
     "underage, baby, toddler, preteen, youthful face, "
     "2girls, multiple_girls, multiple_subjects"
+)
+
+_HARD_BLOCK_COMPOSITION_SAFETY = (
+    "grid, collage, diptych, polyptych, split_screen, multiple_views, "
+    "tiled, contact_sheet, frame_within_frame, "
+    "mirror, reflection, double_exposure"
+)
+
+HARD_BLOCK_NEGATIVE = (
+    f"{_HARD_BLOCK_AGE_SAFETY}, {_HARD_BLOCK_COMPOSITION_SAFETY}"
 )
 
 # Age-ambiguity vocabulary used by the positive-side scan. Matched
@@ -145,6 +177,41 @@ _MULTI_SUBJECT_PATTERNS: tuple[str, ...] = (
     r"group of",
     r"crowd of",
     r"threesome",
+    # 2026-05-20 — grid / duplication phrases that read as multi-subject
+    # to the SDXL/Chroma encoder. A scene_021-class regression where
+    # Cydonia wrote "in natural poses across varying compositions" into
+    # the series-level subject_description produced a 2x2 image grid.
+    # Strip these phrases on the positive side so even if the LLM slips
+    # one in, the encoder never sees it.
+    #
+    # Patterns are ANCHORED to subject-context (subject noun nearby) to
+    # avoid stripping legitimate scene language. "Various poses across
+    # the floor" matches; "multiple angles of incident light" does NOT
+    # — the second is a photographic term, not a subject-count signal.
+    # The anchor word list (poses / compositions / scenes / set /
+    # series / views / framings) is the subject-count vocabulary the
+    # LLM uses to describe cross-scene variety; standalone "various"
+    # / "multiple" / "different" before a non-subject noun no longer
+    # matches.
+    r"varying (?:poses|compositions|framings|views|scenes)",
+    r"various (?:poses|compositions|framings|views|scenes)",
+    r"different (?:poses|compositions|framings|views|scenes)",
+    r"multiple (?:poses|compositions|framings|views|scenes)",
+    r"across (?:poses|compositions|framings|scenes|the series|the set)",
+    r"throughout (?:the series|the set|the scenes)",
+    r"in a grid",
+    r"as a grid",
+    r"collage of",
+    r"diptych of",
+    r"polyptych of",
+    r"split screen",
+    r"split-screen",
+    r"contact sheet",
+    r"image grid",
+    r"frame within frame",
+    r"frame-within-frame",
+    r"doubled presence",
+    r"doubled by reflection",
 )
 
 _MULTI_SUBJECT_PATTERN = re.compile(

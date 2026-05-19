@@ -246,7 +246,7 @@ CREATE TABLE scene_facets (
     -- the DB column accepts NULLs uniformly across families.
     realism_angle TEXT,
     realism_framing TEXT,
-    -- Phase 1-4 (vocab v6, 2026-05-19) — environment + narrative +
+    -- Phase 1-4 (vocab v6 baseline, retained through v7 anti-grid cleanup 2026-05-20) — environment + narrative +
     -- composition gap-fill. The LLM picks one ENV_* / ATM_* / PROP_*
     -- / NARR_* / COMP_* tag per scene; canonicalizer translates each
     -- into family-shaped prose at compose time. Pre-fix these 5

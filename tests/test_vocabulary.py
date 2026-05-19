@@ -432,9 +432,13 @@ def test_env_prop_and_composition_canonicalise(loader):
     env.prop (props have natural booru forms)."""
     from src.prompt.vocabulary import canonicalize_facet
 
+    # vocab v7 (2026-05-20): PROP_CHEVAL_MIRROR + COMP_FRAME_WITHIN_FRAME
+    # removed. Substitute the cleanest surviving entries from each
+    # namespace — PROP_CHAISE_LOUNGE_VELVET (every-family prose
+    # available) and COMP_LEADING_LINES_FLOOR (similar coverage).
     facet = {
-        "environment_prop": "PROP_CHEVAL_MIRROR",
-        "composition_principle": "COMP_FRAME_WITHIN_FRAME",
+        "environment_prop": "PROP_CHAISE_LOUNGE_VELVET",
+        "composition_principle": "COMP_LEADING_LINES_FLOOR",
     }
     for fam in ("sdxl", "illustrious", "flux", "chroma", "flux2"):
         phrases = canonicalize_facet(facet, fam, loader=loader)
@@ -442,8 +446,8 @@ def test_env_prop_and_composition_canonicalise(loader):
             f"family={fam} produced {len(phrases)} (expected 2): {phrases}"
         )
         joined = " ".join(phrases).lower()
-        assert "cheval" in joined or "mirror" in joined
-        assert "frame" in joined or "doorway" in joined
+        assert "chaise" in joined or "velvet" in joined
+        assert "floor" in joined or "leading" in joined
 
     # Pony: env.prop yes, composition.principle no → 1 phrase
     pony_phrases = canonicalize_facet(facet, "pony", loader=loader)
@@ -451,7 +455,7 @@ def test_env_prop_and_composition_canonicalise(loader):
         f"pony should produce 1 phrase (env.prop only); got "
         f"{len(pony_phrases)}: {pony_phrases}"
     )
-    assert "mirror" in pony_phrases[0].lower()
+    assert "chaise" in pony_phrases[0].lower()
 
 
 def test_full_phase_1_4_stack_chroma(loader):
@@ -469,7 +473,7 @@ def test_full_phase_1_4_stack_chroma(loader):
         "environment_atmosphere": "ATM_DUST_MOTES_IN_LIGHT",
         "environment_prop": "PROP_PEONIES_OVERBLOWN",
         "narrative_moment": "NARR_READING_LETTER_AT_DAWN",
-        "composition_principle": "COMP_FRAME_WITHIN_FRAME",
+        "composition_principle": "COMP_LEADING_LINES_FLOOR",
         "nsfw_anatomy": "NSFW_FULL_NUDE",
         "nsfw_act": "NSFW_T4_SOLO_GAZE",
     }
@@ -488,7 +492,7 @@ def test_full_phase_1_4_stack_chroma(loader):
     assert "dust" in joined
     assert "peon" in joined  # peonies
     assert "letter" in joined or "reading" in joined
-    assert "frame" in joined or "doorway" in joined
+    assert "floor" in joined or "leading" in joined
     assert "nude" in joined or "naked" in joined
     assert "gaze" in joined or "eye" in joined or "contact" in joined
 

@@ -127,15 +127,24 @@ The complete architecture is documented in ARCHITECTURE.md — read it fully bef
     trigger / avoid words) and PromptBuilder (per-model trigger /
     negative composition / canonicalizer thread).
   - `config/prompt_vocabulary.yaml` — versioned realism + NSFW concept
-    library (vocab_version 6 — creative-uplift expansion of 2026-05-19).
-    The LLM emits abstract concept tags (e.g. `LIGHT_REMBRANDT`,
-    `CAMERA_SONY_A7RV`, `FILM_PORTRA_400`, `NSFW_T4_SOLO_DISPLAY`,
+    library (vocab_version 7 — anti-grid / anti-mirror cleanup of
+    2026-05-20; supersedes v6 creative-uplift). The LLM emits abstract
+    concept tags (e.g. `LIGHT_REMBRANDT`, `CAMERA_SONY_A7RV`,
+    `FILM_PORTRA_400`, `NSFW_T4_SOLO_DISPLAY`,
     `ENV_TUSCAN_VILLA_RENAISSANCE`, `ATM_DUST_MOTES_IN_LIGHT`,
     `NARR_READING_LETTER_AT_DAWN`, `PALETTE_BAROQUE_CARAVAGGIO`,
     `PHOTOG_HELMUT_NEWTON`, `ART_MOVE_FILM_NOIR_1940S`,
-    `COMP_FRAME_WITHIN_FRAME`, `PROP_CHEVAL_MIRROR`); the canonicalizer
-    in `src/prompt/vocabulary.py` translates each tag into family-shaped
-    phrasing at compose time. Six top-level namespaces:
+    `COMP_LEADING_LINES_FLOOR`, `PROP_CHAISE_LOUNGE_VELVET`); the
+    canonicalizer in `src/prompt/vocabulary.py` translates each tag
+    into family-shaped phrasing at compose time. Vocab v7 dropped six
+    entries (`NSFW_T4_SOLO_MIRROR`, `PROP_CHEVAL_MIRROR`,
+    `PROP_VANITY_TRIPTYCH_MIRROR`, `COMP_FRAME_WITHIN_FRAME`,
+    `COMP_REFLECTION_PRIMARY`, `COMP_REFLECTION_SECONDARY`) because
+    SDXL/Chroma render mirrors as warped faces / body doubles and the
+    triptych / frame-within-frame prose was a literal polyptych
+    instruction; HARD_BLOCK_NEGATIVE + the positive-side multi-subject
+    scan were extended with grid / mirror / collage tokens to close
+    the failure mode end-to-end. Six top-level namespaces:
       * `realism` — camera / lens / film_stock / lighting / mood /
         art_style / angle / framing (Phase 4a + Q10/v4, ~70 tags).
       * `nsfw` — anatomy / posture / act (tier-gated by `tier_min`).
@@ -237,9 +246,29 @@ ComfyUI runs separately from this project. The install path varies per machine �
 Workflow JSON templates live in this project under config/comfyui_workflows/{family}/ (one subdir per family — sdxl/, pony/, illustrious/, flux/, flux2/, chroma/).
 External user-authored workflow templates live under config/comfyui_workflows/templates/{family}/ — see docs/COMFYUI_WORKFLOWS.md § External templates.
 
+## Migration scripts
+- `scripts/migrate_v7_strip_grid_phrases.py` — One-shot cleanup for
+  series planned BEFORE the vocab v7 anti-grid fix (pre-2026-05-20).
+  Scans `series.llm_series_plan` (subject_description / subject_bias /
+  core_theme / visual_elements) and `prompts.prompt_text` for
+  cross-scene variety phrases like "in varying compositions across
+  scenes" that historically triggered 4-panel image-grid hallucinations
+  and strips them via the same `_MULTI_SUBJECT_PATTERN` the runtime
+  composer now applies. Usage:
+  ```
+  python scripts/migrate_v7_strip_grid_phrases.py --dry-run       # preview
+  python scripts/migrate_v7_strip_grid_phrases.py                 # apply
+  python scripts/migrate_v7_strip_grid_phrases.py --series <id>   # scoped
+  ```
+  Mirror tags in `scene_facets` (NSFW_T4_SOLO_MIRROR /
+  COMP_REFLECTION_PRIMARY / etc.) are NOT touched — the canonicalizer
+  silently drops deleted concept tags so those scenes render with the
+  affected slot empty. Use `--regen-facets` to re-roll their tag picks
+  cleanly.
+
 ## Key Files
-- ARCHITECTURE.md — System design; living doc, update when code drifts (last sync: 2026-05-19 — creative-uplift overhaul: vocab v6, series-aesthetic anchors, env-menu narrowing, PNG aesthetic metadata)
+- ARCHITECTURE.md — System design; living doc, update when code drifts (last sync: 2026-05-20 — vocab v7 anti-grid / anti-mirror cleanup; supersedes v6 creative-uplift)
 - CLAUDE.md — This file (project context for Claude Code)
 - PROJECT_GUIDE.md — Living document: setup, run, test instructions (UPDATE after every implementation)
-- config/prompt_vocabulary.yaml — Versioned realism + NSFW + environment + narrative + aesthetic + composition concept library (vocab v6, creative-uplift expansion 2026-05-19; canonicalizer translates abstract concept tags to family phrasing at compose time)
+- config/prompt_vocabulary.yaml — Versioned realism + NSFW + environment + narrative + aesthetic + composition concept library (vocab v7, anti-grid / anti-mirror cleanup 2026-05-20; canonicalizer translates abstract concept tags to family phrasing at compose time)
 - config/llm_models.yaml — LLM registry (multi-LLM upgrade, 2026-05). Per-CLI `--llm <id>` overrides routing + default; validated at startup.
