@@ -165,6 +165,55 @@ def migrate_prompts(conn: sqlite3.Connection, dry_run: bool, only_series: str | 
     return stats
 
 
+def migrate_scene_facets(
+    conn: sqlite3.Connection, dry_run: bool, only_series: str | None,
+) -> dict[str, int]:
+    """Clean scene_facets free-text fields (scene_prose / booru_tags /
+    camera_spec / clothing). Round-5 verifier (F1 BLOCKER) found 20 of
+    25 scenes in series_2547fb306a7c had subject-mirror prose written
+    directly into scene_prose by the LLM — the vocab v7 cleanup
+    removed the LLM's tag MENU but did not sanitize the LLM's
+    free-text emissions. SceneFacetGenerator's runtime sanitizer
+    catches future facets; this migration cleans the existing rows."""
+    stats = {"facets_scanned": 0, "facets_changed": 0, "fields_changed": 0}
+    free_text_cols = ("scene_prose", "booru_tags", "camera_spec", "clothing")
+
+    where = "WHERE scene_id LIKE ?" if only_series else ""
+    args = (f"{only_series}%",) if only_series else ()
+    cur = conn.execute(
+        f"SELECT scene_id, family, llm_id, "
+        f"{', '.join(free_text_cols)} FROM scene_facets {where}",
+        args,
+    )
+    rows = list(cur)
+    for row in rows:
+        stats["facets_scanned"] += 1
+        scene_id, family, llm_id = row[0], row[1], row[2]
+        updates: dict[str, str] = {}
+        for i, col in enumerate(free_text_cols):
+            raw = row[3 + i]
+            if not raw:
+                continue
+            cleaned, changed = _sanitize(raw)
+            if changed:
+                logger.info(
+                    "facet scene=%s family=%s llm=%s field=%s changed",
+                    scene_id, family, llm_id, col,
+                )
+                updates[col] = cleaned
+                stats["fields_changed"] += 1
+        if updates:
+            stats["facets_changed"] += 1
+            if not dry_run:
+                set_clause = ", ".join(f"{col} = ?" for col in updates)
+                conn.execute(
+                    f"UPDATE scene_facets SET {set_clause} "
+                    f"WHERE scene_id = ? AND family = ? AND llm_id = ?",
+                    (*updates.values(), scene_id, family, llm_id),
+                )
+    return stats
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Strip vocab v7 grid/variety phrases from stored series + prompts.",
@@ -186,6 +235,7 @@ def main() -> int:
     conn = sqlite3.connect(str(db_path))
     try:
         ss = migrate_series(conn, args.dry_run, args.series)
+        sf = migrate_scene_facets(conn, args.dry_run, args.series)
         sp = migrate_prompts(conn, args.dry_run, args.series)
         if not args.dry_run:
             conn.commit()
@@ -195,6 +245,10 @@ def main() -> int:
     logger.info(
         "series: scanned=%d changed=%d (fields_changed=%d)",
         ss["series_scanned"], ss["series_changed"], ss["fields_changed"],
+    )
+    logger.info(
+        "scene_facets: scanned=%d changed=%d (fields_changed=%d)",
+        sf["facets_scanned"], sf["facets_changed"], sf["fields_changed"],
     )
     logger.info(
         "prompts: scanned=%d changed=%d",

@@ -293,6 +293,74 @@ _MULTI_SUBJECT_PATTERNS: tuple[str, ...] = (
     r"diptych",
     r"composed (?:as|in|like) (?:a|an) (?:polyptych|triptych|diptych|grid|collage)",
     r"tiled (?:image|grid|composition|layout|across the frame)",
+    # Round-5 verifier (F1 BLOCKER) — subject-mirror prose leaked
+    # through every layer. The LLM wrote "she gazes softly at her
+    # reflection" / "floor-length mirror" / "the candid mirror
+    # reflection" directly into scene_prose for 20 of 25 scenes in
+    # series_2547fb306a7c. The vocab v7 deletion of NSFW_T4_SOLO_MIRROR
+    # / PROP_CHEVAL_MIRROR / COMP_REFLECTION_* removed the LLM's MENU
+    # of mirror concept tags, but the LLM's FREE-TEXT scene_prose
+    # field carried mirror language anyway. Stripping at the positive
+    # side ensures the encoder never sees subject-mirror language.
+    #
+    # `\bmirror\b` is safe against `mirrorless` (word boundary at
+    # `mirrorless`'s end of "mirror" lands inside a word, so
+    # `\bmirror\b` requires non-word-char after — does NOT match
+    # `mirrorless`). Ambient reflections that the user finds OK
+    # (`rippling reflections`, `warm reflected light`, `geometric
+    # reflections` from sculpture, `light reflections`) are preserved
+    # by anchoring `reflection` only to subject-context phrases. The
+    # user's stated preference ("i do not need mirror at all") drives
+    # the aggressive bare-`mirror` strip.
+    r"\bmirror[s]?\b",
+    # Booru-tag mirror variants (Pony / Illustrious) — `\b` doesn't
+    # match `_` boundaries (underscore is a word char), so the above
+    # pattern misses `looking_at_mirror`, `mirror_room`, etc. Match
+    # mirror followed by tag-boundary chars (space, comma, period,
+    # EOL) when preceded by a word char + underscore. Carve-out:
+    # `mirrored_table` / `mirror_image` / `mirrored_X` (atmospheric
+    # mirror-finished surface) NOT matched because what follows
+    # mirror is another word char.
+    r"\w+_mirror(?=[\s,.]|$)",
+    r"\bmirror_\w+",
+    r"her reflection",
+    r"her own reflection",
+    r"mirror reflection",
+    r"reflection capture[sd]?",
+    r"reflection (?:catches|reveals)",
+    r"the reflection (?:of|captures|catches|reveals)",
+    r"the (?:candid|tarnished|antique|intimate|quiet|natural|gentle|own) reflection",
+    r"gazes? (?:at|into|toward) (?:her|the) (?:reflection|mirror)",
+    r"studying her (?:own )?reflection",
+    r"intimate self[- ]regard",
+    r"quiet self[- ]regard",
+    # Mirror-with-modifier compositions — even after the bare
+    # `\bmirror\b` strip, the modifier remains ("floor-length mirror"
+    # → "floor-length" alone). Match the full noun phrase so the
+    # modifier goes too.
+    r"(?:floor[- ]length|full[- ]length|hand[- ]held|antique|large|vanity|cheval|tarnished|gilt[- ]framed) mirror[s]?",
+    r"mirrored (?:ceiling|surface|wall|side[- ]table|table)",
+    # Round-5 — vocab-canonical residuals. NARR_MIRROR_CONTEMPLATION's
+    # chroma phrasing was "considering her reflection in a tarnished
+    # antique mirror, fingertips resting lightly at the throat" — after
+    # bare-mirror + her-reflection strips, the orphan "considering in a
+    # tarnished, fingertips" remains. NSFW_T4_SOLO_MIRROR's chroma
+    # phrasing was "nude woman before a mirror studying her own
+    # reflection" — after strip, "before a studying" dangles. These
+    # specific phrasing residuals would only exist in pre-v7-composed
+    # prompts.prompt_text (the vocab entries themselves are deleted).
+    r"considering in a tarnished,? fingertips resting(?: lightly)?(?: at the throat)?",
+    r"before a studying",
+    r"before a (?:mirror )?studying",
+    # COMP_REFLECTION_PRIMARY chroma canonical: "composition with
+    # primary subject visible only as a mirror reflection, real
+    # subject out of frame" — after bare-mirror strip becomes
+    # "composition with primary subject visible only as a reflection,
+    # real subject out of frame". Match the whole canonical sentence.
+    r"composition with primary subject visible only as a reflection,? real subject out of frame",
+    # COMP_REFLECTION_SECONDARY chroma canonical similarly.
+    r"(?:subject )?(?:in frame )?and additionally reflected in a (?:window|mirror)",
+    r"doubled presence(?: that complicates the composition's reading)?",
 )
 
 _MULTI_SUBJECT_PATTERN = re.compile(
@@ -312,7 +380,25 @@ _MULTI_SUBJECT_PATTERN = re.compile(
 # punctuation or end-of-string — won't touch "across the floor" or
 # "in front of the lamp" (those have non-punctuation followups).
 ORPHAN_CONNECTOR_PATTERN = re.compile(
-    r"\s+(?:in|across|throughout|with)\s*(?=[.,]|$)",
+    r"\s+(?:in|across|throughout|with|at|against|before|beside|behind|toward|into|onto)\s*(?=[.,]|$)",
+    re.IGNORECASE,
+)
+
+# Round-5 verifier (F3) — dangling-article cleanup. After bare-noun
+# stripping ("A polyptych of the subject." → "A  of the subject."),
+# the orphan article + "of" + following text reads ungrammatical.
+# This pattern catches the broken "(A|An|The) of <X>" + "(A|An|The)
+# <noun> <of>" + bare orphan article-before-punctuation fragments.
+#
+# Conservative — only matches when the article is immediately followed
+# by another article or "of" / "in" / "from" / a closing punctuation,
+# so legitimate prose like "A nude woman stands" is untouched.
+DANGLING_ARTICLE_PATTERN = re.compile(
+    r"\b(?:a|an|the)\s+(?:of|in|from|a|an|the)\s+",
+    re.IGNORECASE,
+)
+DANGLING_ARTICLE_AT_END = re.compile(
+    r"\b(?:a|an|the)\s*(?=[.,]|$)",
     re.IGNORECASE,
 )
 
@@ -341,6 +427,12 @@ def sanitize_grid_phrases(text: str) -> tuple[str, bool]:
         return text, False
     cleaned = _MULTI_SUBJECT_PATTERN.sub("", text)
     cleaned = ORPHAN_CONNECTOR_PATTERN.sub("", cleaned)
+    # Round-5 — dangling article cleanup after bare-noun strip.
+    # Run TWICE because the first pass can leave new dangling articles
+    # (e.g. "A polyptych of the X" → "A  of the X" → "the X" → "X").
+    for _ in range(2):
+        cleaned = DANGLING_ARTICLE_PATTERN.sub("", cleaned)
+        cleaned = DANGLING_ARTICLE_AT_END.sub("", cleaned)
     # Whitespace + punctuation hygiene — keep last so the regexes above
     # don't have to worry about consuming surrounding whitespace.
     cleaned = re.sub(r"\s+([.,])", r"\1", cleaned)  # "foo ." → "foo."

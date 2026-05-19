@@ -324,6 +324,20 @@ class ThemeMode(BaseMode):
                     "Sanitized. before=%r after=%r llm=%s",
                     raw_sd, cleaned_sd, planner_model,
                 )
+                # Round-5 verifier (F5) — hard-fail when sanitization
+                # leaves an empty subject_description. The LLM emitted
+                # ONLY grid/mirror phrases; downstream composer would
+                # render a generic prompt with no subject anchor.
+                # Raise so the operator notices + re-prompts.
+                if not cleaned_sd:
+                    raise ThemeModeError(
+                        f"ThemeMode: subject_description sanitized to "
+                        f"empty — LLM ({planner_model}) emitted only "
+                        f"forbidden grid/mirror phrases. Original: "
+                        f"{raw_sd!r}. Re-run plan (the LLM should "
+                        f"produce different output on retry) or "
+                        f"switch --llm to a different registry id."
+                    )
                 plan["subject_description"] = cleaned_sd
         # Verifier round-2 I4 — propagate the theme category's environment
         # whitelist (intersected with the style_profile's when both

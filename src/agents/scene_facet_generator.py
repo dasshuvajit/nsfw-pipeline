@@ -353,6 +353,56 @@ def _strip_none_values(facet: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in facet.items() if v is not None}
 
 
+# Round-5 verifier (F2 BLOCKER-adjacent) — facet free-text fields
+# (scene_prose / booru_tags / camera_spec / clothing) are LLM-emitted
+# prose that gets injected into the composed positive prompt body.
+# The vocab v7 deletions removed mirror / grid concept tags from the
+# LLM's MENU, but the LLM still writes "she gazes softly at her
+# reflection" / "floor-length mirror" / "Composed as a polyptych"
+# into free-text fields. Without sanitization at this exit point, the
+# only defense was the downstream `_positive_subject_count_scan` at
+# compose time — which doesn't fire on every scene's free-text in
+# isolation (it sees the assembled prompt).
+#
+# This list mirrors the per-family free-text fields declared on the
+# 5 SceneFacet schemas. Tag/enum fields (lighting_directive, etc.)
+# are NOT included because they're canonicalized at compose time and
+# the canonicalizer drops unknown tags.
+_FACET_SANITIZABLE_FIELDS: tuple[str, ...] = (
+    "scene_prose",
+    "booru_tags",
+    "camera_spec",
+    "clothing",
+)
+
+
+def _sanitize_facet_freetext(
+    facet: dict[str, Any], *, scene_id: str | None = None, family_id: str | None = None,
+) -> dict[str, Any]:
+    """Strip grid / mirror / multi-subject phrases from each free-text
+    facet field via the shared `sanitize_grid_phrases` helper. Logs
+    at WARN when anything was stripped so drift surfaces in run_log.
+
+    Returns the facet dict with sanitized values. Empty results after
+    sanitization are preserved as empty strings (not dropped) so the
+    schema's Optional fields stay declared rather than vanishing.
+    """
+    from src.prompt.builder import sanitize_grid_phrases
+    for fld in _FACET_SANITIZABLE_FIELDS:
+        raw = facet.get(fld)
+        if not isinstance(raw, str) or not raw:
+            continue
+        cleaned, changed = sanitize_grid_phrases(raw)
+        if changed:
+            logger.warning(
+                "SceneFacetGenerator: grid/mirror language stripped from "
+                "%s. scene_id=%s family=%s before=%r after=%r",
+                fld, scene_id, family_id, raw, cleaned,
+            )
+            facet[fld] = cleaned
+    return facet
+
+
 # Q6 — Pattern A persona for the prose-family facet generator
 # (sdxl_keywords / flux_natural / chroma / flux2_prose). Q7 adds a
 # parallel booru-tag persona for pony_danbooru / illustrious_tags;
@@ -1008,7 +1058,11 @@ class SceneFacetGenerator:
             prompt_style=prompt_style, family_id=family.id,
         )
         if facet is not None and not missing:
-            return _strip_none_values(facet)
+            return _sanitize_facet_freetext(
+                _strip_none_values(facet),
+                scene_id=scene.get("id"),
+                family_id=family.id,
+            )
 
         if missing:
             logger.warning(
@@ -1075,7 +1129,11 @@ class SceneFacetGenerator:
                     "this scene with --regen-facets to retry).",
                     family.id, still_missing,
                 )
-            return _strip_none_values(facet)
+            return _sanitize_facet_freetext(
+                _strip_none_values(facet),
+                scene_id=scene.get("id"),
+                family_id=family.id,
+            )
 
         raise SceneFacetGeneratorError(
             f"Failed to generate a valid {family.id} facet after 2 attempts."

@@ -625,6 +625,138 @@ def test_theme_mode_system_prompt_has_single_scene_invariant():
     )
 
 
+@pytest.mark.parametrize(
+    "subject_mirror_phrase",
+    [
+        # Round-5 verifier (F1 BLOCKER) — these are the actual phrases
+        # the LLM emitted into scene_prose for 20 of 25 scenes in the
+        # user's series_2547fb306a7c. Each must be stripped at compose
+        # time so the encoder never sees subject-mirror language.
+        "She gazes softly at her reflection with lips slightly parted.",
+        "stands confidently in front of a floor mirror, her reflection capturing her polished look",
+        "A nude woman reclines beside a floor-length mirror, her silhouette dramatically lit",
+        "background features classic vanity mirrors with warm vanity lights",
+        "She is studying her own reflection in the antique mirror.",
+        "considering her reflection in a tarnished antique mirror",
+        "She gazes into the mirror with intimate self-regard.",
+        # COMP_REFLECTION_PRIMARY canonical leftover
+        "Composition with primary subject visible only as a reflection, real subject out of frame.",
+        # COMP_REFLECTION_SECONDARY canonical leftover
+        "Subject in frame and additionally reflected in a mirror, doubled presence.",
+        # Mirrored environment leftover (after vocab v7 mirror prose strip)
+        "Tokyo love-hotel room, mirrored ceiling above",
+    ],
+)
+def test_subject_mirror_prose_stripped(subject_mirror_phrase):
+    """F1 BLOCKER — every subject-mirror prose pattern that the LLM
+    historically wrote into scene_prose must be stripped. No `mirror`
+    or `her reflection` survives in the output."""
+    from src.prompt.builder import sanitize_grid_phrases
+    out, changed = sanitize_grid_phrases(subject_mirror_phrase)
+    assert changed, f"FAILED to strip subject-mirror phrase: {subject_mirror_phrase!r}"
+    out_lower = out.lower()
+    for forbidden in (
+        "mirror", "her reflection", "mirror reflection", "polyptych",
+        "visible only as a reflection",
+    ):
+        # Special case: `mirrorless` is allowed (camera body); whole-word
+        # match would not strip it but our regex strips bare mirror.
+        assert forbidden not in out_lower or forbidden == "mirror" and "mirrorless" in out_lower, (
+            f"forbidden subject-mirror token {forbidden!r} survived in: {out!r}"
+        )
+
+
+@pytest.mark.parametrize(
+    "ambient",
+    [
+        # F1 carve-outs — atmospheric reflections / mirrorless cameras
+        # must pass through unchanged. The user explicitly opted out of
+        # SUBJECT-mirror compositions but accepts ambient/atmospheric
+        # ones (water, light, sculpture reflections).
+        "rippling reflections playing across the tiled ceiling",
+        "terracotta tiled floor catching warm reflected light",
+        "shot on a Sony A7R V full-frame mirrorless body",
+        "Captured on a Canon EOS R5 full-frame mirrorless body",
+        "metallic sculpture nearby catches the light, adding geometric reflections",
+        "wet cobblestone reflecting streetlight",
+    ],
+)
+def test_ambient_reflections_preserved(ambient):
+    """F1 carve-out — ambient/atmospheric reflections + mirrorless
+    camera-body terminology must pass through unchanged. Stripping
+    these would degrade legitimate scene language and break per-family
+    realism_camera canonicalization."""
+    from src.prompt.builder import sanitize_grid_phrases
+    out, _ = sanitize_grid_phrases(ambient)
+    # Specific tokens that must survive
+    if "mirrorless" in ambient.lower():
+        assert "mirrorless" in out.lower(), (
+            f"mirrorless camera-body terminology stripped: {ambient!r} → {out!r}"
+        )
+    if "rippling" in ambient.lower():
+        assert "rippling" in out.lower(), (
+            f"water reflection prose stripped: {ambient!r} → {out!r}"
+        )
+    if "reflected light" in ambient.lower():
+        assert "reflected light" in out.lower(), (
+            f"reflected light atmospheric prose stripped: {ambient!r} → {out!r}"
+        )
+
+
+def test_facet_generator_sanitizes_freetext_fields():
+    """F2 — SceneFacetGenerator's `_sanitize_facet_freetext` helper
+    must strip mirror/grid language from every free-text field
+    declared in _FACET_SANITIZABLE_FIELDS. This is the runtime defense
+    against the LLM writing grid/mirror prose into scene_prose,
+    booru_tags, camera_spec, clothing."""
+    from src.agents.scene_facet_generator import (
+        _FACET_SANITIZABLE_FIELDS,
+        _sanitize_facet_freetext,
+    )
+    # All four free-text fields covered by the helper.
+    assert set(_FACET_SANITIZABLE_FIELDS) == {
+        "scene_prose", "booru_tags", "camera_spec", "clothing",
+    }
+    dirty = {
+        "scene_prose": "She gazes at her reflection in the mirror.",
+        "booru_tags": "1girl, looking_at_mirror, mirror, reflection",
+        "camera_spec": "85mm f/1.4 mirrorless body",  # mirrorless should survive
+        "clothing": "silk gown beside a floor-length mirror",
+        "lighting_directive": "LIGHT_REMBRANDT",  # not in sanitizable set
+    }
+    cleaned = _sanitize_facet_freetext(dirty, scene_id="test_001", family_id="chroma")
+    # scene_prose: mirror + her reflection stripped
+    assert "mirror" not in cleaned["scene_prose"].lower()
+    assert "her reflection" not in cleaned["scene_prose"].lower()
+    # booru_tags: mirror stripped
+    assert "mirror" not in cleaned["booru_tags"].lower() or "mirrorless" in cleaned["booru_tags"].lower()
+    # camera_spec: mirrorless camera terminology preserved (whole-word boundary)
+    assert "mirrorless" in cleaned["camera_spec"].lower()
+    # clothing: mirror stripped
+    assert "mirror" not in cleaned["clothing"].lower()
+    # lighting_directive: untouched (not a free-text field)
+    assert cleaned["lighting_directive"] == "LIGHT_REMBRANDT"
+
+
+def test_theme_mode_hard_fails_on_empty_sanitized_subject():
+    """F5 — when sanitize_grid_phrases reduces subject_description to
+    empty (LLM emitted ONLY grid/mirror phrases), theme_mode must
+    raise rather than silently downgrade to no-subject. This surfaces
+    LLM drift as an operator-visible error rather than a quietly
+    generic render."""
+    import src.modes.theme_mode as tm
+    source = tm.__file__
+    with open(source) as f:
+        content = f.read()
+    # Explicit raise path with a recognizable message must exist.
+    assert "subject_description sanitized to" in content, (
+        "theme_mode.plan() must raise ThemeModeError when sanitized "
+        "subject_description is empty — silent downgrade hides LLM drift"
+    )
+    assert "ThemeModeError" in content
+    assert "if not cleaned_sd:" in content
+
+
 def test_environment_vocab_strips_mirror_mentions(vocab):
     """The four environment_setting entries that historically embedded
     'mirrored ceiling' / 'fogged mirror' / 'makeup mirror' /
