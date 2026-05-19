@@ -33,19 +33,19 @@ llms:
     families_recommended: ["all"]
     active: true
 
-  qwen36_abliterated_27b:
-    ollama_id: "huihui_ai/Qwen3.6-abliterated:27b"
-    display_name: "Qwen3.6 27B (Abliterated)"
-    description: "huihui_ai abliterated (refusal-removed) variant of Qwen3.6 27B. Dense (not MoE) — every inference uses all 27B parameters. ~17GB on disk at Q4. Newer Qwen3.6 architecture (vs the older Qwen3 30B-A3B). The abliteration drops refusal floor for explicit-tier work. Different lineage from Cydonia (Qwen vs Mistral); dense architecture provides a quality A/B target against the MoE qwen3_abliterated_30b. Registered 2026-05-19 as a third installed LLM for the 3-way comparison."
-    quant: "Q4"
+  magnum_v4_27b:
+    ollama_id: "fluffy/magnum-v4-27b:latest"
+    display_name: "Magnum v4 27B"
+    description: "anthracite-org Magnum v4 27B (fluffy quant) — Gemma 2 27B base fine-tuned on Claude 3 Sonnet/Opus prose for creative writing and intimate-scene narrative. Dense 27B parameters. The Magnum line targets editorial-tier RP/creative prose explicitly — historically the strongest community choice for evocative scene descriptions vs raw uncensored output. Different lineage from Cydonia (Gemma 2 vs Mistral 24B) makes it a meaningful prose-quality A/B target. Registered 2026-05-19 replacing the qwen36_abliterated_27b slot."
+    quant: "Q4_K_M"
     size_gb: 17
     context_tokens: 32768
-    refusal_rate: 2.0           # community-reported for abliterated variants
+    refusal_rate: 3.0           # Magnum line is "open" but slightly higher than abliterated
     strengths:
-      - "low refusal floor (abliterated)"
-      - "newer Qwen3.6 architecture"
-      - "dense (27B active per token) — full-capacity inference"
-      - "different lineage from Cydonia (Qwen vs Mistral)"
+      - "Claude-style prose quality (Sonnet/Opus distillation)"
+      - "editorial / RP narrative tuning"
+      - "Gemma 2 base — different lineage from Cydonia (Mistral)"
+      - "dense 27B — full capacity per token"
     families_recommended: ["all"]
     active: true
 
