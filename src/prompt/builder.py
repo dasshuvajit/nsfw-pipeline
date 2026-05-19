@@ -134,6 +134,45 @@ _HARD_BLOCK_COMPOSITION_SAFETY = (
     "grid, collage, polyptych, split_screen, mirror, reflection"
 )
 
+# Round-3 verifier (2026-05-20): even the round-2 shrink left caller
+# anatomy fully evicted on SDXL because the composition tail
+# (mirror, reflection) crowds anatomy out of the budget. Solution:
+# family-conditional composition block — tight-budget families
+# (sdxl/pony/illustrious at 77 CLIP tokens) get only the 2 highest-
+# leverage composition tokens (grid + mirror — these cover the user's
+# observed failure modes); big-budget families (chroma/flux/flux2 at
+# 512 T5 tokens) get the full 6-token block. Defence-in-depth via the
+# positive-side `_positive_subject_count_scan` covers the rest on
+# tight-budget families (the positive scan strips grid/mirror phrases
+# from the LLM output before they reach the encoder, so the negative
+# side only needs the most-trained-on tokens).
+_HARD_BLOCK_COMPOSITION_SAFETY_TIGHT = "grid, mirror"
+
+# Threshold for which families count as "tight budget" (CLIP-style 77
+# tokens vs T5-style 512+). Anything ≤ 128 tokens is tight.
+_TIGHT_BUDGET_THRESHOLD = 128
+
+
+def _resolve_hard_block(family: Any | None) -> str:
+    """Return the appropriate HARD_BLOCK for the family's token budget.
+
+    Tight-budget families (sdxl/pony/illustrious, max_tokens ≤ 128)
+    get the compact composition block (`grid, mirror`) so caller-
+    provided anatomy / quality negatives survive. Big-budget families
+    (chroma/flux/flux2, 512 tokens) get the full composition block.
+    Callers that pass ``family=None`` (back-compat / direct test
+    callers) get the full block — historical behaviour.
+    """
+    max_tokens = getattr(family, "max_tokens", None) if family else None
+    if max_tokens is not None and max_tokens <= _TIGHT_BUDGET_THRESHOLD:
+        return f"{_HARD_BLOCK_AGE_SAFETY}, {_HARD_BLOCK_COMPOSITION_SAFETY_TIGHT}"
+    return f"{_HARD_BLOCK_AGE_SAFETY}, {_HARD_BLOCK_COMPOSITION_SAFETY}"
+
+
+# Public default — kept as the FULL block for back-compat with any
+# external caller that imports the constant directly. Internal callers
+# (the composer's `assemble_negative_prompt`) call `_resolve_hard_block`
+# instead to pick the right variant per family.
 HARD_BLOCK_NEGATIVE = (
     f"{_HARD_BLOCK_AGE_SAFETY}, {_HARD_BLOCK_COMPOSITION_SAFETY}"
 )
@@ -377,7 +416,13 @@ class PromptBuilder:
         else:
             resolved_model = None
 
-        segments = [HARD_BLOCK_NEGATIVE]
+        # Round-3 verifier — family-conditional HARD_BLOCK. Tight-budget
+        # families (SDXL/Pony/Illustrious) get the compact composition
+        # block (grid + mirror only); big-budget families (Chroma/Flux/
+        # Flux2) get the full 6-token composition block. Caller
+        # anatomy negatives survive the budget on tight-budget families.
+        hard_block = _resolve_hard_block(family)
+        segments = [hard_block]
         segments += [
             s for s in (resolved_model, style_negative, character_negative) if s
         ]

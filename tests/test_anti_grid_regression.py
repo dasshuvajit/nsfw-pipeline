@@ -331,20 +331,34 @@ def test_age_tokens_survive_sdxl_budget_with_real_model_axes(family_loader):
             f"budget regression. Final negative ({count_tokens(neg, sdxl.tokenizer_id)} "
             f"tokens):\n{neg}"
         )
-    # The leading composition safety tokens (grid/collage/polyptych)
-    # must also survive — they ride in the second half of the prefix-
-    # preserve window after age safety.
-    for grid_token in ("grid", "collage", "polyptych"):
+    # Round-3 verifier — family-conditional HARD_BLOCK. SDXL gets the
+    # compact composition block (grid + mirror only); the verbose
+    # polyptych / collage / split_screen / reflection tokens are
+    # suppressed at the negative-block resolution step so caller
+    # anatomy axis fits inside the 77-token budget. (Defence-in-depth:
+    # the positive-side scan strips grid/mirror phrases before they
+    # reach the encoder, so the negative side only needs the most
+    # heavily-trained tokens.)
+    for grid_token in ("grid", "mirror"):
         assert grid_token in neg.lower(), (
-            f"composition-safety token {grid_token!r} got trimmed — "
-            f"HARD_BLOCK budget regression. Final negative:\n{neg}"
+            f"composition-safety token {grid_token!r} got trimmed even "
+            f"on the compact tight-budget block — HARD_BLOCK regression. "
+            f"Final negative:\n{neg}"
         )
-    # At least SOME caller-provided tokens must survive — F4 BLOCKER
-    # was that ALL caller negatives dropped. After v7 compaction the
-    # suffix-preserve window (20 tokens) keeps the tail-end of the
-    # caller layers + style negative. Quality + watermark + style
-    # collectively occupy enough trailing space that one of each
-    # category survives.
+    # F4 BLOCKER close criterion — caller anatomy MUST survive on SDXL.
+    # Round-1 ALL caller negatives dropped (122-token bloat); round-2
+    # quality/watermark survived but anatomy was still evicted (58
+    # tokens — composition tail crowded anatomy out of the middle of
+    # the trim window). Round-3's family-conditional block (compact
+    # 45-token total on SDXL) leaves anatomy room.
+    survived_anatomy = any(
+        t in neg.lower() for t in ("bad anatomy", "bad hands", "extra digits")
+    )
+    assert survived_anatomy, (
+        f"F4 BLOCKER STILL OPEN — NO caller anatomy negative "
+        f"survived on SDXL. Round-3 family-conditional block was "
+        f"supposed to free room for anatomy. Final negative:\n{neg}"
+    )
     survived_quality = any(
         t in neg.lower() for t in ("lowres", "low quality", "worst quality", "jpeg")
     )
@@ -353,17 +367,59 @@ def test_age_tokens_survive_sdxl_budget_with_real_model_axes(family_loader):
     )
     survived_style = "harsh overhead" in neg.lower()
     assert survived_quality, (
-        f"NO caller quality negative survived on SDXL — F4 budget "
-        f"regression. Final negative:\n{neg}"
+        f"NO caller quality negative survived on SDXL. Final negative:\n{neg}"
     )
     assert survived_watermark, (
-        f"NO caller watermark negative survived on SDXL — F4 budget "
-        f"regression. Final negative:\n{neg}"
+        f"NO caller watermark negative survived on SDXL. Final negative:\n{neg}"
     )
     assert survived_style, (
         f"style negative was dropped — suffix-preserve window broken. "
         f"Final negative:\n{neg}"
     )
+
+
+def test_resolve_hard_block_is_family_conditional(family_loader):
+    """Round-3 verifier — `_resolve_hard_block` returns the compact
+    composition variant for tight-budget families (SDXL/Pony/Illustrious)
+    and the full composition variant for big-budget families
+    (Chroma/Flux/Flux2). This is the mechanism that lets SDXL caller
+    anatomy survive the 77-token budget while still giving Chroma the
+    full grid/mirror coverage."""
+    from src.prompt.builder import _resolve_hard_block
+    sdxl = family_loader.get_family("sdxl")
+    pony = family_loader.get_family("pony")
+    illustrious = family_loader.get_family("illustrious")
+    chroma = family_loader.get_family("chroma")
+    flux = family_loader.get_family("flux")
+
+    # Tight-budget families — compact composition (grid + mirror only).
+    for fam_name, fam in [("sdxl", sdxl), ("pony", pony), ("illustrious", illustrious)]:
+        block = _resolve_hard_block(fam)
+        assert "grid" in block and "mirror" in block, (
+            f"{fam_name}: compact composition must include grid + mirror"
+        )
+        # The full-block tokens (collage / polyptych / split_screen /
+        # reflection) MUST be absent on tight-budget families — the whole
+        # point of the round-3 fix is to free space for caller anatomy.
+        for tok in ("collage", "polyptych", "split_screen", "reflection"):
+            assert tok not in block, (
+                f"{fam_name}: tight-budget block must NOT carry {tok!r} "
+                f"— it crowds out caller anatomy"
+            )
+
+    # Big-budget families — full composition (all 6 tokens).
+    for fam_name, fam in [("chroma", chroma), ("flux", flux)]:
+        block = _resolve_hard_block(fam)
+        for tok in ("grid", "collage", "polyptych", "split_screen", "mirror", "reflection"):
+            assert tok in block, (
+                f"{fam_name}: big-budget block must include {tok!r} — "
+                f"plenty of headroom on T5 512-token budget"
+            )
+
+    # None family (back-compat / direct test callers) — full block.
+    block = _resolve_hard_block(None)
+    for tok in ("grid", "collage", "polyptych", "mirror", "reflection"):
+        assert tok in block, f"None-family fallback dropped {tok!r}"
 
 
 def test_chroma_full_budget_preserves_everything(family_loader):
