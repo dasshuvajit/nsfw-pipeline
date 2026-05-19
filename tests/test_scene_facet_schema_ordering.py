@@ -357,6 +357,117 @@ def test_no_defunct_conditional_markers_in_llm_visible_text():
         )
 
 
+# ── Round-9: tier-strict Pydantic schema factory ───────────────────
+
+
+def test_round9_tier_strict_schema_marks_required_non_nullable():
+    """Round-9 BLOCKER fix: SceneFacet schemas declared tier-required
+    fields as Optional[str], so Ollama's format=<json_schema> grammar
+    decoder ALLOWED null. _make_tier_strict_schema() rewrites those
+    fields to non-nullable str (no Optional, min_length=1). The
+    grammar engine then literally cannot emit null for those slots."""
+    from src.agents.scene_facet_generator import _make_tier_strict_schema
+    from src.agents.schemas import SceneFacetFluxNatural
+
+    strict = _make_tier_strict_schema(SceneFacetFluxNatural, "T4_explicit")
+    js = strict.model_json_schema()
+    required = set(js.get("required", []))
+    # All 7 T4 tier-required fields MUST be in required[]
+    expected = {
+        "lighting_directive", "mood_aesthetic", "narrative_moment",
+        "environment_setting", "environment_atmosphere",
+        "nsfw_anatomy", "nsfw_act",
+    }
+    missing = expected - required
+    assert not missing, (
+        f"T4 strict schema must mark these fields as required "
+        f"(JSON schema-level): {missing}"
+    )
+    # And each must have type=string (no None / null union)
+    for fld in expected:
+        spec = js["properties"][fld]
+        type_ = spec.get("type")
+        assert type_ == "string", (
+            f"{fld!r} should be type=string (no Optional). Got: "
+            f"{spec.get('type')}, anyOf={spec.get('anyOf')}"
+        )
+        assert spec.get("minLength") == 1, (
+            f"{fld!r} should have minLength=1"
+        )
+
+
+def test_round9_tier_strict_at_T2_only_promotes_T2_fields():
+    """At T2_implied, only every-tier required fields are non-nullable.
+    T3+/T4-only fields stay Optional[str]."""
+    from src.agents.scene_facet_generator import _make_tier_strict_schema
+    from src.agents.schemas import SceneFacetFluxNatural
+
+    strict = _make_tier_strict_schema(SceneFacetFluxNatural, "T2_implied")
+    js = strict.model_json_schema()
+    required = set(js.get("required", []))
+    # T1/T2 tier-required: lighting/mood/narrative
+    assert {"lighting_directive", "mood_aesthetic", "narrative_moment"} <= required
+    # T3+ fields NOT promoted at T2
+    assert "environment_setting" not in required
+    assert "nsfw_anatomy" not in required
+    assert "nsfw_act" not in required
+
+
+def test_round9_tier_strict_at_T3_promotes_T3_not_T4():
+    """At T3_artnude, env_setting/env_atmosphere/nsfw_anatomy promote
+    to required; nsfw_act stays Optional (T4-only)."""
+    from src.agents.scene_facet_generator import _make_tier_strict_schema
+    from src.agents.schemas import SceneFacetFluxNatural
+
+    strict = _make_tier_strict_schema(SceneFacetFluxNatural, "T3_artnude")
+    js = strict.model_json_schema()
+    required = set(js.get("required", []))
+    for f in ("lighting_directive", "mood_aesthetic", "narrative_moment",
+              "environment_setting", "environment_atmosphere", "nsfw_anatomy"):
+        assert f in required, f"{f} should be required at T3"
+    # nsfw_act is T4-only, must NOT be required at T3
+    assert "nsfw_act" not in required
+
+
+def test_round9_pony_strict_schema_handles_pony_omission():
+    """Pony's facet schema omits some realism fields. The strict
+    factory must NOT crash when a tier-required field is absent from
+    the base class — it simply skips that field's override."""
+    from src.agents.scene_facet_generator import _make_tier_strict_schema
+    from src.agents.schemas import SceneFacetPony
+
+    strict = _make_tier_strict_schema(SceneFacetPony, "T4_explicit")
+    js = strict.model_json_schema()
+    required = set(js.get("required", []))
+    # Pony has these fields and they should be promoted to required
+    for f in ("lighting_directive", "mood_aesthetic", "narrative_moment",
+              "environment_setting", "environment_atmosphere",
+              "nsfw_anatomy", "nsfw_act"):
+        assert f in required, (
+            f"Pony @T4: {f!r} should be required (declared on schema)"
+        )
+
+
+def test_round9_unknown_tier_returns_base_class():
+    """Defensive: unknown content_level passes the class through
+    unchanged (back-compat for direct callers)."""
+    from src.agents.scene_facet_generator import _make_tier_strict_schema
+    from src.agents.schemas import SceneFacetFluxNatural
+
+    result = _make_tier_strict_schema(SceneFacetFluxNatural, "T9_unknown")
+    assert result is SceneFacetFluxNatural
+
+
+def test_round9_factory_is_cached():
+    """LRU-cached: same (base, tier) returns the SAME class instance."""
+    from src.agents.scene_facet_generator import _make_tier_strict_schema
+    from src.agents.schemas import SceneFacetFluxNatural
+
+    a = _make_tier_strict_schema(SceneFacetFluxNatural, "T4_explicit")
+    b = _make_tier_strict_schema(SceneFacetFluxNatural, "T4_explicit")
+    assert a is b, "Strict schema factory must cache its output"
+
+
 def test_tier_active_body_pony_rewrite_full_matrix():
     """Round-8 NIT-1: explicit coverage of the Pony body across all
     4 tiers. Pony body has 9 fields (vs non-Pony's 16) and includes

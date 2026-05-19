@@ -107,19 +107,57 @@ def _patch_generate(text: str):
 # ── Per-family dispatch ─────────────────────────────────────────────
 
 
+# Round-9 tier-strict schema: at each tier, certain structured-tag
+# fields are required to be non-null. The canned LLM responses below
+# include those fields so the strict schema validator accepts.
+_T2_REQUIRED_TAGS_JSON = (
+    '"lighting_directive": "LIGHT_WINDOW_SIDE", '
+    '"mood_aesthetic": "MOOD_SERENE", '
+    '"narrative_moment": "NARR_COFFEE_MORNING_PAPER"'
+)
+
+_T3_REQUIRED_TAGS_JSON = (
+    _T2_REQUIRED_TAGS_JSON +
+    ', "environment_setting": "ENV_MORNING_BEDROOM"'
+    ', "environment_atmosphere": "ATM_DUST_MOTES_IN_LIGHT"'
+    ', "nsfw_anatomy": "NSFW_BREAST_NATURAL"'
+)
+
+_T4_REQUIRED_TAGS_JSON = (
+    _T3_REQUIRED_TAGS_JSON +
+    ', "nsfw_act": "NSFW_T4_SOLO_TOUCH"'
+)
+
+
+def _required_tags_for(tier: str) -> str:
+    """Return the strict-schema required-tag JSON fragment for ``tier``."""
+    return {
+        "T1_suggestive": _T2_REQUIRED_TAGS_JSON,
+        "T2_implied":    _T2_REQUIRED_TAGS_JSON,
+        "T3_artnude":    _T3_REQUIRED_TAGS_JSON,
+        "T4_explicit":   _T4_REQUIRED_TAGS_JSON,
+    }[tier]
+
+
 def test_sdxl_facet_dispatch(generator, loader):
     family = loader.get_family("sdxl")
-    canned = '{"camera_spec": "85mm f/1.4", "clothing": "ivory silk slip"}'
+    canned = (
+        '{"camera_spec": "85mm f/1.4", "clothing": "ivory silk slip", '
+        + _T2_REQUIRED_TAGS_JSON + '}'
+    )
     with _patch_generate(canned):
         facet = generator.generate(scene=_scene(), family=family, content_level="T2_implied")
-    assert facet == {"camera_spec": "85mm f/1.4", "clothing": "ivory silk slip"}
+    assert facet["camera_spec"] == "85mm f/1.4"
+    assert facet["clothing"] == "ivory silk slip"
+    assert facet["lighting_directive"] == "LIGHT_WINDOW_SIDE"
 
 
 def test_pony_facet_dispatch(generator, loader):
     family = loader.get_family("pony")
     canned = (
         '{"booru_tags": "long_hair, brown_hair, looking_at_viewer", '
-        '"source_tag": "source_photograph"}'
+        '"source_tag": "source_photograph", '
+        + _T2_REQUIRED_TAGS_JSON + '}'
     )
     with _patch_generate(canned):
         facet = generator.generate(scene=_scene(), family=family, content_level="T2_implied")
@@ -131,7 +169,8 @@ def test_illustrious_facet_dispatch(generator, loader):
     family = loader.get_family("illustrious")
     canned = (
         '{"booru_tags": "long_hair, soft_focus", '
-        '"scene_prose": "She stands on the balcony in golden hour light."}'
+        '"scene_prose": "She stands on the balcony in golden hour light.", '
+        + _T2_REQUIRED_TAGS_JSON + '}'
     )
     with _patch_generate(canned):
         facet = generator.generate(scene=_scene(), family=family, content_level="T2_implied")
@@ -143,7 +182,8 @@ def test_flux_facet_dispatch_uses_flux_natural_schema(generator, loader):
     family = loader.get_family("flux")
     canned = (
         '{"scene_prose": "She stands on a sunset balcony in an ivory silk '
-        'dress, golden-hour rim light catching her hair."}'
+        'dress, golden-hour rim light catching her hair.", '
+        + _T2_REQUIRED_TAGS_JSON + '}'
     )
     with _patch_generate(canned):
         facet = generator.generate(scene=_scene(), family=family, content_level="T2_implied")
@@ -153,7 +193,10 @@ def test_flux_facet_dispatch_uses_flux_natural_schema(generator, loader):
 def test_chroma_facet_uses_same_schema_as_flux(generator, loader):
     """chroma family also uses flux_natural prompt_style."""
     family = loader.get_family("chroma")
-    canned = '{"scene_prose": "She leans against the balcony rail."}'
+    canned = (
+        '{"scene_prose": "She leans against the balcony rail.", '
+        + _T2_REQUIRED_TAGS_JSON + '}'
+    )
     with _patch_generate(canned):
         facet = generator.generate(scene=_scene(), family=family, content_level="T2_implied")
     assert facet["scene_prose"].startswith("She leans")
@@ -169,7 +212,8 @@ def test_flux2_facet_dispatch_with_qa_fields(generator, loader):
         'left, illuminating natural skin texture and casting a soft '
         'shadow on the wall behind. The atmosphere is quiet, intimate, '
         'pensive late-afternoon.", '
-        '"subject_focus": "Mira, 28, raven hair"}'
+        '"subject_focus": "Mira, 28, raven hair", '
+        + _T2_REQUIRED_TAGS_JSON + '}'
     )
     with _patch_generate(canned):
         facet = generator.generate(scene=_scene(), family=family, content_level="T2_implied")
@@ -181,11 +225,15 @@ def test_flux2_facet_dispatch_with_qa_fields(generator, loader):
 
 
 def test_invalid_facet_triggers_retry(generator, loader):
-    """First attempt returns junk; second succeeds → returns success."""
+    """First attempt returns junk; second succeeds → returns success.
+
+    Round-9 update: the second-attempt JSON includes the T2 tier-
+    required fields so the strict schema accepts the retry."""
     family = loader.get_family("sdxl")
     responses = [
         "garbage not json",
-        '{"camera_spec": "85mm", "clothing": "silk"}',
+        ('{"camera_spec": "85mm", "clothing": "silk", '
+         + _T2_REQUIRED_TAGS_JSON + '}'),
     ]
     call_count = {"n": 0}
 
@@ -233,7 +281,8 @@ def test_system_prompt_includes_trigger_words(generator, loader):
 
     def capture(system_prompt, user_prompt, **kwargs):
         captured["system_prompt"] = system_prompt
-        return '{"camera_spec": "x", "clothing": "y"}'
+        return ('{"camera_spec": "x", "clothing": "y", '
+                + _T2_REQUIRED_TAGS_JSON + '}')
 
     from unittest.mock import MagicMock
     guide = MagicMock()
@@ -257,7 +306,8 @@ def test_system_prompt_includes_avoid_words(generator, loader):
 
     def capture(system_prompt, user_prompt, **kwargs):
         captured["system_prompt"] = system_prompt
-        return '{"camera_spec": "x", "clothing": "y"}'
+        return ('{"camera_spec": "x", "clothing": "y", '
+                + _T2_REQUIRED_TAGS_JSON + '}')
 
     from unittest.mock import MagicMock
     guide = MagicMock()
@@ -295,7 +345,11 @@ def test_system_prompt_includes_family_guide_for_flux2(generator, loader):
             "rose, with the city below softening into haze. Soft golden "
             "rim light from the right traces her silhouette. The mood "
             "is contemplative, tender, late-summer."
-        )
+        ),
+        # Round-9 strict-schema requires the T2 tier-required fields.
+        "lighting_directive": "LIGHT_WINDOW_SIDE",
+        "mood_aesthetic": "MOOD_SERENE",
+        "narrative_moment": "NARR_COFFEE_MORNING_PAPER",
     })
     # Q6 — schema-aware calls use /api/chat (not /api/generate).
     with patch.object(OllamaClient, "_generate_chat", return_value=valid_response) as mock:
@@ -322,7 +376,8 @@ def test_user_prompt_includes_scene_core_and_family_id(generator, loader):
 
     def capture(system_prompt, user_prompt, **kwargs):
         captured["user_prompt"] = user_prompt
-        return '{"booru_tags": "long_hair"}'
+        return ('{"booru_tags": "1girl, solo, long_hair", '
+                + _T2_REQUIRED_TAGS_JSON + '}')
 
     # Q6 — schema-aware calls use /api/chat (not /api/generate). Patch
     # the chat endpoint so the capture sees the system prompt.
@@ -351,7 +406,8 @@ def test_user_prompt_does_not_leak_other_family_fields(generator, loader):
 
     def capture(system_prompt, user_prompt, **kwargs):
         captured["user_prompt"] = user_prompt
-        return '{"booru_tags": "x"}'
+        return ('{"booru_tags": "1girl, solo, x", '
+                + _T2_REQUIRED_TAGS_JSON + '}')
 
     # Q6 — schema-aware calls use /api/chat (not /api/generate). Patch
     # the chat endpoint so the capture sees the system prompt.
@@ -375,7 +431,8 @@ def test_explicit_temperature_overrides_family_default(generator, loader):
 
     def capture(system_prompt, user_prompt, *, temperature, **kwargs):
         captured["temperature"] = temperature
-        return '{"camera_spec": "x", "clothing": "y"}'
+        return ('{"camera_spec": "x", "clothing": "y", '
+                + _T2_REQUIRED_TAGS_JSON + '}')
 
     # Q6 — schema-aware calls use /api/chat (not /api/generate). Patch
     # the chat endpoint so the capture sees the system prompt.
@@ -393,7 +450,8 @@ def test_family_temperature_used_when_no_explicit_override(
 
     def capture(system_prompt, user_prompt, *, temperature, **kwargs):
         captured["temperature"] = temperature
-        return '{"booru_tags": "x"}'
+        return ('{"booru_tags": "1girl, solo, x", '
+                + _T2_REQUIRED_TAGS_JSON + '}')
 
     # Q6 — schema-aware calls use /api/chat (not /api/generate). Patch
     # the chat endpoint so the capture sees the system prompt.
@@ -422,7 +480,8 @@ def test_user_prompt_contains_content_level_line(
 
     def capture(system_prompt, user_prompt, **kwargs):
         captured["user_prompt"] = user_prompt
-        return '{"camera_spec": "x", "clothing": "y"}'
+        return ('{"camera_spec": "x", "clothing": "y", '
+                + _required_tags_for(tier) + '}')
 
     # Q6 — schema-aware calls use /api/chat (not /api/generate). Patch
     # the chat endpoint so the capture sees the system prompt.
@@ -442,7 +501,9 @@ def test_system_prompt_carries_llm_directive(generator, loader):
 
     def capture(system_prompt, user_prompt, **kwargs):
         captured["system_prompt"] = system_prompt
-        return '{"camera_spec": "x", "clothing": "y"}'
+        # Round-9: at T4, the strict schema requires all 7 tier fields.
+        return ('{"camera_spec": "x", "clothing": "y", '
+                + _T4_REQUIRED_TAGS_JSON + '}')
 
     directive = "CONTENT TIER: T4_explicit. Depict the subject NUDE."
 
@@ -465,7 +526,8 @@ def test_system_prompt_skips_directive_when_empty(generator, loader):
 
     def capture(system_prompt, user_prompt, **kwargs):
         captured["system_prompt"] = system_prompt
-        return '{"camera_spec": "x", "clothing": "y"}'
+        return ('{"camera_spec": "x", "clothing": "y", '
+                + _T2_REQUIRED_TAGS_JSON + '}')
 
     # Q6 — schema-aware calls use /api/chat (not /api/generate). Patch
     # the chat endpoint so the capture sees the system prompt.
@@ -487,12 +549,14 @@ def test_t4_directive_pushes_for_nsfw_act(generator, loader):
 
     def capture(system_prompt, user_prompt, **kwargs):
         captured["system_prompt"] = system_prompt
-        # Return valid Flux prose (≥ 25 words for the validator).
+        # Return valid Flux prose (≥ 25 words for the validator)
+        # plus round-9 strict-schema T4 tier-required tags.
         return (
             '{"scene_prose": "She stands in a sunlit room with morning '
             'light pouring across the bare floor and a single window '
             'illuminating the side of her face in a quiet pensive '
-            'moment of solitude."}'
+            'moment of solitude.", '
+            + _T4_REQUIRED_TAGS_JSON + '}'
         )
 
     from src.memory.categories_loader import CategoriesLoader

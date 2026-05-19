@@ -34,6 +34,10 @@ import json
 import logging
 from typing import TYPE_CHECKING, Any
 
+import functools
+
+from pydantic import BaseModel, Field, create_model
+
 from src.agents.llm_client import OllamaClient, OllamaJSONParseError
 from src.agents.schemas import SCENE_FACET_SCHEMA_BY_STYLE
 from src.prompt.vocabulary import llm_vocabulary_block
@@ -478,6 +482,70 @@ _BOORU_PROMPT_STYLES: frozenset[str] = frozenset({
 
 
 # fmt: off
+@functools.lru_cache(maxsize=64)
+def _make_tier_strict_schema(
+    base_cls: type[BaseModel],
+    content_level: str,
+) -> type[BaseModel]:
+    """Build a tier-strict subclass of ``base_cls`` where the
+    tier-required fields are non-nullable ``str`` (no Optional) with
+    ``min_length=1``.
+
+    Round-9 fix (2026-05-19): the round-6/7/8 prompt-engineering
+    cascade lifted lighting_directive / mood_aesthetic /
+    narrative_moment to 100% land-rate but Cydonia heretic-vision
+    STILL nulled T3+/T4 fields (environment_setting /
+    environment_atmosphere / nsfw_anatomy / nsfw_act) at 0%. Root
+    cause: the original SceneFacet schemas declare these as
+    ``Optional[str]`` so Ollama's ``format=<json schema>``
+    constrained decoder ALLOWS the grammar to emit ``null``. No
+    amount of [REQUIRED] marker text overrides the grammar.
+
+    This factory rewrites the JSON schema so the grammar engine
+    CANNOT emit null — the tier-required slot must be a non-empty
+    string. The original schema stays as the persistence-side type
+    (the strict variant's emit is a structural subset of the
+    original).
+
+    Cached by ``(base_cls, content_level)`` since the same combo
+    repeats many times in a 25-scene run.
+    """
+    required_for_tier = _TIER_REQUIRED_FIELDS.get(content_level, ())
+    if not required_for_tier:
+        return base_cls
+    # Build override dict: each tier-required field that exists on
+    # ``base_cls`` becomes ``str`` (no Optional) with min_length=1.
+    overrides: dict[str, Any] = {}
+    base_fields = base_cls.model_fields
+    for fld in required_for_tier:
+        if fld not in base_fields:
+            continue  # Pony omits some — leave alone
+        original = base_fields[fld]
+        original_description = original.description or ""
+        overrides[fld] = (
+            str,
+            Field(
+                ...,  # required (no default)
+                min_length=1,
+                description=(
+                    f"[REQUIRED at {content_level}] "
+                    + original_description
+                ),
+            ),
+        )
+    if not overrides:
+        return base_cls
+    # create_model needs a unique class name per (base, tier) so
+    # the model_json_schema() title is distinct in Ollama logs.
+    new_name = f"{base_cls.__name__}_{content_level}_strict"
+    strict_cls = create_model(
+        new_name,
+        __base__=base_cls,
+        **overrides,
+    )
+    return strict_cls
+
+
 def _make_tier_active_schema_body(body: str, content_level: str) -> str:
     """Rewrite conditional ``[REQUIRED — T3+]`` / ``[REQUIRED — T4 only]``
     markers into unconditional ``[REQUIRED]`` or ``[OPTIONAL]`` based on
@@ -841,7 +909,18 @@ class SceneFacetGenerator:
                 f"{sorted(SCENE_FACET_SCHEMA_BY_STYLE)}"
             )
 
-        schema = SCENE_FACET_SCHEMA_BY_STYLE[prompt_style]
+        base_schema = SCENE_FACET_SCHEMA_BY_STYLE[prompt_style]
+        # Round-9 fix: tier-strict Pydantic schema. Rewrites the
+        # tier-required fields from Optional[str] to non-nullable str
+        # (min_length=1). The JSON schema fed to Ollama's grammar
+        # decoder will require these fields — null can NOT be sampled.
+        # Rounds 6/7/8 made the prompt scream "REQUIRED" but the
+        # grammar engine still emitted null because Optional[str]
+        # allows it; round-9 closes that grammar loophole.
+        # The strict schema's emit is a structural subset of the
+        # original, so persistence flows through ``base_schema`` /
+        # ``_FACET_FIELDS`` unchanged.
+        schema = _make_tier_strict_schema(base_schema, content_level)
         schema_body = _SCHEMA_BODY_BY_STYLE[prompt_style]
 
         system_prompt = self._build_system_prompt(
@@ -863,7 +942,8 @@ class SceneFacetGenerator:
             else (family.llm_temperature or self.TEMPERATURE)
         )
 
-        # First attempt
+        # First attempt — tier-strict schema enforces non-null
+        # tier-required fields at the Ollama grammar layer.
         facet = self._attempt(
             system_prompt, user_prompt, schema, effective_temp, model=model,
         )
