@@ -360,39 +360,84 @@ def test_no_defunct_conditional_markers_in_llm_visible_text():
 # ── Round-9: tier-strict Pydantic schema factory ───────────────────
 
 
-def test_round9_tier_strict_schema_marks_required_non_nullable():
+import pytest as _pytest
+
+
+# Verifier round-9 IMPORTANT-3: parametrize across all 5 facet schemas
+# so a regression on SDXL / Illustrious / Flux2 doesn't slip past.
+_ALL_FACET_SCHEMAS = [
+    "sdxl",  # SceneFacetSDXL
+    "pony",  # SceneFacetPony
+    "illustrious",  # SceneFacetIllustrious
+    "flux_natural",  # SceneFacetFluxNatural
+    "flux2",  # SceneFacetFlux2 (a.k.a. flux2_prose)
+]
+
+
+def _facet_class_for(style: str):
+    """Helper: import the SceneFacet Pydantic class by short style key."""
+    from src.agents.schemas import (
+        SceneFacetSDXL, SceneFacetPony, SceneFacetIllustrious,
+        SceneFacetFluxNatural, SceneFacetFlux2,
+    )
+    return {
+        "sdxl": SceneFacetSDXL,
+        "pony": SceneFacetPony,
+        "illustrious": SceneFacetIllustrious,
+        "flux_natural": SceneFacetFluxNatural,
+        "flux2": SceneFacetFlux2,
+    }[style]
+
+
+@_pytest.mark.parametrize("style", _ALL_FACET_SCHEMAS)
+def test_round9_tier_strict_schema_marks_required_non_nullable(style):
     """Round-9 BLOCKER fix: SceneFacet schemas declared tier-required
     fields as Optional[str], so Ollama's format=<json_schema> grammar
     decoder ALLOWED null. _make_tier_strict_schema() rewrites those
     fields to non-nullable str (no Optional, min_length=1). The
-    grammar engine then literally cannot emit null for those slots."""
-    from src.agents.scene_facet_generator import _make_tier_strict_schema
-    from src.agents.schemas import SceneFacetFluxNatural
+    grammar engine then literally cannot emit null for those slots.
 
-    strict = _make_tier_strict_schema(SceneFacetFluxNatural, "T4_explicit")
+    Round-9 IMPORTANT-3: now parametrized across all 5 facet schemas
+    (SDXL / Pony / Illustrious / FluxNatural / Flux2)."""
+    from src.agents.scene_facet_generator import (
+        _make_tier_strict_schema, _BOORU_PROMPT_STYLES,
+    )
+    base = _facet_class_for(style)
+    prompt_style_id = {
+        "sdxl": "sdxl_keywords", "pony": "pony_danbooru",
+        "illustrious": "illustrious_tags", "flux_natural": "flux_natural",
+        "flux2": "flux2_prose",
+    }[style]
+    is_booru = prompt_style_id in _BOORU_PROMPT_STYLES
+    strict = _make_tier_strict_schema(base, "T4_explicit", is_booru)
     js = strict.model_json_schema()
     required = set(js.get("required", []))
-    # All 7 T4 tier-required fields MUST be in required[]
+    # T4 tier-required fields the family's schema actually declares.
+    # Pony has all 7; non-Pony also has all 7.
     expected = {
         "lighting_directive", "mood_aesthetic", "narrative_moment",
         "environment_setting", "environment_atmosphere",
         "nsfw_anatomy", "nsfw_act",
     }
+    if is_booru:
+        # IMPORTANT-1: nsfw_anatomy exempt for booru-native so the
+        # existing booru_tags-carries-NSFW relaxation can fire.
+        expected = expected - {"nsfw_anatomy"}
     missing = expected - required
     assert not missing, (
-        f"T4 strict schema must mark these fields as required "
-        f"(JSON schema-level): {missing}"
+        f"{style} T4 strict schema must mark these fields as required "
+        f"(JSON schema-level): {missing}. Got required={sorted(required)}"
     )
-    # And each must have type=string (no None / null union)
+    # And each promoted field must have type=string + minLength=1
     for fld in expected:
         spec = js["properties"][fld]
         type_ = spec.get("type")
         assert type_ == "string", (
-            f"{fld!r} should be type=string (no Optional). Got: "
-            f"{spec.get('type')}, anyOf={spec.get('anyOf')}"
+            f"{style}.{fld!r} should be type=string (no Optional). "
+            f"Got type={spec.get('type')} anyOf={spec.get('anyOf')}"
         )
         assert spec.get("minLength") == 1, (
-            f"{fld!r} should have minLength=1"
+            f"{style}.{fld!r} should have minLength=1"
         )
 
 
@@ -466,6 +511,60 @@ def test_round9_factory_is_cached():
     a = _make_tier_strict_schema(SceneFacetFluxNatural, "T4_explicit")
     b = _make_tier_strict_schema(SceneFacetFluxNatural, "T4_explicit")
     assert a is b, "Strict schema factory must cache its output"
+
+
+def test_round9_engine_passes_strict_schema_to_llm_call():
+    """Verifier round-9 IMPORTANT-2: the round-9 patch is invisible to
+    the test suite at the engine layer — all 6 schema tests call the
+    factory directly. This test patches the LLM client to capture the
+    ``schema`` kwarg actually passed to ``generate_json`` and asserts
+    it's a strict variant (class name ends with ``_strict``)."""
+    from unittest.mock import patch, MagicMock
+    from src.agents.scene_facet_generator import (
+        SceneFacetGenerator, _TIER_REQUIRED_FIELDS,
+    )
+    from src.memory.family_loader import FamilyLoader
+
+    captured = {"schema": None}
+
+    def fake_generate_json(system, user, *, schema, **kwargs):
+        captured["schema"] = schema
+        # Return a valid T4 facet so the engine accepts it.
+        return {
+            "scene_prose": ("She stands in golden hour light against a "
+                            "tall window in a brutalist concrete loft."),
+            "lighting_directive": "LIGHT_GOLDEN_HOUR",
+            "mood_aesthetic": "MOOD_SENSUAL",
+            "narrative_moment": "NARR_STEPPING_FROM_BATH",
+            "environment_setting": "ENV_BRUTALIST_CONCRETE_LOFT",
+            "environment_atmosphere": "ATM_DUST_MOTES_IN_LIGHT",
+            "nsfw_anatomy": "NSFW_FULL_NUDE",
+            "nsfw_act": "NSFW_T4_SOLO_GAZE",
+        }
+
+    fam = FamilyLoader().get_family("chroma")
+    gen = SceneFacetGenerator(MagicMock())
+    with patch.object(
+        gen.llm, "generate_json", side_effect=fake_generate_json,
+    ):
+        gen.generate(
+            scene={"pose": "seated"}, family=fam,
+            content_level="T4_explicit", model="test",
+        )
+
+    schema = captured["schema"]
+    assert schema is not None, "engine didn't pass a schema to generate_json"
+    assert schema.__name__.endswith("_strict"), (
+        f"engine passed non-strict schema {schema.__name__!r} — round-9 "
+        f"factory call at scene_facet_generator.py was reverted?"
+    )
+    # And the strict schema's JSON schema marks the 7 T4 fields required
+    required = set(schema.model_json_schema().get("required", []))
+    expected = set(_TIER_REQUIRED_FIELDS["T4_explicit"])
+    missing = expected - required
+    assert not missing, (
+        f"engine's strict schema missing required fields: {missing}"
+    )
 
 
 def test_tier_active_body_pony_rewrite_full_matrix():

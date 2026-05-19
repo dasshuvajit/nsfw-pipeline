@@ -482,10 +482,25 @@ _BOORU_PROMPT_STYLES: frozenset[str] = frozenset({
 
 
 # fmt: off
+# Round-9 + verifier IMPORTANT-1: fields whose strict-promotion would
+# break the existing booru-native NSFW relaxation (Pony / Illustrious
+# already carry NSFW signal via booru_tags tokens; null nsfw_anatomy
+# is intentionally accepted by `_missing_required_fields` when
+# `booru_tags` contains "nude" / "nipples" / etc.). Strict promotion
+# of nsfw_anatomy at the Pydantic / JSON-schema layer would REJECT
+# the LLM response before the relaxation check could fire, defeating
+# Pony's whole booru-NSFW pathway. Skip promotion for these fields
+# only on booru-native prompt_styles.
+_BOORU_NATIVE_NSFW_EXEMPT_FIELDS: frozenset[str] = frozenset({
+    "nsfw_anatomy",
+})
+
+
 @functools.lru_cache(maxsize=64)
 def _make_tier_strict_schema(
     base_cls: type[BaseModel],
     content_level: str,
+    is_booru_native: bool = False,
 ) -> type[BaseModel]:
     """Build a tier-strict subclass of ``base_cls`` where the
     tier-required fields are non-nullable ``str`` (no Optional) with
@@ -507,8 +522,18 @@ def _make_tier_strict_schema(
     (the strict variant's emit is a structural subset of the
     original).
 
-    Cached by ``(base_cls, content_level)`` since the same combo
-    repeats many times in a 25-scene run.
+    Verifier round-9 IMPORTANT-1: booru-native prompt styles
+    (pony_danbooru, illustrious_tags) carry NSFW signal natively in
+    ``booru_tags`` — the existing relaxation in
+    ``_missing_required_fields`` accepts null ``nsfw_anatomy`` when
+    booru_tags contains "nude"/"nipples"/etc. Strict-promoting
+    ``nsfw_anatomy`` at the Pydantic layer would reject the
+    relaxation path before it could fire. ``is_booru_native=True``
+    skips promotion of fields in :data:`_BOORU_NATIVE_NSFW_EXEMPT_FIELDS`,
+    preserving the booru-NSFW pathway.
+
+    Cached by ``(base_cls, content_level, is_booru_native)`` since the
+    same combo repeats many times in a 25-scene run.
     """
     required_for_tier = _TIER_REQUIRED_FIELDS.get(content_level, ())
     if not required_for_tier:
@@ -520,24 +545,33 @@ def _make_tier_strict_schema(
     for fld in required_for_tier:
         if fld not in base_fields:
             continue  # Pony omits some — leave alone
+        if is_booru_native and fld in _BOORU_NATIVE_NSFW_EXEMPT_FIELDS:
+            continue  # Pony/Illustrious — let booru_tags relaxation handle
         original = base_fields[fld]
         original_description = original.description or ""
+        # Verifier round-9 NIT-1: strip the inherited "Optional " prefix
+        # so the rendered description doesn't read "[REQUIRED at T4]
+        # Optional lighting concept tag..." — that internal
+        # contradiction lets the LLM hedge.
+        cleaned = original_description
+        if cleaned.lower().startswith("optional "):
+            cleaned = cleaned[len("Optional "):].lstrip()
+            if cleaned:
+                cleaned = cleaned[0].upper() + cleaned[1:]
         overrides[fld] = (
             str,
             Field(
                 ...,  # required (no default)
                 min_length=1,
-                description=(
-                    f"[REQUIRED at {content_level}] "
-                    + original_description
-                ),
+                description=f"[REQUIRED at {content_level}] {cleaned}",
             ),
         )
     if not overrides:
         return base_cls
-    # create_model needs a unique class name per (base, tier) so
-    # the model_json_schema() title is distinct in Ollama logs.
-    new_name = f"{base_cls.__name__}_{content_level}_strict"
+    # create_model needs a unique class name per (base, tier, booru)
+    # so the model_json_schema() title is distinct in Ollama logs.
+    suffix = "_booru_strict" if is_booru_native else "_strict"
+    new_name = f"{base_cls.__name__}_{content_level}{suffix}"
     strict_cls = create_model(
         new_name,
         __base__=base_cls,
@@ -920,7 +954,16 @@ class SceneFacetGenerator:
         # The strict schema's emit is a structural subset of the
         # original, so persistence flows through ``base_schema`` /
         # ``_FACET_FIELDS`` unchanged.
-        schema = _make_tier_strict_schema(base_schema, content_level)
+        #
+        # Verifier round-9 IMPORTANT-1: booru-native styles (pony /
+        # illustrious) need ``nsfw_anatomy`` EXEMPTED from strict
+        # promotion — the existing booru_tags-carries-NSFW relaxation
+        # in ``_missing_required_fields`` would be unreachable
+        # otherwise.
+        is_booru_native = prompt_style in _BOORU_NATIVE_STYLES
+        schema = _make_tier_strict_schema(
+            base_schema, content_level, is_booru_native,
+        )
         schema_body = _SCHEMA_BODY_BY_STYLE[prompt_style]
 
         system_prompt = self._build_system_prompt(
