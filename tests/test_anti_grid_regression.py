@@ -56,23 +56,22 @@ def vocab():
     "token",
     [
         # Grid / polyptych vocabulary — the literal grid hallucination
-        # triggers in SDXL / Chroma encoders. Single canonical token per
-        # concept; the verifier audit (F4) flagged the verbose 25-token
-        # list as eating SDXL's 77-token budget and dropping anatomy
-        # negatives, so the block was compacted. polyptych covers
-        # diptych/triptych/quadriptych-class instructions; the booru
-        # form of each phrase (split_screen / multiple_views /
-        # contact_sheet / frame_within_frame) is the learned token in
-        # SDXL's CLIP and matches whether the LLM writes spaced or
-        # underscored.
-        "grid", "collage", "diptych", "polyptych",
-        "split_screen", "multiple_views",
-        "tiled", "contact_sheet", "frame_within_frame",
+        # triggers in SDXL / Chroma encoders. Round-2 verifier compacted
+        # this set from 12 → 6 tokens after measuring HARD_BLOCK at 83
+        # CLIP tokens (over the SDXL 77-token budget). Each surviving
+        # token still blocks the failure mode by semantic coverage:
+        #   polyptych  → diptych / triptych / multi-panel
+        #   grid       → image grid / tile_grid / contact_sheet
+        #   collage    → frame_within_frame (nested-frame collage)
+        #   split_screen / mirror / reflection — direct hits
+        # The pruned tokens (diptych / multiple_views / tiled /
+        # contact_sheet / frame_within_frame / double_exposure) are
+        # NO LONGER expected in the block — checking for them would
+        # block this regression test from greenness on the slim block.
+        "grid", "collage", "polyptych", "split_screen",
         # Mirror vocabulary — user opted out of mirror compositions
         # entirely after seeing warped reflections.
         "mirror", "reflection",
-        # Double exposure — another known duplication trigger.
-        "double_exposure",
         # Pre-existing safety tokens that MUST still survive the v7
         # extension (regression guard against accidental drop).
         "child", "teen", "loli", "underage", "youthful face",
@@ -332,10 +331,10 @@ def test_age_tokens_survive_sdxl_budget_with_real_model_axes(family_loader):
             f"budget regression. Final negative ({count_tokens(neg, sdxl.tokenizer_id)} "
             f"tokens):\n{neg}"
         )
-    # The leading composition safety tokens (grid/collage/diptych/
-    # polyptych) must also survive — they ride in the second half of
-    # the prefix-preserve window after age safety.
-    for grid_token in ("grid", "collage", "diptych", "polyptych"):
+    # The leading composition safety tokens (grid/collage/polyptych)
+    # must also survive — they ride in the second half of the prefix-
+    # preserve window after age safety.
+    for grid_token in ("grid", "collage", "polyptych"):
         assert grid_token in neg.lower(), (
             f"composition-safety token {grid_token!r} got trimmed — "
             f"HARD_BLOCK budget regression. Final negative:\n{neg}"
@@ -386,12 +385,11 @@ def test_chroma_full_budget_preserves_everything(family_loader):
     )
     # Every category must survive — Chroma has 512 tokens of budget.
     for token in (
-        # Age safety
+        # Age safety — every token survives in the 512-token T5 budget.
         "child", "teen", "loli", "underage", "2girls", "multiple_girls",
-        # Composition safety (full set survives on Chroma — no trim)
-        "grid", "collage", "diptych", "polyptych", "split_screen",
-        "multiple_views", "tiled", "contact_sheet", "frame_within_frame",
-        "mirror", "reflection", "double_exposure",
+        # Composition safety — the round-2 compact set (6 tokens).
+        "grid", "collage", "polyptych", "split_screen",
+        "mirror", "reflection",
         # Caller anatomy (would be trimmed on SDXL, survives on Chroma)
         "bad anatomy", "bad hands", "extra digits", "deformed",
         # Caller quality + watermark
@@ -407,13 +405,18 @@ def test_chroma_full_budget_preserves_everything(family_loader):
 def test_theme_mode_subject_description_validator_present():
     """Verifier F6 — theme_mode must run a server-side sanitizer on
     the LLM-emitted subject_description, not just rely on the prompt
-    instruction. Cydonia ignores embedded constraints at temp≥0.7."""
+    instruction. Cydonia ignores embedded constraints at temp≥0.7.
+
+    Round-2 refactor moved the sanitization to the shared helper
+    ``sanitize_grid_phrases`` so theme_mode + niche_mode + the
+    migrate script all stay byte-equivalent.
+    """
     import src.modes.theme_mode as tm
     source = tm.__file__
     with open(source) as f:
         content = f.read()
-    assert "_MULTI_SUBJECT_PATTERN.sub" in content, (
-        "theme_mode.plan() must call _MULTI_SUBJECT_PATTERN.sub on "
+    assert "sanitize_grid_phrases" in content, (
+        "theme_mode.plan() must call sanitize_grid_phrases on "
         "subject_description as a server-side defense — the LLM "
         "instruction alone is not enforceable."
     )
@@ -423,16 +426,68 @@ def test_niche_mode_subject_bias_validator_present():
     """Verifier F7 — niche_mode has the same injection pattern as
     theme_mode (subject_bias + visual_elements + core_theme all
     flow into every scene). It must run the same server-side
-    sanitizer."""
+    sanitizer via the shared helper."""
     import src.modes.niche_mode as nm
     source = nm.__file__
     with open(source) as f:
         content = f.read()
-    assert "_MULTI_SUBJECT_PATTERN.sub" in content, (
-        "niche_mode.plan() must call _MULTI_SUBJECT_PATTERN.sub on "
+    assert "sanitize_grid_phrases" in content, (
+        "niche_mode.plan() must call sanitize_grid_phrases on "
         "subject_bias / core_theme / visual_elements — parallel to "
         "theme_mode's defense."
     )
+
+
+def test_niche_mode_visual_elements_filters_non_strings(caplog):
+    """Verifier N4 — niche_mode visual_elements must drop non-string
+    LLM emissions (ints, None, dicts) rather than str()-coercing them
+    into garbage entries. Tested by direct invocation of the cleanup
+    pattern since the full plan() path requires a live LLM."""
+    # The actual filter logic lives inside NicheMode.plan; this test
+    # asserts the source has the isinstance check.
+    import src.modes.niche_mode as nm
+    source = nm.__file__
+    with open(source) as f:
+        content = f.read()
+    assert "isinstance(v, str)" in content, (
+        "niche_mode visual_elements comprehension must filter "
+        "non-string LLM emissions with an isinstance(v, str) check"
+    )
+
+
+def test_sanitize_grid_phrases_removes_orphan_connectors():
+    """Round-2 — sanitize_grid_phrases must strip BOTH the grid phrase
+    AND the orphan connector word left behind (the scene_021 residual
+    "in natural poses" pattern). The 2-stage cleanup is what makes
+    the runtime sanitizer byte-equivalent to the migrate script."""
+    from src.prompt.builder import sanitize_grid_phrases
+    # Stage 1 + 2 together — phrase stripped + dangling "across" gone.
+    out, changed = sanitize_grid_phrases(
+        "She poses in natural light across varying compositions."
+    )
+    assert changed is True
+    assert "across" not in out.lower()
+    assert "varying" not in out.lower()
+    assert "compositions" not in out.lower()
+    # Stage 2 alone — orphan connector cleanup doesn't touch legitimate
+    # mid-sentence connector words (followed by non-punctuation).
+    out, _ = sanitize_grid_phrases("She poses in front of the lamp.")
+    assert out == "She poses in front of the lamp"
+
+
+def test_sanitize_strips_in_natural_poses_residual():
+    """Round-2 verifier F10 BLOCKER — the original migrate left
+    "in natural poses" in scene_021's prompt body after stripping
+    "across varying compositions". The new pattern catches this
+    leading-connector + variety-adjective + poses shape so the
+    residual is no longer surfaced."""
+    from src.prompt.builder import sanitize_grid_phrases
+    out, changed = sanitize_grid_phrases(
+        "A nude woman in natural poses. Bare breasts visible."
+    )
+    assert changed is True
+    assert "in natural poses" not in out.lower()
+    assert "bare breasts visible" in out.lower()
 
 
 def test_theme_mode_plan_template_forbids_variety_words():

@@ -151,9 +151,12 @@ _FIELD_EXAMPLE_TAGS: dict[str, tuple[str, ...]] = {
     ),
     # Phase 2 (vocab v6) — 3 narrative-moment retry-nudge anchors
     # spanning common-domestic / dressing / outdoor moods.
+    # vocab v7 (2026-05-20) — swapped NARR_MIRROR_CONTEMPLATION
+    # (deleted, mirror-rendering failure mode) for
+    # NARR_DRESSING_FOR_EVENING.
     "narrative_moment": (
         "NARR_READING_LETTER_AT_DAWN", "NARR_STEPPING_FROM_BATH",
-        "NARR_MIRROR_CONTEMPLATION",
+        "NARR_DRESSING_FOR_EVENING",
     ),
 }
 

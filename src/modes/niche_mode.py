@@ -296,17 +296,18 @@ class NicheMode(BaseMode):
 
         # vocab v7 — server-side validator for the SINGLE-SCENE
         # INVARIANT. Same pattern as theme_mode: strip cross-scene
-        # variety language from subject_bias / core_theme using the
-        # composer's regex. visual_elements is a list — sanitize each
-        # element and drop any that becomes empty. Log at WARN when
-        # anything was changed so operator drift surfaces in run_log.
-        from src.prompt.builder import _MULTI_SUBJECT_PATTERN
-        import re as _re
+        # variety language + orphan connectors from subject_bias /
+        # core_theme via the shared ``sanitize_grid_phrases`` helper
+        # (matches the migrate script byte-for-byte).
+        #
+        # visual_elements is a list — sanitize each STRING element
+        # (silently skip non-string LLM emissions like ints / None /
+        # nested dicts) and drop any that becomes empty.
+        from src.prompt.builder import sanitize_grid_phrases
 
-        def _sanitize_field(name: str, value: str) -> str:
-            cleaned = _MULTI_SUBJECT_PATTERN.sub("", value)
-            cleaned = _re.sub(r"\s{2,}", " ", cleaned).strip(" ,.")
-            if cleaned != value:
+        def _clean(name: str, value: str) -> str:
+            cleaned, changed = sanitize_grid_phrases(value)
+            if changed:
                 logger.warning(
                     "NicheMode: SINGLE-SCENE INVARIANT — LLM emitted "
                     "cross-scene variety language in %s. Sanitized. "
@@ -318,18 +319,27 @@ class NicheMode(BaseMode):
         for fld in ("subject_bias", "core_theme"):
             raw = plan.get(fld, "") or ""
             if raw:
-                plan[fld] = _sanitize_field(fld, raw)
+                plan[fld] = _clean(fld, raw)
 
         ve_raw = plan.get("visual_elements", []) or []
         if isinstance(ve_raw, list):
-            plan["visual_elements"] = [
-                ve
-                for ve in (
-                    _sanitize_field(f"visual_elements[{i}]", str(v))
-                    for i, v in enumerate(ve_raw)
-                )
-                if ve
-            ]
+            cleaned_ve: list[str] = []
+            for i, v in enumerate(ve_raw):
+                # Round-2 verifier N4 — only sanitize string entries.
+                # Non-string LLM output (e.g. an int 42 or None or a
+                # nested dict) is dropped silently rather than
+                # str()-coerced into garbage.
+                if not isinstance(v, str):
+                    logger.warning(
+                        "NicheMode: visual_elements[%d] is not a "
+                        "string (%r) — dropping. llm=%s",
+                        i, type(v).__name__, planner_model,
+                    )
+                    continue
+                cleaned = _clean(f"visual_elements[{i}]", v)
+                if cleaned:
+                    cleaned_ve.append(cleaned)
+            plan["visual_elements"] = cleaned_ve
         # Verifier round-2 I4 — propagate the niche cluster's environment
         # whitelist (intersected with the style_profile's when both
         # populated) so SceneFacetGenerator can narrow the LLM's

@@ -104,6 +104,26 @@ _SCENE_FIELD_ORDER: tuple[str, ...] = (
 #
 # Note ``mirrorless`` / ``film_noir`` etc. are safe — these are
 # whole-word token matches at the encoder, not substring.
+#
+# Round-2 verifier (2026-05-20): the verbose original block was 83
+# CLIP tokens — over SDXL/Pony/Illustrious's 77-token budget, leaving
+# zero room for caller anatomy/quality/watermark axes.
+# Age sub-block kept WHOLE — every token is a safety-critical signal
+# the SD safety filter pays attention to (`child` / `kid` / `minor`
+# are distinct learned BPE tokens; dropping any narrows the safety
+# net measurably). Composition sub-block compacted from 12 → 6 tokens
+# by dropping coverage-duplicates that the survivors still block:
+#   `diptych` → covered by `polyptych`
+#   `tiled` / `contact_sheet` / `frame_within_frame` → covered by
+#   `grid` / `collage` / `polyptych` semantically and (more
+#   importantly) by their absence from training-set captions
+#   `multiple_views` → covered by `multiple_subjects` in age block
+#   `double_exposure` → covered by `reflection` (the only way SD
+#   produces a double exposure is by interpreting it as a reflection)
+# Final cost: ~57 CLIP tokens. Leaves ~18 tokens of caller headroom
+# on SDXL — enough for ~6-8 anatomy/quality/watermark phrases (the
+# top-priority axes a real model YAML carries). Measured + asserted
+# by tests/test_anti_grid_regression.py.
 _HARD_BLOCK_AGE_SAFETY = (
     "child, kid, young, minor, teen, schoolgirl, loli, shota, "
     "underage, baby, toddler, preteen, youthful face, "
@@ -111,9 +131,7 @@ _HARD_BLOCK_AGE_SAFETY = (
 )
 
 _HARD_BLOCK_COMPOSITION_SAFETY = (
-    "grid, collage, diptych, polyptych, split_screen, multiple_views, "
-    "tiled, contact_sheet, frame_within_frame, "
-    "mirror, reflection, double_exposure"
+    "grid, collage, polyptych, split_screen, mirror, reflection"
 )
 
 HARD_BLOCK_NEGATIVE = (
@@ -199,6 +217,15 @@ _MULTI_SUBJECT_PATTERNS: tuple[str, ...] = (
     r"multiple (?:poses|compositions|framings|views|scenes)",
     r"across (?:poses|compositions|framings|scenes|the series|the set)",
     r"throughout (?:the series|the set|the scenes)",
+    # Round-2 verifier — the original migrate-script run on
+    # series_2547fb306a7c stripped "across varying compositions" and
+    # the dangling "across" but left "in natural poses" — a residual
+    # grid hint and the actual surviving fragment that kept showing
+    # up in the rendered prompt body. Match the leading-connector +
+    # variety-adjective + plural-noun shape so future drift is caught
+    # at compose time (and the migrate sweep below catches stored
+    # rows).
+    r"in (?:natural|varying|different|various|multiple) (?:poses|compositions|framings|views|scenes)",
     r"in a grid",
     r"as a grid",
     r"collage of",
@@ -218,6 +245,55 @@ _MULTI_SUBJECT_PATTERN = re.compile(
     r"\b(?:" + "|".join(_MULTI_SUBJECT_PATTERNS) + r")\b",
     re.IGNORECASE,
 )
+
+
+# Round-2 verifier (2026-05-20) — orphan-connector cleanup.
+# After _MULTI_SUBJECT_PATTERN.sub strips a phrase like "across
+# varying compositions" from a sentence "posed across varying
+# compositions", the leftover word "across" dangles before
+# punctuation/EOL. This pattern catches that dangling connector and
+# removes it so the resulting prose flows naturally. Bounded to
+# the four common variety-phrase connectors (in / across /
+# throughout / with) and only matches when immediately followed by
+# punctuation or end-of-string — won't touch "across the floor" or
+# "in front of the lamp" (those have non-punctuation followups).
+ORPHAN_CONNECTOR_PATTERN = re.compile(
+    r"\s+(?:in|across|throughout|with)\s*(?=[.,]|$)",
+    re.IGNORECASE,
+)
+
+
+def sanitize_grid_phrases(text: str) -> tuple[str, bool]:
+    """Strip multi-subject / grid phrases and orphan-connector words
+    that historically caused the scene_021-class 4-panel-collage
+    failure mode.
+
+    Three-stage cleanup:
+      1. ``_MULTI_SUBJECT_PATTERN.sub`` removes whole grid phrases
+         (``varying compositions``, ``across the series``,
+         ``in natural poses``, etc.).
+      2. ``ORPHAN_CONNECTOR_PATTERN.sub`` removes dangling connector
+         words left after stage 1 (``across`` / ``in`` / ``throughout``
+         / ``with`` immediately followed by punctuation).
+      3. Whitespace + punctuation normalisation — collapses runs of
+         spaces, removes orphan spaces before punctuation (``"foo ."``
+         → ``"foo."``), collapses double-punctuation (``"foo .."`` →
+         ``"foo."``), strips leading / trailing commas + dots.
+
+    Returns ``(cleaned, changed)`` — the caller can log / re-prompt
+    based on whether the LLM emitted offending content.
+    """
+    if not text:
+        return text, False
+    cleaned = _MULTI_SUBJECT_PATTERN.sub("", text)
+    cleaned = ORPHAN_CONNECTOR_PATTERN.sub("", cleaned)
+    # Whitespace + punctuation hygiene — keep last so the regexes above
+    # don't have to worry about consuming surrounding whitespace.
+    cleaned = re.sub(r"\s+([.,])", r"\1", cleaned)  # "foo ." → "foo."
+    cleaned = re.sub(r"([.,])\1+", r"\1", cleaned)  # "foo.." → "foo."
+    cleaned = re.sub(r",\s*,+", ",", cleaned)       # ", ," → ","
+    cleaned = re.sub(r"\s{2,}", " ", cleaned).strip(" ,.")
+    return cleaned, (cleaned != text)
 
 
 class PromptBuilderError(Exception):

@@ -49,9 +49,7 @@ from pathlib import Path
 # Allow `python scripts/...` invocation from project root.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.prompt.builder import _MULTI_SUBJECT_PATTERN  # noqa: E402
-
-import re
+from src.prompt.builder import sanitize_grid_phrases  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,
@@ -60,30 +58,12 @@ logging.basicConfig(
 logger = logging.getLogger("migrate_v7")
 
 
-_WHITESPACE_RUN = re.compile(r"\s{2,}")
-
-# After stripping a multi-subject phrase, remove orphaned connector
-# words left mid-sentence — e.g. "in natural poses across varying
-# compositions" → first pass strips "varying compositions" → leaves
-# "across " → this regex catches that dangling "across" + trailing
-# punctuation/space. Bounded to in/across/throughout/with — common
-# variety-phrase connectors only, to avoid touching legitimate prose.
-_ORPHAN_CONNECTOR = re.compile(
-    r"\s+(?:in|across|throughout|with)\s*(?=[.,]|$)",
-    re.IGNORECASE,
-)
-
-
 def _sanitize(text: str) -> tuple[str, bool]:
-    """Return (cleaned, changed). Strips grid/multi-subject phrases,
-    removes orphaned connector words left behind, and collapses
-    whitespace + dangling punctuation."""
-    if not text:
-        return text, False
-    cleaned = _MULTI_SUBJECT_PATTERN.sub("", text)
-    cleaned = _ORPHAN_CONNECTOR.sub("", cleaned)
-    cleaned = _WHITESPACE_RUN.sub(" ", cleaned).strip(" ,.")
-    return cleaned, (cleaned != text)
+    """Thin wrapper around :func:`sanitize_grid_phrases` for the
+    migrate script — keeps the local API stable while delegating
+    the actual cleanup to the runtime helper so both paths stay
+    byte-equivalent (no drift between runtime and migration)."""
+    return sanitize_grid_phrases(text)
 
 
 def migrate_series(conn: sqlite3.Connection, dry_run: bool, only_series: str | None) -> dict[str, int]:

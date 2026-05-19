@@ -309,18 +309,15 @@ class ThemeMode(BaseMode):
         # INVARIANT. The plan prompt forbids cross-scene variety
         # language in subject_description, but Cydonia at temp≥0.7
         # routinely ignores embedded constraints. Sanitize: strip
-        # offending phrases via the same regex the composer uses
-        # downstream. If anything was stripped, log at WARN so the
-        # drift surfaces in run_log — operator can decide whether to
-        # re-prompt or accept the cleaned version. The clean side
-        # always wins (defence-in-depth).
-        from src.prompt.builder import _MULTI_SUBJECT_PATTERN
+        # offending phrases AND any orphan connector words left
+        # behind via the shared ``sanitize_grid_phrases`` helper —
+        # same two-stage cleanup the migrate script uses, so runtime
+        # + migration are byte-equivalent.
+        from src.prompt.builder import sanitize_grid_phrases
         raw_sd = plan.get("subject_description", "") or ""
         if raw_sd:
-            cleaned_sd = _MULTI_SUBJECT_PATTERN.sub("", raw_sd)
-            import re as _re
-            cleaned_sd = _re.sub(r"\s{2,}", " ", cleaned_sd).strip(" ,.")
-            if cleaned_sd != raw_sd:
+            cleaned_sd, changed = sanitize_grid_phrases(raw_sd)
+            if changed:
                 logger.warning(
                     "ThemeMode: SINGLE-SCENE INVARIANT — LLM emitted "
                     "cross-scene variety language in subject_description. "
