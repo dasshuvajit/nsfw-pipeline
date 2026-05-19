@@ -763,24 +763,7 @@ class PromptBuilder:
     # aesthetic anchors (color_palette / photographer_ref /
     # art_movement). Currently these helpers are unused (engine.py
     # calls build_one directly) — kept for API completeness.
-    def build_character_prompt(
-        self,
-        character: Mapping[str, Any],
-        scene: Mapping[str, Any],
-        style_profile: Mapping[str, Any] | Any,
-        *,
-        family: FamilyConfig,
-        trigger_words: Iterable[str] | None = None,
-        negative_prompt_override: str | None = None,
-        series_plan: Mapping[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        return self.build_one(
-            character, scene, style_profile,
-            family=family,
-            trigger_words=trigger_words,
-            negative_prompt_override=negative_prompt_override,
-            series_plan=series_plan,
-        )
+    # `build_character_prompt` was deleted 2026-05-20 with character mode.
 
     def build_theme_prompt(
         self,

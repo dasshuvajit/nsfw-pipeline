@@ -113,17 +113,20 @@ The complete architecture is documented in ARCHITECTURE.md — read it fully bef
     `negative_axes` (8-axis taxonomy — added `subject_count` for
     multi-subject suppression, on the `filter_conflicts` exempt
     allowlist so positive `solo` doesn't cancel it), capabilities,
-    LLM hints. `flux2` covers FLUX.2 Klein 9B and is distilled
-    (cfg=1.0 / steps=4 / euler / simple — enforced by `_build_flux2`).
-  - `config/models/{id}.yaml` — per-model: `family:` reference +
-    `prompt: {extend:, override:}` hooks for trigger words, negatives,
-    `negative_embeddings:` (typed list of TI tokens — see Phase 1),
-    `lora_stack:` (typed list of `{name, filename, strength, enabled}`,
-    cap-2 invariant — see Phase 2), `structure_intro:` (Pony realism
-    finetunes), max_tokens, etc. The merged `ModelPromptGuide` flows
-    through SceneFacetGenerator (per-family LLM hints + per-model
-    trigger / avoid words) and PromptBuilder (per-model trigger /
-    negative composition / canonicalizer thread).
+    LLM hints. `flux2` covers FLUX.2 Klein 9B (the cfg=1.0 / steps=4 /
+    euler / simple distilled contract is now baked into your external
+    template JSON, not enforced by the pipeline).
+  - `config/models/{id}.yaml` — per-model identity (id / display_name /
+    filename / architecture / family) + resolution presets
+    (`resolution_portrait` / `resolution_square` / `resolution_landscape`)
+    + license metadata + `prompt: {extend:, override:}` hooks for
+    trigger words, negatives, `negative_embeddings:` (typed list of TI
+    tokens — see Phase 1). Workflow-tuning fields (sampler / scheduler /
+    steps / cfg / VAE / CLIP / LoRA stack) moved into external template
+    JSONs on 2026-05-20. The merged `ModelPromptGuide` flows through
+    SceneFacetGenerator (per-family LLM hints + per-model trigger /
+    avoid words) and PromptBuilder (per-model trigger / negative
+    composition / canonicalizer thread).
   - `config/prompt_vocabulary.yaml` — versioned realism + NSFW concept
     library (vocab_version 7 — anti-grid / anti-mirror cleanup of
     2026-05-20; supersedes v6 creative-uplift). The LLM emits abstract

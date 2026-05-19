@@ -14,11 +14,9 @@ Pre-flight:
   - ``ollama serve`` is running (for Phase A)
   - ``python scripts/init_db.py`` has been run
   - ComfyUI is running at the configured URL (for Phase B)
-  - For character mode: character has been bootstrapped
 
 Usage:
     python scripts/run_once.py --level T2_implied
-    python scripts/run_once.py --mode character --level T2_implied
     python scripts/run_once.py --mode theme --level T3_artnude
     python scripts/run_once.py --mode niche --level T1_suggestive
     python scripts/run_once.py --level T2_implied --verbose
@@ -57,7 +55,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--mode",
-        choices=["character", "theme", "style", "niche", "variation"],
+        choices=["theme", "style", "niche", "variation"],
         default=None,
         help="Pipeline mode (default: weighted random selection)",
     )

@@ -139,12 +139,20 @@ def _extract_seed_from_workflow(workflow: dict[str, Any]) -> int:
 # ``/abs/.../templates/<family>/X.json`` (absolute). Returns None when
 # the path falls outside the convention — caller treats None as
 # "family unknown, skip the check" rather than raising.
-_TEMPLATE_FAMILY_RE = re.compile(r"templates[/\\]([a-z0-9_]+)[/\\]")
+_TEMPLATE_FAMILY_RE = re.compile(
+    r"templates[/\\]([A-Za-z0-9_]+)[/\\]", re.IGNORECASE
+)
 
 
 def _extract_family_from_template_path(path: str) -> str | None:
+    """Extract family id from a path under ``templates/<family>/``.
+
+    Returns lowercase family id so case-insensitive macOS HFS+ paths
+    (`Templates/CHROMA/...`) still match `family: chroma`. Returns
+    None when the path has no `templates/<family>/` segment.
+    """
     m = _TEMPLATE_FAMILY_RE.search(path)
-    return m.group(1) if m else None
+    return m.group(1).lower() if m else None
 
 
 def _model_subfolder(family: str) -> str:

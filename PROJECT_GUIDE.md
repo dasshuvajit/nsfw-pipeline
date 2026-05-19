@@ -166,7 +166,7 @@ optionally set as the family's `default_template` in `config/families.yaml`.
 - **`No default template set for family 'X'.`** — set `families.yaml::X::default_template` or pass `--templates <path>`.
 - **`Template '<path>' belongs to family 'X' but prompt is for family 'Y'.`** — your `--templates` path was under `templates/X/` but the prompt's model belongs to family Y. Use the right family directory.
 - **`WorkflowTemplateError: missing required semantic node IDs: ['positive_prompt']`** — your template has numeric IDs; rename four nodes to the contract names (see `docs/COMFYUI_WORKFLOWS.md`).
-- **`WorkflowTemplateError: refiner pair incomplete`** — either both `refiner_positive_prompt` AND `refiner_ksampler` must exist, or neither.
+- **`WorkflowTemplateError: External template X has 'A' but is missing 'B'. The refiner pair must be present together`** — your template wired one half of the refiner contract; either both `refiner_positive_prompt` AND `refiner_ksampler` must exist, or neither.
 - **`Series has prompts from LLM(s): X, Y. Specify --llm`** — A/B series; pick which LLM to render.
 - **DB-stale errors after vocab bumps** — wipe + re-init: `rm nsfw_pipeline.db && python scripts/init_db.py`.
 
