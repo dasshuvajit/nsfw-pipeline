@@ -368,12 +368,12 @@ OPERATING PRINCIPLES:
 - Output JSON only with EXACTLY the schema fields requested. No prose
   preamble. No markdown fences. No commentary. No extra fields. The
   FIRST character of your response MUST be `{`.
-- Honour every [REQUIRED] field marker in the schema: at the active
-  content tier, the structured fields tagged [REQUIRED — every tier],
-  [REQUIRED — T3+], or [REQUIRED — T4 only] MUST receive a concrete
-  concept tag from the vocabulary menu. Null / empty / omitted values
-  trigger an automatic retry with a stronger nudge — emit the tag the
-  first time.
+- Honour every [REQUIRED] field marker in the schema: the user prompt
+  pre-filters the schema body for the active content tier, so every
+  [REQUIRED] field you see MUST receive a concrete concept tag from
+  the vocabulary menu. Null / empty / omitted values trigger an
+  automatic retry with a stronger nudge — emit the tag the first
+  time. Fields tagged [OPTIONAL] may be null at the LLM's discretion.
 - SOLO subject ALWAYS: every scene depicts exactly one adult woman as
   the sole human subject. Never describe partners, secondary characters,
   groups, or crowds. Do NOT write "her partner", "two women", "with
@@ -426,12 +426,12 @@ OPERATING PRINCIPLES:
 - Output JSON only with EXACTLY the schema fields requested. No prose
   preamble. No markdown fences. No commentary. No extra fields. The
   FIRST character of your response MUST be `{`.
-- Honour every [REQUIRED] field marker in the schema: at the active
-  content tier, the structured fields tagged [REQUIRED — every tier],
-  [REQUIRED — T3+], or [REQUIRED — T4 only] MUST receive a concrete
-  concept tag from the vocabulary menu. Null / empty / omitted values
-  trigger an automatic retry with a stronger nudge — emit the tag the
-  first time.
+- Honour every [REQUIRED] field marker in the schema: the user prompt
+  pre-filters the schema body for the active content tier, so every
+  [REQUIRED] field you see MUST receive a concrete concept tag from
+  the vocabulary menu. Null / empty / omitted values trigger an
+  automatic retry with a stronger nudge — emit the tag the first
+  time. Fields tagged [OPTIONAL] may be null at the LLM's discretion.
 - SOLO subject ALWAYS: every booru_tags string MUST start with the
   canonical single-subject pair ``1girl, solo`` (or ``1girl, solo,
   mature_female`` at T3+). NEVER emit ``2girls``, ``multiple_girls``,
@@ -543,14 +543,13 @@ The scene's locked core fields:
 
 Target model family: {family_id} (composer: {prompt_style})
 
-CRITICAL — every field tagged [REQUIRED ...] in the schema below MUST
+CRITICAL — every field tagged [REQUIRED] in the schema below MUST
 receive a concrete concept tag from the vocabulary menu shown in the
-system prompt. Match the tag's content-tier gate against the active
-content level above: [REQUIRED — every tier] is mandatory at T1-T4,
-[REQUIRED — T3+] is mandatory at T3 and T4 (null at T1/T2),
-[REQUIRED — T4 only] is mandatory at T4 (null at T1/T2/T3). Fields
-tagged [OPTIONAL] are polish — pick a tag only when it adds character
-that the locked core fields above don't already convey.
+system prompt. NEVER null, NEVER empty, NEVER omitted. Fields tagged
+[OPTIONAL] are polish — pick a tag only when it adds character the
+locked core fields above don't already convey. The schema body below
+has already been pre-filtered for the active content level: only
+fields actually required at this tier carry the [REQUIRED] marker.
 
 Produce the family-shaped fields per this schema:
 {{
@@ -1151,13 +1150,10 @@ class SceneFacetGenerator:
 
         # Round-8: tier-active schema body. At each content_level
         # collapse the conditional [REQUIRED — ...] markers into
-        # unconditional [REQUIRED] / [OPTIONAL]:
-        #   T1/T2: [REQUIRED — every tier] → [REQUIRED];
-        #          [REQUIRED — T3+] → [OPTIONAL (not at this tier)];
-        #          [REQUIRED — T4 only] → [OPTIONAL (not at this tier)].
-        #   T3:    [REQUIRED — every tier] → [REQUIRED];
-        #          [REQUIRED — T3+] → [REQUIRED];
-        #          [REQUIRED — T4 only] → [OPTIONAL (not at this tier)].
+        # unconditional [REQUIRED] / [OPTIONAL (not required at this
+        # tier — null is acceptable)]:
+        #   T1/T2: every-tier → [REQUIRED]; T3+ and T4-only both demoted.
+        #   T3:    every-tier + T3+ → [REQUIRED]; T4-only demoted.
         #   T4:    every [REQUIRED — ...] → [REQUIRED]; no demotions.
         active_body = _make_tier_active_schema_body(
             schema_body, content_level,

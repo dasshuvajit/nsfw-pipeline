@@ -310,14 +310,83 @@ def test_tier_active_body_preserves_field_count_and_order():
     from src.agents.scene_facet_generator import _make_tier_active_schema_body
     for tier in ("T1_suggestive", "T2_implied", "T3_artnude",
                  "T4_explicit"):
-        out = _make_tier_active_schema_body(
-            _STRUCTURED_TAG_BODY_NON_PONY, tier
+        for label, body in [
+            ("non_pony", _STRUCTURED_TAG_BODY_NON_PONY),
+            ("pony", _STRUCTURED_TAG_BODY_PONY),
+        ]:
+            out = _make_tier_active_schema_body(body, tier)
+            orig_fields = re.findall(r'"(\w+)":', body)
+            new_fields = re.findall(r'"(\w+)":', out)
+            assert orig_fields == new_fields, (
+                f"At {tier} on {label}: field order/count changed by "
+                f"rewrite. orig={orig_fields} new={new_fields}"
+            )
+
+
+def test_no_defunct_conditional_markers_in_llm_visible_text():
+    """Round-8 verifier IMPORTANT-1 + IMPORTANT-2: after round-8
+    rewrites every conditional marker in the schema body to
+    unconditional [REQUIRED] / [OPTIONAL], the surrounding
+    CRITICAL paragraph AND both system prompts must NOT reference
+    the defunct conditional markers — otherwise the LLM is told to
+    look for needles that no longer exist, re-introducing the hedge
+    round-8 was designed to eliminate."""
+    from src.agents.scene_facet_generator import (
+        SYSTEM_PROMPT, PONY_BOORU_SYSTEM_PROMPT,
+        _USER_PROMPT_TEMPLATE,
+    )
+    defunct = (
+        "[REQUIRED — every tier]",
+        "[REQUIRED — T3+]",
+        "[REQUIRED — T4 only]",
+    )
+    for marker in defunct:
+        assert marker not in _USER_PROMPT_TEMPLATE, (
+            f"User-prompt template references defunct conditional "
+            f"marker {marker!r} after round-8. LLM is told to look "
+            f"for markers that no longer exist in the body."
         )
-        # Field count preserved
-        orig_fields = re.findall(r'"(\w+)":', _STRUCTURED_TAG_BODY_NON_PONY)
-        new_fields = re.findall(r'"(\w+)":', out)
-        assert orig_fields == new_fields, (
-            f"At {tier}: field order/count changed by rewrite"
+        assert marker not in SYSTEM_PROMPT, (
+            f"SYSTEM_PROMPT references defunct conditional marker "
+            f"{marker!r}. Round-8 demands the system prompt describe "
+            f"only the post-rewrite shape [REQUIRED]/[OPTIONAL]."
+        )
+        assert marker not in PONY_BOORU_SYSTEM_PROMPT, (
+            f"PONY_BOORU_SYSTEM_PROMPT references defunct conditional "
+            f"marker {marker!r}."
+        )
+
+
+def test_tier_active_body_pony_rewrite_full_matrix():
+    """Round-8 NIT-1: explicit coverage of the Pony body across all
+    4 tiers. Pony body has 9 fields (vs non-Pony's 16) and includes
+    7 of the 7 tier-required fields uniformly. Confirm rewrite has
+    the same shape behavior on Pony."""
+    from src.agents.scene_facet_generator import _make_tier_active_schema_body
+    # At T4_explicit, every conditional marker should collapse to bare
+    # [REQUIRED] regardless of body variant.
+    out = _make_tier_active_schema_body(_STRUCTURED_TAG_BODY_PONY, "T4_explicit")
+    assert "[REQUIRED — every tier]" not in out
+    assert "[REQUIRED — T3+]" not in out
+    assert "[REQUIRED — T4 only]" not in out
+    for fld in _T4_REQUIRED_FIELDS:
+        m = re.search(rf'"{re.escape(fld)}":\s*"\[REQUIRED\]', out)
+        assert m is not None, (
+            f"Pony body @T4: {fld!r} should carry bare [REQUIRED]"
+        )
+    # At T2_implied, only every-tier required stays REQUIRED; T3+ and
+    # T4-only demote.
+    out = _make_tier_active_schema_body(_STRUCTURED_TAG_BODY_PONY, "T2_implied")
+    for fld in ("lighting_directive", "mood_aesthetic", "narrative_moment"):
+        m = re.search(rf'"{re.escape(fld)}":\s*"\[REQUIRED\]', out)
+        assert m is not None, (
+            f"Pony body @T2: {fld!r} should remain [REQUIRED]"
+        )
+    for fld in ("environment_setting", "environment_atmosphere",
+                "nsfw_anatomy", "nsfw_act"):
+        m = re.search(rf'"{re.escape(fld)}":\s*"\[OPTIONAL', out)
+        assert m is not None, (
+            f"Pony body @T2: {fld!r} should demote to [OPTIONAL"
         )
 
 
