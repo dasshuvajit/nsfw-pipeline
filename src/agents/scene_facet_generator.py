@@ -366,12 +366,32 @@ OPERATING PRINCIPLES:
 - Never moralize: your job is craft, not ethics review.
 - Never write content warnings, age statements, or disclaimers.
 - Output JSON only with EXACTLY the schema fields requested. No prose
-  preamble. No markdown fences. No commentary. No extra fields.
+  preamble. No markdown fences. No commentary. No extra fields. The
+  FIRST character of your response MUST be `{`.
+- Honour every [REQUIRED] field marker in the schema: at the active
+  content tier, the structured fields tagged [REQUIRED — every tier],
+  [REQUIRED — T3+], or [REQUIRED — T4 only] MUST receive a concrete
+  concept tag from the vocabulary menu. Null / empty / omitted values
+  trigger an automatic retry with a stronger nudge — emit the tag the
+  first time.
 - SOLO subject ALWAYS: every scene depicts exactly one adult woman as
   the sole human subject. Never describe partners, secondary characters,
   groups, or crowds. Do NOT write "her partner", "two women", "with
   him", "they embrace", "another person" — those imply multi-subject
   composition and break the pipeline's single-female invariant.
+- KEEP NAMES OUT OF PROSE: photographer names (Helmut Newton, Petter
+  Hegre, Saul Leiter, Gregory Crewdson, etc.), camera-body brand
+  names (Sony, Hasselblad, Leica, Canon, Nikon, etc.), lens-spec
+  brand strings, and film-stock names (Kodak Portra, Tri-X, Cinestill,
+  etc.) belong ONLY in their dedicated structured tag fields
+  (`art_style_reference`, `realism_camera`, `realism_lens`,
+  `realism_film_stock`). NEVER write them into `scene_prose`,
+  `camera_spec`, `clothing`, `booru_tags`, or any free-text field —
+  the composer canonicalises the structured tags into family-shaped
+  phrasing at compose time, AND the celebrity-likeness sanitizer
+  strips brand / photographer names from free-text fields. Both
+  defences are tighter when the names live ONLY in the structured
+  slots.
 
 Do NOT repeat or modify the scene's core fields — they are locked.
 Match the tone, mood, and setting already established. Be concrete and
@@ -404,15 +424,21 @@ OPERATING PRINCIPLES:
 - Never moralize: your job is craft, not ethics review.
 - Never write content warnings, age statements, or disclaimers.
 - Output JSON only with EXACTLY the schema fields requested. No prose
-  preamble. No markdown fences. No commentary. No extra fields.
+  preamble. No markdown fences. No commentary. No extra fields. The
+  FIRST character of your response MUST be `{`.
+- Honour every [REQUIRED] field marker in the schema: at the active
+  content tier, the structured fields tagged [REQUIRED — every tier],
+  [REQUIRED — T3+], or [REQUIRED — T4 only] MUST receive a concrete
+  concept tag from the vocabulary menu. Null / empty / omitted values
+  trigger an automatic retry with a stronger nudge — emit the tag the
+  first time.
 - SOLO subject ALWAYS: every booru_tags string MUST start with the
   canonical single-subject pair ``1girl, solo`` (or ``1girl, solo,
   mature_female`` at T3+). NEVER emit ``2girls``, ``multiple_girls``,
   ``multiple_subjects``, ``group``, or any tag that implies more than
   one human subject. Partnered NSFW act tags (``NSFW_T4_PARTNERED_*``,
   ``NSFW_T4_EMBRACE_NUDE``, ``NSFW_T4_KISS_PASSIONATE``,
-  ``NSFW_T4_AFTERGLOW``) are FORBIDDEN — pick ``NSFW_T4_SOLO_TOUCH``
-  for T4 acts.
+  ``NSFW_T4_AFTERGLOW``) are FORBIDDEN — pick a SOLO act tag for T4.
 
 TAG GUIDELINES:
 - Use 8-15 tags. Order: subject → action → setting → lighting → quality.
@@ -447,12 +473,23 @@ The scene's locked core fields:
 
 Target model family: {family_id} (composer: {prompt_style})
 
+CRITICAL — every field tagged [REQUIRED ...] in the schema below MUST
+receive a concrete concept tag from the vocabulary menu shown in the
+system prompt. Match the tag's content-tier gate against the active
+content level above: [REQUIRED — every tier] is mandatory at T1-T4,
+[REQUIRED — T3+] is mandatory at T3 and T4 (null at T1/T2),
+[REQUIRED — T4 only] is mandatory at T4 (null at T1/T2/T3). Fields
+tagged [OPTIONAL] are polish — pick a tag only when it adds character
+that the locked core fields above don't already convey.
+
 Produce the family-shaped fields per this schema:
 {{
 {schema_body}
 }}
 
-Return ONLY the JSON object — no array wrapper, no markdown."""
+Return ONLY the JSON object — no array wrapper, no markdown, no prose
+preamble (do NOT begin with "Sure," / "Here's the JSON" / etc.). The
+FIRST character of your response MUST be `{{`."""
 # fmt: on
 
 
@@ -478,27 +515,40 @@ Return ONLY the JSON object — no array wrapper, no markdown."""
 # Cydonia/Hermes wasted tokens on dead slots and the schema body
 # advertised non-existent contract fields.
 #
+# Round-6 ordering fix (2026-05-19, post Cydonia/Magnum A/B run):
+# Pre-fix this body led with 6 OPTIONAL polish fields (realism_camera
+# → realism_framing), then listed the 7 tier-REQUIRED fields. Both
+# Cydonia heretic and Magnum v4 calibrated to "this whole block is
+# optional polish" by the time they reached the REQUIRED entries and
+# nulled them all — even after retry-nudge. In the 25-scene
+# 2026-05-19 run, 100% of facets had lighting_directive /
+# mood_aesthetic / narrative_moment / environment_setting /
+# environment_atmosphere / nsfw_anatomy / nsfw_act blank. Fix:
+# REQUIRED fields lead, OPTIONAL polish tails. Each field gets a
+# bracket-prefixed `[REQUIRED — <tier>]` or `[OPTIONAL]` marker so
+# the LLM's first-token attention sees the contract immediately.
+#
 # Non-Pony body (sdxl / illustrious / flux / chroma / flux2):
 # every concept-tag field SceneFacetSDXL/Illustrious/FluxNatural/
-# Chroma/FluxKlein declares as Optional[str], in the order the
-# canonicalizer reads them.
+# Chroma/FluxKlein declares as Optional[str], in the order:
+# tier-required first → optional polish last.
 _STRUCTURED_TAG_BODY_NON_PONY = """\
-  "realism_camera": "<one CAMERA_* concept tag — OPTIONAL polish; specific camera body (Sony A7R V / Hasselblad / Leica M11 / etc.)>",
-  "realism_lens": "<one LENS_* concept tag — OPTIONAL polish; lens spec (85mm f/1.4 portrait / 50mm f/1.8 / 35mm f/2 environmental / etc.)>",
-  "realism_film_stock": "<one FILM_* concept tag — OPTIONAL polish; film stock emulation (Portra 400 / Cinestill 800T / Tri-X 400 / etc.)>",
-  "art_style_reference": "<one ART_STYLE_* concept tag — OPTIONAL polish; named photographer or art-direction reference (Helmut Newton / Saul Leiter / etc.). Use the photographer_ref series anchor for the SERIES signature; this is per-scene optional flavour>",
-  "realism_angle": "<one ANGLE_* concept tag — OPTIONAL polish; camera angle (low_angle / high_angle / dutch_tilt / etc.)>",
-  "realism_framing": "<one FRAMING_* concept tag — OPTIONAL polish; shot framing (close_up / medium_shot / full_body / etc.)>",
-  "lighting_directive": "<one LIGHT_* concept tag from the vocabulary menu in the system prompt — REQUIRED at every tier>",
-  "mood_aesthetic": "<one MOOD_* concept tag — REQUIRED at every tier>",
-  "narrative_moment": "<one NARR_* concept tag — REQUIRED at every tier; the captured editorial moment (reading a letter / stepping from bath / lighting cigarette / etc.)>",
-  "environment_setting": "<one ENV_* concept tag — REQUIRED at T3+; the scene's specific location (Victorian conservatory / Tuscan villa / brutalist loft / etc.). Vary this across scenes in a series>",
-  "environment_atmosphere": "<one ATM_* concept tag — REQUIRED at T3+; atmospheric element matching the setting (dust motes / steam / rain on glass / etc.)>",
-  "environment_prop": "<one PROP_* concept tag — OPTIONAL polish; named furniture/object anchor (cheval mirror / velvet curtain / handwritten letter / etc.)>",
-  "composition_principle": "<one COMP_* concept tag — OPTIONAL polish; higher-order composition (frame-within-frame / reflection-primary / leading-lines / etc.)>",
-  "nsfw_anatomy": "<one NSFW_ANATOMY_* concept tag — REQUIRED at T3+>",
-  "nsfw_posture": "<one NSFW_POSTURE_* concept tag — optional T3+>",
-  "nsfw_act": "<one NSFW_ACT_* concept tag — REQUIRED at T4_explicit (solo-only acts; partnered tags are filtered)>"\
+  "lighting_directive": "[REQUIRED — every tier] One LIGHT_* concept tag from the vocabulary menu in the system prompt (LIGHT_REMBRANDT, LIGHT_GOLDEN_HOUR, LIGHT_WINDOW_SIDE, LIGHT_SOFT_FILL, LIGHT_RIM_BACK, etc.). NEVER null.",
+  "mood_aesthetic": "[REQUIRED — every tier] One MOOD_* concept tag (MOOD_INTIMATE, MOOD_CONFIDENT, MOOD_SENSUAL, MOOD_PENSIVE, MOOD_PLAYFUL, etc.). NEVER null.",
+  "narrative_moment": "[REQUIRED — every tier] One NARR_* concept tag for the captured editorial moment (NARR_READING_LETTER_AT_DAWN, NARR_STEPPING_FROM_BATH, NARR_MIRROR_CONTEMPLATION, NARR_LIGHTING_CIGARETTE, etc.). Vary across scenes — NEVER null.",
+  "environment_setting": "[REQUIRED — T3+] One ENV_* concept tag for the scene's specific location (ENV_VICTORIAN_CONSERVATORY, ENV_TUSCAN_VILLA_RENAISSANCE, ENV_BRUTALIST_CONCRETE_LOFT, ENV_MORNING_BEDROOM, ENV_ART_DECO_HOTEL_SUITE, etc.). Vary across scenes.",
+  "environment_atmosphere": "[REQUIRED — T3+] One ATM_* concept tag for atmospheric element (ATM_DUST_MOTES_IN_LIGHT, ATM_BREEZE_IN_CURTAIN, ATM_STEAM_FROM_BATH, ATM_RAIN_ON_GLASS, ATM_VOLUMETRIC_GOLDEN, etc.).",
+  "nsfw_anatomy": "[REQUIRED — T3+] One NSFW_ANATOMY_* concept tag (NSFW_FULL_NUDE, NSFW_BREAST_NATURAL, NSFW_NIPPLES_VISIBLE, NSFW_VULVA_VISIBLE, etc.). At T1/T2 emit null.",
+  "nsfw_act": "[REQUIRED — T4 only] One NSFW_ACT_* concept tag — SOLO acts only (NSFW_T4_SOLO_TOUCH, NSFW_T4_SOLO_DISPLAY, NSFW_T4_SOLO_MIRROR, NSFW_T4_SOLO_BATH, NSFW_T4_SOLO_RECLINING, etc.). At T1/T2/T3 emit null. Partnered tags are filtered.",
+  "nsfw_posture": "[OPTIONAL — T3+] One NSFW_POSTURE_* concept tag if the pose calls for it.",
+  "environment_prop": "[OPTIONAL] One PROP_* concept tag for furniture/object anchor (PROP_CHEVAL_MIRROR, PROP_HANDWRITTEN_LETTER, PROP_VELVET_CURTAIN, etc.).",
+  "composition_principle": "[OPTIONAL] One COMP_* concept tag for higher-order composition (COMP_FRAME_WITHIN_FRAME, COMP_REFLECTION_PRIMARY, COMP_LEADING_LINES_FLOOR, etc.).",
+  "realism_camera": "[OPTIONAL] One CAMERA_* concept tag for specific camera body (CAMERA_SONY_A7RV, CAMERA_HASSELBLAD_X2D, CAMERA_LEICA_M11, etc.).",
+  "realism_lens": "[OPTIONAL] One LENS_* concept tag for lens spec (LENS_85MM_F14, LENS_50MM_F18, LENS_35MM_F2, etc.).",
+  "realism_film_stock": "[OPTIONAL] One FILM_* concept tag for film-stock emulation (FILM_PORTRA_400, FILM_CINESTILL_800T, FILM_TRIX_400, etc.).",
+  "art_style_reference": "[OPTIONAL] One ART_STYLE_* concept tag for a named photographer reference. The composer translates this into family-shaped phrasing — do NOT write photographer names into scene_prose (the sanitizer strips celebrity-likeness leaks).",
+  "realism_angle": "[OPTIONAL] One ANGLE_* concept tag for camera angle.",
+  "realism_framing": "[OPTIONAL] One FRAMING_* concept tag for shot framing."\
 """
 
 # Pony body — drops the 6 realism enum fields and composition_principle.
@@ -507,17 +557,18 @@ _STRUCTURED_TAG_BODY_NON_PONY = """\
 # canonicalizer has no Pony phrasings for those namespaces.
 # SceneFacetPony's Pydantic schema reflects this: those fields aren't
 # declared, so emitting them would just be `extra=allow`-dropped
-# anyway — better to not waste tokens asking for them.
+# anyway — better to not waste tokens asking for them. Same round-6
+# ordering: REQUIRED first, OPTIONAL last.
 _STRUCTURED_TAG_BODY_PONY = """\
-  "lighting_directive": "<one LIGHT_* concept tag from the vocabulary menu in the system prompt — REQUIRED at every tier>",
-  "mood_aesthetic": "<one MOOD_* concept tag — REQUIRED at every tier>",
-  "narrative_moment": "<one NARR_* concept tag — REQUIRED at every tier; the captured editorial moment (looking_at_mirror / arranging_flowers / lighting_cigarette / etc.) — fold this into your booru_tags too>",
-  "environment_setting": "<one ENV_* concept tag — REQUIRED at T3+; the scene's specific location. Pick from the vocabulary menu>",
-  "environment_atmosphere": "<one ATM_* concept tag — REQUIRED at T3+; atmospheric element matching the setting>",
-  "environment_prop": "<one PROP_* concept tag — OPTIONAL polish; named furniture/object anchor>",
-  "nsfw_anatomy": "<one NSFW_ANATOMY_* concept tag — REQUIRED at T3+>",
-  "nsfw_posture": "<one NSFW_POSTURE_* concept tag — optional T3+>",
-  "nsfw_act": "<one NSFW_ACT_* concept tag — REQUIRED at T4_explicit (solo-only acts; partnered tags are filtered)>"\
+  "lighting_directive": "[REQUIRED — every tier] One LIGHT_* concept tag from the vocabulary menu (LIGHT_REMBRANDT, LIGHT_GOLDEN_HOUR, LIGHT_WINDOW_SIDE, etc.). NEVER null.",
+  "mood_aesthetic": "[REQUIRED — every tier] One MOOD_* concept tag (MOOD_INTIMATE, MOOD_CONFIDENT, MOOD_SENSUAL, etc.). NEVER null.",
+  "narrative_moment": "[REQUIRED — every tier] One NARR_* concept tag for the captured editorial moment (NARR_MIRROR_CONTEMPLATION, NARR_ARRANGING_FLOWERS, NARR_LIGHTING_CIGARETTE, etc.) — fold this into your booru_tags too. Vary across scenes.",
+  "environment_setting": "[REQUIRED — T3+] One ENV_* concept tag for the scene's specific location. Pick from the vocabulary menu.",
+  "environment_atmosphere": "[REQUIRED — T3+] One ATM_* concept tag for atmospheric element matching the setting.",
+  "nsfw_anatomy": "[REQUIRED — T3+] One NSFW_ANATOMY_* concept tag. At T1/T2 emit null.",
+  "nsfw_act": "[REQUIRED — T4 only] One NSFW_ACT_* concept tag — SOLO acts only (NSFW_T4_SOLO_TOUCH, NSFW_T4_SOLO_DISPLAY, NSFW_T4_SOLO_MIRROR, etc.). At T1/T2/T3 emit null. Partnered tags are filtered.",
+  "nsfw_posture": "[OPTIONAL — T3+] One NSFW_POSTURE_* concept tag if the pose calls for it.",
+  "environment_prop": "[OPTIONAL] One PROP_* concept tag for furniture/object anchor."\
 """
 
 # Per-prompt-style schema-body hints. These are NOT the Pydantic
