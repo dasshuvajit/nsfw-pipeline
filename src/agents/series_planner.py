@@ -439,4 +439,9 @@ class SeriesPlanner:
             result["mood"],
             len(result["variation_axes"]),
         )
+        # Verifier round-4 IMPORTANT-5 — soft Phase 3 anchor check
+        # (CharacterMode path; the 3 mode planners run their own
+        # check via `_llm_helpers.warn_if_missing_aesthetic_anchors`).
+        from src.modes._llm_helpers import warn_if_missing_aesthetic_anchors
+        warn_if_missing_aesthetic_anchors(result, mode_name="CharacterMode")
         return result

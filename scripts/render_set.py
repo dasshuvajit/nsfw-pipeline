@@ -113,6 +113,11 @@ from src.render.comfyui_client import (  # noqa: E402
     ComfyUIClient,
     ComfyUIError,
 )
+from src.render.metadata import (  # noqa: E402
+    build_a1111_parameters,
+    build_pipeline_metadata,
+    write_png_metadata,
+)
 from src.render.workflow_builder import (  # noqa: E402
     WorkflowBuilder,
     WorkflowTemplateError,
@@ -584,17 +589,30 @@ def _persist_run(
                     "active",
                 ),
             )
+            # Verifier round-4 IMPORTANT-1 — `prompts` schema declares
+            # `model_id` and `llm_id` NOT NULL. The pre-fix INSERT
+            # omitted both and crashed at first non-dry-run. Now
+            # writes the resolved model and the LLM-free
+            # `manual_no_llm` sentinel (render_set.py doesn't run an
+            # LLM — scenes are hand-written from `data/scenes.yaml`).
+            # `target_kind` defaults to 'model' per schema, so we
+            # write it explicitly for clarity.
             conn.execute(
                 """
                 INSERT INTO prompts (
-                    id, series_id, scene_id, prompt_text, negative_prompt,
+                    id, series_id, scene_id,
+                    target_kind, model_id, llm_id,
+                    prompt_text, negative_prompt,
                     prompt_hash, content_level, status, render_attempts
-                ) VALUES (?,?,?,?,?,?,?,?,?)
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
                 """,
                 (
                     rec.prompt_id,
                     series_id,
                     rec.scene_id,
+                    "model",
+                    series_row.get("model_id"),
+                    series_row.get("llm_id", "manual_no_llm"),
                     rec.prompt_text,
                     rec.negative_prompt,
                     rec.prompt_hash,
@@ -851,6 +869,15 @@ def main() -> int:
         if msg.startswith("EXIT 9"):
             return 9
         return 10
+    # Verifier round-4 IMPORTANT-2 — `model_source` was referenced in
+    # the dry-run banner + live banner but never assigned, so every
+    # call crashed with NameError before this fix.
+    if args.model:
+        model_source = "cli"
+    elif character.get("model_id"):
+        model_source = "character"
+    else:
+        model_source = "pipeline_default"
     style_for_wf = StyleProfileForWorkflow(style_row, model_entry)
     registry = ModelRegistryLoader(db_path)
     prompt_guide = registry.get_prompt_guide(model_entry.id)
@@ -1198,6 +1225,55 @@ def main() -> int:
             rec.saved_path = dest
             rec.width = rec.resolution[0]
             rec.height = rec.resolution[1]
+            # Verifier round-4 IMPORTANT-3 — render_set.py was the only
+            # render path that bypassed PNG metadata embedding (engine.py
+            # already covers prepare_prompts.py + render_prompts.py).
+            # Pre-fix every render_set.py-produced PNG lost the
+            # AUTOMATIC1111 `parameters` chunk AND the pipeline
+            # `nsfw_pipeline` chunk, breaking reproducibility from the
+            # PNG alone. Manual-render scenes have no LLM series_plan,
+            # so series_aesthetic stays None (the metadata function
+            # silently omits the key — see test_pipeline_metadata_
+            # omits_series_aesthetic_when_empty).
+            try:
+                a1111 = build_a1111_parameters(
+                    prompt_text=rec.prompt_text,
+                    negative_prompt=rec.negative_prompt,
+                    steps=style_for_wf.steps,
+                    sampler=style_for_wf.sampler,
+                    scheduler=style_for_wf.scheduler,
+                    cfg_scale=style_for_wf.cfg,
+                    seed=rec.seed,
+                    model=model_entry.id,
+                    size=rec.resolution,
+                    clip_skip=style_for_wf.clip_skip,
+                )
+                pipeline_json = build_pipeline_metadata(
+                    vocab_version=1,  # render_set.py is LLM-free
+                    family=model_entry.family,
+                    model_id=model_entry.id,
+                    scene_id=rec.scene_id,
+                    series_id=series_id,
+                    prompt_hash=rec.prompt_hash,
+                    seed=rec.seed,
+                    sampler=style_for_wf.sampler,
+                    scheduler=style_for_wf.scheduler,
+                    steps=style_for_wf.steps,
+                    cfg=style_for_wf.cfg,
+                    content_level=args.level,
+                    llm_id="manual_no_llm",
+                    target_kind="model",
+                )
+                write_png_metadata(
+                    dest,
+                    a1111_parameters=a1111,
+                    pipeline_metadata=pipeline_json,
+                )
+            except Exception as meta_exc:  # pragma: no cover — defensive
+                print(
+                    f"     WARN: PNG metadata embedding failed: "
+                    f"{meta_exc}", file=sys.stderr,
+                )
 
         except WorkflowTemplateError as exc:
             rec.error = f"WorkflowTemplateError: {exc}"
@@ -1245,9 +1321,14 @@ def main() -> int:
         "target_count": len(records),
         "actual_count": len(rendered_records),
         "status": "complete" if rendered_records else "failed",
-        # Carry the resolved model_id down to the images INSERT so every
-        # row in the audit trail knows which checkpoint produced it.
+        # Carry the resolved model_id + llm sentinel down to the
+        # _persist_run INSERTs. render_set.py is LLM-free (scenes are
+        # hand-written from data/scenes.yaml), so we stamp the
+        # prompts.llm_id column with the sentinel `manual_no_llm` to
+        # distinguish hand-authored rows from LLM-generated ones in
+        # the audit trail. images INSERT also reads model_id from here.
         "model_id": model_entry.id,
+        "llm_id": "manual_no_llm",
     }
     try:
         _persist_run(db_path, series_id, series_row, records)

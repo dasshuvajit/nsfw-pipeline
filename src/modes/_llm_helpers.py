@@ -31,6 +31,44 @@ DEFAULT_RETRY_NUDGE = (
 )
 
 
+def warn_if_missing_aesthetic_anchors(
+    plan: dict[str, Any], *, mode_name: str,
+) -> None:
+    """Verifier round-4 IMPORTANT-5 — soft check for Phase 3 aesthetic
+    anchors. SeriesPlan's ``color_palette`` / ``photographer_ref`` /
+    ``art_movement`` are ``Optional[str]`` so Ollama's constrained
+    decoding doesn't grammar-force them — a chatty LLM can legally
+    skip all three. When that happens the series renders without a
+    signature look (Phase 3's whole point), silently. Logging a
+    WARNING here surfaces the degradation in run_log without rejecting
+    the plan (back-compat for legacy series + Pony, which legitimately
+    drops photographer_ref and art_movement).
+
+    Call from each mode's ``_validate_plan`` AFTER the required-field
+    check — only log when the LLM otherwise produced a valid plan.
+    """
+    missing = [
+        k for k in ("color_palette", "photographer_ref", "art_movement")
+        if not plan.get(k)
+    ]
+    if len(missing) >= 3:
+        logger.warning(
+            "%s: series plan has NO aesthetic anchors populated "
+            "(color_palette / photographer_ref / art_movement all None). "
+            "The signature-look pinning is inert for this series — "
+            "PNG metadata, composer threading, and reproducibility all "
+            "lose the Phase 3 anchors. Consider re-running with a "
+            "stricter LLM or bumping temperature.", mode_name,
+        )
+    elif "color_palette" in missing:
+        logger.warning(
+            "%s: series plan missing color_palette anchor. The Phase 3 "
+            "palette pinning is inert for this series. Pony-only "
+            "expected, every other family should populate this.",
+            mode_name,
+        )
+
+
 def run_llm_with_retry(
     client: OllamaClient,
     *,

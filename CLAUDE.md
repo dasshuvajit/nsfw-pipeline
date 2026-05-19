@@ -238,7 +238,7 @@ Workflow JSON templates live in this project under config/comfyui_workflows/{fam
 External user-authored workflow templates live under config/comfyui_workflows/templates/{family}/ — see docs/COMFYUI_WORKFLOWS.md § External templates.
 
 ## Key Files
-- ARCHITECTURE.md — System design; living doc, update when code drifts (last sync: 2026-05-17 — global single-female subject enforcement + refiner contract + venice routing)
+- ARCHITECTURE.md — System design; living doc, update when code drifts (last sync: 2026-05-19 — creative-uplift overhaul: vocab v6, series-aesthetic anchors, env-menu narrowing, PNG aesthetic metadata)
 - CLAUDE.md — This file (project context for Claude Code)
 - PROJECT_GUIDE.md — Living document: setup, run, test instructions (UPDATE after every implementation)
 - config/prompt_vocabulary.yaml — Versioned realism + NSFW + environment + narrative + aesthetic + composition concept library (vocab v6, creative-uplift expansion 2026-05-19; canonicalizer translates abstract concept tags to family phrasing at compose time)

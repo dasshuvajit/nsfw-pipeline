@@ -29,7 +29,11 @@ from typing import TYPE_CHECKING
 from src.agents.llm_client import OllamaClient
 from src.agents.schemas import SceneList, SeriesPlan
 from src.core.generation_context import GenerationContext
-from src.modes._llm_helpers import run_llm_with_retry, validate_scene_list
+from src.modes._llm_helpers import (
+    run_llm_with_retry,
+    validate_scene_list,
+    warn_if_missing_aesthetic_anchors,
+)
 from src.modes.base_mode import BaseMode
 
 if TYPE_CHECKING:
@@ -368,6 +372,10 @@ class ThemeMode(BaseMode):
         if theme in self._VAGUE_THEMES:
             logger.warning("ThemeMode: rejected vague theme %r", result["theme"])
             return None
+        # Verifier round-4 IMPORTANT-5 — soft warn when aesthetic anchors
+        # are missing. Doesn't reject (Pony legitimately omits two of
+        # three), but surfaces silent Phase 3 degradation in run_log.
+        warn_if_missing_aesthetic_anchors(result, mode_name="ThemeMode")
         return result
 
     def _generate_plan(

@@ -164,11 +164,17 @@ _BOORU_NSFW_TOKENS: frozenset[str] = frozenset({
     "nude", "completely_nude", "fully_nude", "topless", "bare_chest",
     "bare_breasts", "breasts", "nipples", "pussy", "vulva",
     "anatomically_correct", "fine_art_nude",
-    # Verifier round-3 NIT-7 — natural T3 booru phrasings that the
-    # heuristic at line 205 ("nude" substring) didn't catch.
-    "bottomless", "bare_back", "bare_legs", "bare_thighs",
-    "bare_hips", "partially_nude", "topless_back", "see_through",
-    "sheer_lingerie", "lingerie_pull_aside",
+    # Verifier round-3 NIT-7 (revised round-4 IMPORTANT-4) — natural
+    # explicitly-nude booru phrasings that the heuristic at line 205
+    # ("nude" substring) didn't catch. Round-3's first pass also
+    # included `bare_legs/bare_back/bare_thighs/bare_hips` — but
+    # those are T1-T2 territory (uncovered limbs ≠ nudity) and
+    # widened the T3 gate on the wrong axis. Round-4 removed them.
+    # Also removed non-canonical danbooru tags
+    # `partially_nude/topless_back/sheer_lingerie/lingerie_pull_aside`
+    # which never matched anyway (danbooru convention is
+    # `partially_clothed`, `see-through`, etc.).
+    "bottomless", "see-through",
 })
 
 # Booru prompt_style values whose facets carry NSFW content natively
