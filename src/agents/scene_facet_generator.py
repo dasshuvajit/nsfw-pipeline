@@ -478,6 +478,58 @@ _BOORU_PROMPT_STYLES: frozenset[str] = frozenset({
 
 
 # fmt: off
+def _make_tier_active_schema_body(body: str, content_level: str) -> str:
+    """Rewrite conditional ``[REQUIRED — T3+]`` / ``[REQUIRED — T4 only]``
+    markers into unconditional ``[REQUIRED]`` or ``[OPTIONAL]`` based on
+    the active ``content_level``.
+
+    The conditional markers are technically correct (they describe the
+    *intent* of the contract) but empirically tank the LLM's hit-rate
+    on T3+/T4 fields — Cydonia heretic-vision and Magnum v4 both
+    interpret "T3+" / "T4 only" as a hedge and routinely sample
+    ``null`` for those fields even at the matching tier. Collapsing
+    to unconditional markers per the active tier removes the hedge:
+    every T3+ field at T3/T4 reads as bare ``[REQUIRED]``; T1/T2
+    demote them to ``[OPTIONAL (not at this tier)]`` so the LLM knows
+    null is acceptable.
+
+    Round-8 fix (2026-05-19) following the empirical Cydonia regen
+    showing 0/N T3+/T4 fields landing despite the round-6 ordering
+    fix + round-7 tier-required list in the user prompt.
+    """
+    import re
+
+    if content_level == "T4_explicit":
+        # Every conditional is active — collapse to [REQUIRED]
+        body = re.sub(r"\[REQUIRED — every tier\]", "[REQUIRED]", body)
+        body = re.sub(r"\[REQUIRED — T3\+\]", "[REQUIRED]", body)
+        body = re.sub(r"\[REQUIRED — T4 only\]", "[REQUIRED]", body)
+    elif content_level == "T3_artnude":
+        # T3+ active, T4-only demoted
+        body = re.sub(r"\[REQUIRED — every tier\]", "[REQUIRED]", body)
+        body = re.sub(r"\[REQUIRED — T3\+\]", "[REQUIRED]", body)
+        body = re.sub(
+            r"\[REQUIRED — T4 only\]",
+            "[OPTIONAL (not required at this tier — null is acceptable)]",
+            body,
+        )
+    elif content_level in ("T1_suggestive", "T2_implied"):
+        # Only every-tier required; T3+ and T4-only both demoted
+        body = re.sub(r"\[REQUIRED — every tier\]", "[REQUIRED]", body)
+        body = re.sub(
+            r"\[REQUIRED — T3\+\]",
+            "[OPTIONAL (not required at this tier — null is acceptable)]",
+            body,
+        )
+        body = re.sub(
+            r"\[REQUIRED — T4 only\]",
+            "[OPTIONAL (not required at this tier — null is acceptable)]",
+            body,
+        )
+    # Unknown tier — leave as-is (back-compat for direct callers).
+    return body
+
+
 _USER_PROMPT_TEMPLATE = """\
 Content level: {content_level}
 
@@ -1073,6 +1125,14 @@ class SceneFacetGenerator:
         Phase A: ``content_level`` is now surfaced verbatim so the
         LLM sees which T1-T4 tier it's writing for. The system
         prompt's tier directive elaborates on what that means.
+
+        Round-8 tier-active body: rewrite the schema body's
+        conditional markers (``[REQUIRED — T3+]`` /
+        ``[REQUIRED — T4 only]``) into unconditional ``[REQUIRED]``
+        or ``[OPTIONAL]`` based on the active content_level. Cydonia
+        empirically gambles on conditional markers (interprets "T3+"
+        as a hedge) and nulls fields tagged with them even at T4.
+        Collapsing to [REQUIRED] vs [OPTIONAL] removes the hedge.
         """
         core_keys = (
             "variation_axis", "pose", "camera", "camera_angle",
@@ -1080,33 +1140,33 @@ class SceneFacetGenerator:
             "composition_intent", "framing_hint", "audience_target",
         )
         core = {k: scene.get(k) for k in core_keys if scene.get(k) is not None}
-        # Round-7 follow-up: render the per-tier required-fields list
-        # directly in the user prompt. Pre-fix the schema body relied
-        # entirely on [REQUIRED — T3+] bracket markers, but Cydonia
-        # still nulled T3+/T4 fields after the round-6 reorder. Adding
-        # a concrete "at THIS tier, these fields MUST be populated"
-        # list at the top of the user prompt — independent of the
-        # schema body's per-field markers — gives the LLM a second
-        # high-attention signal.
+
+        # Round-7: per-tier required-fields list at the top of the
+        # user prompt — independent of the schema body's per-field
+        # markers — gives the LLM a second high-attention signal.
         required_for_tier = _TIER_REQUIRED_FIELDS.get(content_level, ())
-        # Filter to fields the family's schema actually declares (Pony
-        # omits a few; back-compat with prompt_style detection).
-        prompt_style = family.prompt_style
-        is_pony = prompt_style == "pony_danbooru"
-        if is_pony:
-            # Pony omits 6 realism fields + composition_principle, but
-            # participates in all 7 tier-required fields uniformly.
-            schema_visible = set(required_for_tier)
-        else:
-            schema_visible = set(required_for_tier)
         tier_required_list = "\n".join(
-            f"  - {f}" for f in required_for_tier if f in schema_visible
+            f"  - {f}" for f in required_for_tier
         ) or "  (none for this tier)"
+
+        # Round-8: tier-active schema body. At each content_level
+        # collapse the conditional [REQUIRED — ...] markers into
+        # unconditional [REQUIRED] / [OPTIONAL]:
+        #   T1/T2: [REQUIRED — every tier] → [REQUIRED];
+        #          [REQUIRED — T3+] → [OPTIONAL (not at this tier)];
+        #          [REQUIRED — T4 only] → [OPTIONAL (not at this tier)].
+        #   T3:    [REQUIRED — every tier] → [REQUIRED];
+        #          [REQUIRED — T3+] → [REQUIRED];
+        #          [REQUIRED — T4 only] → [OPTIONAL (not at this tier)].
+        #   T4:    every [REQUIRED — ...] → [REQUIRED]; no demotions.
+        active_body = _make_tier_active_schema_body(
+            schema_body, content_level,
+        )
         return _USER_PROMPT_TEMPLATE.format(
             content_level=content_level,
             scene_core_json=json.dumps(core, indent=2),
             family_id=family.id,
             prompt_style=family.prompt_style,
-            schema_body=schema_body,
+            schema_body=active_body,
             tier_required_list=tier_required_list,
         )

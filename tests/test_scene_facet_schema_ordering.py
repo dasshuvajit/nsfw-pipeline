@@ -201,7 +201,12 @@ def test_user_prompt_template_has_required_lead_in():
 
 def test_user_prompt_template_renders_with_schema_body():
     """The template must render without KeyError when given the
-    standard substitution dict the engine passes."""
+    standard substitution dict the engine passes.
+
+    Round-8 note: the schema_body shown to the LLM is now the
+    tier-active rewrite (conditionals collapsed). The raw
+    _SCHEMA_BODY_BY_STYLE template still carries the conditional
+    markers (round-6) — the rewrite happens at compose time."""
     rendered = _USER_PROMPT_TEMPLATE.format(
         content_level="T4_explicit",
         tier_required_list="  - lighting_directive\n  - mood_aesthetic",
@@ -210,6 +215,8 @@ def test_user_prompt_template_renders_with_schema_body():
         prompt_style="flux_natural",
         schema_body=_SCHEMA_BODY_BY_STYLE["flux_natural"],
     )
+    # The RAW schema body still carries the conditional markers
+    # (round-6 shape); the tier-active rewrite is applied later.
     assert "[REQUIRED — every tier]" in rendered
     assert "[REQUIRED — T3+]" in rendered
     assert "[REQUIRED — T4 only]" in rendered
@@ -226,6 +233,92 @@ def test_user_prompt_template_renders_with_schema_body():
         "format-string escaping (round-6 caught this)."
     )
     assert "{{" not in rendered  # double-braces should reduce to single
+
+
+# ── Round-8: tier-active schema body rewrite ───────────────────────
+
+
+def test_tier_active_body_T4_collapses_all_conditionals():
+    """At T4_explicit, every `[REQUIRED — *]` marker collapses to
+    bare `[REQUIRED]`. Round-8 fix to make Cydonia stop interpreting
+    the conditional as a hedge."""
+    from src.agents.scene_facet_generator import _make_tier_active_schema_body
+    out = _make_tier_active_schema_body(
+        _STRUCTURED_TAG_BODY_NON_PONY, "T4_explicit"
+    )
+    assert "[REQUIRED — every tier]" not in out
+    assert "[REQUIRED — T3+]" not in out
+    assert "[REQUIRED — T4 only]" not in out
+    # All 7 tier-required fields show bare [REQUIRED] now
+    for fld in _T4_REQUIRED_FIELDS:
+        m = re.search(rf'"{re.escape(fld)}":\s*"\[REQUIRED\]', out)
+        assert m is not None, (
+            f"At T4, field {fld!r} should carry bare [REQUIRED] marker"
+        )
+
+
+def test_tier_active_body_T3_demotes_T4_only():
+    """At T3_artnude: every-tier + T3+ markers collapse to [REQUIRED];
+    T4-only marker DEMOTES to [OPTIONAL (not at this tier)]."""
+    from src.agents.scene_facet_generator import _make_tier_active_schema_body
+    out = _make_tier_active_schema_body(
+        _STRUCTURED_TAG_BODY_NON_PONY, "T3_artnude"
+    )
+    # T4-only fields demoted
+    assert "not required at this tier" in out, (
+        "T3 must demote T4-only fields with an explicit demotion note"
+    )
+    # nsfw_act specifically (only T4-only field) demoted
+    m = re.search(r'"nsfw_act":\s*"\[OPTIONAL', out)
+    assert m is not None, "nsfw_act should be demoted to OPTIONAL at T3"
+    # nsfw_anatomy (T3+ required) stays REQUIRED
+    m = re.search(r'"nsfw_anatomy":\s*"\[REQUIRED\]', out)
+    assert m is not None
+
+
+def test_tier_active_body_T2_demotes_all_T3_and_T4():
+    """At T2_implied: only every-tier required fields stay REQUIRED;
+    T3+ and T4-only both demote."""
+    from src.agents.scene_facet_generator import _make_tier_active_schema_body
+    out = _make_tier_active_schema_body(
+        _STRUCTURED_TAG_BODY_NON_PONY, "T2_implied"
+    )
+    # Every-tier fields stay REQUIRED
+    for fld in ("lighting_directive", "mood_aesthetic", "narrative_moment"):
+        m = re.search(rf'"{re.escape(fld)}":\s*"\[REQUIRED\]', out)
+        assert m is not None, f"{fld} should remain [REQUIRED] at T2"
+    # T3+ fields demoted
+    for fld in ("environment_setting", "environment_atmosphere",
+                "nsfw_anatomy", "nsfw_act"):
+        m = re.search(rf'"{re.escape(fld)}":\s*"\[OPTIONAL', out)
+        assert m is not None, (
+            f"{fld} should be demoted to [OPTIONAL at T2 (was T3+/T4-only)"
+        )
+
+
+def test_tier_active_body_unknown_tier_passthrough():
+    """Unknown content_level — leave body unchanged (back-compat)."""
+    from src.agents.scene_facet_generator import _make_tier_active_schema_body
+    out = _make_tier_active_schema_body(
+        _STRUCTURED_TAG_BODY_NON_PONY, "T9_unknown"
+    )
+    assert out == _STRUCTURED_TAG_BODY_NON_PONY
+
+
+def test_tier_active_body_preserves_field_count_and_order():
+    """Rewrite must not duplicate / drop any field."""
+    from src.agents.scene_facet_generator import _make_tier_active_schema_body
+    for tier in ("T1_suggestive", "T2_implied", "T3_artnude",
+                 "T4_explicit"):
+        out = _make_tier_active_schema_body(
+            _STRUCTURED_TAG_BODY_NON_PONY, tier
+        )
+        # Field count preserved
+        orig_fields = re.findall(r'"(\w+)":', _STRUCTURED_TAG_BODY_NON_PONY)
+        new_fields = re.findall(r'"(\w+)":', out)
+        assert orig_fields == new_fields, (
+            f"At {tier}: field order/count changed by rewrite"
+        )
 
 
 def test_every_prompt_style_body_includes_required_markers():
