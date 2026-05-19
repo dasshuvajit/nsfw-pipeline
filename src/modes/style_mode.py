@@ -263,6 +263,21 @@ class StyleMode(BaseMode):
 
         plan["category_id"] = category["id"]
         plan["category_name"] = category["name"]
+        # Verifier round-2 I4 — propagate the style category's environment
+        # whitelist (intersected with the style_profile's when both
+        # populated) so SceneFacetGenerator narrows the LLM's
+        # environment.setting menu in engine.py. Empty list / missing
+        # falls through as the full vocab menu.
+        cat_envs = category.get("compatible_environments", []) or []
+        sp_envs = ctx.style_profile.get(
+            "compatible_environments", []
+        ) or []
+        if cat_envs and sp_envs:
+            plan["compatible_environments"] = [
+                t for t in sp_envs if t in cat_envs
+            ] or list(cat_envs)
+        else:
+            plan["compatible_environments"] = list(cat_envs or sp_envs)
 
         logger.info(
             "StyleMode: plan — theme=%r, lighting=%r, color=%r",
@@ -397,6 +412,11 @@ class StyleMode(BaseMode):
             "description": chosen.description,
             "lighting_bias": chosen.lighting_bias,
             "color_bias": chosen.color_bias,
+            # Phase 3 (vocab v6) — verifier B1 pipe fix.
+            "compatible_palettes": list(chosen.compatible_palettes),
+            "compatible_photographers": list(chosen.compatible_photographers),
+            "compatible_art_movements": list(chosen.compatible_art_movements),
+            "compatible_environments": list(chosen.compatible_environments),
         }
 
     @staticmethod

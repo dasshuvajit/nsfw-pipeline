@@ -389,6 +389,7 @@ def llm_vocabulary_block(
     *,
     content_level: str | None = None,
     loader: VocabularyLoader | None = None,
+    compatible_environments: Iterable[str] | None = None,
 ) -> str:
     """Build the system-prompt block listing the abstract tags the LLM
     may pick for ``family_id``.
@@ -409,11 +410,31 @@ def llm_vocabulary_block(
 
     ``content_level=None`` keeps the legacy generic line for callers
     that haven't migrated.
+
+    Verifier round-2 I4 — when ``compatible_environments`` is supplied
+    (categories.yaml's ``compatible_environments`` per theme/style/
+    niche, intersected upstream by the mode), the ``environment.setting``
+    line of the menu is narrowed to that whitelist. Tags absent from
+    the family's full menu are dropped; an empty intersection falls
+    back to the full menu (defence-in-depth: never serve the LLM a
+    blank ``environment.setting`` line — that yields garbage retries).
     """
     loader = loader or _default_loader()
     by_ns = loader.all_concepts_for_family(family_id)
     if not by_ns:
         return ""
+    # Narrow environment.setting to the compat whitelist if supplied
+    # and non-empty. Intersection happens in-place on the by_ns dict
+    # so the sort+render loop below picks up the narrowed list.
+    if compatible_environments:
+        whitelist = {str(t).strip() for t in compatible_environments if t}
+        env_key = "environment.setting"
+        if whitelist and env_key in by_ns:
+            narrowed = [t for t in by_ns[env_key] if t in whitelist]
+            # Empty intersection means the LLM is offered nothing —
+            # worse than showing the full menu. Fall back silently.
+            if narrowed:
+                by_ns[env_key] = narrowed
     lines = [
         "REALISM VOCABULARY (abstract tags — composer translates to "
         "family-specific phrasing):",

@@ -1039,3 +1039,59 @@ def test_vocab_block_tier_keyword_in_block(loader, tier):
     )
     assert "realism.lighting" in block
     assert "REALISM VOCABULARY" in block
+
+
+# ── Verifier round-2 I4: compatible_environments narrowing ─────────
+
+
+def test_vocab_block_narrows_environment_setting_to_whitelist(loader):
+    """When `compatible_environments` is supplied, the
+    `environment.setting` line is filtered to only those tags."""
+    whitelist = ["ENV_VICTORIAN_CONSERVATORY", "ENV_TUSCAN_VILLA_RENAISSANCE"]
+    block = llm_vocabulary_block(
+        "sdxl", content_level="T3_artnude", loader=loader,
+        compatible_environments=whitelist,
+    )
+    # The two whitelisted tags appear
+    for tag in whitelist:
+        assert tag in block
+    # A non-whitelisted env.setting tag is filtered out
+    # (ENV_BRUTALIST_CONCRETE_LOFT exists in vocab but isn't in the
+    # whitelist for this test).
+    env_line = next(
+        line for line in block.splitlines()
+        if line.strip().startswith("environment.setting:")
+    )
+    assert "ENV_VICTORIAN_CONSERVATORY" in env_line
+    assert "ENV_TUSCAN_VILLA_RENAISSANCE" in env_line
+    assert "ENV_BRUTALIST_CONCRETE_LOFT" not in env_line
+
+
+def test_vocab_block_falls_back_to_full_menu_when_compat_empty(loader):
+    """Empty / None compat list ⇒ full vocab menu (no narrowing)."""
+    block_none = llm_vocabulary_block(
+        "sdxl", content_level="T3_artnude", loader=loader,
+        compatible_environments=None,
+    )
+    block_empty = llm_vocabulary_block(
+        "sdxl", content_level="T3_artnude", loader=loader,
+        compatible_environments=[],
+    )
+    # Both should be identical to the no-compat default — same env line
+    # has the multiple env tags the vocab supplies.
+    assert "ENV_VICTORIAN_CONSERVATORY" in block_none
+    assert "ENV_VICTORIAN_CONSERVATORY" in block_empty
+    assert "ENV_BRUTALIST_CONCRETE_LOFT" in block_none
+    assert "ENV_BRUTALIST_CONCRETE_LOFT" in block_empty
+
+
+def test_vocab_block_falls_back_when_compat_intersection_empty(loader):
+    """If every whitelist tag is absent from the family menu, fall
+    back to the full menu — never serve the LLM a blank env line."""
+    block = llm_vocabulary_block(
+        "sdxl", content_level="T3_artnude", loader=loader,
+        compatible_environments=["ENV_NONEXISTENT_TAG_X", "ENV_FAKE_Y"],
+    )
+    # The full env menu still appears
+    assert "ENV_VICTORIAN_CONSERVATORY" in block
+    assert "ENV_BRUTALIST_CONCRETE_LOFT" in block

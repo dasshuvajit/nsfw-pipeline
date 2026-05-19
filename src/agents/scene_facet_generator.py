@@ -58,8 +58,9 @@ if TYPE_CHECKING:
 #   quality; the canonicalizer translates the enum tag into family-
 #   shaped cinematography vocabulary (`Rembrandt lighting, dramatic
 #   side-light` vs free-text `dim ambient`). Adding to every tier
-#   protects the vocab_version 2 contract — without this, the LLM can
-#   null the field and the canonicalizer becomes dead weight.
+#   protects the canonicalizer contract (vocab_version 6 as of
+#   2026-05-19) — without this, the LLM can null the field and the
+#   canonicalizer becomes dead weight.
 # - ``mood_aesthetic`` (added with vocab_version 5, 2026-05-18) —
 #   required at every tier. Same rationale as lighting_directive:
 #   the canonicalizer injects family-shaped mood phrasing
@@ -459,14 +460,50 @@ Return ONLY the JSON object — no array wrapper, no markdown."""
 # required check + retry-nudge fires on missing fields. This
 # user-prompt block is the first-attempt nudge (vs. the retry-nudge
 # which fires only after the validator catches a missing field).
-_STRUCTURED_TAG_BODY = """\
+# Verifier round-2 I1 + I6 — split the structured-tag body so each
+# family sees only the fields its schema actually declares (and its
+# canonicalizer can phrase). Pre-fix the shared body asked Pony for
+# composition_principle + the 6 realism enum fields it omits, so
+# Cydonia/Hermes wasted tokens on dead slots and the schema body
+# advertised non-existent contract fields.
+#
+# Non-Pony body (sdxl / illustrious / flux / chroma / flux2):
+# every concept-tag field SceneFacetSDXL/Illustrious/FluxNatural/
+# Chroma/FluxKlein declares as Optional[str], in the order the
+# canonicalizer reads them.
+_STRUCTURED_TAG_BODY_NON_PONY = """\
+  "realism_camera": "<one CAMERA_* concept tag — OPTIONAL polish; specific camera body (Sony A7R V / Hasselblad / Leica M11 / etc.)>",
+  "realism_lens": "<one LENS_* concept tag — OPTIONAL polish; lens spec (85mm f/1.4 portrait / 50mm f/1.8 / 35mm f/2 environmental / etc.)>",
+  "realism_film_stock": "<one FILM_* concept tag — OPTIONAL polish; film stock emulation (Portra 400 / Cinestill 800T / Tri-X 400 / etc.)>",
+  "art_style_reference": "<one ART_STYLE_* concept tag — OPTIONAL polish; named photographer or art-direction reference (Helmut Newton / Saul Leiter / etc.). Use the photographer_ref series anchor for the SERIES signature; this is per-scene optional flavour>",
+  "realism_angle": "<one ANGLE_* concept tag — OPTIONAL polish; camera angle (low_angle / high_angle / dutch_tilt / etc.)>",
+  "realism_framing": "<one FRAMING_* concept tag — OPTIONAL polish; shot framing (close_up / medium_shot / full_body / etc.)>",
   "lighting_directive": "<one LIGHT_* concept tag from the vocabulary menu in the system prompt — REQUIRED at every tier>",
   "mood_aesthetic": "<one MOOD_* concept tag — REQUIRED at every tier>",
   "narrative_moment": "<one NARR_* concept tag — REQUIRED at every tier; the captured editorial moment (reading a letter / stepping from bath / lighting cigarette / etc.)>",
   "environment_setting": "<one ENV_* concept tag — REQUIRED at T3+; the scene's specific location (Victorian conservatory / Tuscan villa / brutalist loft / etc.). Vary this across scenes in a series>",
   "environment_atmosphere": "<one ATM_* concept tag — REQUIRED at T3+; atmospheric element matching the setting (dust motes / steam / rain on glass / etc.)>",
   "environment_prop": "<one PROP_* concept tag — OPTIONAL polish; named furniture/object anchor (cheval mirror / velvet curtain / handwritten letter / etc.)>",
-  "composition_principle": "<one COMP_* concept tag — OPTIONAL polish; higher-order composition (frame-within-frame / reflection-primary / leading-lines / etc.). Pony omits this field>",
+  "composition_principle": "<one COMP_* concept tag — OPTIONAL polish; higher-order composition (frame-within-frame / reflection-primary / leading-lines / etc.)>",
+  "nsfw_anatomy": "<one NSFW_ANATOMY_* concept tag — REQUIRED at T3+>",
+  "nsfw_posture": "<one NSFW_POSTURE_* concept tag — optional T3+>",
+  "nsfw_act": "<one NSFW_ACT_* concept tag — REQUIRED at T4_explicit (solo-only acts; partnered tags are filtered)>"\
+"""
+
+# Pony body — drops the 6 realism enum fields and composition_principle.
+# Pony's booru convention carries camera / lens / film_stock / angle /
+# framing / composition via source_photograph + booru_tags, so the
+# canonicalizer has no Pony phrasings for those namespaces.
+# SceneFacetPony's Pydantic schema reflects this: those fields aren't
+# declared, so emitting them would just be `extra=allow`-dropped
+# anyway — better to not waste tokens asking for them.
+_STRUCTURED_TAG_BODY_PONY = """\
+  "lighting_directive": "<one LIGHT_* concept tag from the vocabulary menu in the system prompt — REQUIRED at every tier>",
+  "mood_aesthetic": "<one MOOD_* concept tag — REQUIRED at every tier>",
+  "narrative_moment": "<one NARR_* concept tag — REQUIRED at every tier; the captured editorial moment (looking_at_mirror / arranging_flowers / lighting_cigarette / etc.) — fold this into your booru_tags too>",
+  "environment_setting": "<one ENV_* concept tag — REQUIRED at T3+; the scene's specific location. Pick from the vocabulary menu>",
+  "environment_atmosphere": "<one ATM_* concept tag — REQUIRED at T3+; atmospheric element matching the setting>",
+  "environment_prop": "<one PROP_* concept tag — OPTIONAL polish; named furniture/object anchor>",
   "nsfw_anatomy": "<one NSFW_ANATOMY_* concept tag — REQUIRED at T3+>",
   "nsfw_posture": "<one NSFW_POSTURE_* concept tag — optional T3+>",
   "nsfw_act": "<one NSFW_ACT_* concept tag — REQUIRED at T4_explicit (solo-only acts; partnered tags are filtered)>"\
@@ -478,32 +515,33 @@ _STRUCTURED_TAG_BODY = """\
 # is the validator; this is the instruction.
 #
 # Each style starts with its family-specific FREE-TEXT fields then
-# appends the shared :data:`_STRUCTURED_TAG_BODY` so the LLM sees
-# every field it should emit in one view.
+# appends the shared structured-tag body. Verifier round-2 I6: Pony
+# gets a slimmer body that drops the 6 realism enum fields + the
+# composition_principle field its canonicalizer / schema omit.
 _SCHEMA_BODY_BY_STYLE: dict[str, str] = {
     "sdxl_keywords": f"""\
   "camera_spec": "<lens + aperture spec, e.g. '85mm f/1.8, shallow DoF'>",
   "clothing": "<garment and texture detail — silk slip, lace bodice, velvet robe, linen sheet>",
-{_STRUCTURED_TAG_BODY}""",
+{_STRUCTURED_TAG_BODY_NON_PONY}""",
 
     "pony_danbooru": f"""\
   "booru_tags": "<comma-separated underscored booru tags capturing pose/setting/clothing — primary signal for the Pony composer>",
   "source_tag": "<one of: source_photograph, source_anime, source_cartoon — use source_photograph for realism>",
-{_STRUCTURED_TAG_BODY}""",
+{_STRUCTURED_TAG_BODY_PONY}""",
 
     "illustrious_tags": f"""\
   "booru_tags": "<comma-separated underscored booru tags>",
   "scene_prose": "<one short sentence of natural-language prose describing the whole composition — used alongside the tags>",
-{_STRUCTURED_TAG_BODY}""",
+{_STRUCTURED_TAG_BODY_NON_PONY}""",
 
     "flux_natural": f"""\
   "scene_prose": "<1–3 complete sentences of natural-language prose. Weave pose, lighting, lens character, environment, and mood into flowing prose. No comma-tag lists, no weighting syntax.>",
-{_STRUCTURED_TAG_BODY}""",
+{_STRUCTURED_TAG_BODY_NON_PONY}""",
 
     "flux2_prose": f"""\
   "scene_prose": "<single paragraph, 30–80 words. Five anchors in STRICT order: subject → setting → details → lighting → atmosphere. No tags, no weighting, no BREAK. Put the most distinctive subject traits and the lighting directive near the front; word order weights heavily for Klein.>",
   "subject_focus": "<one-line distillation of the subject clause, used as an ordering QA signal>",
-{_STRUCTURED_TAG_BODY}""",
+{_STRUCTURED_TAG_BODY_NON_PONY}""",
 }
 
 
@@ -609,6 +647,7 @@ class SceneFacetGenerator:
         llm_directive: str = "",
         temperature: float | None = None,
         model: str | None = None,
+        compatible_environments: list[str] | None = None,
     ) -> dict[str, Any]:
         """Generate the family-shaped facet for one scene.
 
@@ -678,6 +717,7 @@ class SceneFacetGenerator:
             family, prompt_guide,
             content_level=content_level,
             llm_directive=llm_directive,
+            compatible_environments=compatible_environments,
         )
         user_prompt = self._build_user_prompt(
             scene=scene,
@@ -838,6 +878,7 @@ class SceneFacetGenerator:
         *,
         content_level: str = "",
         llm_directive: str = "",
+        compatible_environments: list[str] | None = None,
     ) -> str:
         """Assemble the family-aware system prompt.
 
@@ -928,6 +969,7 @@ class SceneFacetGenerator:
         # block for back-compat with direct callers.
         vocab_block = llm_vocabulary_block(
             family.id, content_level=content_level or None,
+            compatible_environments=compatible_environments,
         )
         if vocab_block:
             parts.append(f"\n{vocab_block}")

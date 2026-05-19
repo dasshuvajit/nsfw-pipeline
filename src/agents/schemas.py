@@ -55,6 +55,19 @@ class SeriesPlan(BaseModel):
     ``theme``, ``mood``, ``environment``, ``variation_axes``. Additional
     fields the LLM might emit (e.g. ``style_notes``) are accepted and
     forwarded via ``extra="allow"``.
+
+    Phase 3 (vocab v6, 2026-05-19) — added three series-level
+    aesthetic-anchor fields the SeriesPlanner picks ONCE per series
+    and the composer threads into every scene via
+    ``canonicalize_series_aesthetic``: ``color_palette``,
+    ``photographer_ref``, ``art_movement``. All three default to
+    ``None`` so legacy series (predating Phase 3) continue to
+    validate. **They MUST be on this schema** (not just via
+    extra="allow") because Ollama 0.5+ constrains the LLM output
+    against the Pydantic JSON schema — fields absent from the
+    schema are not grammar-required and a constrained LLM (Cydonia
+    / Qwen) takes the path of least resistance and skips them.
+    Verifier B2.
     """
 
     model_config = ConfigDict(extra="allow", str_strip_whitespace=True)
@@ -63,6 +76,45 @@ class SeriesPlan(BaseModel):
     mood: str = Field(min_length=1)
     environment: str = Field(min_length=1)
     variation_axes: list[str] = Field(min_length=1)
+
+    # Phase 3 — series-level aesthetic anchors. Optional[str] so
+    # legacy series continue to validate; the SeriesPlanner system
+    # prompt + user-template instructs the LLM to pick them.
+    color_palette: str | None = Field(
+        default=None,
+        description=(
+            "Series-level color-palette concept tag from "
+            "aesthetic.color_palette namespace (e.g. "
+            "PALETTE_BAROQUE_CARAVAGGIO, PALETTE_TEAL_ORANGE_BLOCKBUSTER, "
+            "PALETTE_MONOCHROME_HIGH_CONTRAST, PALETTE_WES_ANDERSON_PASTEL, "
+            "PALETTE_DEAKINS_AMBER_TUNGSTEN, PALETTE_TUSCAN_EARTH). "
+            "Pinned ONCE per series; the canonicalizer threads the "
+            "phrasing into every scene's composed prompt. Pick from the "
+            "narrowed menu shown in the planner user prompt."
+        ),
+    )
+    photographer_ref: str | None = Field(
+        default=None,
+        description=(
+            "Series-level photographer-signature concept tag from "
+            "aesthetic.photographer_ref namespace (e.g. "
+            "PHOTOG_HELMUT_NEWTON, PHOTOG_PETTER_HEGRE, "
+            "PHOTOG_PETER_LINDBERGH, PHOTOG_GREGORY_CREWDSON, "
+            "PHOTOG_ROBERT_MAPPLETHORPE, PHOTOG_SLIM_AARONS). "
+            "Series's photographer-signature aesthetic, held constant "
+            "across every scene. Pony omits this namespace."
+        ),
+    )
+    art_movement: str | None = Field(
+        default=None,
+        description=(
+            "Optional series-level art-movement concept tag from "
+            "aesthetic.art_movement namespace (e.g. "
+            "ART_MOVE_FILM_NOIR_1940S, ART_MOVE_BAROQUE_CARAVAGGIO, "
+            "ART_MOVE_DUTCH_GOLDEN_VERMEER, ART_MOVE_WES_ANDERSON, "
+            "ART_MOVE_HOPPER, ART_MOVE_ART_NOUVEAU_KLIMT). Pony omits."
+        ),
+    )
 
     @field_validator("variation_axes")
     @classmethod
@@ -277,9 +329,11 @@ _ENVIRONMENT_ENUM_FIELDS = {
         "ENV_MEDITERRANEAN_COURTYARD, ENV_FOG_PINE_FOREST, "
         "ENV_DESERT_DUNE, ENV_ROOFTOP_CITY_NIGHT, "
         "ENV_TOKYO_LOVE_HOTEL, ENV_INDOOR_POOL_NIGHT. Required at "
-        "T3+ when the series's environment_diversity != "
-        "'single_location'. Categories whitelist compatible_environments "
-        "to keep the menu coherent with the theme."
+        "T3+ and SHOULD vary across scenes in a series — picking "
+        "the same ENV_* for every scene defeats the diversity push. "
+        "Categories whitelist compatible_environments to keep the "
+        "menu coherent with the theme (intersection with style_profile "
+        "and niche compat lists when present)."
     ),
     "environment_atmosphere": (
         "Optional atmospheric-element concept tag from "

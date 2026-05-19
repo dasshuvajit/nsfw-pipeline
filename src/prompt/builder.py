@@ -637,6 +637,7 @@ class PromptBuilder:
                 scene_prose=self._field(scene, "scene_prose"),
                 base_prompt=base_prompt,
                 style_keywords=style_keywords,
+                extra_keywords=list(extra_keywords),
             )
         if style == "flux_natural":
             return _compose_natural(
@@ -816,6 +817,7 @@ def _compose_illustrious_tags(
     scene_prose: str = "",
     base_prompt: str = "",
     style_keywords: str = "",
+    extra_keywords: Iterable[str] = (),
 ) -> str:
     """Booru tags + short prose hybrid; append quality suffix at end.
 
@@ -844,6 +846,15 @@ def _compose_illustrious_tags(
             body_segments.append(booru_tags)
         if scene_prose:
             body_segments.append(scene_prose)
+        # Verifier B3 — pre-fix this composer dropped extra_keywords
+        # entirely. The build_one path packs series_aesthetic phrases
+        # + scene vocab phrases + caller extras into extra_keywords
+        # for prose families; for Illustrious those evaporated. Thread
+        # them in BEFORE style_keywords so they sit alongside the
+        # booru body, not after the style tail.
+        for kw in extra_keywords or ():
+            if kw:
+                body_segments.append(str(kw))
         if style_keywords:
             body_segments.append(style_keywords)
         body = _compose_keywords(

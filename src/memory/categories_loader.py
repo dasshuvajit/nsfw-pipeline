@@ -40,6 +40,14 @@ class ThemeCategory:
     variations: list[str] = field(default_factory=list)
     aesthetic_affinity: list[str] = field(default_factory=list)
     suited_tiers: list[str] = field(default_factory=list)
+    # Phase 3 (vocab v6) — series-level aesthetic-anchor compatibility
+    # lists. Intersected with style_profile.compatible_* in ThemeMode
+    # to narrow the SeriesPlanner LLM menu. Optional — empty list
+    # means "no per-theme narrowing; fall through to style_profile".
+    compatible_palettes: list[str] = field(default_factory=list)
+    compatible_photographers: list[str] = field(default_factory=list)
+    compatible_art_movements: list[str] = field(default_factory=list)
+    compatible_environments: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -51,6 +59,11 @@ class StyleCategory:
     lighting_bias: str = ""
     color_bias: str = ""
     aesthetic_affinity: list[str] = field(default_factory=list)
+    # Phase 3 (vocab v6) — see ThemeCategory.
+    compatible_palettes: list[str] = field(default_factory=list)
+    compatible_photographers: list[str] = field(default_factory=list)
+    compatible_art_movements: list[str] = field(default_factory=list)
+    compatible_environments: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -60,6 +73,11 @@ class NicheCluster:
     weight: float
     keywords: list[str] = field(default_factory=list)
     aesthetic_affinity: list[str] = field(default_factory=list)
+    # Phase 3 (vocab v6) — see ThemeCategory.
+    compatible_palettes: list[str] = field(default_factory=list)
+    compatible_photographers: list[str] = field(default_factory=list)
+    compatible_art_movements: list[str] = field(default_factory=list)
+    compatible_environments: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -101,6 +119,14 @@ class CategoriesLoader:
                 variations=list(row.get("variations") or []),
                 aesthetic_affinity=list(row.get("aesthetic_affinity") or []),
                 suited_tiers=list(row.get("suited_tiers") or []),
+                # Phase 3 (vocab v6) — propagate compat lists into the
+                # dataclass so ThemeMode's compat-intersection logic
+                # actually sees them. Without these the YAML lists were
+                # dead data (verifier B1).
+                compatible_palettes=list(row.get("compatible_palettes") or []),
+                compatible_photographers=list(row.get("compatible_photographers") or []),
+                compatible_art_movements=list(row.get("compatible_art_movements") or []),
+                compatible_environments=list(row.get("compatible_environments") or []),
             )
             for row in self._data.get("themes") or []
         ]
@@ -115,6 +141,10 @@ class CategoriesLoader:
                 lighting_bias=str(row.get("lighting_bias") or ""),
                 color_bias=str(row.get("color_bias") or ""),
                 aesthetic_affinity=list(row.get("aesthetic_affinity") or []),
+                compatible_palettes=list(row.get("compatible_palettes") or []),
+                compatible_photographers=list(row.get("compatible_photographers") or []),
+                compatible_art_movements=list(row.get("compatible_art_movements") or []),
+                compatible_environments=list(row.get("compatible_environments") or []),
             )
             for row in self._data.get("styles") or []
         ]
@@ -127,6 +157,10 @@ class CategoriesLoader:
                 weight=float(row.get("weight", 1.0)),
                 keywords=list(row.get("keywords") or []),
                 aesthetic_affinity=list(row.get("aesthetic_affinity") or []),
+                compatible_palettes=list(row.get("compatible_palettes") or []),
+                compatible_photographers=list(row.get("compatible_photographers") or []),
+                compatible_art_movements=list(row.get("compatible_art_movements") or []),
+                compatible_environments=list(row.get("compatible_environments") or []),
             )
             for row in self._data.get("niches") or []
         ]

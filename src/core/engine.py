@@ -887,6 +887,11 @@ class PipelineEngine:
                         # to the SceneFacetGenerator so it generates
                         # tier-appropriate prose (T4 explicit, T1 SFW, etc.)
                         # Per-family Ollama tag flows in via the router.
+                        # Verifier round-2 I4 — pass series_plan's
+                        # compatible_environments (already intersected
+                        # upstream by the mode across theme + style_profile
+                        # + niche) so the LLM's environment.setting menu
+                        # narrows to theme-coherent locations.
                         facet = facet_gen.generate(
                             scene=scene,
                             family=family,
@@ -894,6 +899,10 @@ class PipelineEngine:
                             prompt_guide=guide,
                             llm_directive=ctx.content_rules.llm_directive,
                             model=facet_ollama_id,
+                            compatible_environments=(
+                                series_plan.get("compatible_environments")
+                                or None
+                            ),
                         )
                         # Persist (Flux2 QA fields auto-dropped by repo).
                         insert_facet(

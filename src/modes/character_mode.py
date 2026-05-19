@@ -140,6 +140,13 @@ class CharacterMode(BaseMode):
         # Attach character metadata to the plan for downstream consumers
         plan["character_id"] = ctx.character_id
         plan["character_name"] = ctx.character_id
+        # Verifier round-2 I4 — character mode has no theme/cluster compat
+        # list (the character itself is the anchor); fall through to the
+        # style_profile's compatible_environments when present so
+        # SceneFacetGenerator can still narrow the LLM menu.
+        plan["compatible_environments"] = list(
+            ctx.style_profile.get("compatible_environments", []) or []
+        )
 
         logger.info(
             "CharacterMode: plan generated — theme=%r, mood=%r, %d axes",
