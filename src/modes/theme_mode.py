@@ -30,6 +30,7 @@ from src.agents.llm_client import OllamaClient
 from src.agents.schemas import SceneList, SeriesPlan
 from src.core.generation_context import GenerationContext
 from src.modes._llm_helpers import (
+    repair_colon_suffix_aesthetic_keys,
     run_llm_with_retry,
     validate_scene_list,
     warn_if_missing_aesthetic_anchors,
@@ -372,6 +373,12 @@ class ThemeMode(BaseMode):
         if theme in self._VAGUE_THEMES:
             logger.warning("ThemeMode: rejected vague theme %r", result["theme"])
             return None
+        # Round-5 defensive: salvage `color_palette:` (colon-suffix)
+        # quirk before warning. Cydonia heretic-vision was observed
+        # producing `"color_palette:": "PALETTE_X"` alongside the
+        # schema-required `"color_palette": null`. Repair-then-warn
+        # so the warning only fires on real misses.
+        repair_colon_suffix_aesthetic_keys(result)
         # Verifier round-4 IMPORTANT-5 — soft warn when aesthetic anchors
         # are missing. Doesn't reject (Pony legitimately omits two of
         # three), but surfaces silent Phase 3 degradation in run_log.

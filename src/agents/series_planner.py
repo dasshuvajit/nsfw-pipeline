@@ -439,9 +439,15 @@ class SeriesPlanner:
             result["mood"],
             len(result["variation_axes"]),
         )
+        # Round-5 defensive: salvage colon-suffix aesthetic keys
+        # (Cydonia LLM quirk — see _llm_helpers docstring).
+        from src.modes._llm_helpers import (
+            repair_colon_suffix_aesthetic_keys,
+            warn_if_missing_aesthetic_anchors,
+        )
+        repair_colon_suffix_aesthetic_keys(result)
         # Verifier round-4 IMPORTANT-5 — soft Phase 3 anchor check
         # (CharacterMode path; the 3 mode planners run their own
         # check via `_llm_helpers.warn_if_missing_aesthetic_anchors`).
-        from src.modes._llm_helpers import warn_if_missing_aesthetic_anchors
         warn_if_missing_aesthetic_anchors(result, mode_name="CharacterMode")
         return result

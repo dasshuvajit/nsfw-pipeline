@@ -31,6 +31,47 @@ DEFAULT_RETRY_NUDGE = (
 )
 
 
+_AESTHETIC_ANCHOR_FIELDS = (
+    "color_palette",
+    "photographer_ref",
+    "art_movement",
+)
+
+
+def repair_colon_suffix_aesthetic_keys(plan: dict[str, Any]) -> None:
+    """Defensive repair for the "key with trailing colon" LLM quirk.
+
+    Round-5 finding (2026-05-19 LLM A/B run, Cydonia heretic-vision):
+    constrained-decoding shape mishaps sometimes produce a plan where
+    the schema-required aesthetic anchor key (e.g. ``color_palette``)
+    is null, while an EXTRA key with a trailing colon (e.g.
+    ``"color_palette:"``) carries the actual value the LLM picked.
+    ``extra="allow"`` on the SeriesPlan schema lets the colon-suffixed
+    extra through silently — Pydantic accepts it, ``warn_if_missing_
+    aesthetic_anchors`` logs the canonical key as missing, and the
+    composer / PNG metadata both lose the Phase 3 signature-look
+    pinning even though the LLM successfully picked a tag.
+
+    This helper salvages the value: for each aesthetic field, if the
+    canonical key is empty AND a same-named-with-trailing-colon key
+    is populated, copy the value over and delete the bad key.
+
+    Call this BEFORE :func:`warn_if_missing_aesthetic_anchors` so the
+    warning fires only when the LLM truly failed to pick a tag.
+    """
+    for fld in _AESTHETIC_ANCHOR_FIELDS:
+        if not plan.get(fld):
+            colon_key = f"{fld}:"
+            val = plan.get(colon_key)
+            if val:
+                plan[fld] = val
+                del plan[colon_key]
+                logger.info(
+                    "Repaired colon-suffixed aesthetic key %r → %r (LLM "
+                    "shape quirk); value preserved.", colon_key, fld,
+                )
+
+
 def warn_if_missing_aesthetic_anchors(
     plan: dict[str, Any], *, mode_name: str,
 ) -> None:
@@ -47,10 +88,7 @@ def warn_if_missing_aesthetic_anchors(
     Call from each mode's ``_validate_plan`` AFTER the required-field
     check — only log when the LLM otherwise produced a valid plan.
     """
-    missing = [
-        k for k in ("color_palette", "photographer_ref", "art_movement")
-        if not plan.get(k)
-    ]
+    missing = [k for k in _AESTHETIC_ANCHOR_FIELDS if not plan.get(k)]
     if len(missing) >= 3:
         logger.warning(
             "%s: series plan has NO aesthetic anchors populated "

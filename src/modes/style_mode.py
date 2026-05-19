@@ -33,6 +33,7 @@ from src.agents.schemas import SceneList, SeriesPlan
 from src.core.generation_context import GenerationContext
 from src.memory.categories_loader import CategoriesLoader
 from src.modes._llm_helpers import (
+    repair_colon_suffix_aesthetic_keys,
     run_llm_with_retry,
     validate_scene_list,
     warn_if_missing_aesthetic_anchors,
@@ -353,6 +354,8 @@ class StyleMode(BaseMode):
         if theme in self._VAGUE_STYLES:
             logger.warning("StyleMode: rejected vague style %r", result["theme"])
             return None
+        # Round-5 defensive: salvage colon-suffix aesthetic keys first.
+        repair_colon_suffix_aesthetic_keys(result)
         # Verifier round-4 IMPORTANT-5 — soft Phase 3 anchor check.
         warn_if_missing_aesthetic_anchors(result, mode_name="StyleMode")
         return result
