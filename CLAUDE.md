@@ -246,26 +246,6 @@ ComfyUI runs separately from this project. The install path varies per machine �
 Workflow JSON templates live in this project under config/comfyui_workflows/{family}/ (one subdir per family — sdxl/, pony/, illustrious/, flux/, flux2/, chroma/).
 External user-authored workflow templates live under config/comfyui_workflows/templates/{family}/ — see docs/COMFYUI_WORKFLOWS.md § External templates.
 
-## Migration scripts
-- `scripts/migrate_v7_strip_grid_phrases.py` — One-shot cleanup for
-  series planned BEFORE the vocab v7 anti-grid fix (pre-2026-05-20).
-  Scans `series.llm_series_plan` (subject_description / subject_bias /
-  core_theme / visual_elements) and `prompts.prompt_text` for
-  cross-scene variety phrases like "in varying compositions across
-  scenes" that historically triggered 4-panel image-grid hallucinations
-  and strips them via the same `_MULTI_SUBJECT_PATTERN` the runtime
-  composer now applies. Usage:
-  ```
-  python scripts/migrate_v7_strip_grid_phrases.py --dry-run       # preview
-  python scripts/migrate_v7_strip_grid_phrases.py                 # apply
-  python scripts/migrate_v7_strip_grid_phrases.py --series <id>   # scoped
-  ```
-  Mirror tags in `scene_facets` (NSFW_T4_SOLO_MIRROR /
-  COMP_REFLECTION_PRIMARY / etc.) are NOT touched — the canonicalizer
-  silently drops deleted concept tags so those scenes render with the
-  affected slot empty. Use `--regen-facets` to re-roll their tag picks
-  cleanly.
-
 ## Key Files
 - ARCHITECTURE.md — System design; living doc, update when code drifts (last sync: 2026-05-20 — vocab v7 anti-grid / anti-mirror cleanup; supersedes v6 creative-uplift)
 - CLAUDE.md — This file (project context for Claude Code)
