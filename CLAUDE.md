@@ -176,7 +176,7 @@ The complete architecture is documented in ARCHITECTURE.md — read it fully bef
   - `config/style_profiles.yaml` — aesthetic intent profiles.
   - `config/categories.yaml` — theme/style/niche categories +
     content_level rules.
-- Cross-refs from DB → YAML (`characters.style_profile_id`,
+- Cross-refs from DB → YAML (`series.style_profile_id`,
   `images.model_id`, `prompts.model_id`, `scene_facets.family`) are
   plain TEXT columns validated at startup by the YAML loaders — no
   SQL FKs. The `scene_facets.family` CHECK constraint IS templated
@@ -243,7 +243,7 @@ See ARCHITECTURE.md §16 for the full file structure.
 - Write tests for critical components (ComfyUI client, scorer, prompt builder).
 
 ## ComfyUI Location
-ComfyUI runs separately from this project. The install path varies per machine — on this dev box it lives at ~/AI/apps/ComfyUI/ with output at ~/AI/apps/ComfyUI/output/. The canonical source for the output path is `config/pipeline.yaml` → `comfyui.output_dir` (read by `scripts/test_comfyui.py` and future renderers). Do not hardcode `~/ComfyUI` anywhere.
+ComfyUI runs separately from this project. The install path varies per machine — on this dev box it lives at ~/AI/apps/ComfyUI/ with output at ~/AI/apps/ComfyUI/output/. The canonical source for the output path is `config/pipeline.yaml` → `comfyui.output_dir` (read by `src/render/comfyui_client.py`). Do not hardcode `~/ComfyUI` anywhere.
 Workflow JSON templates live in this project under config/comfyui_workflows/{family}/ (one subdir per family — sdxl/, pony/, illustrious/, flux/, flux2/, chroma/).
 External user-authored workflow templates live under config/comfyui_workflows/templates/{family}/ — see docs/COMFYUI_WORKFLOWS.md § External templates.
 

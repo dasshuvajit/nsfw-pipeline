@@ -19,7 +19,7 @@ The scheduler:
 Usage:
     python src/main.py
     python src/main.py --once           # single cycle then exit
-    python src/main.py --mode character  # force a specific mode
+    python src/main.py --mode theme     # force a specific mode
 
 Stop gracefully with Ctrl+C.
 """
@@ -318,7 +318,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--mode",
-        choices=["character", "theme", "style", "niche", "variation"],
+        choices=["theme", "style", "niche", "variation"],
         default=None,
         help="Force a specific mode (default: weighted random)",
     )

@@ -286,8 +286,8 @@ Phase A (LLM)      Phase B (Render)      Phase C (Package)
 plan series         memory preflight      build set
 generate scenes     render images         generate metadata (brief LLM reload)
 build prompts       score images          watermark
-sanitize/dedup      postprocess           export
-save dry_run        supervised review     persist to DB
+sanitize/dedup      supervised review     export
+save dry_run                              persist to DB
 unload LLM ──────▶  (LLM is gone)        record to memory
 ```
 
@@ -304,60 +304,47 @@ SQLite, single file: `nsfw_pipeline.db`. Created by
 static lookup data (models, families, style profiles, categories) lives
 in YAML under `config/`. See §3 for the storage split.
 
-### 10 Tables
+### 9 Tables
 
 | Table | Purpose | Key columns |
 |-------|---------|-------------|
-| `characters` | Character identities | `id`, `style_profile_id` (weak-ref TEXT), `base_prompt` (immutable), `negative_prompt`, `reference_image_path`, `locked_features` (JSON), `allowed_shift_axes` (JSON), `outfit_pool` (JSON), `version`, `active` |
-| `series` | One concept-level row per series | `id`, `mode`, `content_level`, `character_id`, `style_profile_id`, `theme`, `llm_series_plan` (JSON — re-targeting reads this back), `status` |
+| `series` | One concept-level row per series | `id`, `mode`, `content_level`, `style_profile_id`, `theme`, `llm_series_plan` (JSON — re-targeting reads this back), `status` |
 | `scenes` | Per-scene model-agnostic core | `id`, `series_id`, `pose`, `camera`, `camera_angle`, `lighting`, `environment_detail`, `mood_note`, `expression`, `aspect_ratio`, `resolution_w/h`. **No family-shaped fields** — those moved to `scene_facets`. |
 | `scene_facets` (Phase 1) | Per-(scene, family) LLM expansion | PRIMARY KEY `(scene_id, family)`. Holds free-text family fields — `booru_tags`, `source_tag`, `scene_prose`, `camera_spec`, `clothing` — **plus** the structured concept-tag enum fields added in 2026-04 Phase 4a (`realism_camera`, `realism_lens`, `realism_film_stock`, `art_style_reference`, `lighting_directive`, `mood_aesthetic`, `nsfw_anatomy`, `nsfw_posture`). Set by `SceneFacetGenerator`. Sibling models in the same family share one row. The `family` CHECK clause is **templated from `config/families.yaml`** at init time. |
 | `prompts` | Per-(scene, target_kind, target_id, llm) composed text | `id`, `series_id`, `scene_id`, **`target_kind` (NOT NULL, `'model'` \| `'family'` — added 2026-05)**, **`model_id` (NOT NULL — dual semantic: model id when target_kind='model', family id when target_kind='family')**, **`llm_id` (NOT NULL)**, `prompt_text`, `negative_prompt`, `prompt_hash`, `content_level`, **`vocab_version` (Phase 4a — records the `prompt_vocabulary.yaml` version that produced the row)**, `status`. **`UNIQUE(scene_id, target_kind, model_id, llm_id)`** enforces "one prompt per (scene, kind, target, generating-LLM)" so model-kind and family-kind prompts coexist on the same scene. Re-rolling requires `prepare_prompts --regen-prompts <model> --llm <id>` (model-kind) or `prepare_prompts --regen-family-prompts <family> --llm <id>` (family-kind). |
 | `images` | Rendered images + scores | `id`, `prompt_id`, `series_id`, `model_id` (weak-ref TEXT), `file_path`, `seed`, `quality_score`, `aesthetic_score`, `blur_score`, `face_confidence`, `hps_v2_score`, `image_reward_score`, `quality_flags` (JSON). The two Phase-G score columns are nullable — populated only when `scoring.use_hps_v2` / `use_image_reward` are flipped on |
 | `sets` | Exported set metadata | `id`, `series_id`, `title`, `tags` (JSON), `export_path` |
 | `posts` | Engagement tracking | `id`, `set_id`, `platform`, `views_24h/72h`, `favorites` |
-| `generation_memory` | Anti-repetition hashes | `type`, `content_hash`, `character_id` |
+| `generation_memory` | Anti-repetition hashes | `type`, `content_hash` |
 | `run_log` | Audit trail | `mode`, `content_level`, `series_id`, `status`, `images_generated/selected`, `duration_seconds`. One row per (series, model) render. |
 
 ### Indexes
 
-On: `series(mode, status, character_id, content_level)`,
+On: `series(mode, status, content_level)`,
 `images(series_id, selected, content_level, quality_score, model_id)`,
 `prompts(series_id, prompt_hash, status, model_id)`,
 `scene_facets(scene_id)`,
-`generation_memory(content_hash, type, character_id)`,
-`characters(active)`, `posts(set_id, character_id)`,
+`generation_memory(content_hash, type)`,
+`posts(set_id)`,
 `sets(series_id)`, `run_log(status, created_at)`.
-
-### 1 Trigger
-
-```sql
-CREATE TRIGGER protect_character_base_prompt
-BEFORE UPDATE ON characters
-WHEN OLD.base_prompt != NEW.base_prompt
-BEGIN
-    SELECT RAISE(ABORT, 'base_prompt is immutable after creation.');
-END;
-```
 
 ### Cross-ref Chain (weak FKs validated at startup)
 
 ```
-config/models/{id}.yaml            (model registry, 17 files)
+config/models/{id}.yaml            (model registry)
 config/families.yaml               (6 families referenced by family:
                                     sdxl, pony, illustrious, flux,
                                     chroma, flux2)
 config/style_profiles.yaml         (10 profiles)
-  └── characters.style_profile_id  (plain TEXT, validated at startup)
-        └── series.character_id
-              ├── scenes.series_id
-              │     └── scene_facets.scene_id (+ family → YAML)
-              ├── prompts.series_id (+ prompts.model_id → YAML)
-              ├── images.series_id (+ images.model_id → YAML)
-              └── sets.series_id
+  └── series.style_profile_id      (plain TEXT, validated at startup)
+        ├── scenes.series_id
+        │     └── scene_facets.scene_id (+ family → YAML)
+        ├── prompts.series_id (+ prompts.model_id → YAML)
+        ├── images.series_id (+ images.model_id → YAML)
+        └── sets.series_id
 ```
 
-`characters.style_profile_id`, `images.model_id`, and
+`series.style_profile_id`, `images.model_id`, and
 `prompts.model_id` are plain TEXT columns — the YAML loaders
 fail-fast at startup if any reference points to a nonexistent id.
 This is strictly tighter than SQLite's FK enforcement (which the
@@ -370,9 +357,12 @@ init time).
 - 7 static lookup tables moved to YAML: `model_registry`,
   `model_prompt_guides`, `style_profiles`, `theme_categories`,
   `style_categories`, `niche_clusters`, `content_level_rules`.
-- 3 dead columns on `characters`: `experimental_lane`,
-  `character_lora_path`, `lora_overrides` (Phase-2 placeholders with
-  zero readers).
+
+### Removed in the 2026-05-20 external-templates-only cleanup
+
+- The `characters` table (plus its `protect_character_base_prompt`
+  trigger) and the `character_id` columns on `series`, `posts`, and
+  `generation_memory` — character mode was deleted entirely.
 
 ---
 
@@ -395,16 +385,15 @@ run_phase_b(*, series_id, model_id, scene_ids,
                   — Render phase for one (series, model). Reloads
                     series + scenes + prompts from DB; rebuilds ctx
                     for the target model; recomputes resolution
-                    per-target-model at render time; IPAdapter
-                    staging; ComfyUI loop with retries; score;
-                    postprocess.
+                    per-target-model at render time; ComfyUI loop
+                    with retries; score.
 run_phase_c(*, series_id, model_id, content_level,
             rendered_images, series_plan, scenes, prompts,
             ctx, style_profile, style_profile_id,
             elapsed_seconds) -> dict
                   — Set build + watermark + export + persist images
-                    + memory record + character usage + one
-                    `run_log` row per (series, model).
+                    + memory record + one `run_log` row per
+                    (series, model).
 ```
 
 The `prepare_prompts.py` CLI wraps `run_phase_a` directly (LLM-only).
@@ -415,20 +404,19 @@ end-to-end case. The same code paths underlie all three CLIs.
 ### Phase A — LLM Planning
 
 1. **Build context** — `build_context()` resolves the model id via
-   the precedence `--model CLI override → character.model_id →
-   pipeline.default_model_id`, looks up the model in
-   `config/models/*.yaml` (via `ModelRegistryLoader`), loads the
-   aesthetic-only `StyleProfile` for the character (via
-   `StyleProfileLoader`), then merges the family rules from
+   the precedence `--models CLI override → pipeline.default_model_id`,
+   looks up the model in `config/models/*.yaml` (via
+   `ModelRegistryLoader`), loads the aesthetic-only `StyleProfile`
+   (via `StyleProfileLoader`), then merges the family rules from
    `config/families.yaml` with the model's
    `prompt.extend`/`prompt.override` hooks. Produces a
    `GenerationContext` carrying both the model entry and the
-   effective `FamilyConfig`. (Post-2026-04 refactor: the style profile
-   no longer carries `model_id` — checkpoint selection is bound to
-   the character or the pipeline default, not to the aesthetic.)
+   effective `FamilyConfig`. The style profile no longer carries a
+   `model_id` — checkpoint selection is bound to the pipeline default
+   or the CLI override, not to the aesthetic.
 
-2. **Preflight** — Checks: Ollama reachable, checkpoint file exists,
-   workflow template exists, IPAdapter compatibility if character mode.
+2. **Preflight** — Phase A only checks Ollama reachability. Checkpoint
+   and external-template validation run from Phase B (see below).
 
 3. **Mode selection** — `ModeSelector` picks one of 5 modes by weighted
    random draw (configurable in `pipeline.yaml`). `--mode` CLI flag
@@ -491,11 +479,11 @@ end-to-end case. The same code paths underlie all three CLIs.
       tokenizer_id, break_marker)` — CLIP for
       sdxl/pony/illustrious, T5 for flux/chroma, word-count heuristic
       for flux2; trim from the middle, BREAK-window-aware for Pony.
-      **5-layer negative assembly** (Phase D + E): TI embeddings
+      **4-layer negative assembly** (Phase D + E): TI embeddings
       hoisted, `HARD_BLOCK_NEGATIVE` (age + multi-subject), family
       `negative_axes` (8-axis taxonomy with conflict-filter; the
       `subject_count` axis is exempt from filter_conflicts),
-      per-model `prompt.extend.negative_*`, character-level.
+      per-model `prompt.extend.negative_*`.
    f. **Sanitize** — `PromptSanitizer` enforces tier suppress / boost.
    g. **Dedup** — `PromptDeduplicator` per-model (hash + scene
       structural similarity against `generation_memory`).
@@ -516,23 +504,24 @@ end-to-end case. The same code paths underlie all three CLIs.
 
 1. **Memory preflight** — Checks ≥14 GB free via `psutil`.
 
-2. **Build style-for-workflow wrapper** — `_StyleProfileForWorkflow`
-   merges the style profile and the model YAML entry. Two-tier
-   precedence: if `--model` CLI was used, sampler/scheduler/steps/cfg
-   come from the model's YAML (Tier 1); otherwise from
-   `config/style_profiles.yaml` (Tier 2).
+2. **Template resolution** — `_resolve_template_for_render(family_id,
+   override)` returns either the user's `--templates` path or the
+   family-default from `families.yaml::<family>::default_template`.
+   The family-match validator extracts the family id from the path's
+   `templates/<family>/` segment and rejects any mismatch with the
+   prompt's family. No default + no override → `EngineError`.
 
-3. **IPAdapter staging** — For character mode when model supports it
-   and character has a reference image: copies the image to ComfyUI's
-   `input/` directory.
-
-4. **Render loop** — For each prompt:
-   - `WorkflowBuilder.build()` produces a ComfyUI-ready workflow JSON.
+3. **Render loop** — For each prompt:
+   - `WorkflowBuilder.build_external()` loads the resolved template
+     JSON and injects ONLY positive/negative prompt text, seed, and
+     resolution. Everything else (checkpoint, sampler, scheduler,
+     steps, cfg, VAE, CLIP, LoRAs, any IPAdapter chain, any
+     FaceDetailer, any upscaler) runs as authored in the template.
    - `ComfyUIClient.queue_prompt()` submits it.
    - `ComfyUIClient.wait_for_completion()` polls `/history/{prompt_id}`.
    - Up to 3 retries per image.
 
-5. **Score** — `ImageScorer.score()` evaluates each rendered image
+4. **Score** — `ImageScorer.score()` evaluates each rendered image
    across **6 signals** (Phase G): HPS v2 + ImageReward (both prompt-
    conditioned, opt-in via `scoring.use_hps_v2` /
    `use_image_reward`), LAION aesthetic, face confidence
@@ -551,18 +540,7 @@ end-to-end case. The same code paths underlie all three CLIs.
    redistribution in `_compose` keeps the composite in [0, 1]
    regardless of which signals fired.
 
-6. **Postprocess** — Optional **pure-ESRGAN upscale** (4×-UltraSharp
-   model → `ImageScaleBy(0.35)` = 1.4× source); Phase F shipped
-   templates for `sdxl`/`pony`/`illustrious` only — `flux` /
-   `chroma` / `flux2` already render natively at 1024+ and don't
-   ship templates. `Upscaler.__init__` validates template existence
-   eagerly so flipping `upscale_enabled: true` for an untemplated
-   family fails fast at construction. Optional face-refine
-   (FaceDetailer) is still gated behind an unbuilt
-   `{family}/face_detail.json` template. Both disabled by default
-   in `pipeline.yaml::postprocess`.
-
-7. **Supervised pause 2** — Contact sheet + quality stats, human review.
+5. **Supervised pause 2** — Contact sheet + quality stats, human review.
 
 ### Phase C — Package
 
@@ -589,31 +567,18 @@ end-to-end case. The same code paths underlie all three CLIs.
 
 ## 4. Generation Modes
 
-Five modes, selected by weighted random or `--mode` CLI:
+Four modes, selected by weighted random or `--mode` CLI:
 
 | Mode | Weight | Entry | Description |
 |------|--------|-------|-------------|
-| **character** | 60% | `CharacterMode` | Character-based sets. IPAdapter ON when model supports it. LRU character rotation. Cross-level scene dedup. |
-| **theme** | 20% | `ThemeMode` | Theme-driven sets from `config/categories.yaml:themes`. `subject_description` from plan leads the prompt. |
-| **niche** | 10% | `NicheMode` | SEO-driven sets from `config/categories.yaml:niches`. Top 3 keywords appended as extra_keywords. |
-| **style** | 5% | `StyleMode` | Style-driven sets from `config/categories.yaml:styles`. `style_keywords` lead the prompt. |
-| **variation** | 5% | `VariationMode` | Re-imagines scenes from a previous series. Varies pose/camera/lighting/expression axes. |
+| **theme** | 50% | `ThemeMode` | Theme-driven sets from `config/categories.yaml:themes`. `subject_description` from plan leads the prompt. |
+| **niche** | 25% | `NicheMode` | SEO-driven sets from `config/categories.yaml:niches`. Top 3 keywords appended as extra_keywords. |
+| **style** | 12.5% | `StyleMode` | Style-driven sets from `config/categories.yaml:styles`. `style_keywords` lead the prompt. |
+| **variation** | 12.5% | `VariationMode` | Re-imagines scenes from a previous series. Varies pose/camera/lighting/expression axes. |
 
 All modes extend `BaseMode` (abstract class with `plan()` and
 `generate_scenes()` methods). Each mode delegates to `SeriesPlanner`
 and `SceneGenerator` for LLM calls.
-
-### Character Mode specifics
-
-- **LRU selection**: `CharacterManager.get_least_recently_used()` picks
-  the character with the oldest `last_used_at`. NULL (never used) wins.
-  Tiebreaker: `created_at ASC`.
-- **IPAdapter**: When `ctx.supports_ipadapter` is True and the character
-  has `reference_image_path`, the render uses the `ipadapter.json`
-  workflow template instead of `base.json`. The reference image is copied
-  to ComfyUI's `input/` dir before rendering.
-- **Cross-level dedup**: For character mode, `MemoryManager.is_novel()`
-  checks across ALL content levels for the same `character_id`.
 
 ---
 
@@ -696,19 +661,18 @@ runtime reads YAML via `ModelRegistryLoader` / `FamilyLoader`.
 Flux and Chroma both use `models/unet/` + `UnetLoaderGGUF` (or
 safetensors UNET). Flux uses `ModelSamplingFlux` + `FluxGuidance` +
 standard `KSampler`; Chroma uses `ModelSamplingAuraFlow` + `CFGGuider`
-+ `SamplerCustomAdvanced`. For Flux, `default_cfg` stores
-`FluxGuidance.guidance`; `KSampler.cfg` is hardcoded to `1.0` in the
-template. Illustrious XL uses the same graph shape as SDXL
-(`CheckpointLoaderSimple` + `KSampler`), so it routes through the
-standard `WorkflowBuilder.build()` path — no dedicated builder
-method; only the `illustrious/` template directory and per-model
-YAML profile. **Flux.2 family** wiring stays in place
-(`_build_flux2`, FLUX2 schema, dedicated template) — when a new
-flux2 checkpoint is added, the registered YAML drops into
-`models/diffusion_models/`, loaded via `UNETLoader` + a single
-`CLIPLoader(type=flux2)` (Qwen3-8B text encoder); distilled models
-are warn-and-clamped to `cfg=1.0`, `steps≤6` (effectively 4),
-`sampler=euler`, `scheduler=simple` — any override melts output.
++ `SamplerCustomAdvanced`. For Flux, `KSampler.cfg` is hardcoded to
+`1.0` in the template and CFG control happens via `FluxGuidance`.
+Illustrious XL uses the same graph shape as SDXL
+(`CheckpointLoaderSimple` + `KSampler`). The pipeline does not encode
+any of these family-specific graph shapes — they're authored entirely
+inside the external template JSON the user drops into
+`templates/<family>/`. **Flux.2** templates use `UNETLoader` + a
+single `CLIPLoader(type=flux2)` (Qwen3-8B text encoder); the template
+author should clamp `cfg=1.0`, `steps≤6`, `sampler=euler`,
+`scheduler=simple` because Klein 9B is step-distilled and
+guidance-distilled — any override melts output. The pipeline does not
+clamp these; it trusts the template.
 
 ### 6 Families (`config/families.yaml`)
 
@@ -740,33 +704,12 @@ display_name: Juggernaut XL Ragnarok
 filename: juggernautXL_ragnarokBy.safetensors
 architecture: sdxl
 family: sdxl                        # → config/families.yaml
-default_sampler: dpmpp_2m_sde
-default_scheduler: karras
-default_steps: 35
-default_cfg: 4.0
-default_clip_skip: null
-supports_ipadapter: true
-supports_lora: true
 resolution_portrait: [768, 1152]
 resolution_square: [1024, 1024]
 resolution_landscape: [1152, 768]
 active: true
-
-# Optional: per-model VAE / text encoder + license metadata
-vae_filename: null                   # use checkpoint's bundled VAE
-text_encoder: null                   # use checkpoint's bundled CLIP
 license: open                        # open|cc-by|flux_ncl|...
 commercial_use: true                 # see compliance.commercial_mode gate
-
-# Optional: stacked LoRAs (max 2 enabled), validated at registry load.
-# Per-model defaults; can be replaced per-render via style profile.
-lora_stack:
-  - name: ultra_real_v4.safetensors
-    strength: 0.70
-    enabled: true
-  - name: klein_slider_anatomy.safetensors
-    strength: 2.0
-    enabled: false                   # off for SDXL; example shape only
 
 prompt:
   extend:
@@ -787,6 +730,13 @@ prompt:
 replaces them wholesale (per-axis under `negative_axes`).
 Conflicting keys (same field in both blocks) raise at load time.
 
+Workflow-tuning fields — `default_sampler`, `default_scheduler`,
+`default_steps`, `default_cfg`, `default_clip_skip`, `vae_filename`,
+`text_encoder`, `lora_stack` — are NO LONGER part of the per-model
+YAML. All of these live inside the user's external ComfyUI template
+JSON (`config/comfyui_workflows/templates/<family>/*.json`) and run
+exactly as the template author wired them.
+
 **Commercial-license gate.** When
 `pipeline.yaml::compliance.commercial_mode: true`,
 `ModelRegistryLoader` filters out any model whose YAML declares
@@ -797,16 +747,14 @@ exports from accidentally feeding through a non-commercial
 checkpoint. No NCL-licensed model is currently registered, but the
 gate remains active for future additions.
 
-### Two-Tier Sampler Precedence
+### Render tuning lives in templates
 
-When `--model` CLI is used, sampler/scheduler/steps/cfg come from the
-model YAML (the model author's recommended settings). When no
-override, they come from `config/style_profiles.yaml` (aesthetic
-tuning measured for that profile's original model).
-
-This is implemented in `_StyleProfileForWorkflow` (`engine.py`,
-`render_set.py`) — the adapter exposes `.workflow_family` (now sourced
-from the model's `family:` field) for `WorkflowBuilder`.
+Sampler / scheduler / steps / cfg / LoRA stack / VAE / CLIP are all
+baked into the external template JSON by the author. The pipeline
+loads the template and only injects positive/negative prompt text,
+seed, and resolution. The model YAML's `family:` field is used by
+the family-match validator to confirm the chosen template's
+`templates/<family>/` directory matches the prompt's family.
 
 ### Prompt Style Dispatch
 
@@ -869,7 +817,6 @@ position-weighted encoder gives them their full weight):
    are logged at WARNING.
 4. **per-model `prompt.extend.negative_axes`** / `negative_prompt`
    — additive overrides on top of the family taxonomy.
-5. **`characters.negative_prompt`** — character-level negatives.
 
 All non-TI segments are comma-split and case-insensitive deduped
 via `_keyword_dedup`. Returns empty string when
@@ -1143,8 +1090,7 @@ but the user-facing behavior is suboptimal:
 | File | What's hardcoded | Effect if missed |
 |------|------|------|
 | `src/core/aspect_ratio_buckets.py` | per-family megapixel tier map (sdxl=1MP, flux=1.5MP, etc.) | Falls through to base SDXL 1MP defaults; renders work but at wrong megapixel tier |
-| `src/postprocess/upscaler.py::_SUPPORTED_FAMILIES` | frozenset of families with `upscale.json` templates | New family silently can't use `postprocess.upscale_enabled` — `Upscaler.__init__` raises eagerly with the family name |
-| `src/render/workflow_builder.py::build()` | per-family dispatch (`_build_chroma`, `_build_flux`, `_build_flux2`) | New family without a `_build_<id>` method falls through to the standard SDXL-shaped path; works for SDXL-architecture families, breaks for novel architectures |
+| `config/families.yaml::<family>::default_template` | per-family default external template path | No default + no `--templates` → `EngineError` at render time. Set the field or pass `--templates` explicitly. |
 
 The `scene_facets.family` CHECK constraint is **NOT** on this list —
 it's regenerated from `families.yaml` at `init_db.py` time, so it
@@ -1159,7 +1105,7 @@ stays in sync automatically (cost: re-init the DB).
 ### Template Order
 
 ```
-[character.base_prompt]           ← identity (highest CLIP weight)
+[subject.base_prompt]             ← synthetic-character identity (highest CLIP weight)
 [scene.expression]
 [scene.pose]
 [scene.camera]
@@ -1172,9 +1118,11 @@ stays in sync automatically (cost: re-init the DB).
 [trigger_words]                   ← model-specific quality cues
 ```
 
-Leading tokens get heavier CLIP weighting, so character identity comes
+Leading tokens get heavier CLIP weighting, so subject identity comes
 first. Empty segments are dropped. Duplicate tokens are removed
-(case-insensitive, first occurrence kept).
+(case-insensitive, first occurrence kept). The "subject" dict is
+synthesized per-scene by `_synthetic_character_for_scene` from
+the series plan + scene fields — there is no `characters` table.
 
 ### Token-budget enforcement (Phase C)
 
@@ -1204,7 +1152,6 @@ windows of 75 tokens each; each side is budgeted independently.
 
 | Method | Used by | Lead segment |
 |--------|---------|-------------|
-| `build_character_prompt` | CharacterMode | `character.base_prompt` |
 | `build_theme_prompt` | ThemeMode | `subject_description` or `subject_detail` |
 | `build_style_prompt` | StyleMode | `style_keywords, subject_detail` |
 | `build_niche_prompt` | NicheMode | `subject_bias`, extra_keywords = top 3 SEO |
@@ -1289,8 +1236,8 @@ Three LLM agents, all using `OllamaClient` (Ollama `/api/generate`):
 
 ### SeriesPlanner (`src/agents/series_planner.py`)
 
-- **Input**: character name, base_prompt, vibe, style info, content
-  level, content rules, previous themes.
+- **Input**: vibe, style info, content level, content rules,
+  previous themes.
 - **Output**: JSON with `theme`, `mood`, `environment`, `variation_axes`.
 - **Temperature**: 0.6 (structured output).
 - **Retries**: 3 attempts if JSON parse fails or required fields missing.
@@ -1322,8 +1269,9 @@ Three LLM agents, all using `OllamaClient` (Ollama `/api/generate`):
 
 ### MetadataGenerator (`src/agents/metadata_generator.py`)
 
-- **Input**: theme, mood, environment, character name, content level,
-  image count, style keywords.
+- **Input**: theme, mood, environment, content level, image count,
+  style keywords. (The `character_name` parameter is retained as an
+  empty string on the signature for downstream-template compatibility.)
 - **Output**: JSON with `title` (≤80 chars), `description` (2-3
   sentences), `tags` (15-25 tags).
 - **Temperature**: 0.6.
@@ -1351,73 +1299,60 @@ Three LLM agents, all using `OllamaClient` (Ollama `/api/generate`):
 
 ### WorkflowBuilder (`src/render/workflow_builder.py`)
 
-Loads workflow JSON templates from `config/comfyui_workflows/{family}/`,
-caches them, and returns deep copies with per-render values injected.
+External-templates-only. Loads JSON workflows the user authors in
+ComfyUI ("Save (API Format)") and renames four nodes to the semantic
+contract IDs below. The pipeline injects ONLY prompt/negative/seed/
+resolution; everything else (checkpoint, sampler, scheduler, steps,
+cfg, VAE, CLIP, LoRAs, any IPAdapter / FaceDetailer / upscaler) runs
+as authored in the template.
 
-Templates use **semantic node IDs** (renamed from ComfyUI's numeric
-IDs):
+**Required semantic node IDs** (raise `WorkflowTemplateError` if any
+is missing):
 
-**Base template required nodes**: `load_checkpoint`, `positive_prompt`,
-`negative_prompt`, `empty_latent`, `ksampler`.
+| Node id | Required input | Typical class |
+|---------|---------------|---------------|
+| `positive_prompt` | `inputs.text` | `CLIPTextEncode` or compatible |
+| `negative_prompt` | `inputs.text` | `CLIPTextEncode` or compatible |
+| `ksampler` | `inputs.seed` | `KSampler` / `SamplerCustomAdvanced` / `ClownsharKSampler_Beta` / … |
+| `empty_latent` | `inputs.width`, `inputs.height` | `EmptyLatentImage` / `EmptySD3LatentImage` / … |
 
-**IPAdapter template adds**: `ipadapter_unified_loader`,
-`ipadapter_apply`, `load_reference_image`.
+**Optional refiner-stage IDs** — validated only when present. The
+refiner pair must be all-or-nothing: either `refiner_positive_prompt`
++ `refiner_ksampler` are both present, or neither.
 
-**Upscale template** (Phase F, sdxl/pony/illustrious only):
-`load_image`, `upscale_model_loader`, `upscale_with_model`,
-`downscale_to_target` (`ImageScaleBy(0.35)` → 1.4× source),
-`save_image`. Pure ESRGAN — no prompt encoder, no sampler,
-deterministic.
+| Node id | Required input | Notes |
+|---------|---------------|-------|
+| `refiner_positive_prompt` | `inputs.text` | SDXL-CLIP-encoded copy of base text |
+| `refiner_negative_prompt` | (none) | Template-owned; usually empty |
+| `refiner_ksampler` | `inputs.seed` | Same seed as base `ksampler` |
+| `refiner_checkpoint_loader` | (metadata-only) | Read by PNG-metadata embed |
 
-Injected values:
-- `empty_latent` → width, height, batch_size
-- `positive_prompt` → prompt text
-- `negative_prompt` → negative text (conditional — skipped if node absent)
-- `load_checkpoint` → checkpoint filename
-- `ksampler` → sampler, scheduler, steps, cfg, seed
-- LoRA loaders (`lora_loader_0`, `lora_loader_1`) → name, strength
-- IPAdapter nodes → reference image filename, weight (default 0.7)
+**Template location**: `config/comfyui_workflows/templates/<family>/X.json`.
+The directory `<family>` segment IS the family identifier — the
+family-match validator extracts it via a case-insensitive regex
+(`templates/([a-z0-9_]+)/`) and rejects any prompt whose family
+doesn't match the template's directory family.
 
-**Per-family dispatch**:
+**Per-family default**: each entry in `config/families.yaml` declares
+a `default_template:` field. Chroma's is set to
+`templates/chroma/gonzaLomo_Chroma_Refiner_v11.json`; sdxl / pony /
+illustrious / flux / flux2 default to `null` (user must pass
+`--templates` or set the field). The `FamilyLoader` validates that
+the resolved on-disk template exists at startup; missing default
+raises `FamilyLoaderError`.
 
-- `sdxl` / `pony` / `illustrious` — standard `build()` path:
-  `CheckpointLoaderSimple` + `KSampler` (Pony adds
-  `CLIPSetLastLayer` for `clip_skip=2`).
-- `flux` — `_build_flux()` — `UnetLoaderGGUF` +
-  `ModelSamplingFlux` + `FluxGuidance` + standard `KSampler`.
-- `chroma` — `_build_chroma()` — `UnetLoaderGGUF` +
-  `ModelSamplingAuraFlow` + `CFGGuider` +
-  `SamplerCustomAdvanced` + `BetaSamplingScheduler` +
-  `RandomNoise`.
-- `flux2` — `_build_flux2()` — `UNETLoader` +
-  `CLIPLoader(type=flux2, clip_name=qwen_3_8b...)` + `KSampler`.
-  **Distilled-contract clamp**: cfg forced to `1.0`, `steps≤6`
-  (warn-and-clamp to 4), `sampler=euler`, `scheduler=simple`.
-  Any override emits a WARNING — Klein 9B is step-distilled and
-  guidance-distilled and melts under standard sampler settings.
-
-**Capability guards**: IPAdapter request + `supports_ipadapter=False` →
-raises. LoRA stack + `supports_lora=False` → raises. Max 2 LoRAs.
-Upscaler request for an untemplated family (flux/chroma/flux2) →
-`Upscaler.__init__` raises eagerly (`_validate_template_path()`
-against `_SUPPORTED_FAMILIES = {sdxl, pony, illustrious}`); flipping
-`upscale_enabled: true` for a wrong family fails at construction,
-not mid-render.
-
-**External templates (`template_override` / `--template`)**: For
-user-authored or community-sourced ComfyUI workflows, callers can pass
-`template_override="templates/{family}/{name}.json"` to
-`PipelineEngine.__init__` (wired from `--template` on `run_once.py`,
-`render_set.py`, `compare_models.py`). Under this path,
-`WorkflowBuilder.build_external` is used instead of `build()`; the
-pipeline validates four semantic node IDs (`positive_prompt`,
-`negative_prompt`, `ksampler`, `empty_latent`) + their required input
-fields at preflight, and injects ONLY prompt/negative/seed/resolution
-— the template's baked-in checkpoint, VAE, CLIP, LoRAs, sampler, and
-post-processing all run as authored. IPAdapter is forced off.
-`--model` still drives Phase A prompt style but does not override the
-template's checkpoint. See `docs/COMFYUI_WORKFLOWS.md § External
-templates` for the full contract.
+**Failure modes**:
+- No override + family has `default_template: null` →
+  `EngineError: No default template set for family '<X>'. Set
+  families.yaml::<X>::default_template or pass --templates <path>.`
+- `--templates templates/<X>/Y.json` + prompt's family is `<Y>` (≠ X) →
+  `EngineError: Template '<path>' belongs to family '<X>' but prompt
+  is for family '<Y>'.`
+- Template missing one of the 4 required nodes →
+  `WorkflowTemplateError: missing required semantic node IDs: [...]`
+- Refiner-pair half-wired →
+  `WorkflowTemplateError: External template X has 'A' but is missing
+  'B'.`
 
 ### ComfyUIClient (`src/render/comfyui_client.py`)
 
@@ -1443,40 +1378,21 @@ than a generic "no images" error.
 
 ```
 config/comfyui_workflows/
-  sdxl/
-    base.json          # SDXL t2i, lora_loader_0/1 slots
-    ipadapter.json     # SDXL + IPAdapter unified loader / apply
-    upscale.json       # Phase F: pure ESRGAN 4× → 0.35 (1.4× source)
-  pony/
-    base.json          # Pony + CLIPSetLastLayer (clip_skip 2)
-    ipadapter.json     # Pony + IPAdapter
-    upscale.json       # Phase F: pure ESRGAN, prefix=upscale_pony
-  illustrious/
-    base.json          # Illustrious XL (SDXL-shaped)
-    ipadapter.json     # Illustrious + IPAdapter
-    upscale.json       # Phase F: pure ESRGAN, prefix=upscale_illustrious
-  flux/
-    base.json          # FLUX.1 GGUF + ModelSamplingFlux + FluxGuidance
-  flux2/
-    base.json          # FLUX.2 Klein 9B — UNETLoader + CLIPLoader(type=flux2)
-                       # + KSampler clamped to cfg=1, steps=4, euler+simple
-  chroma/
-    base.json          # GGUF + SamplerCustomAdvanced + BetaSampling
-  templates/           # user-provided external workflow templates
+  templates/                              # user-authored external templates
     chroma/
-      chroma_done_properly.json   # community external (--template flag)
+      gonzaLomo_Chroma_Refiner_v11.json   # chroma default_template
+      chroma_done_properly.json           # additional chroma template
+    sdxl/                                 # ship-as-needed; no default yet
+    pony/                                 # ship-as-needed; no default yet
+    illustrious/                          # ship-as-needed; no default yet
+    flux/                                 # ship-as-needed; no default yet
+    flux2/                                # ship-as-needed; no default yet
 ```
 
-13 active templates total: 9 per-family base/ipadapter + 3 upscale +
-1 external. Chroma uses a fundamentally different node graph from
-SDXL/Pony: three separate loaders (UnetLoaderGGUF for GGUF Q8_0
-UNET, CLIPLoader for T5, VAELoader), CFGGuider instead of KSampler,
-BetaSamplingScheduler, RandomNoise, and SamplerCustomAdvanced.
-WorkflowBuilder dispatches to `_build_chroma()` for the `chroma`
-family, which injects into 8 nodes instead of the SDXL/Pony pattern
-of `load_checkpoint` + `ksampler`. Requires city96's ComfyUI-GGUF
-extension. Flux.2 routes through `_build_flux2()` with the
-distilled-contract clamp described above.
+There are no built-in templates. Each family declares its default in
+`families.yaml::<family>::default_template`; chroma is the only family
+with a default currently shipped. To use a non-default template, pass
+`--templates templates/<family>/X.json` to the render CLI.
 
 ---
 
@@ -1592,75 +1508,31 @@ watermark:
   opacity: 0.3
 ```
 
-### Upscaler (`src/postprocess/upscaler.py`)
+### Post-processing in templates
 
-Pure-ESRGAN 4× upscale via ComfyUI workflow, downscaled by 0.35 to
-land at 1.4× source. Disabled by default
-(`postprocess.upscale_enabled: false`). **Phase F** shipped templates
-for `sdxl`, `pony`, and `illustrious` only — `flux`, `chroma`,
-`flux2` already render natively at 1024+ and the post-hoc upscale
-adds marginal value, so no template ships for them.
-`Upscaler.__init__` runs `_validate_template_path()` against
-`_SUPPORTED_FAMILIES = {sdxl, pony, illustrious}`; flipping the flag
-on for an untemplated family raises `UpscaleError` at construction,
-not mid-render. Each `upscale.json` requires three semantic nodes
-(`load_image`, `upscale_model_loader`, `save_image`) or
-`_load_template()` raises with a clear error. The chain is
-deterministic — `LoadImage → UpscaleModelLoader → ImageUpscaleWithModel
-→ ImageScaleBy(0.35) → SaveImage` — no prompt encoder, no sampler,
-not a denoise-based hires-fix.
-
-### FaceRefiner (`src/postprocess/face_refiner.py`)
-
-FaceDetailer re-render via ComfyUI workflow (Impact Pack node).
-Disabled by default (`postprocess.face_refine_enabled: false`).
-Requires `config/comfyui_workflows/{family}/face_detail.json`
-template (not yet built — the module exists but is gated until a
-template is authored).
+Post-render upscale + face-refine are no longer pipeline-side stages.
+Both run inside the external template JSON — the gonzaLomo Chroma
+refiner template, for example, wires an SDXL refiner stage +
+FaceDetailer downstream of the Chroma base sampler. To add either to
+a new template, the user wires it in ComfyUI and saves the workflow
+with the same 4 contract IDs (plus optional refiner-pair) at the top
+level. No `postprocess:` block in `pipeline.yaml` and no
+`Upscaler` / `FaceRefiner` Python module remain.
 
 ---
 
-## 13. Character Management
-
-`src/memory/character_manager.py` — `CharacterManager` class.
-
-Three operations:
-- `get_character(id)` — direct lookup.
-- `get_least_recently_used()` — LRU rotation. NULL `last_used_at` wins
-  (never-used character). Tiebreaker: `created_at ASC`.
-- `update_usage(id, image_count)` — increments
-  `total_images_generated`, sets `last_used_at`.
-
-Character JSON identity files live in `characters/{char_id}/`. Loaded
-into DB by `scripts/bootstrap_character.py`. Key fields:
-
-- `base_prompt` — **immutable** after creation (DB trigger enforced).
-- `negative_prompt` — character-specific negatives.
-- `reference_image_path` — for IPAdapter identity lock.
-- `locked_features` — JSON list of features that must not change.
-- `allowed_shift_axes` — JSON list of axes the LLM can vary.
-- `outfit_pool` — JSON list of outfit options.
-
----
-
-## 14. Anti-Repetition
+## 13. Anti-Repetition
 
 `src/memory/memory_manager.py` — `MemoryManager` class.
 
 Records themes, scenes, and prompts to `generation_memory` via SHA256
 content hashes. `is_novel()` checks the hash before recording.
-
-Character mode checks scenes across ALL 4 content tiers for the same
-`character_id` (subscribers see every tier; cross-tier scene reuse
-breaks the illusion of distinct content).
+Within-level prompt-hash dedup is the sole strategy.
 
 `src/prompt/deduplicator.py` — `PromptDeduplicator` class.
 
-Two strategies:
-1. **Prompt hash** — exact match via SHA256 (threshold 0.9).
-2. **Scene structural similarity** — compares environment + lighting +
-   camera. Uses `sentence-transformers` when available, falls back to
-   hash-based approach. Threshold 0.75.
+Single strategy: **prompt hash** — exact match via SHA256 against
+existing DB rows and the current batch.
 
 ---
 
@@ -1675,8 +1547,8 @@ pipeline:               # runs_per_day, output_dir, db_path,
                         #   default_model_id, default_style_profile_id
 execution:              # mode (manual|supervised|automated),
                         #   pause_after_dryrun, pause_after_filter
-mode_weights:           # character: 0.60, theme: 0.20, niche: 0.10,
-                        #   style: 0.05, variation: 0.05
+mode_weights:           # theme: 0.50, niche: 0.25, style: 0.125,
+                        #   variation: 0.125
 content_level_weights:  # T1_suggestive: 0.10, T2_implied: 0.35,
                         #   T3_artnude: 0.45, T4_explicit: 0.10
 aspect_ratio_weights:   # per tier (T1/T2/T3/T4) → {portrait_23,
@@ -1693,17 +1565,13 @@ scoring:                # use_hps_v2: false (Phase G opt-in)
                         # legacy_weights:
                         #   {aesthetic_weight: 0.40, blur_weight: 0.25,
                         #    face_weight: 0.25, resolution_weight: 0.10}
-dedup:                  # prompt_similarity_threshold: 0.9,
-                        #   scene_structural_threshold: 0.75
+dedup:                  # prompt_similarity_threshold: 0.9
 llm:                    # model, fallback_model, base_url,
                         #   unload_after_phase, keep_alive_seconds
 comfyui:                # base_url, output_dir, input_dir,
                         #   render_timeout_seconds, max_retry_per_image,
                         #   workflow_dir
 watermark:              # enabled, text, position, opacity (T1/T2 only)
-postprocess:            # upscale_enabled (Phase F: sdxl/pony/illustrious
-                        #   templates), face_refine_enabled,
-                        #   upscale_model, face_denoise
 variation_mode:         # axis_weights, multi_base.{enabled, max_bases,
                         #   min_source_quality}
 compliance:             # commercial_mode (drops NCL-licensed models at
@@ -1719,12 +1587,11 @@ Built once at the top of `run_cycle()`. Contains: `mode`,
 `model_id`, `model_config` (`ModelRegistryEntry`),
 `model_prompt_guide` (effective `ModelPromptGuide` — family +
 per-model `prompt.extend`/`override` merge), `family`
-(`FamilyConfig`), `character`, `character_id`, `db_path`.
+(`FamilyConfig`), `db_path`.
 
 Properties: `family` (the `FamilyConfig` dataclass — carries
 `prompt_style`, `supports_negative_prompt`, `supports_weighting`,
-`clip_skip`, quality prefix/suffix, negatives), `supports_ipadapter`,
-`supports_lora`.
+`clip_skip`, quality prefix/suffix, negatives).
 
 Method: `augment_system_prompt(base)` — injects family rules,
 structure hints, example prompts, and avoid-word warnings into LLM
@@ -1737,38 +1604,33 @@ system prompts.
 ```
 nsfw-pipeline/
 ├── config/
-│   ├── pipeline.yaml                      # 15-section runtime config
+│   ├── pipeline.yaml                      # runtime config
 │   ├── families.yaml                      # 6 prompt families
 │                                          #   (sdxl/pony/illustrious/flux/chroma/flux2)
-│   ├── style_profiles.yaml                # 10 aesthetic archetypes
+│   ├── llm_models.yaml                    # LLM registry (default + fallback + per-role routing)
+│   ├── style_profiles.yaml                # aesthetic archetypes
 │   ├── categories.yaml                    # themes/styles/niches + 4-tier content rules
+│   ├── prompt_vocabulary.yaml             # abstract concept-tag → family phrasing
 │   ├── ratio_signals.yaml                 # Phase A: audience/composition/family bonuses
-│   ├── models/                            # 17 per-model YAML profiles
-│   ├── comfyui_workflows/
-│   │   ├── sdxl/{base,ipadapter,upscale}.json
-│   │   ├── pony/{base,ipadapter,upscale}.json
-│   │   ├── illustrious/{base,ipadapter,upscale}.json
-│   │   ├── flux/base.json                 # FLUX.1 GGUF + ModelSamplingFlux + FluxGuidance
-│   │   ├── flux2/base.json                # Phase F: distilled-contract template
-│   │   ├── chroma/base.json               # GGUF + SamplerCustomAdvanced + BetaSampling
-│   │   └── templates/                     # external (community) templates
-│   │       └── chroma/chroma_done_properly.json
-│   └── workflow_node_maps/                # 6 semantic-rename YAMLs
-├── scripts/                               # 15 user-facing CLI scripts
-│   ├── init_db.py                         # create 10-table schema + trigger (no migrations during pre-stable)
-│   ├── regenerate_regression_fixtures.py  # Phase H: bake test fixture baseline
-│   ├── bootstrap_character.py             # load identity.json into characters
-│   ├── render_set.py                      # manual set render (hand-written scenes)
-│   ├── run_once.py                        # full single-model cycle (phase_a→_b→_c)
-│   ├── prepare_prompts.py                 # Phase 4: Phase A only — multi-model fan-out + DB persist
-│   ├── render_prompts.py                  # Phase 4: Phase B+C — DB→render per model
+│   ├── models/                            # per-model YAML profiles
+│   └── comfyui_workflows/
+│       └── templates/                     # external user-authored templates
+│           ├── chroma/                    # only family with a shipped default
+│           │   ├── gonzaLomo_Chroma_Refiner_v11.json
+│           │   └── chroma_done_properly.json
+│           ├── sdxl/                      # ship-as-needed; no default yet
+│           ├── pony/
+│           ├── illustrious/
+│           ├── flux/
+│           └── flux2/
+├── scripts/                               # user-facing CLI
+│   ├── init_db.py                         # create 9-table schema (no migrations during pre-stable)
+│   ├── regenerate_regression_fixtures.py  # bake test fixture baseline
+│   ├── run_once.py                        # full single-model cycle (phase_a → _b → _c)
+│   ├── prepare_prompts.py                 # Phase A only — multi-model fan-out + DB persist
+│   ├── render_prompts.py                  # Phase B+C — DB → render per model
 │   ├── dry_run.py                         # Phase A only (LLM, no render)
-│   ├── compare_models.py                  # side-by-side: --prompt|--character|--series-id|--scene-id
 │   ├── list_models.py                     # registry dump
-│   ├── map_reference.py                   # copy reference image to ComfyUI input
-│   ├── rename_workflow_nodes.py           # numeric → semantic node IDs
-│   ├── test_comfyui.py                    # smoke ComfyUI connection
-│   ├── test_llm.py                        # smoke Ollama connection
 │   └── test_scorer.py                     # smoke image scorer
 ├── src/
 │   ├── main.py                            # supervised/automated scheduler entry
@@ -1776,77 +1638,70 @@ nsfw-pipeline/
 │   │   ├── engine.py                      # PipelineEngine — 4 public methods:
 │   │   │                                  #   run_cycle (single-model wrapper)
 │   │   │                                  #   run_phase_a (LLM, multi-model fan-out)
-│   │   │                                  #   run_phase_b (render + score + postprocess)
+│   │   │                                  #   run_phase_b (render + score)
 │   │   │                                  #   run_phase_c (set + watermark + export + persist + log)
 │   │   ├── generation_context.py
 │   │   ├── mode_selector.py               # weighted-random mode selection
 │   │   ├── ratio_selector.py              # Phase A: 5-axis additive scoring
 │   │   ├── aspect_ratio_buckets.py        # Phase A: per-family megapixel buckets (HARDCODED — see §6 Adding a new family)
 │   │   ├── content_level.py               # 4-tier definitions
-│   │   ├── merge_overrides.py             # YAML extend/override semantics
-│   │   └── style_profile_adapter.py
+│   │   └── merge_overrides.py             # YAML extend/override semantics
 │   ├── agents/
 │   │   ├── llm_client.py                  # OllamaClient + generate_json(schema=...)
-│   │   ├── series_planner.py
-│   │   ├── scene_generator.py             # Phase 2: model-agnostic core only
-│   │   ├── scene_facet_generator.py       # Phase 2: per-(scene, family) LLM expansion
+│   │   ├── llm_router.py                  # registry-aware per-role routing
+│   │   ├── scene_generator.py             # model-agnostic scene core
+│   │   ├── scene_facet_generator.py       # per-(scene, family, llm) LLM expansion
 │   │   ├── metadata_generator.py
-│   │   ├── character_creator.py
 │   │   └── schemas.py                     # Pydantic: SeriesPlan, Scene, SceneList,
 │   │                                      #   SceneFacet{SDXL,Pony,Illustrious,FluxNatural,Flux2}
 │   ├── prompt/
 │   │   ├── builder.py                     # 5-composer dispatcher + 5-layer negative
-│   │   ├── tokenizer.py                   # Phase C: CLIP/T5/heuristic + fit_to_budget
-│   │   ├── negative_axes.py               # Phase D: 7-axis taxonomy + conflict filter
+│   │   ├── tokenizer.py                   # CLIP/T5/heuristic + fit_to_budget
+│   │   ├── negative_axes.py               # 8-axis taxonomy + conflict filter
 │   │   ├── sanitizer.py                   # 4-tier suppress/boost
-│   │   └── deduplicator.py
+│   │   ├── vocabulary.py                  # abstract concept-tag canonicalizer
+│   │   └── deduplicator.py                # prompt-hash dedup
 │   ├── render/
 │   │   ├── comfyui_client.py
-│   │   └── workflow_builder.py            # per-family dispatch incl. _build_flux2 clamp (HARDCODED dispatch — see §6 Adding a new family)
+│   │   └── workflow_builder.py            # external-templates-only loader
 │   ├── scoring/
-│   │   └── image_scorer.py                # Phase G: 6-signal composite, opt-in HPS+IR
+│   │   └── image_scorer.py                # 6-signal composite, opt-in HPS+IR
 │   ├── memory/
-│   │   ├── character_manager.py
 │   │   ├── memory_manager.py
-│   │   ├── model_registry.py              # 17-model registry + commercial gate
-│   │   ├── family_loader.py               # 6-family loader
+│   │   ├── model_registry.py              # per-model registry + commercial gate
+│   │   ├── llm_registry.py                # LLM registry loader
+│   │   ├── family_loader.py               # 6-family loader + default_template validator
 │   │   ├── style_profile_loader.py
 │   │   ├── categories_loader.py
-│   │   └── scene_facets_repo.py           # Phase 1: scene_facets CRUD (per-family LLM expansion)
+│   │   └── scene_facets_repo.py           # scene_facets CRUD
 │   ├── filter/
 │   │   ├── set_builder.py
 │   │   └── level_purity_check.py
 │   ├── modes/
 │   │   ├── base_mode.py
-│   │   ├── character_mode.py
 │   │   ├── theme_mode.py
 │   │   ├── style_mode.py
 │   │   ├── niche_mode.py
 │   │   └── variation_mode.py
 │   ├── postprocess/
-│   │   ├── watermarker.py                 # T1/T2 watermark
-│   │   ├── upscaler.py                    # Phase F: eager template validation; _SUPPORTED_FAMILIES is HARDCODED — see §6 Adding a new family
-│   │   └── face_refiner.py                # gated; needs face_detail.json template
+│   │   └── watermarker.py                 # T1/T2 watermark (the only surviving postprocess step)
 │   ├── export/
-│   │   └── exporter.py                    # output/{tier}/{series_id}/ tree
+│   │   └── exporter.py                    # output/{tier}/{series_id}/{llm_id}/{target_id}/ tree
 │   ├── review/
 │   │   ├── supervisor.py                  # supervised pause points
 │   │   └── contact_sheet.py
 │   └── analytics/
 │       └── __init__.py                    # placeholder (engagement loop pending)
-├── tests/                                 # 607 in tests/ (537 functions × parametrize; +8 smoke tests under scripts/)
-│   ├── _regression_harness.py             # Phase H: shared compute_expected
-│   ├── fixtures/regression/               # Phase H: 6 families × 3 cases
+├── tests/
+│   ├── _regression_harness.py             # shared compute_expected
+│   ├── fixtures/regression/               # 6 families × 3 cases
 │   │   └── {sdxl,pony,illustrious,flux,chroma,flux2}/
 │   │       └── case_{1..3}.{input,expected}.yaml
-│   ├── integration/
-│   │   └── test_ipadapter.py              # IPAdapter A/B diagnostic (skip-by-default; needs ComfyUI)
-│   └── test_*.py                          # 30+ test files
-├── characters/                            # identity.json + reference images
+│   └── test_*.py
 ├── models/aesthetic/                      # LAION predictor MLP weights
-├── output/                                # exported sets, comparisons, IPAdapter A/B
-├── docs/COMFYUI_WORKFLOWS.md              # workflow build walkthrough
-├── nsfw_pipeline.db                       # SQLite (10 runtime tables)
+├── output/                                # exported sets
+├── docs/COMFYUI_WORKFLOWS.md              # external-template authoring guide
+├── nsfw_pipeline.db                       # SQLite (9 runtime tables)
 ├── requirements.txt
 ├── ARCHITECTURE.md                        # this file
 ├── CLAUDE.md                              # Claude Code rules
@@ -1862,37 +1717,24 @@ These rules are enforced in code and must never be violated:
 1. **LLM and ComfyUI never run simultaneously.** `unload_model()` is
    called between Phase A and B, and after Phase C metadata generation.
 
-2. **`base_prompt` is immutable.** DB trigger prevents UPDATE. Create a
-   new character version instead.
-
-3. **Content levels never mix within a series.** `assert_level_purity()`
+2. **Content levels never mix within a series.** `assert_level_purity()`
    validates every image in a set matches the series content level.
 
-4. **Max 2 LoRAs per render.** `WorkflowBuilder` raises if
-   `len(lora_stack) > 2`.
+3. **Family-match validator gates every render.** The chosen template's
+   `templates/<family>/` directory must equal the prompt's family. The
+   regex-based extractor is case-insensitive; mismatch raises
+   `EngineError` at render time.
 
-5. **Capability guards are fatal, not silent.** IPAdapter request on a
-   model that doesn't support it → raises. LoRA stack on a model that
-   doesn't support LoRAs → raises. No silent downgrades.
-
-6. **Seeds are 32-bit unsigned integers.** `seed=None` → random,
+4. **Seeds are 32-bit unsigned integers.** `seed=None` → random,
    `seed=0` is a valid honored seed (not treated as "no seed").
 
-7. **Static config lives in YAML; the DB is runtime-mutable only.**
+5. **Static config lives in YAML; the DB is runtime-mutable only.**
    Models, families, style profiles, and categories are declarative
    YAML under `config/`. Do not add new static-only tables. Cross-refs
-   from DB → YAML (`characters.style_profile_id`, `images.model_id`)
+   from DB → YAML (`series.style_profile_id`, `images.model_id`)
    are plain TEXT columns validated at startup by the YAML loaders.
 
-8. **FLUX.2 distilled contract is clamped at workflow build.**
-   `WorkflowBuilder._build_flux2` forces `cfg=1.0`, `steps≤6`
-   (warn-and-clamp to 4), `sampler=euler`, `scheduler=simple`. Any
-   override is overwritten with a WARNING — Klein 9B is
-   step-distilled and guidance-distilled and melts under standard
-   sampler settings. This invariant lives at the workflow layer so
-   even hand-edited templates can't bypass it.
-
-9. **Commercial-licensed-only mode is a registry-load gate.** When
+6. **Commercial-licensed-only mode is a registry-load gate.** When
    `pipeline.yaml::compliance.commercial_mode: true`,
    `ModelRegistryLoader` refuses any model whose YAML declares
    `commercial_use: false` (any FLUX NCL-licensed checkpoint would
@@ -1902,11 +1744,10 @@ These rules are enforced in code and must never be violated:
    No NCL-licensed models are currently registered; the gate remains
    active for future additions.
 
-10. **One prompt per (scene, model) — DB-enforced uniqueness.**
-    `prompts.UNIQUE(scene_id, model_id)` blocks accidental
-    double-insert during the multi-model fan-out. Re-rolling on the
-    same model requires explicit
-    `prepare_prompts.py --regen-prompts <model>`, which DELETEs first
-    so the re-INSERT can land. Plain INSERT without `--regen-prompts`
-    surfaces the IntegrityError at the CLI level with a hint pointing
-    at the right command.
+7. **One prompt per (scene, target_kind, model, llm) — DB-enforced
+   uniqueness.** `prompts.UNIQUE(scene_id, target_kind, model_id,
+   llm_id)` blocks accidental double-insert during the multi-model
+   fan-out. Re-rolling requires explicit
+   `prepare_prompts.py --regen-prompts <model>` (model-kind) or
+   `--regen-family-prompts <family>` (family-kind), which DELETEs
+   first so the re-INSERT can land.

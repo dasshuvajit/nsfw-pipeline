@@ -22,7 +22,7 @@ Pre-flight:
 
 Usage:
     # Fresh series for one model (default = pipeline.default_model_id)
-    python scripts/prepare_prompts.py --mode character --level T2_implied
+    python scripts/prepare_prompts.py --mode theme --level T2_implied
 
     # Multi-model fan-out (sibling-family models share facet rows)
     python scripts/prepare_prompts.py --mode theme --level T3_artnude \\

@@ -197,10 +197,9 @@ def build_context(
 ) -> GenerationContext:
     """Construct a model-kind ``GenerationContext``.
 
-    ``model_id`` is the baseline pick — from the character row, or from
-    ``pipeline.default_model_id`` for non-character modes. ``model_override``
-    (CLI ``--model``) wins when set. Post-2026-04 the style profile no
-    longer carries a model_id; aesthetic intent and render tuning are
+    ``model_id`` is the baseline pick — from ``pipeline.default_model_id``.
+    ``model_override`` (CLI ``--models``) wins when set. The style profile
+    no longer carries a model_id; aesthetic intent and render tuning are
     decoupled.
 
     ``commercial_mode`` is threaded through from

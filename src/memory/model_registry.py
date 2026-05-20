@@ -1,15 +1,15 @@
 """Model registry — YAML-backed lookup over ``config/models/*.yaml``.
 
-Replaces the old ``model_registry`` + ``model_prompt_guides`` SQLite
-tables. YAML is the single source of truth for model config; the
-registry read path loads all files at startup, caches dataclasses, and
-serves two consumers:
+YAML is the single source of truth for model config; the registry read
+path loads all files at startup, caches dataclasses, and serves two
+consumers:
 
   1. **Style profile dereference** — ``StyleProfileLoader`` provides
-     ``model_id``; this class resolves that to the checkpoint filename,
-     family, and default sampler/cfg the WorkflowBuilder needs.
-  2. **--model CLI override** — ``render_set.py`` / ``compare_models.py``
-     look up the CLI-provided id and use its registry defaults.
+     ``model_id``; this class resolves that to the checkpoint filename
+     and family the external-template render path needs.
+  2. **--models CLI override** — ``prepare_prompts.py`` /
+     ``render_prompts.py`` look up the CLI-provided id and use its
+     registry defaults.
 
 ``get_prompt_guide(model_id)`` returns a *merged* ``ModelPromptGuide``
 — family defaults + per-model ``prompt.extend`` / ``prompt.override``
@@ -56,11 +56,10 @@ class ModelRegistryEntry:
     via ``get_family(entry.family)`` — we keep only the string here so
     per-model rows stay decoupled from family load order.
 
-    After the 2026-05-20 cleanup, this dataclass carries ONLY identity,
-    resolution, and license/metadata. Workflow-tuning fields
-    (default_sampler / scheduler / steps / cfg / clip_skip / VAE /
-    text_encoder / supports_ipadapter / supports_lora / lora_stack)
-    all moved into the user's external ComfyUI template JSONs.
+    Carries ONLY identity, resolution, and license/metadata. Workflow
+    tuning (sampler / scheduler / steps / cfg / clip_skip / LoRA stack /
+    VAE / text_encoder) lives inside the user's external ComfyUI
+    template JSON, not here.
     """
 
     id: str

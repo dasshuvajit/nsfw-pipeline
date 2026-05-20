@@ -46,8 +46,8 @@ in ``[0, 1]``).
 Three small deviations from the Section 6 snippet, all noted inline:
 
 A. ``select()`` accepts a ``GenerationContext``-like object **or** a
-   plain string ``content_level``, because the first caller
-   (``scripts/render_set.py``) doesn't yet build a real ctx.
+   plain string ``content_level``, so callers can pass either a built
+   ctx or a raw level string without an adapter step.
 
 B. The snippet's ``_check_override`` reads ``scene.get('camera','').lower()
    == 'square'`` to detect the conflict, but ``scene['camera']`` in the

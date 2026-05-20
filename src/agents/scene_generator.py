@@ -126,7 +126,7 @@ _SCHEMA_BODY = """\
   "lighting": "<specific lighting: soft diffused, dramatic side light, backlit, natural window, warm golden hour, cool blue>",
   "environment_detail": "<specific detail within the environment — vary this across scenes>",
   "mood_note": "<emotional note for this specific scene — vary this across scenes>",
-  "expression": "<facial expression cue — optional, but useful for character mode>",
+  "expression": "<facial expression cue — emotional anchor for the scene>",
   "composition_intent": "<one of: close-up, medium, full-body, wide — drives aspect-ratio selection. Pick the framing that best fits this scene's pose and storytelling intent.>",
   "framing_hint": "<one of: centered, rule-of-thirds, leading-lines — advisory composition cue (not a hard constraint).>",
   "audience_target": "<one of: deviantart, patreon, either — leave as 'either' unless this specific scene is shaped for one platform's feed.>\""""

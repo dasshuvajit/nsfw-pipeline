@@ -1,17 +1,13 @@
 """External-template ComfyUI workflow loader.
 
-After the 2026-05-20 cleanup, this module is external-templates-only —
-the prior built-in `<family>/base.json` / `ipadapter.json` / `upscale.json`
-templates + the per-family `_build_chroma` / `_build_flux` / `_build_flux2`
-constructors + the IPAdapter + LoRA staging are all gone. The pipeline
-now only loads JSON workflows the user authors in ComfyUI, exports as
-"Save (API Format)", renames 4 nodes to the contract IDs below, and
+The pipeline loads JSON workflows the user authors in ComfyUI, exports
+as "Save (API Format)", renames 4 nodes to the contract IDs below, and
 drops into ``config/comfyui_workflows/templates/<family>/``.
 
 Per-render injection is minimal: prompt text, negative prompt text,
 random seed, and resolution. Everything else (checkpoint, sampler,
-scheduler, steps, cfg, VAE, CLIP, LoRAs, IPAdapter, FaceDetailer,
-upscaling, post-processing) is baked into the template by the author.
+scheduler, steps, cfg, VAE, CLIP, LoRAs, FaceDetailer, upscaling,
+post-processing) is baked into the template by the author.
 
 Required semantic node IDs (raise WorkflowTemplateError if missing):
 

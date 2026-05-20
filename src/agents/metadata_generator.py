@@ -164,7 +164,8 @@ class MetadataGenerator:
         environment : str
             Series environment.
         character_name : str
-            Character id or name (empty for non-character modes).
+            Always empty after the 2026-05-20 character-mode removal;
+            kept on the signature for downstream-template compatibility.
         content_level : str
             One of the 4 tiers: ``T1_suggestive``, ``T2_implied``,
             ``T3_artnude``, ``T4_explicit``.

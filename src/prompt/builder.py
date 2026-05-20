@@ -758,12 +758,11 @@ class PromptBuilder:
         ]
 
     # ── mode-specific helpers ──────────────────────────────────────
-    # Verifier round-3 NIT-6 — series_plan threaded through every
-    # mode-helper so a future re-wire can't silently lose Phase 3
-    # aesthetic anchors (color_palette / photographer_ref /
-    # art_movement). Currently these helpers are unused (engine.py
-    # calls build_one directly) — kept for API completeness.
-    # `build_character_prompt` was deleted 2026-05-20 with character mode.
+    # series_plan threaded through every mode-helper so a future re-wire
+    # can't silently lose Phase 3 aesthetic anchors (color_palette /
+    # photographer_ref / art_movement). Currently these helpers are
+    # unused (engine.py calls build_one directly) — kept for API
+    # completeness.
 
     def build_theme_prompt(
         self,

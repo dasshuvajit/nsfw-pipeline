@@ -2,12 +2,12 @@
 
 A style profile is pure aesthetic intent — palette, lighting, lens
 character, mood. It does NOT encode render tuning; sampler / scheduler
-/ steps / cfg / clip_skip / lora_stack all live with the model in
-``config/models/*.yaml`` and are resolved by
-``StyleProfileForWorkflow`` from ``model.default_*``.
+/ steps / cfg / clip_skip / LoRA stack / VAE / CLIP all live inside
+the user's external ComfyUI template JSON under
+``config/comfyui_workflows/templates/<family>/``.
 
-Characters reference a profile via ``characters.style_profile_id``;
-the render path dereferences it here.
+Series reference a profile via ``series.style_profile_id`` (or via the
+``--style-profile`` CLI flag); the render path dereferences it here.
 """
 
 from __future__ import annotations
@@ -38,18 +38,14 @@ class StyleProfileNotFound(StyleProfileLoaderError):
 class StyleProfile:
     """One aesthetic archetype from ``config/style_profiles.yaml``.
 
-    Render tuning (sampler / steps / cfg / lora_stack / model_id) is
-    intentionally absent — those come from the model YAML.
+    Render tuning is intentionally absent — sampler / steps / cfg /
+    LoRA stack live inside the external template JSON.
 
-    Verifier round-3 BLOCKER fix — the 4 ``compatible_*`` lists are
-    the style-profile side of the aesthetic-menu narrowing
-    (Phase 3 vocab v6). Pre-fix this dataclass declared none of them
-    and ``from_dict`` silently dropped the YAML rows; every mode read
-    ``ctx.style_profile.get("compatible_palettes", [])`` as ``[]``
-    and the SeriesPlanner's aesthetic-menu narrowing rendered inert.
-    Now they round-trip from YAML through the loader, intersect with
-    the category/cluster compat in each mode, and reach the LLM via
-    ``_resolve_aesthetic_menu`` + ``llm_vocabulary_block``.
+    The 4 ``compatible_*`` lists are the style-profile side of the
+    aesthetic-menu narrowing (Phase 3 vocab v6): every mode reads
+    ``ctx.style_profile.get("compatible_palettes", [])`` etc, intersects
+    with the category/cluster compat, and threads the result to the
+    LLM via ``_resolve_aesthetic_menu`` + ``llm_vocabulary_block``.
     """
 
     id: str

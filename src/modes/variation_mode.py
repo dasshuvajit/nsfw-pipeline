@@ -152,9 +152,6 @@ class VariationMode(BaseMode):
                 ctx, cli_llm_override=cli_llm_override,
             )
 
-        # Note: source_mode survives for the surviving modes
-        # (theme/style/niche/variation); character mode was deleted in
-        # the 2026-05-20 cleanup.
         source_mode = base_scene.get("source_mode", "")
 
         plan = {

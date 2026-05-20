@@ -1,10 +1,7 @@
 """Prompt deduplicator — within-level prompt-hash dedup.
 
-After the 2026-05-20 cleanup (character mode deleted), this becomes a
-single-strategy dedup: prompt-hash match against existing DB rows + the
-current batch. Cross-level scene-structural similarity (the
-sentence-transformers-based path that only fired for character mode) is
-gone.
+Single-strategy dedup: prompt-hash match against existing DB rows + the
+current batch.
 
 See ARCHITECTURE.md Section 13 (Anti-Repetition).
 """

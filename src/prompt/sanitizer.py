@@ -249,11 +249,9 @@ class PromptSanitizer:
         """Sanitize every prompt dict in-place; return the same list.
 
         Mirrors the Section 5 ``PromptSanitizer.apply(prompts, ctx)`` shape.
-        We accept ``content_level`` as a plain string (rather than a full
-        ``ctx``) because the first caller —``scripts/render_set.py`` —
-        doesn't yet build a real :class:`GenerationContext`. When that
-        lands, swap to ``apply(prompts, ctx)`` and read
-        ``ctx.content_level``.
+        ``content_level`` is accepted as a plain string (rather than a full
+        ``ctx``) so callers without a built :class:`GenerationContext` can
+        pass the level directly.
 
         Each dict must have a ``prompt_text`` key; we write back the
         sanitized text and stamp ``content_level`` if provided.

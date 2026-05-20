@@ -194,9 +194,11 @@ def _load_style_profile(db_path: Path, style_profile_id: str) -> dict[str, Any]:
     except StyleProfileNotFound as exc:
         raise EngineError(str(exc)) from exc
 
-    # Post-2026-04 refactor: style profiles carry only aesthetic intent.
-    # Render tuning (sampler/scheduler/steps/cfg/clip_skip/lora_stack)
-    # now resolves from the model YAML via ModelRegistryEntry.default_*.
+    # Style profiles carry only aesthetic intent. Render tuning
+    # (sampler/scheduler/steps/cfg/clip_skip/LoRA stack/VAE/CLIP) lives
+    # entirely in the user's external ComfyUI template JSON
+    # (config/comfyui_workflows/templates/<family>/*.json) after the
+    # 2026-05-20 cleanup.
     return {
         "id": p.id,
         "name": p.name,
@@ -207,13 +209,10 @@ def _load_style_profile(db_path: Path, style_profile_id: str) -> dict[str, Any]:
         "lighting_hint": p.lighting_hint,
         "suited_tiers": list(p.suited_tiers),
         "suited_families": list(p.suited_families),
-        # Verifier round-3 BLOCKER fix — Phase 3 aesthetic-menu compat
-        # lists round-trip through this dict so every mode can read
+        # Phase 3 aesthetic-menu compat lists round-trip through this
+        # dict so every mode can read
         # ``ctx.style_profile.get("compatible_palettes", [])`` etc.
-        # Pre-fix these were silently dropped here even though the
-        # dataclass + YAML carried them, making the SeriesPlanner's
-        # menu narrowing inert. CharacterMode (which only has
-        # style_profile as a compat source) was particularly affected.
+        # The planner's menu narrowing reads these at compose time.
         "compatible_palettes": list(p.compatible_palettes),
         "compatible_photographers": list(p.compatible_photographers),
         "compatible_art_movements": list(p.compatible_art_movements),
@@ -308,10 +307,9 @@ class PipelineEngine:
             auto_approve=(self.execution_mode != "supervised" or self.dry_run)
         )
 
-        # Mode registry — 4 surviving modes after the 2026-05-20 cleanup
-        # (character mode deleted entirely). Each mode receives the
-        # LLMRouter so its plan() / generate_scenes() can resolve
-        # role → ollama_id with the override→routing→default chain.
+        # Mode registry — 4 modes. Each mode receives the LLMRouter so
+        # its plan() / generate_scenes() can resolve role → ollama_id
+        # with the override → routing → default chain.
         self._mode_registry: dict[str, BaseMode] = {
             "theme": ThemeMode(self.llm_client, self._llm_router),
             "style": StyleMode(self.llm_client, self._llm_router),
@@ -326,9 +324,8 @@ class PipelineEngine:
             comfy_cfg.get("output_dir", "~/AI/apps/ComfyUI/output")
         ).expanduser()
         # input_dir is reserved for future LoadImage-style nodes inside
-        # external templates. After the 2026-05-20 cleanup (IPAdapter +
-        # postprocess Upscaler/FaceRefiner all deleted), no current code
-        # path writes here, but the YAML key is preserved.
+        # external templates. No current code path writes here, but the
+        # YAML key is preserved.
         self.workflow_dir = _PROJECT_ROOT / comfy_cfg.get(
             "workflow_dir", "config/comfyui_workflows"
         )
@@ -572,8 +569,8 @@ class PipelineEngine:
              fan-out, optional re-target via ``series_id_existing``.
           3. ``prepare_prompts.py --families F,G`` (2026-05) →
              family-level prompt prep with no per-model overlay
-             (no trigger words / avoid words / negative embeddings /
-             lora_stack). Both kinds may coexist in one invocation.
+             (no trigger words / avoid words / negative_embeddings).
+             ``--models`` and ``--families`` are mutually exclusive.
 
         Internal flow:
           - **Preflight** (always, baseline ctx — must be model-kind).
@@ -582,7 +579,7 @@ class PipelineEngine:
             and scenes rows once.
           - **If re-target**: load series + scenes from DB; reuse
             ``series.llm_series_plan`` JSON for niche `keyword_cluster`
-            and variation `source_mode/character_id` lookups.
+            and variation `source_mode` lookups.
           - **For each target in targets** (normalized list of
             (target_kind, target_id) tuples; families first then
             models when both supplied):
@@ -684,8 +681,8 @@ class PipelineEngine:
         logger.info("=" * 60)
 
         # ── 2. Preflight (Phase A — Ollama reachability only) ──────
-        # Render-time checks (checkpoint file, workflow JSON,
-        # IPAdapter) run from run_phase_b instead — Phase A is purely
+        # Render-time checks (checkpoint file + external template
+        # validation) run from run_phase_b instead — Phase A is purely
         # LLM and doesn't touch ComfyUI files.
         self._preflight_phase_a(ctx)
 
@@ -1116,10 +1113,9 @@ class PipelineEngine:
         prompts), rebuilds the GenerationContext for the **render
         checkpoint** (which is ``render_model_id`` in family-kind, or
         ``model_id`` in model-kind), recomputes per-target-model
-        resolution at render time, stages IPAdapter where applicable,
-        runs the render loop with retries, scores, postprocesses, and
-        (in supervised mode) prompts the operator for image-level
-        review.
+        resolution at render time, runs the render loop with retries,
+        scores, and (in supervised mode) prompts the operator for
+        image-level review.
 
         Returns ``(rendered_images, ctx_state)``. ``ctx_state`` carries
         everything :meth:`run_phase_c` needs (``series_plan, scenes,
@@ -1252,7 +1248,7 @@ class PipelineEngine:
         self._memory_preflight(min_free_gb=14.0)
         self._update_series_status(series_id, "rendering")
 
-        # ── 5. Resolve mode (dispatch for IPAdapter staging) ────────
+        # ── 5. Resolve mode object (used for run_log labeling) ──────
         mode = self._mode_registry.get(mode_name)
         if mode is None:
             raise EngineError(
@@ -1280,11 +1276,9 @@ class PipelineEngine:
                 scene["resolution_w"] = res[0]
                 scene["resolution_h"] = res[1]
 
-        # StyleProfileForWorkflow + IPAdapter staging removed in the
-        # 2026-05-20 cleanup. External templates carry their own sampler
-        # / scheduler / steps / cfg / VAE / CLIP / LoRA / IPAdapter
-        # wiring; the pipeline only injects positive/negative prompt
-        # text + seed + resolution.
+        # External templates carry their own sampler / scheduler / steps
+        # / cfg / VAE / CLIP / LoRA wiring; the pipeline only injects
+        # positive/negative prompt text + seed + resolution.
 
         # ── 9. Render loop ──────────────────────────────────────────
         wf_builder = WorkflowBuilder(self.workflow_dir)
@@ -1410,11 +1404,9 @@ class PipelineEngine:
                 # metadata chunks so the file carries its own
                 # reproduction parameters even if disconnected from
                 # the SQLite DB.
-                # After the 2026-05-20 cleanup, sampler/scheduler/steps/
-                # cfg live ONLY in the external-template JSON (model
-                # YAMLs no longer carry default_sampler etc.). Defensive
-                # `.get()` chain — missing keys produce a degraded
-                # A1111 string but do not block the render.
+                # Sampler/scheduler/steps/cfg live in the external-template
+                # JSON; defensive `.get()` chain so missing keys produce a
+                # degraded A1111 string but do not block the render.
                 ks_inputs = workflow.get("ksampler", {}).get("inputs", {}) or {}
                 self._embed_png_metadata(
                     dst_path,
@@ -1505,11 +1497,10 @@ class PipelineEngine:
                 img["image_reward_score"] = None
                 img["quality_flags"] = ["scorer_error"]
 
-        # Postprocess subsystem (Upscaler + FaceRefiner) deleted in the
-        # 2026-05-20 cleanup. Post-processing (upscale, face-detailer)
-        # goes inside external templates from now on — see
-        # gonzaLomo_Chroma_Refiner_v11.json for an example that wires
-        # an SDXL refiner stage + FaceDetailer after the Chroma base.
+        # Post-processing (upscale, face-detailer) lives inside the
+        # external-template JSON — see gonzaLomo_Chroma_Refiner_v11.json
+        # for an example that wires an SDXL refiner stage + FaceDetailer
+        # after the Chroma base.
 
         # ── 12. Supervised pause 2 (image review) ───────────────────
         if ctx.execution_mode == "supervised":
@@ -1581,8 +1572,8 @@ class PipelineEngine:
             through from Phase A in memory.
         ctx
             The baseline GenerationContext for this run. Used for
-            character_id (LRU update), supports_negative_prompt, and
-            family.llm_temperature (metadata generation tuning).
+            supports_negative_prompt + family.llm_temperature (metadata
+            generation tuning).
         style_profile, style_profile_id
             Aesthetic + identity for the export manifest.
         elapsed_seconds : float | None
@@ -1636,7 +1627,7 @@ class PipelineEngine:
                 theme=series_plan.get("theme", ""),
                 mood=series_plan.get("mood", ""),
                 environment=series_plan.get("environment", ""),
-                character_name="",  # character mode removed 2026-05-20
+                character_name="",
                 content_level=content_level,
                 image_count=len(selected),
                 style_keywords=style_profile.get("base_style_keywords", ""),
@@ -1720,8 +1711,8 @@ class PipelineEngine:
         """Phase A (LLM planning) preflight — Ollama reachability only.
 
         Phase A produces prompts in the DB; nothing renders here. The
-        checkpoint file, workflow JSON, and IPAdapter capability are
-        all render-time concerns and live in :meth:`_preflight_phase_b`.
+        checkpoint file + external template validation are all
+        render-time concerns and live in :meth:`_preflight_phase_b`.
         Pre-2026-05-06 these were bundled into a single ``_preflight``
         called from Phase A — which broke ``prepare_prompts --families
         <f>`` (the family-mode baseline ctx picks an arbitrary family
@@ -2216,8 +2207,8 @@ class PipelineEngine:
 
         Returns ``(series_plan_dict, scenes_list)``. The series_plan
         is parsed from ``series.llm_series_plan`` JSON — carries niche
-        ``keyword_cluster`` and variation ``source_mode/character_id``
-        that downstream PromptBuilder + IPAdapter staging may need.
+        ``keyword_cluster`` and variation ``source_mode`` that downstream
+        PromptBuilder may need.
 
         Raises
         ------
@@ -2254,8 +2245,7 @@ class PipelineEngine:
     ) -> dict[str, Any]:
         """Build the synthetic character dict the PromptBuilder needs.
 
-        After the 2026-05-20 cleanup (character mode deleted), every
-        surviving mode (theme/style/niche/variation) produces a
+        Every surviving mode (theme/style/niche/variation) produces a
         synthetic character context from the series plan + scene fields.
         Per-scene `subject_detail` overrides the series-level
         `subject_description` / `subject_bias` when present.
