@@ -121,6 +121,9 @@ _T3_REQUIRED_TAGS_JSON = (
     ', "environment_setting": "ENV_MORNING_BEDROOM"'
     ', "environment_atmosphere": "ATM_DUST_MOTES_IN_LIGHT"'
     ', "nsfw_anatomy": "NSFW_BREAST_NATURAL"'
+    # Round-12: realism_camera + realism_lens promoted to required at T3+.
+    ', "realism_camera": "CAMERA_SONY_A7RV"'
+    ', "realism_lens": "LENS_85MM_F14"'
 )
 
 _T4_REQUIRED_TAGS_JSON = (
@@ -619,3 +622,160 @@ def test_t1_t2_boost_keywords_still_present():
     t2 = loader.content_level_rules("T2_implied")
     assert len(t1.prompt_boost_keywords) > 0, "T1 should keep boost keywords"
     assert len(t2.prompt_boost_keywords) > 0, "T2 should keep boost keywords"
+
+
+# ── Round-12: realism_camera + realism_lens required at T3+ ─────────
+
+
+def test_t3_requires_realism_camera_and_lens():
+    """Round-12 (2026-05-21) fix — the 2026-05-20 A/B run showed both
+    Cydonia and Qwen3 nulling realism_camera/lens on 23+/24 facets
+    despite the family few-shot exemplars. Promoting these to
+    tier-required at T3+ lets the retry-nudge fire on misses."""
+    from src.agents.scene_facet_generator import _TIER_REQUIRED_FIELDS
+    assert "realism_camera" in _TIER_REQUIRED_FIELDS["T3_artnude"]
+    assert "realism_lens" in _TIER_REQUIRED_FIELDS["T3_artnude"]
+    assert "realism_camera" in _TIER_REQUIRED_FIELDS["T4_explicit"]
+    assert "realism_lens" in _TIER_REQUIRED_FIELDS["T4_explicit"]
+
+
+def test_t1_t2_do_not_require_realism_camera_lens():
+    """T1/T2 stay realism-flexible — those tiers don't necessarily
+    need a specific camera body / lens spec (soft pose work doesn't
+    always benefit from a baked-in 85mm portrait look)."""
+    from src.agents.scene_facet_generator import _TIER_REQUIRED_FIELDS
+    assert "realism_camera" not in _TIER_REQUIRED_FIELDS["T1_suggestive"]
+    assert "realism_lens" not in _TIER_REQUIRED_FIELDS["T1_suggestive"]
+    assert "realism_camera" not in _TIER_REQUIRED_FIELDS["T2_implied"]
+    assert "realism_lens" not in _TIER_REQUIRED_FIELDS["T2_implied"]
+
+
+def test_pony_schema_skips_realism_camera_lens_promotion():
+    """Pony schema omits realism_camera / realism_lens entirely —
+    booru tagging carries those implicitly via source_photograph +
+    tag patterns. The strict-schema factory must auto-skip fields
+    not declared on the base class."""
+    from src.agents.scene_facet_generator import _make_tier_strict_schema
+    from src.agents.schemas import SceneFacetPony
+    strict = _make_tier_strict_schema(
+        SceneFacetPony, "T3_artnude", is_booru_native=True,
+    )
+    # realism_camera / realism_lens absent from SceneFacetPony →
+    # not promoted; the strict schema doesn't grow these fields.
+    assert "realism_camera" not in strict.model_fields
+    assert "realism_lens" not in strict.model_fields
+
+
+def test_field_example_tags_cover_realism_camera_lens():
+    """Retry-nudge inlines example tags per missing required field.
+    Round-12 — realism_camera / realism_lens need entries so the
+    retry attempt carries concrete CAMERA_/LENS_ examples."""
+    from src.agents.scene_facet_generator import _FIELD_EXAMPLE_TAGS
+    assert "realism_camera" in _FIELD_EXAMPLE_TAGS
+    assert "realism_lens" in _FIELD_EXAMPLE_TAGS
+    assert any(
+        ex.startswith("CAMERA_")
+        for ex in _FIELD_EXAMPLE_TAGS["realism_camera"]
+    )
+    assert any(
+        ex.startswith("LENS_")
+        for ex in _FIELD_EXAMPLE_TAGS["realism_lens"]
+    )
+
+
+# ── Round-12: tag-frequency dominance tracker ──────────────────────
+
+
+def test_diversity_tracker_silent_before_min_facets():
+    """Less than 4 facets recorded → tracker stays silent regardless
+    of how dominant a tag is. Avoids false-positive nudges on tiny
+    series."""
+    from src.agents.scene_facet_generator import _DiversityTracker
+    t = _DiversityTracker()
+    for _ in range(3):
+        t.record({"lighting_directive": "LIGHT_WINDOW_SIDE"})
+    assert t.overused_summary() == ""
+
+
+def test_diversity_tracker_fires_nudge_at_dominance_threshold():
+    """50%+ of facets-so-far use the same tag for a tracked axis →
+    nudge text mentions the axis + tag + count."""
+    from src.agents.scene_facet_generator import _DiversityTracker
+    t = _DiversityTracker()
+    # 4 facets all locked to one lighting tag — 4/4 = 100% dominance,
+    # well above the 50% threshold.
+    for _ in range(4):
+        t.record({"lighting_directive": "LIGHT_WINDOW_SIDE"})
+    nudge = t.overused_summary()
+    assert "lighting_directive" in nudge
+    assert "LIGHT_WINDOW_SIDE" in nudge
+    assert "4/4" in nudge
+    assert "Diversity nudge" in nudge
+
+
+def test_diversity_tracker_silent_under_dominance_threshold():
+    """A balanced spread keeps every tag under 50% → no nudge fires."""
+    from src.agents.scene_facet_generator import _DiversityTracker
+    t = _DiversityTracker()
+    # 4 facets, 4 different lighting tags (each 1/4 = 25%, under 50%).
+    for tag in (
+        "LIGHT_WINDOW_SIDE", "LIGHT_GOLDEN_HOUR",
+        "LIGHT_RIM_BACK", "LIGHT_REMBRANDT",
+    ):
+        t.record({"lighting_directive": tag})
+    assert t.overused_summary() == ""
+
+
+def test_diversity_tracker_handles_multiple_overused_axes():
+    """When two axes both hit dominance, both appear in the nudge."""
+    from src.agents.scene_facet_generator import _DiversityTracker
+    t = _DiversityTracker()
+    for _ in range(5):
+        t.record({
+            "lighting_directive": "LIGHT_WINDOW_SIDE",
+            "mood_aesthetic": "MOOD_PENSIVE",
+            # nsfw_anatomy varies → won't trigger.
+            "nsfw_anatomy": "NSFW_FULL_NUDE",
+        })
+    for _ in range(2):
+        t.record({"nsfw_anatomy": "NSFW_BREAST_NATURAL"})
+    nudge = t.overused_summary()
+    assert "lighting_directive" in nudge
+    assert "mood_aesthetic" in nudge
+    # 5/7 NSFW_FULL_NUDE = 71% > 50% → also in nudge.
+    assert "nsfw_anatomy" in nudge
+
+
+def test_diversity_tracker_ignores_null_and_empty_tags():
+    """``None`` / empty string values shouldn't count toward dominance
+    — otherwise an LLM that nulls a field 4 times gets a nudge about
+    the null."""
+    from src.agents.scene_facet_generator import _DiversityTracker
+    t = _DiversityTracker()
+    for _ in range(5):
+        t.record({"lighting_directive": None})
+        t.record({"lighting_directive": ""})
+    # Both null and empty ignored → tracker is empty → no nudge.
+    assert t.overused_summary() == ""
+
+
+def test_diversity_tracker_records_each_axis_independently():
+    """Each tracked axis has its own counter; cross-axis pollution
+    should not happen."""
+    from src.agents.scene_facet_generator import _DiversityTracker
+    t = _DiversityTracker()
+    # Lighting locks; mood varies.
+    for tag in (
+        "MOOD_SERENE", "MOOD_PENSIVE", "MOOD_CONFIDENT",
+        "MOOD_INTIMATE", "MOOD_PLAYFUL",
+    ):
+        t.record({
+            "lighting_directive": "LIGHT_WINDOW_SIDE",
+            "mood_aesthetic": tag,
+        })
+    nudge = t.overused_summary()
+    # Lighting hit dominance.
+    assert "LIGHT_WINDOW_SIDE" in nudge
+    # Mood didn't (5 tags × 1 = each 20%, well under 50%).
+    for mood in ("MOOD_SERENE", "MOOD_PENSIVE", "MOOD_PLAYFUL"):
+        assert mood not in nudge

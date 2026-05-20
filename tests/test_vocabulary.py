@@ -1099,3 +1099,84 @@ def test_vocab_block_falls_back_when_compat_intersection_empty(loader):
     # The full env menu still appears
     assert "ENV_VICTORIAN_CONSERVATORY" in block
     assert "ENV_BRUTALIST_CONCRETE_LOFT" in block
+
+
+# ── Round-12: compatible_narratives narrowing ──────────────────────
+
+
+def test_vocab_block_narrows_narrative_moment_to_whitelist(loader):
+    """Round-12 (2026-05-21) — same pattern as environment narrowing,
+    applied to narrative.moment. The 2026-05-20 A/B run showed both
+    Cydonia + Qwen3 picking narrative tags that visually contradict
+    the theme (NARR_AFTER_THE_PARTY in chapel scene, NARR_STEPPING_FROM_BATH
+    in industrial loft). Narrowing by category cuts the menu to
+    theme-coherent options."""
+    whitelist = ["NARR_READING_LETTER_AT_DAWN", "NARR_LEANING_DOORWAY"]
+    block = llm_vocabulary_block(
+        "sdxl", content_level="T3_artnude", loader=loader,
+        compatible_narratives=whitelist,
+    )
+    for tag in whitelist:
+        assert tag in block
+    narr_line = next(
+        line for line in block.splitlines()
+        if line.strip().startswith("narrative.moment:")
+    )
+    assert "NARR_READING_LETTER_AT_DAWN" in narr_line
+    assert "NARR_LEANING_DOORWAY" in narr_line
+    # A non-whitelisted narrative tag is filtered out
+    assert "NARR_AFTER_THE_PARTY" not in narr_line
+
+
+def test_vocab_block_no_compat_narratives_shows_full_narrative_menu(loader):
+    """No `compatible_narratives` (None or empty) → full vocab menu."""
+    block_none = llm_vocabulary_block(
+        "sdxl", content_level="T3_artnude", loader=loader,
+        compatible_narratives=None,
+    )
+    block_empty = llm_vocabulary_block(
+        "sdxl", content_level="T3_artnude", loader=loader,
+        compatible_narratives=[],
+    )
+    # Multiple narrative tags survive in both unfiltered renderings
+    assert "NARR_AFTER_THE_PARTY" in block_none
+    assert "NARR_AFTER_THE_PARTY" in block_empty
+    assert "NARR_STEPPING_FROM_BATH" in block_none
+    assert "NARR_STEPPING_FROM_BATH" in block_empty
+
+
+def test_vocab_block_falls_back_when_narrative_intersection_empty(loader):
+    """If every whitelist tag is absent from the family menu, fall
+    back to the full menu — same defensive behaviour as for environments."""
+    block = llm_vocabulary_block(
+        "sdxl", content_level="T3_artnude", loader=loader,
+        compatible_narratives=["NARR_FAKE_X", "NARR_NONEXISTENT_Y"],
+    )
+    # Full narrative menu still appears
+    assert "NARR_READING_LETTER_AT_DAWN" in block
+    assert "NARR_AFTER_THE_PARTY" in block
+
+
+def test_vocab_block_environment_and_narrative_narrow_independently(loader):
+    """Both narrowing axes can apply at the same time without
+    interfering — environment whitelist narrows env.setting and
+    narrative whitelist narrows narrative.moment."""
+    block = llm_vocabulary_block(
+        "sdxl", content_level="T3_artnude", loader=loader,
+        compatible_environments=["ENV_TUSCAN_VILLA_RENAISSANCE"],
+        compatible_narratives=["NARR_READING_LETTER_AT_DAWN"],
+    )
+    env_line = next(
+        line for line in block.splitlines()
+        if line.strip().startswith("environment.setting:")
+    )
+    narr_line = next(
+        line for line in block.splitlines()
+        if line.strip().startswith("narrative.moment:")
+    )
+    # Env narrowed
+    assert "ENV_TUSCAN_VILLA_RENAISSANCE" in env_line
+    assert "ENV_BRUTALIST_CONCRETE_LOFT" not in env_line
+    # Narrative narrowed
+    assert "NARR_READING_LETTER_AT_DAWN" in narr_line
+    assert "NARR_AFTER_THE_PARTY" not in narr_line

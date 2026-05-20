@@ -40,6 +40,7 @@ from src.agents.metadata_generator import MetadataGenerator
 from src.agents.scene_facet_generator import (
     SceneFacetGenerator,
     SceneFacetGeneratorError,
+    _DiversityTracker,
 )
 from src.core.content_level import ContentLevelLoader
 from src.core.generation_context import (
@@ -852,6 +853,14 @@ class PipelineEngine:
                 extra_keywords = mode_obj.get_prompt_keywords(series_plan)
 
             prompts_for_target: list[dict[str, Any]] = []
+            # Round-12 (2026-05-21) — per-(target, family, llm) diversity
+            # tracker. Counts each axis's tag picks as facets are emitted;
+            # SceneFacetGenerator queries it before each scene to inject
+            # an "avoid over-used tags" nudge once any axis crosses the
+            # 50% dominance threshold (after 4 facets). Re-target paths
+            # (existing-series facets loaded from DB) feed those facets
+            # in too so the nudge accounts for prior LLM picks.
+            diversity_tracker = _DiversityTracker()
             for scene in scenes:
                 scene_id = scene["id"]
 
@@ -888,6 +897,17 @@ class PipelineEngine:
                                 series_plan.get("compatible_environments")
                                 or None
                             ),
+                            # Round-12 (2026-05-21) — narrow the narrative
+                            # menu by category. Mirrors compatible_environments;
+                            # the planner mode intersects category's
+                            # compatible_narratives with style_profile's
+                            # equivalent (when present) and surfaces the
+                            # result on series_plan.
+                            compatible_narratives=(
+                                series_plan.get("compatible_narratives")
+                                or None
+                            ),
+                            diversity_tracker=diversity_tracker,
                         )
                         # Persist (Flux2 QA fields auto-dropped by repo).
                         insert_facet(
@@ -905,6 +925,13 @@ class PipelineEngine:
                             "assembly", scene_id, family.id, exc,
                         )
                         facet = {}
+
+                # Round-12 diversity tracker — record this scene's
+                # picked tags (either freshly generated or loaded from
+                # DB on a regen / re-target). Empty facet from the
+                # SceneFacetGeneratorError fallback contributes nothing.
+                if facet:
+                    diversity_tracker.record(facet)
 
                 # Step 2: merge facet into scene dict for the composer.
                 scene_with_facet = {**scene, **facet}

@@ -87,12 +87,27 @@ _TIER_REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
     # added at T3+ so the validator's retry-nudge forces the LLM to
     # pick a location + atmospheric element per scene (the chief
     # leverage point against "all 24 scenes look like the same room").
+    # Round-12 (2026-05-21) — added realism_camera + realism_lens.
+    # The 2026-05-20 Cydonia + Qwen3 A/B audit showed 23/25 (Cydonia)
+    # and 24/24 (Qwen3) facets emitting NULL realism camera/lens
+    # despite the family few-shot exemplars demonstrating CAMERA_SONY_A7RV +
+    # LENS_85MM_F14. The retry-nudge already lifts narrative_moment to
+    # high land-rate; promoting camera + lens to tier-required at T3+
+    # gives the same nudge treatment to the realism axis, restoring
+    # per-scene camera-lens variation that the auto-appended chroma
+    # realism_tail can't substitute for. Pony's schema omits these
+    # fields entirely so ``_make_tier_strict_schema`` auto-skips them
+    # for Pony. realism_film_stock + environment_prop stay [OPTIONAL]
+    # — promoting more fields multiplies the retry rate exponentially
+    # and these two are lower-leverage than camera + lens.
     "T3_artnude":    (
         "lighting_directive", "mood_aesthetic", "nsfw_anatomy",
+        "realism_camera", "realism_lens",
         "environment_setting", "environment_atmosphere", "narrative_moment",
     ),
     "T4_explicit":   (
         "lighting_directive", "mood_aesthetic", "nsfw_anatomy", "nsfw_act",
+        "realism_camera", "realism_lens",
         "environment_setting", "environment_atmosphere", "narrative_moment",
     ),
 }
@@ -157,6 +172,16 @@ _FIELD_EXAMPLE_TAGS: dict[str, tuple[str, ...]] = {
     "narrative_moment": (
         "NARR_READING_LETTER_AT_DAWN", "NARR_STEPPING_FROM_BATH",
         "NARR_DRESSING_FOR_EVENING",
+    ),
+    # Round-12 (2026-05-21) — realism camera/lens retry-nudge anchors.
+    # Picked from the 2026-05-20 A/B run's family few-shot exemplars
+    # (Chroma's `expected_facet` block in families.yaml). Per verifier
+    # I3 cap inlined examples at 3 per field.
+    "realism_camera": (
+        "CAMERA_SONY_A7RV", "CAMERA_LEICA_M11", "CAMERA_HASSELBLAD_X2D",
+    ),
+    "realism_lens": (
+        "LENS_85MM_F14", "LENS_50MM_F18", "LENS_135MM_F2",
     ),
 }
 
@@ -692,7 +717,7 @@ At the active tier, the following structured-tag fields are NON-NEGOTIABLE
 and MUST receive a concrete concept tag from the vocabulary menu in the
 system prompt — null / empty / omitted values trigger an automatic retry:
 {tier_required_list}
-
+{diversity_nudge}
 The scene's locked core fields:
 {scene_core_json}
 
@@ -715,6 +740,105 @@ Return ONLY the JSON object — no array wrapper, no markdown, no prose
 preamble (do NOT begin with "Sure," / "Here's the JSON" / etc.). The
 FIRST character of your response MUST be `{{`."""
 # fmt: on
+
+
+# ── Round-12 (2026-05-21): per-series tag-frequency dominance cap ────
+
+
+# Diversity axes the engine tracks per series. When one tag exceeds
+# ``_DIVERSITY_DOMINANCE_THRESHOLD`` of facets-so-far, the next scene's
+# user prompt gets a nudge listing the overused tags + the alternative
+# vocab choices. The 2026-05-20 A/B run showed both Cydonia and Qwen3
+# locking onto one tag per axis (Cydonia: 18/25 MOOD_PENSIVE;
+# Qwen3: 24/24 LIGHT_WINDOW_SIDE / 14/24 NARR_STEPPING_FROM_BATH).
+_DIVERSITY_TRACKED_AXES: tuple[str, ...] = (
+    "lighting_directive",
+    "mood_aesthetic",
+    "nsfw_anatomy",
+    "environment_setting",
+    "environment_atmosphere",
+    "narrative_moment",
+    "realism_camera",
+    "realism_lens",
+)
+
+# Fire the nudge when one tag is at or above this fraction of
+# facets-so-far. 0.5 = "more than half the series already used this tag".
+# Lower threshold → more nudges → more model retries; tuned at 0.5 from
+# the A/B audit's observed peak dominance ratios (24/24, 18/25, 14/24).
+_DIVERSITY_DOMINANCE_THRESHOLD: float = 0.5
+
+# Don't nudge until at least this many facets have been emitted —
+# a 1-of-2 series shouldn't fire the nudge after the first facet.
+_DIVERSITY_MIN_FACETS_BEFORE_NUDGE: int = 4
+
+
+class _DiversityTracker:
+    """Per-series running tag-frequency tracker for the structured-tag
+    axes the LLM picks at facet time.
+
+    The engine constructs one of these per ``(series, family, llm)``
+    target loop, calls :meth:`record` after each successful facet, and
+    asks :meth:`overused_summary` BEFORE the next facet to surface any
+    axis whose dominant tag has crossed the dominance threshold.
+    """
+
+    __slots__ = ("_counts", "_total")
+
+    def __init__(self) -> None:
+        # Per-axis Counter — {axis_name: {tag: count}}
+        self._counts: dict[str, dict[str, int]] = {
+            axis: {} for axis in _DIVERSITY_TRACKED_AXES
+        }
+        # Total facets recorded so far (denominator for the ratio check).
+        self._total: int = 0
+
+    def record(self, facet: dict[str, Any]) -> None:
+        """Increment counters for whatever tags this facet picked. Tags
+        not on the tracked-axes list are ignored. ``None`` / empty
+        values are ignored so they don't dominate the count."""
+        self._total += 1
+        for axis in _DIVERSITY_TRACKED_AXES:
+            val = facet.get(axis)
+            if not val:
+                continue
+            tag = str(val).strip()
+            if not tag:
+                continue
+            self._counts[axis][tag] = self._counts[axis].get(tag, 0) + 1
+
+    def overused_summary(self) -> str:
+        """Return a multi-line nudge string for the LLM, or ``""``
+        when no axis has crossed the dominance threshold.
+
+        Format::
+
+            Diversity nudge — pick something DIFFERENT this scene; these
+            tags are already over-represented:
+              - lighting_directive: LIGHT_WINDOW_SIDE used 12/22 scenes (54%)
+              - mood_aesthetic: MOOD_PENSIVE used 14/22 scenes (63%)
+        """
+        if self._total < _DIVERSITY_MIN_FACETS_BEFORE_NUDGE:
+            return ""
+        lines: list[str] = []
+        for axis in _DIVERSITY_TRACKED_AXES:
+            counts = self._counts[axis]
+            if not counts:
+                continue
+            top_tag, top_count = max(counts.items(), key=lambda kv: kv[1])
+            ratio = top_count / self._total
+            if ratio >= _DIVERSITY_DOMINANCE_THRESHOLD:
+                lines.append(
+                    f"  - {axis}: {top_tag} used "
+                    f"{top_count}/{self._total} scenes ({int(ratio * 100)}%)"
+                )
+        if not lines:
+            return ""
+        header = (
+            "\nDiversity nudge — pick something DIFFERENT this scene; "
+            "these tags are already over-represented across the series:"
+        )
+        return header + "\n" + "\n".join(lines) + "\n"
 
 
 # Phase 1+2+3+4 (vocab v6) — structured enum-tag fields shown to the
@@ -764,11 +888,11 @@ _STRUCTURED_TAG_BODY_NON_PONY = """\
   "environment_atmosphere": "[REQUIRED — T3+] One ATM_* concept tag for atmospheric element (ATM_DUST_MOTES_IN_LIGHT, ATM_BREEZE_IN_CURTAIN, ATM_STEAM_FROM_BATH, ATM_RAIN_ON_GLASS, ATM_VOLUMETRIC_GOLDEN, etc.).",
   "nsfw_anatomy": "[REQUIRED — T3+] One NSFW_ANATOMY_* concept tag (NSFW_FULL_NUDE, NSFW_BREAST_NATURAL, NSFW_NIPPLES_VISIBLE, NSFW_VULVA_VISIBLE, etc.). At T1/T2 emit null.",
   "nsfw_act": "[REQUIRED — T4 only] One NSFW_ACT_* concept tag — SOLO acts only (NSFW_T4_SOLO_TOUCH, NSFW_T4_SOLO_DISPLAY, NSFW_T4_SOLO_BATH, NSFW_T4_SOLO_RECLINING, etc.). At T1/T2/T3 emit null. Partnered tags are filtered.",
+  "realism_camera": "[REQUIRED — T3+] One CAMERA_* concept tag for specific camera body (CAMERA_SONY_A7RV, CAMERA_HASSELBLAD_X2D, CAMERA_LEICA_M11, CAMERA_CANON_R5, etc.). Per-scene variety is desirable — do not lock to one camera across the series.",
+  "realism_lens": "[REQUIRED — T3+] One LENS_* concept tag for lens spec (LENS_85MM_F14, LENS_50MM_F18, LENS_35MM_F2, LENS_135MM_F2, LENS_24MM_F14, etc.). Match the lens to the shot — wide for environment, long for portrait compression.",
   "nsfw_posture": "[OPTIONAL] One NSFW_POSTURE_* concept tag if the pose calls for it (T3+ only — null at T1/T2).",
   "environment_prop": "[OPTIONAL] One PROP_* concept tag for furniture/object anchor (PROP_CHAISE_LOUNGE_VELVET, PROP_HANDWRITTEN_LETTER, PROP_VELVET_CURTAIN_HEAVY, PROP_FOUR_POSTER_BED, etc.).",
   "composition_principle": "[OPTIONAL] One COMP_* concept tag for higher-order composition (COMP_LEADING_LINES_FLOOR, COMP_NEGATIVE_SPACE_DOMINANT, COMP_SYMMETRY_CENTERED, COMP_LOW_HERO_SHOT, etc.).",
-  "realism_camera": "[OPTIONAL] One CAMERA_* concept tag for specific camera body (CAMERA_SONY_A7RV, CAMERA_HASSELBLAD_X2D, CAMERA_LEICA_M11, etc.).",
-  "realism_lens": "[OPTIONAL] One LENS_* concept tag for lens spec (LENS_85MM_F14, LENS_50MM_F18, LENS_35MM_F2, etc.).",
   "realism_film_stock": "[OPTIONAL] One FILM_* concept tag for film-stock emulation (FILM_PORTRA_400, FILM_CINESTILL_800T, FILM_TRIX_400, etc.).",
   "art_style_reference": "[OPTIONAL] One ART_STYLE_* concept tag for a named photographer reference. The composer translates this into family-shaped phrasing — do NOT write photographer names into scene_prose (the sanitizer strips celebrity-likeness leaks).",
   "realism_angle": "[OPTIONAL] One ANGLE_* concept tag for camera angle.",
@@ -934,6 +1058,8 @@ class SceneFacetGenerator:
         temperature: float | None = None,
         model: str | None = None,
         compatible_environments: list[str] | None = None,
+        compatible_narratives: list[str] | None = None,
+        diversity_tracker: "_DiversityTracker | None" = None,
     ) -> dict[str, Any]:
         """Generate the family-shaped facet for one scene.
 
@@ -1024,12 +1150,25 @@ class SceneFacetGenerator:
             content_level=content_level,
             llm_directive=llm_directive,
             compatible_environments=compatible_environments,
+            compatible_narratives=compatible_narratives,
+        )
+        # Round-12 diversity nudge — pulls running tag-frequency stats
+        # from the engine-owned tracker and injects an "avoid these
+        # over-used tags this scene" hint into the user prompt when any
+        # axis crosses the dominance threshold. Empty string when the
+        # tracker says no axis is over-represented yet (the typical
+        # path for the first 4 facets of a series).
+        diversity_nudge = (
+            diversity_tracker.overused_summary()
+            if diversity_tracker is not None
+            else ""
         )
         user_prompt = self._build_user_prompt(
             scene=scene,
             family=family,
             schema_body=schema_body,
             content_level=content_level,
+            diversity_nudge=diversity_nudge,
         )
 
         effective_temp = (
@@ -1194,6 +1333,7 @@ class SceneFacetGenerator:
         content_level: str = "",
         llm_directive: str = "",
         compatible_environments: list[str] | None = None,
+        compatible_narratives: list[str] | None = None,
     ) -> str:
         """Assemble the family-aware system prompt.
 
@@ -1285,6 +1425,7 @@ class SceneFacetGenerator:
         vocab_block = llm_vocabulary_block(
             family.id, content_level=content_level or None,
             compatible_environments=compatible_environments,
+            compatible_narratives=compatible_narratives,
         )
         if vocab_block:
             parts.append(f"\n{vocab_block}")
@@ -1297,6 +1438,7 @@ class SceneFacetGenerator:
         family: "FamilyConfig",
         schema_body: str,
         content_level: str,
+        diversity_nudge: str = "",
     ) -> str:
         """Render the user prompt with the scene's locked core inlined.
 
@@ -1349,4 +1491,5 @@ class SceneFacetGenerator:
             prompt_style=family.prompt_style,
             schema_body=active_body,
             tier_required_list=tier_required_list,
+            diversity_nudge=diversity_nudge,
         )

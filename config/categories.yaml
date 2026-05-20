@@ -65,6 +65,20 @@ themes:
       - ENV_VANITY_DRESSING_ROOM
       - ENV_READING_NOOK
       - ENV_CLAWFOOT_BATHROOM
+    # Round-12 — narrow the SceneFacetGenerator narrative_moment menu
+    # to tags that visually fit the theme. Boudoir-coherent NARR tags:
+    # dressing rituals, brushing hair, just-woken, listening to music.
+    compatible_narratives:
+      - NARR_JUST_WOKEN_TANGLED_SHEETS
+      - NARR_PUTTING_ON_STOCKINGS
+      - NARR_BRUSHING_HAIR_VANITY
+      - NARR_TYING_ROBE_SASH
+      - NARR_UNDRESSING_AT_NIGHT
+      - NARR_LACING_CORSET_BACK
+      - NARR_LISTENING_TO_RECORD
+      - NARR_READING_LETTER_AT_DAWN
+      - NARR_DRESSING_FOR_EVENING
+      - NARR_REACHING_CLOSET_DRESS
 
   - id: implied_nude_fineart
     name: Implied Nude Fine-Art
@@ -96,6 +110,14 @@ themes:
       - ENV_TUSCAN_VILLA_RENAISSANCE
       - ENV_RUINED_PALAZZO
       - ENV_OVERGROWN_GREENHOUSE
+    compatible_narratives:
+      - NARR_READING_LETTER_AT_DAWN
+      - NARR_OPENING_LETTER_KNIFE
+      - NARR_LEANING_DOORWAY
+      - NARR_WATCHING_SUNRISE_WINDOW
+      - NARR_RAIN_AT_WINDOW
+      - NARR_FLOWERS_ARRANGING
+      - NARR_LISTENING_TO_RECORD
 
   - id: old_hollywood
     name: Old Hollywood Glamour
@@ -124,6 +146,15 @@ themes:
       - ENV_BACKSTAGE_DRESSING_ROOM
       - ENV_CABARET_STAGE_DARK
       - ENV_HOTEL_LOBBY_NOIR
+    compatible_narratives:
+      - NARR_AFTER_THE_PARTY
+      - NARR_POURING_WINE_ALONE
+      - NARR_LIGHTING_CIGARETTE_BALCONY
+      - NARR_BRUSHING_HAIR_VANITY
+      - NARR_PUTTING_ON_STOCKINGS
+      - NARR_DRESSING_FOR_EVENING
+      - NARR_LISTENING_TO_RECORD
+      - NARR_LIGHTING_CANDLES_DUSK
 
   - id: wet_set_cinematic
     name: Cinematic Wet-Set
@@ -152,6 +183,12 @@ themes:
       - ENV_CLAWFOOT_BATHROOM
       - ENV_HAMMAM_STEAM
       - ENV_INDOOR_POOL_NIGHT
+    compatible_narratives:
+      - NARR_STEPPING_FROM_BATH
+      - NARR_DRYING_HAIR_TOWEL_WINDOW
+      - NARR_RAIN_AT_WINDOW
+      - NARR_LIGHTING_CIGARETTE_BALCONY
+      - NARR_SMOKING_LATE_NIGHT_DESK
 
   - id: vintage_pinup
     name: Vintage Pin-Up Kodachrome
@@ -177,6 +214,14 @@ themes:
       - ENV_VANITY_DRESSING_ROOM
       - ENV_MEDITERRANEAN_COURTYARD
       - ENV_GREEK_ISLAND_TERRACE
+    compatible_narratives:
+      - NARR_PUTTING_ON_STOCKINGS
+      - NARR_LACING_BOOT_LEG
+      - NARR_BRUSHING_HAIR_VANITY
+      - NARR_LIGHTING_CIGARETTE_BALCONY
+      - NARR_LACING_CORSET_BACK
+      - NARR_SUNBATHING_TERRACE
+      - NARR_LISTENING_TO_RECORD
 
   - id: golden_hour
     name: Golden-Hour Natural
@@ -209,6 +254,14 @@ themes:
       - ENV_GREEK_ISLAND_TERRACE
       - ENV_DESERT_OASIS_PALMS
       - ENV_TUSCAN_VILLA_RENAISSANCE
+    compatible_narratives:
+      - NARR_WATCHING_SUNRISE_WINDOW
+      - NARR_READING_LETTER_AT_DAWN
+      - NARR_COFFEE_MORNING_PAPER
+      - NARR_SUNBATHING_TERRACE
+      - NARR_FLOWERS_ARRANGING
+      - NARR_BRUSHING_HAIR_VANITY
+      - NARR_JUST_WOKEN_TANGLED_SHEETS
 
   - id: fantasy_castlecore
     name: Fantasy Castlecore
@@ -237,6 +290,15 @@ themes:
       - ENV_VICTORIAN_PARLOUR
       - ENV_VICTORIAN_OBSERVATORY
       - ENV_LOG_CABIN_FIRELIT
+    compatible_narratives:
+      - NARR_READING_LETTER_AT_DAWN
+      - NARR_OPENING_LETTER_KNIFE
+      - NARR_LIGHTING_CANDLES_DUSK
+      - NARR_LEANING_DOORWAY
+      - NARR_WATCHING_SUNRISE_WINDOW
+      - NARR_LETTER_BURNING_FIRE
+      - NARR_REACHING_FOR_BOOK_SHELF
+      - NARR_RAIN_AT_WINDOW
 
   - id: dark_boudoir_neonoir
     name: Dark Boudoir / Neo-Noir
@@ -268,6 +330,14 @@ themes:
       - ENV_BERLIN_KREUZBERG_LOFT
       - ENV_HOTEL_LOBBY_NOIR
       - ENV_VICTORIAN_PARLOUR
+    compatible_narratives:
+      - NARR_LIGHTING_CIGARETTE_BALCONY
+      - NARR_POURING_WINE_ALONE
+      - NARR_SMOKING_LATE_NIGHT_DESK
+      - NARR_LETTER_BURNING_FIRE
+      - NARR_TYPEWRITER_LATE_NIGHT
+      - NARR_RAIN_AT_WINDOW
+      - NARR_LIGHTING_CANDLES_DUSK
 
   - id: editorial_fashion_nude
     name: Editorial Fashion Nude
@@ -296,6 +366,14 @@ themes:
       - ENV_BERLIN_KREUZBERG_LOFT
       - ENV_BRUTALIST_CONCRETE_LOFT
       - ENV_ART_DECO_HOTEL_SUITE
+    compatible_narratives:
+      - NARR_AFTER_THE_PARTY
+      - NARR_DRESSING_FOR_EVENING
+      - NARR_LACING_CORSET_BACK
+      - NARR_LIGHTING_CIGARETTE_BALCONY
+      - NARR_POURING_WINE_ALONE
+      - NARR_REACHING_CLOSET_DRESS
+      - NARR_BRUSHING_HAIR_VANITY
 
   - id: fine_art_studio_nude
     name: Fine-Art Studio Nude
@@ -326,6 +404,13 @@ themes:
       - ENV_TUSCAN_VILLA_RENAISSANCE
       - ENV_RUINED_PALAZZO
       - ENV_HAMMAM_STEAM
+    compatible_narratives:
+      - NARR_READING_LETTER_AT_DAWN
+      - NARR_LEANING_DOORWAY
+      - NARR_WATCHING_SUNRISE_WINDOW
+      - NARR_FLOWERS_ARRANGING
+      - NARR_OPENING_LETTER_KNIFE
+      - NARR_STEPPING_FROM_BATH
 
 # ── Style categories (Mode 3 — StyleMode) ────────────────────────────
 # lighting_bias + color_bias are consumed by StyleMode's LLM plan
@@ -352,6 +437,15 @@ styles:
       - ENV_INDOOR_POOL_NIGHT
       - ENV_CABARET_STAGE_DARK
       - ENV_HAMMAM_STEAM
+    compatible_narratives:
+      - NARR_STEPPING_FROM_BATH
+      - NARR_LIGHTING_CIGARETTE_BALCONY
+      - NARR_POURING_WINE_ALONE
+      - NARR_SMOKING_LATE_NIGHT_DESK
+      - NARR_RAIN_AT_WINDOW
+      - NARR_TYPEWRITER_LATE_NIGHT
+      - NARR_AFTER_THE_PARTY
+      - NARR_LETTER_BURNING_FIRE
   - id: soft_aesthetic
     name: Soft Aesthetic
     weight: 1.0
@@ -368,6 +462,16 @@ styles:
       - ENV_READING_NOOK
       - ENV_VICTORIAN_CONSERVATORY
       - ENV_OVERGROWN_GREENHOUSE
+    compatible_narratives:
+      - NARR_JUST_WOKEN_TANGLED_SHEETS
+      - NARR_FLOWERS_ARRANGING
+      - NARR_COFFEE_MORNING_PAPER
+      - NARR_BRUSHING_HAIR_VANITY
+      - NARR_LISTENING_TO_RECORD
+      - NARR_TYING_ROBE_SASH
+      - NARR_READING_LETTER_AT_DAWN
+      - NARR_SUNBATHING_TERRACE
+      - NARR_WATCHING_SUNRISE_WINDOW
   - id: high_contrast
     name: High Contrast
     weight: 0.7
@@ -384,6 +488,13 @@ styles:
       - ENV_CABARET_STAGE_DARK
       - ENV_DERELICT_THEATRE
       - ENV_STUDIO_CYC_MINIMAL
+    compatible_narratives:
+      - NARR_LIGHTING_CIGARETTE_BALCONY
+      - NARR_POURING_WINE_ALONE
+      - NARR_SMOKING_LATE_NIGHT_DESK
+      - NARR_LIGHTING_CANDLES_DUSK
+      - NARR_LETTER_BURNING_FIRE
+      - NARR_AFTER_THE_PARTY
   - id: dark_moody
     name: Dark & Moody
     weight: 0.7
@@ -400,6 +511,15 @@ styles:
       - ENV_FOG_PINE_FOREST
       - ENV_VICTORIAN_PARLOUR
       - ENV_GEORGIAN_LIBRARY
+    compatible_narratives:
+      - NARR_LIGHTING_CIGARETTE_BALCONY
+      - NARR_LIGHTING_CANDLES_DUSK
+      - NARR_LETTER_BURNING_FIRE
+      - NARR_SMOKING_LATE_NIGHT_DESK
+      - NARR_RAIN_AT_WINDOW
+      - NARR_TYPEWRITER_LATE_NIGHT
+      - NARR_REACHING_FOR_BOOK_SHELF
+      - NARR_LEANING_DOORWAY
   - id: luxury_editorial
     name: Luxury Editorial
     weight: 0.8
@@ -416,6 +536,14 @@ styles:
       - ENV_GEORGIAN_LIBRARY
       - ENV_STUDIO_CYC_MINIMAL
       - ENV_BACKSTAGE_DRESSING_ROOM
+    compatible_narratives:
+      - NARR_AFTER_THE_PARTY
+      - NARR_DRESSING_FOR_EVENING
+      - NARR_POURING_WINE_ALONE
+      - NARR_BRUSHING_HAIR_VANITY
+      - NARR_LISTENING_TO_RECORD
+      - NARR_LIGHTING_CIGARETTE_BALCONY
+      - NARR_LACING_CORSET_BACK
   - id: fine_art
     name: Fine Art
     weight: 0.6
@@ -432,6 +560,13 @@ styles:
       - ENV_PRINT_WORKSHOP
       - ENV_VICTORIAN_OBSERVATORY
       - ENV_PARIS_ATTIC_APARTMENT
+    compatible_narratives:
+      - NARR_LEANING_DOORWAY
+      - NARR_WATCHING_SUNRISE_WINDOW
+      - NARR_READING_LETTER_AT_DAWN
+      - NARR_FLOWERS_ARRANGING
+      - NARR_OPENING_LETTER_KNIFE
+      - NARR_REACHING_FOR_BOOK_SHELF
 
 # ── Niche clusters (Mode 4 — NicheMode) ──────────────────────────────
 niches:
@@ -450,6 +585,13 @@ niches:
       - ENV_ART_DECO_HOTEL_SUITE
       - ENV_VANITY_DRESSING_ROOM
       - ENV_GEORGIAN_LIBRARY
+    compatible_narratives:
+      - NARR_PUTTING_ON_STOCKINGS
+      - NARR_BRUSHING_HAIR_VANITY
+      - NARR_LACING_CORSET_BACK
+      - NARR_REACHING_CLOSET_DRESS
+      - NARR_TYING_ROBE_SASH
+      - NARR_DRESSING_FOR_EVENING
   - id: artistic_athleticwear
     name: Artistic Athleticwear
     keywords: [yogawear, athletic, sculpted, studio sport, fine-art fitness]
@@ -462,6 +604,11 @@ niches:
       - ENV_WAREHOUSE_CONVERSION
       - ENV_INDOOR_POOL_NIGHT
       - ENV_PRINT_WORKSHOP
+    compatible_narratives:
+      - NARR_DRYING_HAIR_TOWEL_WINDOW
+      - NARR_LACING_BOOT_LEG
+      - NARR_SUNBATHING_TERRACE
+      - NARR_STEPPING_FROM_BATH
   - id: pinup_retro
     name: Retro Pin-Up
     keywords: [pinup, kodachrome, 1950s, cheesecake, vintage swimsuit]
@@ -474,6 +621,13 @@ niches:
       - ENV_BACKSTAGE_DRESSING_ROOM
       - ENV_GRASS_MEADOW_GOLDEN_HOUR
       - ENV_INDOOR_POOL_NIGHT
+    compatible_narratives:
+      - NARR_PUTTING_ON_STOCKINGS
+      - NARR_LACING_CORSET_BACK
+      - NARR_LACING_BOOT_LEG
+      - NARR_BRUSHING_HAIR_VANITY
+      - NARR_LISTENING_TO_RECORD
+      - NARR_DRESSING_FOR_EVENING
   - id: implied_silhouette
     name: Implied Silhouette
     keywords: [silhouette, backlit, negative space, shadow play]
@@ -486,6 +640,12 @@ niches:
       - ENV_ABANDONED_BALLROOM
       - ENV_VICTORIAN_OBSERVATORY
       - ENV_PARIS_ATTIC_APARTMENT
+    compatible_narratives:
+      - NARR_LEANING_DOORWAY
+      - NARR_WATCHING_SUNRISE_WINDOW
+      - NARR_RAIN_AT_WINDOW
+      - NARR_READING_LETTER_AT_DAWN
+      - NARR_LIGHTING_CANDLES_DUSK
   - id: wet_hair_rain
     name: Wet Hair / Rain
     keywords: [rain, wet hair, shower, water droplets, steam]
@@ -498,6 +658,10 @@ niches:
       - ENV_TOKYO_LOVE_HOTEL
       - ENV_FIRE_ESCAPE_NEON
       - ENV_SCANDINAVIAN_SAUNA
+    compatible_narratives:
+      - NARR_STEPPING_FROM_BATH
+      - NARR_DRYING_HAIR_TOWEL_WINDOW
+      - NARR_RAIN_AT_WINDOW
   - id: latex_editorial
     name: Latex Editorial
     keywords: [latex, vinyl, editorial fashion, high-fashion kink]
@@ -510,6 +674,12 @@ niches:
       - ENV_BERLIN_KREUZBERG_LOFT
       - ENV_HOTEL_LOBBY_NOIR
       - ENV_CABARET_STAGE_DARK
+    compatible_narratives:
+      - NARR_AFTER_THE_PARTY
+      - NARR_LIGHTING_CIGARETTE_BALCONY
+      - NARR_DRESSING_FOR_EVENING
+      - NARR_POURING_WINE_ALONE
+      - NARR_SMOKING_LATE_NIGHT_DESK
   - id: maternity_artistic
     name: Artistic Maternity
     keywords: [maternity, bump, flowing fabric, fine-art pregnancy]
@@ -522,6 +692,13 @@ niches:
       - ENV_MEDITERRANEAN_COURTYARD
       - ENV_TUSCAN_VILLA_RENAISSANCE
       - ENV_MORNING_BEDROOM
+    compatible_narratives:
+      - NARR_FLOWERS_ARRANGING
+      - NARR_READING_LETTER_AT_DAWN
+      - NARR_WATCHING_SUNRISE_WINDOW
+      - NARR_BRUSHING_HAIR_VANITY
+      - NARR_TYING_ROBE_SASH
+      - NARR_COFFEE_MORNING_PAPER
   - id: poolside_golden_hour
     name: Poolside Golden Hour
     keywords: [poolside, golden hour, water reflection, resort]
@@ -534,6 +711,12 @@ niches:
       - ENV_GREEK_ISLAND_TERRACE
       - ENV_DESERT_OASIS_PALMS
       - ENV_BLACK_SAND_BEACH
+    compatible_narratives:
+      - NARR_SUNBATHING_TERRACE
+      - NARR_STEPPING_FROM_BATH
+      - NARR_DRYING_HAIR_TOWEL_WINDOW
+      - NARR_WATCHING_SUNRISE_WINDOW
+      - NARR_FLOWERS_ARRANGING
   - id: noir_detective
     name: Noir Detective
     keywords: [noir, trench coat, neon sign, rain window, femme fatale]
@@ -546,6 +729,14 @@ niches:
       - ENV_DERELICT_THEATRE
       - ENV_BERLIN_KREUZBERG_LOFT
       - ENV_PARIS_ATTIC_APARTMENT
+    compatible_narratives:
+      - NARR_SMOKING_LATE_NIGHT_DESK
+      - NARR_POURING_WINE_ALONE
+      - NARR_LIGHTING_CIGARETTE_BALCONY
+      - NARR_TYPEWRITER_LATE_NIGHT
+      - NARR_RAIN_AT_WINDOW
+      - NARR_LETTER_BURNING_FIRE
+      - NARR_OPENING_LETTER_KNIFE
   - id: fine_art_figurative
     name: Fine-Art Figurative
     keywords: [classical pose, painterly, gallery nude, sculptural]
@@ -558,6 +749,13 @@ niches:
       - ENV_RUINED_PALAZZO
       - ENV_GEORGIAN_LIBRARY
       - ENV_PRINT_WORKSHOP
+    compatible_narratives:
+      - NARR_LEANING_DOORWAY
+      - NARR_WATCHING_SUNRISE_WINDOW
+      - NARR_READING_LETTER_AT_DAWN
+      - NARR_FLOWERS_ARRANGING
+      - NARR_OPENING_LETTER_KNIFE
+      - NARR_REACHING_FOR_BOOK_SHELF
 
 # ── Content-tier rules (ARCHITECTURE.md §5) ──────────────────────────
 # Key = content_level string. The render path looks these up by the

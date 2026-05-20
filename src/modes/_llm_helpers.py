@@ -37,39 +37,159 @@ _AESTHETIC_ANCHOR_FIELDS = (
     "art_movement",
 )
 
+# Tag prefixes per anchor — used to identify whether a salvaged comma
+# fragment belongs to the canonical field. We're conservative: a stray
+# value only writes back when its prefix matches the field's namespace.
+_ANCHOR_TAG_PREFIX = {
+    "color_palette":    "PALETTE_",
+    "photographer_ref": "PHOTOG_",
+    "art_movement":     "ART_MOVE_",
+}
 
-def repair_colon_suffix_aesthetic_keys(plan: dict[str, Any]) -> None:
-    """Defensive repair for the "key with trailing colon" LLM quirk.
 
-    Round-5 finding (2026-05-19 LLM A/B run, Cydonia heretic-vision):
-    constrained-decoding shape mishaps sometimes produce a plan where
-    the schema-required aesthetic anchor key (e.g. ``color_palette``)
-    is null, while an EXTRA key with a trailing colon (e.g.
-    ``"color_palette:"``) carries the actual value the LLM picked.
-    ``extra="allow"`` on the SeriesPlan schema lets the colon-suffixed
-    extra through silently — Pydantic accepts it, ``warn_if_missing_
-    aesthetic_anchors`` logs the canonical key as missing, and the
-    composer / PNG metadata both lose the Phase 3 signature-look
-    pinning even though the LLM successfully picked a tag.
+def _normalise_key(k: str) -> str:
+    """Strip trailing whitespace + colon. ``"color_palette "`` and
+    ``"color_palette:"`` both normalise to ``"color_palette"``."""
+    return k.rstrip().rstrip(":").rstrip()
 
-    This helper salvages the value: for each aesthetic field, if the
-    canonical key is empty AND a same-named-with-trailing-colon key
-    is populated, copy the value over and delete the bad key.
 
-    Call this BEFORE :func:`warn_if_missing_aesthetic_anchors` so the
-    warning fires only when the LLM truly failed to pick a tag.
+def _scan_comma_collapsed_value(raw: str) -> dict[str, str]:
+    """Parse a comma-joined Cydonia quirk value into per-anchor tags.
+
+    Round-12 finding (2026-05-20 A/B run, Cydonia heretic-vision):
+    the SeriesPlanner schema's three aesthetic-anchor fields
+    sometimes collapse into ONE malformed key whose name carries a
+    comma-joined fragment of the second/third field names, e.g.
+
+      {"color_palette: PALETTE_X, photographer_ref": "PHOTOG_Y, art_movement: null"}
+
+    The "key" name carries the FIRST field + the first value + a
+    `, photographer_ref` fragment; the "value" carries the rest of
+    the comma chain. This helper takes the value string and returns
+    a per-anchor dict — best-effort prefix-match on PALETTE_*, PHOTOG_*,
+    ART_MOVE_* so we don't accidentally write garbage. Unmatched
+    tokens are dropped.
     """
+    out: dict[str, str] = {}
+    if not isinstance(raw, str):
+        return out
+    # Split on commas; each fragment may be `KEY: VALUE` (when the
+    # malformed key truncated mid-chain) or just `VALUE` (when the
+    # malformed key absorbed the field name and only the value
+    # remains in the chain).
+    for chunk in raw.split(","):
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+        # Strip a `key:` prefix if present (e.g. "art_movement: null").
+        if ":" in chunk:
+            _, _, chunk = chunk.partition(":")
+            chunk = chunk.strip()
+        if chunk.lower() == "null" or not chunk:
+            continue
+        for fld, prefix in _ANCHOR_TAG_PREFIX.items():
+            if chunk.startswith(prefix) and fld not in out:
+                out[fld] = chunk
+                break
+    return out
+
+
+def repair_aesthetic_anchor_keys(plan: dict[str, Any]) -> None:
+    """Defensive repair for several known LLM shape quirks on the
+    Phase 3 aesthetic-anchor fields (``color_palette`` /
+    ``photographer_ref`` / ``art_movement``).
+
+    The SeriesPlan schema uses ``extra="allow"`` so Pydantic accepts
+    the malformed shapes below silently — without this helper, the
+    canonical keys read ``null`` downstream and Phase 3 signature-look
+    pinning silently no-ops even though the LLM picked tags.
+
+    Three quirks repaired:
+
+    (a) **Trailing colon** (Cydonia heretic, observed round-5)::
+
+            {"color_palette": null, "color_palette:": "PALETTE_X"}
+
+        Salvage: copy the colon-suffixed value into the canonical key.
+
+    (b) **Trailing whitespace** (Qwen3 abliterated, observed round-12)::
+
+            {"color_palette": null, "color_palette ": "PALETTE_X"}
+
+        Salvage: same pattern, normalised key lookup.
+
+    (c) **Comma-joined collapsed key** (Cydonia heretic, observed
+        round-12 A/B)::
+
+            {"color_palette: PALETTE_X, photographer_ref": "PHOTOG_Y, art_movement: null"}
+
+        One malformed key swallows multiple field names + their tags.
+        The helper scans the malformed value string for tokens
+        matching each anchor's prefix (``PALETTE_*``, ``PHOTOG_*``,
+        ``ART_MOVE_*``) and writes them back into the canonical keys.
+        The leading tag (often baked into the malformed KEY itself)
+        is also extracted via a separate scan over the key string.
+
+    Always call BEFORE :func:`warn_if_missing_aesthetic_anchors` so
+    the warning only fires when the LLM truly failed to pick a tag.
+
+    Repairs happen in-place. Returns ``None``.
+    """
+    # Pass (c) first — the comma-collapsed key carries values for
+    # multiple anchors and might supply ALL three at once. Scan every
+    # non-canonical key for the "collapsed" shape (contains `,` AND
+    # `:` AND at least one anchor prefix).
+    for k in list(plan.keys()):
+        if k in _AESTHETIC_ANCHOR_FIELDS:
+            continue
+        if "," not in k:
+            continue
+        # The key itself may carry the first tag, e.g.
+        # `"color_palette: PALETTE_X, photographer_ref"`. Scan the
+        # key string too.
+        from_key = _scan_comma_collapsed_value(k)
+        from_val = _scan_comma_collapsed_value(plan.get(k, ""))
+        # Merge — from_key wins on conflict (it's the lead position).
+        salvaged = {**from_val, **from_key}
+        if not salvaged:
+            continue
+        repaired_any = False
+        for fld, val in salvaged.items():
+            if not plan.get(fld):
+                plan[fld] = val
+                repaired_any = True
+                logger.info(
+                    "Repaired comma-collapsed aesthetic key for %r → "
+                    "%r (Cydonia comma-joined quirk).", fld, val,
+                )
+        if repaired_any:
+            del plan[k]
+
+    # Pass (a) + (b) — normalised-key lookup catches both trailing
+    # colon and trailing whitespace variants.
     for fld in _AESTHETIC_ANCHOR_FIELDS:
-        if not plan.get(fld):
-            colon_key = f"{fld}:"
-            val = plan.get(colon_key)
+        if plan.get(fld):
+            continue
+        for k in list(plan.keys()):
+            if k == fld:
+                continue
+            if _normalise_key(k) != fld:
+                continue
+            val = plan.get(k)
             if val:
                 plan[fld] = val
-                del plan[colon_key]
+                del plan[k]
                 logger.info(
-                    "Repaired colon-suffixed aesthetic key %r → %r (LLM "
-                    "shape quirk); value preserved.", colon_key, fld,
+                    "Repaired suffix-quirk aesthetic key %r → %r "
+                    "(LLM shape quirk; value preserved).", k, fld,
                 )
+                break
+
+
+# Back-compat alias — pre-round-12 name. Older test callers (and any
+# downstream extension) used the colon-only-named function. The new
+# name covers more cases but keeps the same in-place mutation contract.
+repair_colon_suffix_aesthetic_keys = repair_aesthetic_anchor_keys
 
 
 def warn_if_missing_aesthetic_anchors(

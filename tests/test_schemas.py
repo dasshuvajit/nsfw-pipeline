@@ -15,6 +15,9 @@ VALID_SERIES_PLAN = {
     "mood": "contemplative",
     "environment": "library with leather chairs",
     "variation_axes": ["pose intensity", "camera distance", "lighting warmth"],
+    # Round-12: color_palette is REQUIRED at the schema level so Ollama's
+    # constrained decoder cannot sample null. PALETTE_* prefix enforced.
+    "color_palette": "PALETTE_BAROQUE_CARAVAGGIO",
 }
 
 VALID_SCENE = {
@@ -99,6 +102,43 @@ class TestSeriesPlan:
         import json
         plan = SeriesPlan.model_validate_json(json.dumps(VALID_SERIES_PLAN))
         assert plan.theme == VALID_SERIES_PLAN["theme"]
+
+    # ── Round-12: color_palette schema-required (no null allowed) ──
+
+    def test_missing_color_palette_raises(self):
+        """Round-12 schema tightening: color_palette is required."""
+        bad = {**VALID_SERIES_PLAN}
+        bad.pop("color_palette")
+        with pytest.raises(ValidationError) as exc_info:
+            SeriesPlan.model_validate(bad)
+        errors = exc_info.value.errors()
+        assert any(e["loc"] == ("color_palette",) for e in errors)
+
+    def test_null_color_palette_raises(self):
+        """Round-12: Optional[str] removed — explicit null is rejected."""
+        bad = {**VALID_SERIES_PLAN, "color_palette": None}
+        with pytest.raises(ValidationError):
+            SeriesPlan.model_validate(bad)
+
+    def test_invalid_palette_prefix_raises(self):
+        """Round-12: pattern enforces PALETTE_ prefix so the LLM can't
+        slip a stray PHOTOG_/ART_MOVE_ tag into the slot."""
+        bad = {**VALID_SERIES_PLAN, "color_palette": "PHOTOG_NEWTON"}
+        with pytest.raises(ValidationError) as exc_info:
+            SeriesPlan.model_validate(bad)
+        errors = exc_info.value.errors()
+        assert any(
+            e["loc"] == ("color_palette",) and "pattern" in str(e).lower()
+            for e in errors
+        )
+
+    def test_photographer_ref_and_art_movement_remain_optional(self):
+        """Pony legitimately omits photographer_ref + art_movement —
+        those two stay Optional[str] post-round-12. Only color_palette
+        was tightened."""
+        plan = SeriesPlan.model_validate(VALID_SERIES_PLAN)
+        assert plan.photographer_ref is None
+        assert plan.art_movement is None
 
 
 # ============================================================================

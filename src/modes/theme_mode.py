@@ -353,6 +353,15 @@ class ThemeMode(BaseMode):
         else:
             plan["compatible_environments"] = list(cat_envs or sp_envs)
 
+        # Round-12 (2026-05-21) — same pattern for compatible_narratives.
+        # Style profiles don't currently declare a compatible_narratives
+        # list (no precedent), so we read the theme category's list only.
+        # Empty / missing falls through as the full vocab menu (back-
+        # compat for categories that haven't been annotated yet).
+        plan["compatible_narratives"] = list(
+            category.get("compatible_narratives", []) or []
+        )
+
         logger.info(
             "ThemeMode: plan — theme=%r, mood=%r, subject=%r",
             plan["theme"], plan["mood"], plan.get("subject_description", ""),
@@ -500,6 +509,7 @@ class ThemeMode(BaseMode):
             "compatible_photographers": list(chosen.compatible_photographers),
             "compatible_art_movements": list(chosen.compatible_art_movements),
             "compatible_environments": list(chosen.compatible_environments),
+            "compatible_narratives": list(chosen.compatible_narratives),
         }
 
     @staticmethod

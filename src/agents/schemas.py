@@ -60,14 +60,25 @@ class SeriesPlan(BaseModel):
     aesthetic-anchor fields the SeriesPlanner picks ONCE per series
     and the composer threads into every scene via
     ``canonicalize_series_aesthetic``: ``color_palette``,
-    ``photographer_ref``, ``art_movement``. All three default to
-    ``None`` so legacy series (predating Phase 3) continue to
-    validate. **They MUST be on this schema** (not just via
-    extra="allow") because Ollama 0.5+ constrains the LLM output
-    against the Pydantic JSON schema — fields absent from the
-    schema are not grammar-required and a constrained LLM (Cydonia
-    / Qwen) takes the path of least resistance and skips them.
-    Verifier B2.
+    ``photographer_ref``, ``art_movement``. **They MUST be on this
+    schema** (not just via extra="allow") because Ollama 0.5+
+    constrains the LLM output against the Pydantic JSON schema —
+    fields absent from the schema are not grammar-required and a
+    constrained LLM (Cydonia / Qwen) takes the path of least
+    resistance and skips them. Verifier B2.
+
+    Round-12 (2026-05-20) — ``color_palette`` was promoted to
+    required ``str`` (min_length 3, ``PALETTE_*`` pattern) after the
+    Cydonia + Qwen3 A/B run showed both LLMs nulling all three
+    anchors despite explicit prompt instructions. Optional[str]
+    let Ollama's constrained decoder sample ``null`` legally; the
+    required-str + pattern combo closes that grammar loophole.
+    ``photographer_ref`` + ``art_movement`` stay Optional because
+    Pony legitimately omits them (booru tagging has no equivalent
+    vocabulary) but the loose-tag-shape repair in
+    ``src.modes._llm_helpers.repair_aesthetic_anchor_keys`` handles
+    trailing-space / trailing-colon / comma-joined LLM quirks on
+    all three.
     """
 
     model_config = ConfigDict(extra="allow", str_strip_whitespace=True)
@@ -77,20 +88,25 @@ class SeriesPlan(BaseModel):
     environment: str = Field(min_length=1)
     variation_axes: list[str] = Field(min_length=1)
 
-    # Phase 3 — series-level aesthetic anchors. Optional[str] so
-    # legacy series continue to validate; the SeriesPlanner system
-    # prompt + user-template instructs the LLM to pick them.
-    color_palette: str | None = Field(
-        default=None,
+    # Phase 3 — series-level aesthetic anchors. ``color_palette`` is
+    # required-str (no Optional) so Ollama's constrained decoder
+    # cannot emit null for it. ``photographer_ref`` + ``art_movement``
+    # stay Optional[str] — Pony legitimately omits both because
+    # booru tagging carries no photographer / art-movement signal.
+    color_palette: str = Field(
+        ...,
+        min_length=3,
+        pattern=r"^PALETTE_[A-Z0-9_]+$",
         description=(
             "Series-level color-palette concept tag from "
             "aesthetic.color_palette namespace (e.g. "
             "PALETTE_BAROQUE_CARAVAGGIO, PALETTE_TEAL_ORANGE_BLOCKBUSTER, "
             "PALETTE_MONOCHROME_HIGH_CONTRAST, PALETTE_WES_ANDERSON_PASTEL, "
             "PALETTE_DEAKINS_AMBER_TUNGSTEN, PALETTE_TUSCAN_EARTH). "
-            "Pinned ONCE per series; the canonicalizer threads the "
-            "phrasing into every scene's composed prompt. Pick from the "
-            "narrowed menu shown in the planner user prompt."
+            "REQUIRED — pick exactly one PALETTE_* tag from the "
+            "narrowed menu in the planner user prompt. NEVER null, "
+            "NEVER empty. Pinned ONCE per series; the canonicalizer "
+            "threads the phrasing into every scene's composed prompt."
         ),
     )
     photographer_ref: str | None = Field(

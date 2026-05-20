@@ -186,3 +186,91 @@ def test_repair_partial_some_canonical_some_colon():
     assert plan["photographer_ref"] == "PHOTOG_GREGORY_CREWDSON"
     assert plan["art_movement"] is None
     assert "photographer_ref:" not in plan
+
+
+# ── Round-12 LLM-quirk repairs (Cydonia + Qwen3 A/B run 2026-05-20) ─
+
+
+def test_repair_salvages_trailing_space_keys():
+    """Qwen3 abliterated 30B-A3B quirk: emits the canonical key as
+    null AND an extra key with a trailing space carrying the actual
+    value. Observed on the 2026-05-20 T3 theme A/B run — all three
+    aesthetic anchors hit by this shape."""
+    plan = {
+        "theme": "t", "mood": "m", "environment": "e",
+        "variation_axes": ["a"],
+        "color_palette": None,
+        "photographer_ref": None,
+        "art_movement": None,
+        "color_palette ": "PALETTE_PINK_AND_GOLD",
+        "photographer_ref ": "PHOTOG_PETER_LINDBERGH",
+        "art_movement ": "ART_MOVE_BAUHAUS_MINIMAL",
+    }
+    repair_colon_suffix_aesthetic_keys(plan)
+    assert plan["color_palette"] == "PALETTE_PINK_AND_GOLD"
+    assert plan["photographer_ref"] == "PHOTOG_PETER_LINDBERGH"
+    assert plan["art_movement"] == "ART_MOVE_BAUHAUS_MINIMAL"
+    assert "color_palette " not in plan
+    assert "photographer_ref " not in plan
+    assert "art_movement " not in plan
+
+
+def test_repair_salvages_comma_collapsed_key():
+    """Cydonia heretic quirk: a single malformed key collapses
+    multiple field names into one comma-joined string. Observed:
+        {"color_palette: PALETTE_LUBEZKI_NATURAL_GOLDEN, photographer_ref":
+         "PHOTOG_PETTER_HEGRE, art_movement: null"}
+    The leading PALETTE_* tag lives inside the KEY string; the
+    PHOTOG_* tag lives at the head of the VALUE string; art_movement
+    is explicitly null in the value tail. Repair extracts both,
+    leaves art_movement alone (the LLM said null)."""
+    plan = {
+        "theme": "t", "mood": "m", "environment": "e",
+        "variation_axes": ["a"],
+        "color_palette": None,
+        "photographer_ref": None,
+        "art_movement": None,
+        "color_palette: PALETTE_LUBEZKI_NATURAL_GOLDEN, photographer_ref":
+            "PHOTOG_PETTER_HEGRE, art_movement: null",
+    }
+    repair_colon_suffix_aesthetic_keys(plan)
+    assert plan["color_palette"] == "PALETTE_LUBEZKI_NATURAL_GOLDEN"
+    assert plan["photographer_ref"] == "PHOTOG_PETTER_HEGRE"
+    assert plan["art_movement"] is None
+    # Malformed key gone.
+    assert not any(
+        "color_palette:" in k or "photographer_ref" == k.rstrip(":")
+        for k in plan if k not in ("color_palette", "photographer_ref")
+    )
+
+
+def test_repair_handles_mixed_quirks_one_plan():
+    """LLM produces a multi-flavour mess: comma-collapse on one anchor,
+    trailing-space on another, canonical-clean on the third. Repair
+    handles all three in one pass."""
+    plan = {
+        "color_palette": None,
+        "photographer_ref": None,
+        "art_movement": "ART_MOVE_WES_ANDERSON",  # clean
+        "color_palette: PALETTE_TUSCAN_EARTH, photographer_ref":
+            "PHOTOG_SLIM_AARONS",
+    }
+    repair_colon_suffix_aesthetic_keys(plan)
+    assert plan["color_palette"] == "PALETTE_TUSCAN_EARTH"
+    assert plan["photographer_ref"] == "PHOTOG_SLIM_AARONS"
+    assert plan["art_movement"] == "ART_MOVE_WES_ANDERSON"
+
+
+def test_repair_comma_value_only_no_prefix_match_is_noop():
+    """Defensive: if the malformed value's comma chain contains no
+    PALETTE_* / PHOTOG_* / ART_MOVE_* tokens, the helper writes
+    nothing rather than guessing. Protects against garbage writes."""
+    plan = {
+        "color_palette": None,
+        "weird_garbage_key, photographer_ref":
+            "random text with no prefix tokens",
+    }
+    repair_colon_suffix_aesthetic_keys(plan)
+    assert plan["color_palette"] is None
+    # The garbage key stays untouched.
+    assert "weird_garbage_key, photographer_ref" in plan

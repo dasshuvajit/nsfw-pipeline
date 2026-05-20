@@ -74,13 +74,22 @@ def test_non_pony_required_fields_lead_optional():
 def test_pony_required_fields_lead_optional():
     """Same ordering contract for the Pony body. Pony omits the 6
     realism enum fields + composition_principle but participates in
-    every tier-required structured tag."""
+    every tier-required structured tag.
+
+    Round-12 (2026-05-21): realism_camera + realism_lens were promoted
+    to T3+ required for non-Pony families, but Pony's schema doesn't
+    declare those fields (booru tagging carries camera/lens implicitly
+    via tag patterns). These two fields are skipped for the Pony body
+    check; ``_make_tier_strict_schema``'s "skip fields not on base"
+    branch handles them at run-time.
+    """
     first_optional = _first_optional_position(_STRUCTURED_TAG_BODY_PONY)
     assert first_optional > 0
-    # Pony skips photographer_ref / art_movement at the series level
-    # but still has lighting/mood/narrative/env/nsfw at the scene
-    # level — all REQUIRED at T4 per _TIER_REQUIRED_FIELDS.
-    for field in _T4_REQUIRED_FIELDS:
+    # Pony schema omits realism_camera + realism_lens (booru tagging
+    # carries those implicitly). Skip those two from the Pony-body
+    # ordering check.
+    pony_excluded = {"realism_camera", "realism_lens"}
+    for field in _T4_REQUIRED_FIELDS - pony_excluded:
         pos = _field_position(_STRUCTURED_TAG_BODY_PONY, field)
         assert pos > -1, f"Pony body missing required field {field!r}"
         assert pos < first_optional, (
@@ -108,7 +117,11 @@ def test_non_pony_body_has_required_markers():
 
 
 def test_pony_body_has_required_markers():
-    for field in _T4_REQUIRED_FIELDS:
+    """Round-12: realism_camera + realism_lens absent from Pony body;
+    skip them in this check (see ``_STRUCTURED_TAG_BODY_PONY`` — Pony
+    doesn't carry those fields in its schema)."""
+    pony_excluded = {"realism_camera", "realism_lens"}
+    for field in _T4_REQUIRED_FIELDS - pony_excluded:
         match = re.search(
             rf'"{re.escape(field)}":\s*"\[REQUIRED',
             _STRUCTURED_TAG_BODY_PONY,
@@ -119,19 +132,22 @@ def test_pony_body_has_required_markers():
 
 
 def test_optional_fields_have_optional_marker():
-    """Inverse: every [OPTIONAL] field carries the marker explicitly."""
+    """Inverse: every [OPTIONAL] field carries the marker explicitly.
+
+    Round-12 (2026-05-21): realism_camera + realism_lens promoted to
+    [REQUIRED — T3+], dropping the [OPTIONAL] count from 9 to 7.
+    The remaining 7 are: nsfw_posture, environment_prop,
+    composition_principle, realism_film_stock, art_style_reference,
+    realism_angle, realism_framing.
+    """
     optional_lines = [
         line for line in _STRUCTURED_TAG_BODY_NON_PONY.split("\n")
         if "[OPTIONAL" in line
     ]
-    # Round-6 ships 9 [OPTIONAL] fields in the non-Pony body:
-    # nsfw_posture, environment_prop, composition_principle,
-    # realism_camera, realism_lens, realism_film_stock,
-    # art_style_reference, realism_angle, realism_framing.
-    assert len(optional_lines) == 9, (
-        f"non-Pony body expected 9 [OPTIONAL] fields, got "
+    assert len(optional_lines) == 7, (
+        f"non-Pony body expected 7 [OPTIONAL] fields, got "
         f"{len(optional_lines)} — schema body has drifted from "
-        f"round-6 contract."
+        f"round-12 contract."
     )
 
 
@@ -144,6 +160,10 @@ def test_all_required_offsets_before_all_optional_offsets():
     placed at the tail of the body but still before some other
     OPTIONAL — the original `first_optional` check only catches the
     very last violation.
+
+    Round-12 (2026-05-21) — realism_camera + realism_lens promoted
+    from [OPTIONAL] to [REQUIRED — T3+] and reordered to land in the
+    REQUIRED block (before nsfw_posture which is the first [OPTIONAL]).
     """
     for label, body in [
         ("non_pony", _STRUCTURED_TAG_BODY_NON_PONY),
@@ -214,6 +234,7 @@ def test_user_prompt_template_renders_with_schema_body():
         family_id="chroma",
         prompt_style="flux_natural",
         schema_body=_SCHEMA_BODY_BY_STYLE["flux_natural"],
+        diversity_nudge="",  # round-12 slot — empty for back-compat
     )
     # The RAW schema body still carries the conditional markers
     # (round-6 shape); the tier-active rewrite is applied later.
@@ -579,7 +600,10 @@ def test_tier_active_body_pony_rewrite_full_matrix():
     assert "[REQUIRED — every tier]" not in out
     assert "[REQUIRED — T3+]" not in out
     assert "[REQUIRED — T4 only]" not in out
-    for fld in _T4_REQUIRED_FIELDS:
+    # Round-12: realism_camera + realism_lens are non-Pony only, skip
+    # those in this Pony-body check.
+    pony_excluded = {"realism_camera", "realism_lens"}
+    for fld in _T4_REQUIRED_FIELDS - pony_excluded:
         m = re.search(rf'"{re.escape(fld)}":\s*"\[REQUIRED\]', out)
         assert m is not None, (
             f"Pony body @T4: {fld!r} should carry bare [REQUIRED]"
@@ -603,11 +627,16 @@ def test_tier_active_body_pony_rewrite_full_matrix():
 def test_every_prompt_style_body_includes_required_markers():
     """Every schema-body variant (sdxl_keywords, pony_danbooru,
     illustrious_tags, flux_natural, flux2_prose) inherits the
-    round-6 ordering."""
+    round-6 ordering.
+
+    Round-12 (2026-05-21): realism_camera + realism_lens added to the
+    tier-required set for non-Pony families. Pony's body legitimately
+    omits those two (booru tagging carries camera/lens implicitly).
+    """
+    pony_excluded = {"realism_camera", "realism_lens"}
     for style, body in _SCHEMA_BODY_BY_STYLE.items():
         if style == "pony_danbooru":
-            # Pony omits 7 fields but still requires the 7 tier-required
-            for field in _T4_REQUIRED_FIELDS:
+            for field in _T4_REQUIRED_FIELDS - pony_excluded:
                 assert f'"{field}"' in body, (
                     f"{style} body missing {field!r}"
                 )

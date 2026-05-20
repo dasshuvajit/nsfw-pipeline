@@ -48,6 +48,10 @@ class ThemeCategory:
     compatible_photographers: list[str] = field(default_factory=list)
     compatible_art_movements: list[str] = field(default_factory=list)
     compatible_environments: list[str] = field(default_factory=list)
+    # Round-12 (2026-05-21) — narrative-moment menu narrowing per
+    # category. Empty list = no narrowing; SceneFacetGenerator sees
+    # the full narrative.moment menu (back-compat).
+    compatible_narratives: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -64,6 +68,10 @@ class StyleCategory:
     compatible_photographers: list[str] = field(default_factory=list)
     compatible_art_movements: list[str] = field(default_factory=list)
     compatible_environments: list[str] = field(default_factory=list)
+    # Round-12 (2026-05-21) — narrative-moment menu narrowing per
+    # category. Empty list = no narrowing; SceneFacetGenerator sees
+    # the full narrative.moment menu (back-compat).
+    compatible_narratives: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -78,6 +86,10 @@ class NicheCluster:
     compatible_photographers: list[str] = field(default_factory=list)
     compatible_art_movements: list[str] = field(default_factory=list)
     compatible_environments: list[str] = field(default_factory=list)
+    # Round-12 (2026-05-21) — narrative-moment menu narrowing per
+    # category. Empty list = no narrowing; SceneFacetGenerator sees
+    # the full narrative.moment menu (back-compat).
+    compatible_narratives: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -127,6 +139,7 @@ class CategoriesLoader:
                 compatible_photographers=list(row.get("compatible_photographers") or []),
                 compatible_art_movements=list(row.get("compatible_art_movements") or []),
                 compatible_environments=list(row.get("compatible_environments") or []),
+                compatible_narratives=list(row.get("compatible_narratives") or []),
             )
             for row in self._data.get("themes") or []
         ]
@@ -145,6 +158,7 @@ class CategoriesLoader:
                 compatible_photographers=list(row.get("compatible_photographers") or []),
                 compatible_art_movements=list(row.get("compatible_art_movements") or []),
                 compatible_environments=list(row.get("compatible_environments") or []),
+                compatible_narratives=list(row.get("compatible_narratives") or []),
             )
             for row in self._data.get("styles") or []
         ]
@@ -161,6 +175,7 @@ class CategoriesLoader:
                 compatible_photographers=list(row.get("compatible_photographers") or []),
                 compatible_art_movements=list(row.get("compatible_art_movements") or []),
                 compatible_environments=list(row.get("compatible_environments") or []),
+                compatible_narratives=list(row.get("compatible_narratives") or []),
             )
             for row in self._data.get("niches") or []
         ]

@@ -390,6 +390,7 @@ def llm_vocabulary_block(
     content_level: str | None = None,
     loader: VocabularyLoader | None = None,
     compatible_environments: Iterable[str] | None = None,
+    compatible_narratives: Iterable[str] | None = None,
 ) -> str:
     """Build the system-prompt block listing the abstract tags the LLM
     may pick for ``family_id``.
@@ -418,6 +419,16 @@ def llm_vocabulary_block(
     the family's full menu are dropped; an empty intersection falls
     back to the full menu (defence-in-depth: never serve the LLM a
     blank ``environment.setting`` line — that yields garbage retries).
+
+    Round-12 (2026-05-21) — ``compatible_narratives`` applies the same
+    pattern to the ``narrative.moment`` namespace. The 2026-05-20 A/B
+    audit showed both Cydonia and Qwen3 picking NARR_AFTER_THE_PARTY
+    (silk dress + champagne) for a Gothic Chapel series and
+    NARR_STEPPING_FROM_BATH (clawfoot bath) for 14/24 industrial-loft
+    scenes — the global narrative menu has no theme-coherence filter,
+    so the LLM picks pop-culture tags that visually contradict the
+    setting. Narrowing the menu by category gives the LLM only
+    theme-coherent narrative choices.
     """
     loader = loader or _default_loader()
     by_ns = loader.all_concepts_for_family(family_id)
@@ -435,6 +446,16 @@ def llm_vocabulary_block(
             # worse than showing the full menu. Fall back silently.
             if narrowed:
                 by_ns[env_key] = narrowed
+    # Same pattern for narrative.moment (round-12). The category's
+    # compatible_narratives list comes from categories.yaml; intersect
+    # with the family's narrative menu and fall back to full if empty.
+    if compatible_narratives:
+        narr_whitelist = {str(t).strip() for t in compatible_narratives if t}
+        narr_key = "narrative.moment"
+        if narr_whitelist and narr_key in by_ns:
+            narrowed = [t for t in by_ns[narr_key] if t in narr_whitelist]
+            if narrowed:
+                by_ns[narr_key] = narrowed
     lines = [
         "REALISM VOCABULARY (abstract tags — composer translates to "
         "family-specific phrasing):",

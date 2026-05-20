@@ -283,6 +283,11 @@ class StyleMode(BaseMode):
         else:
             plan["compatible_environments"] = list(cat_envs or sp_envs)
 
+        # Round-12 (2026-05-21) — narrative menu narrowing.
+        plan["compatible_narratives"] = list(
+            category.get("compatible_narratives", []) or []
+        )
+
         logger.info(
             "StyleMode: plan — theme=%r, lighting=%r, color=%r",
             plan["theme"],
@@ -425,6 +430,7 @@ class StyleMode(BaseMode):
             "compatible_photographers": list(chosen.compatible_photographers),
             "compatible_art_movements": list(chosen.compatible_art_movements),
             "compatible_environments": list(chosen.compatible_environments),
+            "compatible_narratives": list(chosen.compatible_narratives),
         }
 
     @staticmethod
