@@ -307,3 +307,111 @@ class TestRealRegistry:
         assert "cydonia_heretic_24b" in ids
         assert "qwen3_abliterated_30b" in ids
         assert "magnum_v4_27b" in ids
+
+
+# ── Round-14 (2026-05-21): multi-backend entries ───────────────────
+
+
+class TestBackendDispatch:
+    def test_backend_defaults_to_ollama_when_unspecified(
+        self, llm_registry_yaml,
+    ):
+        """Legacy entries without a `backend:` key default to ollama —
+        keeps every pre-existing entry working under the new schema."""
+        loader = LLMRegistryLoader(llm_registry_yaml)
+        entry = loader.get_default_llm()
+        assert entry.backend == "ollama"
+
+    def test_lm_studio_entry_parses(self, tmp_path):
+        yaml = _write(tmp_path / "lms.yaml", """
+            llms:
+              cydonia_lms:
+                backend: lm_studio
+                lm_studio_id: "thedrummer_cydonia-24b-v4.3"
+                display_name: "Cydonia LM Studio"
+            default_llm: cydonia_lms
+        """)
+        loader = LLMRegistryLoader(yaml)
+        entry = loader.get_default_llm()
+        assert entry.backend == "lm_studio"
+        assert entry.lm_studio_id == "thedrummer_cydonia-24b-v4.3"
+        # ollama_id is empty for LM Studio entries.
+        assert entry.ollama_id == ""
+
+    def test_model_tag_property_returns_per_backend_id(self, tmp_path):
+        yaml = _write(tmp_path / "mix.yaml", """
+            llms:
+              ollama_one:
+                ollama_id: "tag_ollama"
+                display_name: "Ollama"
+              lm_studio_one:
+                backend: lm_studio
+                lm_studio_id: "tag_lms"
+                display_name: "LM Studio"
+            default_llm: ollama_one
+        """)
+        loader = LLMRegistryLoader(yaml)
+        assert loader.get_llm("ollama_one").model_tag == "tag_ollama"
+        assert loader.get_llm("lm_studio_one").model_tag == "tag_lms"
+
+    def test_lm_studio_entry_missing_lm_studio_id_raises(self, tmp_path):
+        yaml = _write(tmp_path / "bad.yaml", """
+            llms:
+              broken:
+                backend: lm_studio
+                display_name: "no id"
+            default_llm: broken
+        """)
+        with pytest.raises(LLMRegistryError, match="lm_studio_id"):
+            LLMRegistryLoader(yaml)
+
+    def test_unknown_backend_raises(self, tmp_path):
+        yaml = _write(tmp_path / "bad.yaml", """
+            llms:
+              broken:
+                backend: vllm
+                ollama_id: "x"
+                display_name: "vLLM stub"
+            default_llm: broken
+        """)
+        with pytest.raises(LLMRegistryError, match="unknown backend"):
+            LLMRegistryLoader(yaml)
+
+    def test_backend_for_tag_round_trips(self, tmp_path):
+        yaml = _write(tmp_path / "mix.yaml", """
+            llms:
+              ollama_one:
+                ollama_id: "tag_ollama"
+                display_name: "Ollama"
+              lm_studio_one:
+                backend: lm_studio
+                lm_studio_id: "tag_lms"
+                display_name: "LM Studio"
+            default_llm: ollama_one
+        """)
+        loader = LLMRegistryLoader(yaml)
+        assert loader.backend_for_tag("tag_ollama") == "ollama"
+        assert loader.backend_for_tag("tag_lms") == "lm_studio"
+
+    def test_backend_for_unknown_tag_defaults_to_ollama(self, tmp_path):
+        """Pool's defensive default — unknown tag routes to Ollama so
+        legacy callers passing arbitrary Ollama tags that aren't yet
+        registered keep working."""
+        yaml = _write(tmp_path / "min.yaml", """
+            llms:
+              one:
+                ollama_id: "tag1"
+                display_name: "A"
+            default_llm: one
+        """)
+        loader = LLMRegistryLoader(yaml)
+        assert loader.backend_for_tag("totally_unknown") == "ollama"
+
+    def test_real_registry_includes_lm_studio_cydonia(self):
+        """Round-14 — the shipped llm_models.yaml ships the
+        cydonia_v43_lm_studio entry for the A/B against the heretic
+        Ollama variant."""
+        loader = LLMRegistryLoader()
+        entry = loader.get_llm("cydonia_v43_lm_studio")
+        assert entry.backend == "lm_studio"
+        assert entry.lm_studio_id == "thedrummer_cydonia-24b-v4.3"

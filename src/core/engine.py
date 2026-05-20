@@ -35,7 +35,7 @@ from typing import Any, Mapping
 import psutil
 import yaml
 
-from src.agents.llm_client import OllamaClient
+from src.agents.llm_client import LLMClientPool, OllamaClient
 from src.agents.metadata_generator import MetadataGenerator
 from src.agents.scene_facet_generator import (
     SceneFacetGenerator,
@@ -280,7 +280,13 @@ class PipelineEngine:
         self.execution_mode = self.config.get("execution", {}).get("mode", "supervised")
 
         # Components (lazy-initialized where expensive)
-        self.llm_client = OllamaClient()
+        # Round-14 (2026-05-21) — LLMClientPool is the backend-aware
+        # facade. Agents call ``llm_client.generate_json(model=tag)``;
+        # the pool dispatches to OllamaClient or LMStudioClient based
+        # on the tag's owning entry's ``backend`` field in
+        # config/llm_models.yaml. Drop-in replacement for the legacy
+        # OllamaClient — same public interface.
+        self.llm_client = LLMClientPool()
         # LLM registry + router. The router resolves per-role / per-family
         # LLM choices from `pipeline.yaml::llm.routing` (empty by default
         # → every role gets default_llm). At Phase A call sites, the
@@ -800,7 +806,10 @@ class PipelineEngine:
                 family.prompt_style, override=cli_llm_override,
             )
             facet_llm_id = facet_llm_entry.id
-            facet_ollama_id = facet_llm_entry.ollama_id
+            # Round-14 — model_tag picks the right backend identifier:
+            # ollama_id for ollama-backed entries, lm_studio_id for
+            # lm_studio entries. The pool dispatches by backend lookup.
+            facet_ollama_id = facet_llm_entry.model_tag
 
             logger.info(
                 "%s %s (family=%s, llm=%s): facets + prompts …",
@@ -1647,7 +1656,7 @@ class PipelineEngine:
         meta_llm_entry = self._llm_router.resolve_role(
             "metadata_generator", override=cli_llm_override,
         )
-        meta_model = meta_llm_entry.ollama_id
+        meta_model = meta_llm_entry.model_tag
         try:
             meta_gen = MetadataGenerator(self.llm_client)
             metadata = meta_gen.generate(
@@ -1747,12 +1756,64 @@ class PipelineEngine:
         A doesn't need it).
         """
         if not self.llm_client.is_available():
+            # Round-14 — pool.is_available is true if EITHER backend is
+            # reachable. False here means both Ollama AND LM Studio are
+            # down. Message both endpoints so operator knows which to
+            # start.
+            ollama_url = self.llm_client.ollama.base_url
+            lm_studio_url = self.llm_client.lm_studio.base_url
             raise PreflightError(
                 "Preflight check(s) failed:\n"
-                f"  - Ollama not reachable at {self.llm_client.base_url}. "
-                f"Run `ollama serve`."
+                f"  - No LLM backend reachable.\n"
+                f"    Ollama at {ollama_url}: not reachable. "
+                f"Run `ollama serve` if you use Ollama.\n"
+                f"    LM Studio at {lm_studio_url}: not reachable. "
+                f"Start the LM Studio local server if you use LM Studio."
             )
-        logger.info("Preflight (Phase A): Ollama reachable")
+        logger.info("Preflight (Phase A): LLM backend reachable")
+        # Round-14 — when an LM-Studio-backed LLM will be used this
+        # cycle, ensure it's loaded with the registry-declared context
+        # length BEFORE Phase A starts. LM Studio's REST API can't
+        # accept per-request context overrides, so a model JIT-loaded
+        # at the GUI default (4096 tokens) will reject the facet-
+        # generator's 5500-token system prompt with HTTP 400. The
+        # preflight bumps context up to whatever ``context_tokens``
+        # the entry declares.
+        self._ensure_lm_studio_models_loaded(ctx)
+
+    def _ensure_lm_studio_models_loaded(
+        self, ctx: GenerationContext,
+    ) -> None:
+        """For every LM-Studio-backed LLM that could be used this run,
+        ensure it's loaded with the declared context length.
+
+        Currently scans every active LM-Studio entry in the registry —
+        we don't yet have a single "this run will use exactly these
+        LLMs" forecast (the router resolves per-call). Pre-loading all
+        of them is wasteful but safe; revisit when multiple LM Studio
+        entries land. The standard pre-Phase-A unload + reload covers
+        cases where the GUI default context was too small.
+        """
+        from src.memory.llm_registry import BACKEND_LM_STUDIO
+
+        registry = ctx.llm_registry if hasattr(ctx, "llm_registry") else None
+        if registry is None:
+            from src.memory.llm_registry import LLMRegistryLoader
+            registry = LLMRegistryLoader()
+        for entry in registry.list_llms():
+            if entry.backend != BACKEND_LM_STUDIO:
+                continue
+            ctx_tokens = entry.context_tokens or 32768
+            try:
+                self.llm_client.lm_studio.ensure_loaded(
+                    entry.lm_studio_id, context_length=ctx_tokens,
+                )
+            except Exception as exc:  # pragma: no cover — defensive
+                logger.warning(
+                    "ensure_loaded failed for LM Studio model %s: %s "
+                    "— will retry inline on first call.",
+                    entry.lm_studio_id, exc,
+                )
 
     def _preflight_phase_b(self, ctx: GenerationContext) -> None:
         """Phase B (render) preflight — checkpoint + external template.

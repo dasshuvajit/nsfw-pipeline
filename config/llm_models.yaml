@@ -73,6 +73,34 @@ llms:
     families_recommended: ["all"]
     active: true
 
+  cydonia_v43_lm_studio:
+    backend: lm_studio
+    lm_studio_id: "thedrummer_cydonia-24b-v4.3"
+    display_name: "Cydonia 24B v4.3 (LM Studio)"
+    description: >-
+      TheDrummer/Cydonia-24B-v4.3 served via LM Studio's
+      OpenAI-compatible REST API. Same base lineage as the Ollama
+      entry (Mistral Small 3.1 24B base → 3.2-Instruct → Cydonia v4.3
+      creative-writing fine-tune) but WITHOUT the heretic-abliteration
+      step + vision-graft that Fermi's Ollama variant ships. Refusal
+      floor will be higher than cydonia_heretic_24b — useful as an
+      A/B target to measure how much of the project's NSFW
+      generation quality comes from the heretic tune vs the base
+      Cydonia tune itself, and to measure LM Studio's MLX-backed
+      inference speed against Ollama's llama.cpp path on Apple Silicon.
+      Round-14 registration (2026-05-21).
+    quant: "Q4_K_M"
+    size_gb: 14
+    context_tokens: 32768
+    refusal_rate: 4.0           # non-abliterated; expect higher than heretic
+    strengths:
+      - "Cydonia creative-writing tune (base variant)"
+      - "LM Studio MLX backend — typically faster on Apple Silicon"
+      - "OpenAI-compatible response_format json_schema"
+      - "different backend lineage from Ollama — A/B vs cydonia_heretic"
+    families_recommended: ["all"]
+    active: true
+
   qwen3_abliterated_30b:
     ollama_id: "huihui_ai/qwen3-abliterated:30b-a3b"
     display_name: "Qwen3 30B-A3B (Abliterated)"

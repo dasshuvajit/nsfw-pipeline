@@ -103,7 +103,7 @@ class LLMRouter:
         new role later" pattern: a new role gets the project default
         until someone adds a routing entry for it.
         """
-        return self._resolve(role, override=override).ollama_id
+        return self._resolve(role, override=override).model_tag
 
     def for_facet_family(
         self, prompt_style: str, *, override: str | None = None,
@@ -122,7 +122,7 @@ class LLMRouter:
         """
         return self._resolve_facet(
             prompt_style, override=override,
-        ).ollama_id
+        ).model_tag
 
     def resolve_role(
         self, role: str, *, override: str | None = None,
@@ -130,7 +130,7 @@ class LLMRouter:
         """Like :meth:`for_role` but returns the full LLMRegistryEntry.
 
         Engine consumers need both ``entry.id`` (the registry id stored
-        in DB rows) and ``entry.ollama_id`` (the tag passed to
+        in DB rows) and ``entry.model_tag`` (the tag passed to
         OllamaClient) — exposing the entry avoids two lookup calls.
         """
         return self._resolve(role, override=override)
@@ -143,7 +143,7 @@ class LLMRouter:
 
     def default(self) -> str:
         """Return the Ollama tag for ``default_llm``."""
-        return self._registry.get_default_llm().ollama_id
+        return self._registry.get_default_llm().model_tag
 
     def fallback(self) -> str:
         """Return the Ollama tag for the registry's ``fallback_llm``.
@@ -154,7 +154,7 @@ class LLMRouter:
         second-chance retry path when the primary model produces
         un-parseable JSON twice in a row.
         """
-        return self._registry.get_fallback_llm().ollama_id
+        return self._registry.get_fallback_llm().model_tag
 
     def resolve_fallback(self):
         """Return the fallback :class:`LLMRegistryEntry`."""
@@ -227,32 +227,32 @@ class LLMRouter:
         """
         if override is not None:
             entry = self._registry.get_llm(override, require_active=True)
-            return entry.ollama_id, entry.id, SOURCE_CLI_OVERRIDE
+            return entry.model_tag, entry.id, SOURCE_CLI_OVERRIDE
         sfg = self._routing.get("scene_facet_generator") or {}
         if isinstance(sfg, dict):
             per_style = sfg.get(prompt_style)
             if isinstance(per_style, str) and per_style:
                 entry = self._registry.get_llm(per_style, require_active=True)
-                return entry.ollama_id, entry.id, SOURCE_ROUTING
+                return entry.model_tag, entry.id, SOURCE_ROUTING
             per_default = sfg.get("default")
             if isinstance(per_default, str) and per_default:
                 entry = self._registry.get_llm(per_default, require_active=True)
-                return entry.ollama_id, entry.id, SOURCE_ROUTING_DEFAULT
+                return entry.model_tag, entry.id, SOURCE_ROUTING_DEFAULT
         entry = self._registry.get_default_llm()
-        return entry.ollama_id, entry.id, SOURCE_DEFAULT
+        return entry.model_tag, entry.id, SOURCE_DEFAULT
 
     def _resolve_role_with_source(
         self, role: str, *, override: str | None,
     ) -> tuple[str, str, str]:
         if override is not None:
             entry = self._registry.get_llm(override, require_active=True)
-            return entry.ollama_id, entry.id, SOURCE_CLI_OVERRIDE
+            return entry.model_tag, entry.id, SOURCE_CLI_OVERRIDE
         rt = self._routing.get(role)
         if isinstance(rt, str) and rt:
             entry = self._registry.get_llm(rt, require_active=True)
-            return entry.ollama_id, entry.id, SOURCE_ROUTING
+            return entry.model_tag, entry.id, SOURCE_ROUTING
         entry = self._registry.get_default_llm()
-        return entry.ollama_id, entry.id, SOURCE_DEFAULT
+        return entry.model_tag, entry.id, SOURCE_DEFAULT
 
     def _build_resolution_rows(
         self, cli_llm_override: str | None,

@@ -142,6 +142,31 @@ llm:
     #   flux2_prose:      qwen3_abliterated_30b    # BFL 5-anchor prose for flux2
     # metadata_generator: cydonia_heretic_24b
 
+# Round-14 (2026-05-21) — LM Studio backend. The pipeline's LLM client
+# pool dispatches by `backend:` on each entry in config/llm_models.yaml;
+# entries with `backend: lm_studio` route through this block. Standard
+# LM Studio install on macOS exposes the OpenAI-compatible REST API at
+# the URL below and ships an `lms` CLI at the path below for model
+# load / unload.
+#
+# To use LM Studio:
+#   1. Install LM Studio.app (https://lmstudio.ai)
+#   2. Start the local server (Server tab → Start)
+#   3. Download the model in the LM Studio UI (Discover tab)
+#   4. Register the entry in config/llm_models.yaml with backend=lm_studio
+#      and lm_studio_id matching the model identifier shown in `lms ls`
+#   5. Reference the registry id with --llm <id>
+lm_studio:
+  base_url: "http://localhost:1234"
+  # Per-request HTTP timeout (seconds) for /v1/chat/completions calls.
+  # First-request JIT-load on a cold model can be slow on Apple Silicon
+  # under unified-memory pressure; 900s mirrors the Ollama default.
+  request_timeout_seconds: 900
+  # Path to the `lms` CLI binary — used for `lms unload --all` between
+  # Phase A and Phase B. Standard LM Studio install drops it under
+  # ~/.lmstudio/bin/lms; edit if your install differs.
+  lms_binary: "~/.lmstudio/bin/lms"
+
 comfyui:
   base_url: "http://127.0.0.1:8188"
   # Where ComfyUI writes its rendered images on disk. Used by ComfyUIClient

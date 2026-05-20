@@ -113,12 +113,13 @@ def _print_llms(loader: LLMRegistryLoader) -> int:
         print("No LLMs in registry (config/llm_models.yaml).")
         return 0
 
-    headers = ("id", "ollama_id", "quant", "size_gb", "active", "default")
+    headers = ("id", "backend", "model_tag", "quant", "size_gb", "active", "default")
     rows: list[tuple[str, ...]] = []
     for entry in entries:
         rows.append((
             entry.id,
-            entry.ollama_id,
+            entry.backend,
+            entry.model_tag,
             entry.quant or "-",
             f"{entry.size_gb:.0f}" if entry.size_gb is not None else "-",
             "Y" if entry.active else "N",

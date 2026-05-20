@@ -1,7 +1,7 @@
 """LLM Registry — YAML-backed lookup over ``config/llm_models.yaml``.
 
 Mirrors :mod:`src.memory.model_registry` and :mod:`src.memory.family_loader`
-patterns: a single YAML file declares which Ollama-installed LLMs the
+patterns: a single YAML file declares which locally-installed LLMs the
 pipeline can use, plus a ``default_llm`` pointer for "use my pick when
 no --llm flag and no per-role routing applies".
 
@@ -9,15 +9,24 @@ Construction validates the registry:
 
   * ``default_llm`` is present in the registry AND ``active: true``,
     otherwise :class:`LLMRegistryError` is raised at load time.
-  * Each entry has the required fields (``ollama_id``, ``display_name``);
-    missing required field raises :class:`LLMRegistryError`.
+  * Each entry has the required identity fields (``display_name`` +
+    the backend-specific identifier — ``ollama_id`` for Ollama
+    entries, ``lm_studio_id`` for LM Studio entries).
+
+Multi-backend support (round-14, 2026-05-21):
+  Each entry declares ``backend: ollama`` (default) or
+  ``backend: lm_studio``. The model identifier lives under
+  ``ollama_id`` or ``lm_studio_id`` respectively; the registry's
+  :attr:`LLMRegistryEntry.model_tag` property returns the right one
+  per backend. :class:`src.agents.llm_client.LLMClientPool` uses this
+  to dispatch generate-calls to the right backend client.
 
 Read sites:
 
   * :class:`src.agents.llm_router.LLMRouter` (Phase 3) — resolves
-    role/family → registry id → ``ollama_id`` for every LLM call.
-  * :mod:`src.agents.llm_client` (Phase 1 bridge) — falls back to
-    ``default_llm`` when ``pipeline.yaml::llm.model`` is absent.
+    role/family → registry id → ``model_tag`` for every LLM call.
+  * :class:`src.agents.llm_client.LLMClientPool` — looks up backend
+    per registry id at call time.
   * CLIs (``--llm <id>`` flag, Phase 5) — validate user input and
     produce the "Available LLMs:" error per plan §3.6.
 """
@@ -48,14 +57,32 @@ class LLMNotFound(LLMRegistryError):
     """Lookup by id returned no row, or the row is marked ``active=False``."""
 
 
+BACKEND_OLLAMA = "ollama"
+BACKEND_LM_STUDIO = "lm_studio"
+_KNOWN_BACKENDS: frozenset[str] = frozenset({BACKEND_OLLAMA, BACKEND_LM_STUDIO})
+
+
 @dataclass(frozen=True)
 class LLMRegistryEntry:
     """One LLM entry from ``config/llm_models.yaml``.
 
-    ``ollama_id`` is the tag passed to Ollama's HTTP API (``/api/generate``
-    payload's ``model`` field). The registry ``id`` is the stable handle
-    used by ``--llm <id>``, ``pipeline.yaml::llm.routing.*``, and
-    ``prompts.llm_id`` / ``scene_facets.llm_id`` DB rows.
+    The registry ``id`` is the stable handle used by ``--llm <id>``,
+    ``pipeline.yaml::llm.routing.*``, and ``prompts.llm_id`` /
+    ``scene_facets.llm_id`` DB rows.
+
+    Backend identity (round-14, 2026-05-21):
+      ``backend`` selects which local server reaches the model:
+
+        * ``ollama`` (default) → Ollama's ``/api/generate``;
+          identifier lives in ``ollama_id``.
+        * ``lm_studio`` → LM Studio's OpenAI-compatible
+          ``/v1/chat/completions``; identifier in ``lm_studio_id``.
+
+      :attr:`model_tag` returns the backend-appropriate identifier.
+      Both id fields are stored on the dataclass so callers can
+      cross-reference (e.g. an Ollama-served LLM may carry an
+      ``lm_studio_id`` annotation for documentation; the backend
+      field decides which one the pool sends).
     """
 
     id: str
@@ -69,18 +96,49 @@ class LLMRegistryEntry:
     strengths: list[str] = field(default_factory=list)
     families_recommended: list[str] = field(default_factory=list)
     active: bool = True
+    # Round-14: backend dispatch. Default ``ollama`` keeps every
+    # pre-existing entry working without YAML changes.
+    backend: str = BACKEND_OLLAMA
+    # Round-14: LM Studio identifier. Required when backend=lm_studio,
+    # ignored otherwise. Empty string is the YAML-side "not set".
+    lm_studio_id: str = ""
+
+    @property
+    def model_tag(self) -> str:
+        """Backend-specific model identifier used on the wire.
+
+        Returns ``lm_studio_id`` for LM Studio entries, ``ollama_id``
+        for Ollama entries (the default). :class:`LLMClientPool`
+        dispatches generate-calls using this value.
+        """
+        if self.backend == BACKEND_LM_STUDIO:
+            return self.lm_studio_id
+        return self.ollama_id
 
     @classmethod
     def from_dict(cls, llm_id: str, d: dict[str, Any]) -> "LLMRegistryEntry":
-        required = {"ollama_id", "display_name"}
+        backend = str(d.get("backend") or BACKEND_OLLAMA).strip()
+        if backend not in _KNOWN_BACKENDS:
+            raise LLMRegistryError(
+                f"LLM {llm_id!r}: unknown backend {backend!r}. "
+                f"Supported: {sorted(_KNOWN_BACKENDS)}."
+            )
+        # Required identity per backend.
+        if backend == BACKEND_OLLAMA:
+            required = {"ollama_id", "display_name"}
+        else:  # BACKEND_LM_STUDIO
+            required = {"lm_studio_id", "display_name"}
         missing = required - d.keys()
         if missing:
             raise LLMRegistryError(
-                f"LLM {llm_id!r}: missing required keys {sorted(missing)}"
+                f"LLM {llm_id!r} (backend={backend}): missing required "
+                f"keys {sorted(missing)}"
             )
         return cls(
             id=llm_id,
-            ollama_id=str(d["ollama_id"]),
+            ollama_id=str(d.get("ollama_id") or ""),
+            lm_studio_id=str(d.get("lm_studio_id") or ""),
+            backend=backend,
             display_name=str(d["display_name"]),
             description=str(d.get("description") or ""),
             quant=(str(d["quant"]) if d.get("quant") is not None else None),
@@ -174,6 +232,21 @@ class LLMRegistryLoader:
         if not include_inactive and not entry.active:
             return False
         return True
+
+    def backend_for_tag(self, model_tag: str) -> str:
+        """Round-14 — return the backend that owns ``model_tag``.
+
+        Used by :class:`src.agents.llm_client.LLMClientPool` to dispatch
+        generate-calls to the right client. Looks up the first entry
+        (active or inactive) whose ``model_tag`` matches; returns the
+        Ollama backend as a defensive default when no match is found
+        (legacy callers passing arbitrary Ollama tags that aren't yet
+        registered should keep working).
+        """
+        for entry in self._llms.values():
+            if entry.model_tag == model_tag:
+                return entry.backend
+        return BACKEND_OLLAMA
 
     # ── internals ─────────────────────────────────────────────────────
     def _validate_default(self) -> None:

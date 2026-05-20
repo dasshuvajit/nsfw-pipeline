@@ -110,7 +110,7 @@ class BaseMode(ABC):
         """
         if self._router is None:
             from src.memory.llm_registry import LLMRegistryLoader
-            return LLMRegistryLoader().get_default_llm().ollama_id
+            return LLMRegistryLoader().get_default_llm().model_tag
         return self._router.resolve_role(
             role, override=cli_llm_override,
-        ).ollama_id
+        ).model_tag

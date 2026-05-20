@@ -63,17 +63,18 @@ def _load_llm_config() -> dict:
 
 
 def resolve_default_ollama_id() -> str:
-    """Resolve the registry's ``default_llm`` to its Ollama tag.
+    """Resolve the registry's ``default_llm`` to its backend-specific
+    model identifier.
 
-    Used by agents as a tolerant fallback when a caller invokes the
-    agent's public method without an explicit ``model=``. Production
-    paths (engine → mode → agent) always pass a router-resolved tag;
-    this fallback exists so direct agent tests don't have to fabricate
-    a model string.
+    Round-14 (2026-05-21) — historically returned ``ollama_id``;
+    now returns ``model_tag`` (the same string for Ollama-backed
+    defaults, the LM Studio identifier when the default is LM-Studio
+    backed). Kept under the legacy name for back-compat with the
+    handful of agent fallback call sites.
     """
     from src.memory.llm_registry import LLMRegistryLoader
 
-    return LLMRegistryLoader().get_default_llm().ollama_id
+    return LLMRegistryLoader().get_default_llm().model_tag
 
 
 class OllamaClient:
@@ -555,3 +556,107 @@ class OllamaClient:
                 stripped = stripped.rstrip()
                 stripped = stripped[: stripped.rfind("```")]
         return stripped.strip()
+
+
+# ── Round-14 (2026-05-21): multi-backend dispatch ─────────────────────
+
+
+class LLMClientPool:
+    """Backend-aware facade over :class:`OllamaClient` and
+    :class:`src.agents.lm_studio_client.LMStudioClient`.
+
+    Same call shape as :class:`OllamaClient` so the engine and agents
+    treat the pool as a drop-in replacement. Per-call dispatch:
+    :meth:`generate_json` / :meth:`generate` / :meth:`unload_model` take
+    a ``model`` argument (the backend-specific identifier — Ollama tag
+    or LM Studio identifier). The pool looks up the owning backend via
+    :meth:`LLMRegistryLoader.backend_for_tag` and forwards to the right
+    sub-client.
+
+    :meth:`unload_all` cascades to both sub-clients — guaranteeing every
+    loaded model on every backend is freed before ComfyUI starts.
+
+    Why a thin facade rather than refactoring every agent: agents call
+    ``client.generate_json(..., model=resolved_tag)`` after the router
+    has already resolved ``role → registry_entry → model_tag``. The
+    pool just keeps that call shape working when ``model_tag`` happens
+    to belong to a non-Ollama backend.
+    """
+
+    def __init__(
+        self,
+        *,
+        ollama_client: "OllamaClient | None" = None,
+        lm_studio_client: "object | None" = None,
+        registry: "object | None" = None,
+    ) -> None:
+        # Lazy-import to avoid a circular dependency: LLMRegistryLoader
+        # is imported by callers of OllamaClient via the default-llm
+        # fallback path, and we don't want to wire that loop tighter.
+        if registry is None:
+            from src.memory.llm_registry import LLMRegistryLoader
+            registry = LLMRegistryLoader()
+        if lm_studio_client is None:
+            from src.agents.lm_studio_client import LMStudioClient
+            lm_studio_client = LMStudioClient()
+        self._ollama = ollama_client or OllamaClient()
+        self._lm_studio = lm_studio_client
+        self._registry = registry
+
+    # ------------------------------------------------------------------
+    # Dispatch
+    # ------------------------------------------------------------------
+
+    def _client_for(self, model: str):
+        """Resolve a backend client for ``model`` (registry lookup)."""
+        from src.memory.llm_registry import BACKEND_LM_STUDIO
+        backend = self._registry.backend_for_tag(model)
+        if backend == BACKEND_LM_STUDIO:
+            return self._lm_studio
+        return self._ollama
+
+    # ------------------------------------------------------------------
+    # Public API — forwards to the right backend client
+    # ------------------------------------------------------------------
+
+    def generate(self, *args, model: str, **kwargs):
+        return self._client_for(model).generate(*args, model=model, **kwargs)
+
+    def generate_json(self, *args, model: str, **kwargs):
+        return self._client_for(model).generate_json(
+            *args, model=model, **kwargs,
+        )
+
+    def unload_model(self, model: str) -> None:
+        self._client_for(model).unload_model(model)
+
+    def unload_all(self) -> None:
+        """Cascade unload to every sub-client.
+
+        Ollama and LM Studio each track their own ``loaded_models`` set.
+        Calling each sub-client's ``unload_all`` is cheap when nothing's
+        tracked (logged + returned). After this method returns, both
+        backends have an empty ``loaded_models`` set.
+        """
+        self._ollama.unload_all()
+        self._lm_studio.unload_all()
+
+    def is_available(self) -> bool:
+        """True iff at least one sub-backend is reachable.
+
+        The pool can still serve calls that target the reachable
+        backend; failures for the offline one surface at call time.
+        """
+        return self._ollama.is_available() or self._lm_studio.is_available()
+
+    # ------------------------------------------------------------------
+    # Sub-client accessors (mainly for tests + diagnostics)
+    # ------------------------------------------------------------------
+
+    @property
+    def ollama(self) -> "OllamaClient":
+        return self._ollama
+
+    @property
+    def lm_studio(self):
+        return self._lm_studio
