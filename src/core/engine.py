@@ -691,7 +691,7 @@ class PipelineEngine:
         # Render-time checks (checkpoint file + external template
         # validation) run from run_phase_b instead — Phase A is purely
         # LLM and doesn't touch ComfyUI files.
-        self._preflight_phase_a(ctx)
+        self._preflight_phase_a(ctx, cli_llm_override=cli_llm_override)
 
         # ── 3. New-series path: plan + generate scenes + persist ────
         if is_new_series:
@@ -1743,7 +1743,12 @@ class PipelineEngine:
     # PREFLIGHT CHECKS
     # ═══════════════════════════════════════════════════════════════
 
-    def _preflight_phase_a(self, ctx: GenerationContext) -> None:
+    def _preflight_phase_a(
+        self,
+        ctx: GenerationContext,
+        *,
+        cli_llm_override: str | None = None,
+    ) -> None:
         """Phase A (LLM planning) preflight — Ollama reachability only.
 
         Phase A produces prompts in the DB; nothing renders here. The
@@ -1771,49 +1776,66 @@ class PipelineEngine:
                 f"Start the LM Studio local server if you use LM Studio."
             )
         logger.info("Preflight (Phase A): LLM backend reachable")
-        # Round-14 — when an LM-Studio-backed LLM will be used this
-        # cycle, ensure it's loaded with the registry-declared context
-        # length BEFORE Phase A starts. LM Studio's REST API can't
-        # accept per-request context overrides, so a model JIT-loaded
-        # at the GUI default (4096 tokens) will reject the facet-
-        # generator's 5500-token system prompt with HTTP 400. The
-        # preflight bumps context up to whatever ``context_tokens``
-        # the entry declares.
-        self._ensure_lm_studio_models_loaded(ctx)
+        # Round-17 (2026-05-21) — eager-load ONLY the LLM that will
+        # actually be used this run. Round-14 pre-loaded every active
+        # LM Studio entry, which on a 2-LLM install meant a 14 GB
+        # Cydonia load even when the run targeted a 10 GB Qwen3.5.
+        # Now we resolve the override/default first, check its
+        # backend, and only ensure-load if it's LM-Studio-backed.
+        self._ensure_lm_studio_models_loaded(
+            ctx, cli_llm_override=cli_llm_override,
+        )
 
     def _ensure_lm_studio_models_loaded(
-        self, ctx: GenerationContext,
+        self,
+        ctx: GenerationContext,
+        *,
+        cli_llm_override: str | None = None,
     ) -> None:
-        """For every LM-Studio-backed LLM that could be used this run,
-        ensure it's loaded with the declared context length.
+        """Targeted LM-Studio ensure-load: only the LLM that will
+        actually be used this run.
 
-        Currently scans every active LM-Studio entry in the registry —
-        we don't yet have a single "this run will use exactly these
-        LLMs" forecast (the router resolves per-call). Pre-loading all
-        of them is wasteful but safe; revisit when multiple LM Studio
-        entries land. The standard pre-Phase-A unload + reload covers
-        cases where the GUI default context was too small.
+        Resolution: ``cli_llm_override`` wins when set (every agent
+        role collapses onto it for the run); otherwise the registry's
+        ``default_llm`` is used (per-role routing isn't easily
+        forecast here, but ``default_llm`` is by definition the
+        fallback every role lands on when no routing rule matches).
+        Skips the load entirely for Ollama-backed LLMs — Ollama JIT-
+        loads with the model's metadata-defined context length.
         """
-        from src.memory.llm_registry import BACKEND_LM_STUDIO
+        from src.memory.llm_registry import (
+            BACKEND_LM_STUDIO, LLMRegistryLoader,
+        )
 
         registry = ctx.llm_registry if hasattr(ctx, "llm_registry") else None
         if registry is None:
-            from src.memory.llm_registry import LLMRegistryLoader
             registry = LLMRegistryLoader()
-        for entry in registry.list_llms():
-            if entry.backend != BACKEND_LM_STUDIO:
-                continue
-            ctx_tokens = entry.context_tokens or 32768
-            try:
-                self.llm_client.lm_studio.ensure_loaded(
-                    entry.lm_studio_id, context_length=ctx_tokens,
-                )
-            except Exception as exc:  # pragma: no cover — defensive
-                logger.warning(
-                    "ensure_loaded failed for LM Studio model %s: %s "
-                    "— will retry inline on first call.",
-                    entry.lm_studio_id, exc,
-                )
+        try:
+            entry = (
+                registry.get_llm(cli_llm_override, require_active=True)
+                if cli_llm_override
+                else registry.get_default_llm()
+            )
+        except Exception as exc:
+            logger.warning(
+                "ensure_loaded: could not resolve target LLM "
+                "(override=%r): %s — skipping LM Studio pre-load.",
+                cli_llm_override, exc,
+            )
+            return
+        if entry.backend != BACKEND_LM_STUDIO:
+            return
+        ctx_tokens = entry.context_tokens or 32768
+        try:
+            self.llm_client.lm_studio.ensure_loaded(
+                entry.lm_studio_id, context_length=ctx_tokens,
+            )
+        except Exception as exc:  # pragma: no cover — defensive
+            logger.warning(
+                "ensure_loaded failed for LM Studio model %s: %s "
+                "— will retry inline on first call.",
+                entry.lm_studio_id, exc,
+            )
 
     def _preflight_phase_b(self, ctx: GenerationContext) -> None:
         """Phase B (render) preflight — checkpoint + external template.
@@ -2338,17 +2360,26 @@ class PipelineEngine:
         Per-scene `subject_detail` overrides the series-level
         `subject_description` / `subject_bias` when present.
 
+        Round-16 (2026-05-21) — added a defensive fallback chain when
+        every primary source is empty. The 2026-05-21 Qwen3.5-9b MLX
+        prep showed both `subject_detail` (per-scene, scene schema
+        `extra="allow"`) and `subject_description` (series-level,
+        SeriesPlan schema `extra="allow"`) coming through empty —
+        neither field is strictly required by their Pydantic schemas
+        so any LLM that doesn't emit them silently sets base_prompt
+        to "". PromptBuilder then raises and every scene's prompt
+        fails. The fallback assembles a one-sentence subject anchor
+        from the scene's pose + camera + expression so the prompt
+        body still has SOMETHING to lead with.
+
         Returns a dict with `base_prompt` + `negative_prompt` keys.
+        ``base_prompt`` is guaranteed non-empty.
         """
+        negative = style_profile.get("base_negative_prompt", "")
         # Per-scene override wins when present.
         sd = scene.get("subject_detail", "") if scene else ""
         if sd:
-            return {
-                "base_prompt": sd,
-                "negative_prompt": style_profile.get(
-                    "base_negative_prompt", ""
-                ),
-            }
+            return {"base_prompt": sd, "negative_prompt": negative}
         subject = (
             series_plan.get("subject_description")
             or series_plan.get("subject_bias")
@@ -2358,10 +2389,37 @@ class PipelineEngine:
         if series_plan.get("style_keywords"):
             sk = series_plan["style_keywords"]
             subject = f"{sk}, {subject}" if subject else sk
-        return {
-            "base_prompt": subject,
-            "negative_prompt": style_profile.get("base_negative_prompt", ""),
-        }
+        if subject:
+            return {"base_prompt": subject, "negative_prompt": negative}
+
+        # Round-16 fallback — neither subject_detail nor subject_
+        # description were emitted by the LLM. Synthesize a minimum-
+        # viable subject anchor from the scene's other fields so
+        # PromptBuilder doesn't reject the whole scene. Order: pose →
+        # camera (shot type) → expression. "adult woman" is always
+        # prepended (single-female invariant from CLAUDE.md).
+        scene_fields: list[str] = []
+        if scene:
+            for key in ("pose", "camera", "expression"):
+                val = scene.get(key)
+                if val:
+                    scene_fields.append(str(val).strip())
+        if scene_fields:
+            fallback = "adult woman, " + ", ".join(scene_fields)
+        else:
+            # Hard floor — even with no scene either, ship a generic
+            # adult-woman anchor rather than letting PromptBuilder
+            # raise. Should be unreachable in production (scenes
+            # always have at least pose).
+            fallback = "adult woman"
+        logger.warning(
+            "Synthetic character: both subject_detail (per-scene) "
+            "and subject_description (series-level) are empty; "
+            "falling back to scene-derived anchor %r. Re-prep with a "
+            "stricter LLM if this hurts prompt quality.",
+            fallback,
+        )
+        return {"base_prompt": fallback, "negative_prompt": negative}
 
     def _save_scene_facets(
         self,

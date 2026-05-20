@@ -18,6 +18,10 @@ VALID_SERIES_PLAN = {
     # Round-12: color_palette is REQUIRED at the schema level so Ollama's
     # constrained decoder cannot sample null. PALETTE_* prefix enforced.
     "color_palette": "PALETTE_BAROQUE_CARAVAGGIO",
+    # Round-17: subject_description is now REQUIRED too — the Qwen3.5-9b
+    # MLX run showed LLMs may silently skip this field if it's only
+    # Optional, leaving base_prompt empty downstream.
+    "subject_description": "A confident adult woman, fully nude",
 }
 
 VALID_SCENE = {
@@ -139,6 +143,46 @@ class TestSeriesPlan:
         plan = SeriesPlan.model_validate(VALID_SERIES_PLAN)
         assert plan.photographer_ref is None
         assert plan.art_movement is None
+
+    # ── Round-17: subject_description required ─────────────────────
+
+    def test_missing_subject_description_raises(self):
+        """Round-17 — Qwen3.5-9b MLX skipped this field silently,
+        empty base_prompt downstream. Now Pydantic-required."""
+        bad = {**VALID_SERIES_PLAN}
+        bad.pop("subject_description")
+        with pytest.raises(ValidationError) as exc:
+            SeriesPlan.model_validate(bad)
+        assert any(
+            e["loc"] == ("subject_description",)
+            for e in exc.value.errors()
+        )
+
+    def test_empty_subject_description_raises(self):
+        bad = {**VALID_SERIES_PLAN, "subject_description": ""}
+        with pytest.raises(ValidationError):
+            SeriesPlan.model_validate(bad)
+
+    def test_short_subject_description_below_min_length_raises(self):
+        """Pre-fix LLM hedge: emit "woman" or "she" as the subject.
+        min_length=8 rejects stub-tier outputs."""
+        bad = {**VALID_SERIES_PLAN, "subject_description": "woman"}
+        with pytest.raises(ValidationError):
+            SeriesPlan.model_validate(bad)
+
+    def test_huge_subject_description_above_max_length_raises(self):
+        """Runaway prose / cross-scene variety blob: reject."""
+        bad = {**VALID_SERIES_PLAN, "subject_description": "x" * 400}
+        with pytest.raises(ValidationError):
+            SeriesPlan.model_validate(bad)
+
+    def test_subject_description_strip_whitespace(self):
+        """str_strip_whitespace=True on the model normalises padding."""
+        plan = SeriesPlan.model_validate({
+            **VALID_SERIES_PLAN,
+            "subject_description": "  Adult woman, nude  ",
+        })
+        assert plan.subject_description == "Adult woman, nude"
 
 
 # ============================================================================

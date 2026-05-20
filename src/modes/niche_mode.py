@@ -380,8 +380,9 @@ class NicheMode(BaseMode):
             getattr(ctx.content_rules, "llm_directive", "")
             or f"(No directive declared for {ctx.content_level}.)"
         )
+        scene_count = 25
         user_prompt = _SCENE_USER_TEMPLATE.format(
-            scene_count=25,
+            scene_count=scene_count,
             theme=series_plan["theme"],
             core_theme=series_plan.get("core_theme", series_plan["theme"]),
             mood=series_plan["mood"],
@@ -401,7 +402,7 @@ class NicheMode(BaseMode):
         )
         scenes = self._generate_scenes(
             user_prompt, scene_sys, ctx.family.llm_temperature,
-            model=scene_gen_model,
+            model=scene_gen_model, scene_count=scene_count,
         )
         logger.info("NicheMode: %d scenes generated", len(scenes))
         return scenes
@@ -467,12 +468,17 @@ class NicheMode(BaseMode):
         temperature: float | None = None,
         *,
         model: str | None = None,
+        scene_count: int = 25,
     ) -> list[dict[str, Any]]:
+        # Round-17 — see ThemeMode._generate_scenes. 70% ship-rate floor.
+        min_count = max(1, int(scene_count * 0.7))
         return run_llm_with_retry(
             self.llm,
             system=system_prompt,
             user=user_prompt,
-            validator=validate_scene_list(set(self._SCENE_REQUIRED)),
+            validator=validate_scene_list(
+                set(self._SCENE_REQUIRED), min_count=min_count,
+            ),
             temperature=temperature if temperature is not None else self.SCENE_TEMPERATURE,
             num_predict=8192,
             mode_name="NicheMode scenes",

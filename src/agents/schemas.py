@@ -88,6 +88,39 @@ class SeriesPlan(BaseModel):
     environment: str = Field(min_length=1)
     variation_axes: list[str] = Field(min_length=1)
 
+    # Round-17 (2026-05-21) — subject_description promoted to required.
+    # Pre-fix the field was accepted only via extra="allow", so LLMs
+    # that skipped it (Qwen3.5-9b MLX in particular) silently produced
+    # plans with empty subject_description, which then collapsed
+    # base_prompt to "" and broke every scene's prompt build. Making
+    # it Pydantic-required forces Ollama's constrained decoder + LM
+    # Studio's response_format:json_schema to emit a non-empty value.
+    # The round-16 fallback in ``engine._synthetic_character_for_scene``
+    # stays in place as defence-in-depth for legacy plans + edge cases
+    # the schema can't catch (purely whitespace, sanitization
+    # producing empty result, etc.).
+    #
+    # Length bounds: min_length 8 rejects single-word stubs; the
+    # SeriesPlanner user-template asks for "≤ 18 words", which is
+    # roughly 100-200 chars of prose — max_length 300 catches runaway
+    # output without rejecting genuinely-rich descriptions.
+    subject_description: str = Field(
+        ...,
+        min_length=8,
+        max_length=300,
+        description=(
+            "≤ 18 WORDS describing ONLY the subject (appearance, "
+            "attire / state of undress, age signal). At T3/T4 name "
+            "nudity per the tier directive. NEVER use cross-scene "
+            "variety language (varying, various, across, throughout, "
+            "multiple, different angles, compositions, poses) — "
+            "those phrases get injected verbatim into every scene's "
+            "prompt and the diffusion model reads them as a polyptych "
+            "instruction. Required — must be a substantive single-"
+            "scene subject anchor."
+        ),
+    )
+
     # Phase 3 — series-level aesthetic anchors. ``color_palette`` is
     # required-str (no Optional) so Ollama's constrained decoder
     # cannot emit null for it. ``photographer_ref`` + ``art_movement``

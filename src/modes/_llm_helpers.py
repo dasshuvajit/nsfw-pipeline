@@ -383,12 +383,28 @@ def validate_dict_with_required_fields(
     return _validate
 
 
-def validate_scene_list(required: set[str]) -> Callable[[Any], list[dict] | None]:
+def validate_scene_list(
+    required: set[str],
+    *,
+    min_count: int = 1,
+) -> Callable[[Any], list[dict] | None]:
     """Factory: validator that returns a filtered list of valid scene dicts.
 
-    Scenes missing any required field are dropped silently. If zero
-    scenes remain the whole attempt is rejected (validator returns
-    None → retry).
+    Scenes missing any required field are dropped silently. The whole
+    attempt is rejected (validator returns None → retry) when:
+
+    * the result isn't a list at all,
+    * zero scenes survive field-level filtering,
+    * **fewer than ``min_count`` valid scenes survive** — round-17
+      (2026-05-21) extension to catch under-shipping LLMs.
+
+    The 2026-05-21 Qwen3.5-9b MLX prep produced 8 scenes when 25 were
+    asked for — the prior validator accepted that silently because all
+    8 individually had the required fields. The new ``min_count`` gate
+    rejects under-shipped batches so the retry loop gets a second
+    chance to produce a fuller list. Callers compute the threshold as
+    a fraction of the requested ``scene_count`` (70% is the default
+    in the mode planners — see ``ThemeMode._generate_scenes``).
     """
     def _validate(result: Any) -> list[dict] | None:
         if not isinstance(result, list):
@@ -397,5 +413,7 @@ def validate_scene_list(required: set[str]) -> Callable[[Any], list[dict] | None
             s for s in result
             if isinstance(s, dict) and not (required - s.keys())
         ]
-        return valid or None
+        if len(valid) < min_count:
+            return None
+        return valid
     return _validate
