@@ -32,6 +32,7 @@ from src.modes._llm_helpers import (
     run_llm_with_retry,
     validate_scene_list,
     warn_if_missing_aesthetic_anchors,
+    widen_compat_intersection,
 )
 from src.modes.base_mode import BaseMode
 
@@ -342,16 +343,16 @@ class ThemeMode(BaseMode):
         # populated) so SceneFacetGenerator narrows the LLM's
         # environment.setting menu in engine.py. Empty list / missing
         # falls through as the full vocab menu.
-        cat_envs = category.get("compatible_environments", []) or []
-        sp_envs = ctx.style_profile.get(
-            "compatible_environments", []
-        ) or []
-        if cat_envs and sp_envs:
-            plan["compatible_environments"] = [
-                t for t in sp_envs if t in cat_envs
-            ] or list(cat_envs)
-        else:
-            plan["compatible_environments"] = list(cat_envs or sp_envs)
+        #
+        # Round-15 (2026-05-21) — when the intersection is < 3 items
+        # the menu becomes functionally useless (LM Studio Cydonia
+        # base hallucinated 17 fresh tags when given a 1-item menu).
+        # ``widen_compat_intersection`` falls through to the theme's
+        # full list in that case.
+        plan["compatible_environments"] = widen_compat_intersection(
+            category.get("compatible_environments"),
+            ctx.style_profile.get("compatible_environments"),
+        )
 
         # Round-12 (2026-05-21) — same pattern for compatible_narratives.
         # Style profiles don't currently declare a compatible_narratives

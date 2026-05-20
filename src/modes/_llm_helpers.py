@@ -192,6 +192,61 @@ def repair_aesthetic_anchor_keys(plan: dict[str, Any]) -> None:
 repair_colon_suffix_aesthetic_keys = repair_aesthetic_anchor_keys
 
 
+_DEFAULT_COMPAT_MIN_SIZE: int = 3
+
+
+def widen_compat_intersection(
+    category_list: list[str] | None,
+    style_profile_list: list[str] | None,
+    *,
+    min_size: int = _DEFAULT_COMPAT_MIN_SIZE,
+) -> list[str]:
+    """Intersect a category compat-list with a style_profile compat-list,
+    falling through to the wider source when the intersection is too
+    narrow to give the LLM real choice.
+
+    Round-15 (2026-05-21) — the 2026-05-21 LM Studio audit showed
+    Cydonia v4.3 base hallucinated 17 fresh ``ENV_*`` tags when the
+    intersection of theme ``compatible_environments`` and
+    style_profile ``compatible_environments`` produced a single
+    surviving entry. A 1-item menu is functionally equivalent to no
+    menu — the LLM sees one option, decides it doesn't fit the prose
+    it just generated, and invents tags freely. With ``min_size=3``
+    the post-intersection list is widened to the category's list
+    (theme/style/niche-level), keeping the wider-but-still-coherent
+    menu instead. The grammar layer can still narrow against the
+    family vocab downstream (in ``llm_vocabulary_block``); empty
+    intersections fall through to the full family menu there too.
+
+    Fallback order:
+      1. Intersection, when it has at least ``min_size`` entries.
+      2. Category list, when non-empty.
+      3. Style-profile list, when non-empty.
+      4. Empty list (callers downstream interpret this as "no
+         narrowing — show full family vocab").
+
+    Returns a new list (never the input). Order preserves the
+    category's order in branches 1+2, the style-profile's in 3.
+    """
+    cat = list(category_list or [])
+    sp = list(style_profile_list or [])
+    if not cat and not sp:
+        return []
+    if not cat:
+        return sp
+    if not sp:
+        return cat
+    # Both populated — try intersection first.
+    sp_set = set(sp)
+    intersection = [t for t in cat if t in sp_set]
+    if len(intersection) >= min_size:
+        return intersection
+    # Intersection too narrow — fall through to the category list
+    # (theme/style/niche is the stronger thematic signal; style_profile
+    # is a softer aesthetic flavour).
+    return cat
+
+
 def warn_if_missing_aesthetic_anchors(
     plan: dict[str, Any], *, mode_name: str,
 ) -> None:

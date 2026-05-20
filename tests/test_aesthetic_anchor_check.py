@@ -274,3 +274,105 @@ def test_repair_comma_value_only_no_prefix_match_is_noop():
     assert plan["color_palette"] is None
     # The garbage key stays untouched.
     assert "weird_garbage_key, photographer_ref" in plan
+
+
+# ── Round-15: widen_compat_intersection ─────────────────────────────
+
+
+class TestWidenCompatIntersection:
+    """Round-15 (2026-05-21) — intersection-too-narrow fallback for
+    theme/style/niche compat lists.
+
+    The 2026-05-21 LM Studio Cydonia audit showed a 1-entry
+    post-intersection menu let the LLM hallucinate 17 fresh ENV_*
+    tags freely (it sees a single option, decides the prose doesn't
+    fit it, invents new ones). ``widen_compat_intersection`` keeps
+    the intersection when it has ≥3 entries; otherwise falls
+    through to the category list (theme is the stronger thematic
+    signal vs style_profile's softer aesthetic flavour).
+    """
+
+    def test_full_intersection_kept_when_above_threshold(self):
+        from src.modes._llm_helpers import widen_compat_intersection
+        cat = ["ENV_A", "ENV_B", "ENV_C", "ENV_D"]
+        sp = ["ENV_B", "ENV_C", "ENV_D", "ENV_E"]
+        # Intersection = [B, C, D] (3 items, == threshold)
+        out = widen_compat_intersection(cat, sp)
+        assert out == ["ENV_B", "ENV_C", "ENV_D"]
+
+    def test_falls_through_to_category_when_intersection_too_narrow(self):
+        """The 1-entry intersection bug: ENV_TUSCAN_VILLA_RENAISSANCE
+        alone in compat_envs let LM Studio Cydonia invent 17 tags."""
+        from src.modes._llm_helpers import widen_compat_intersection
+        cat = ["ENV_TUSCAN_VILLA_RENAISSANCE", "ENV_A", "ENV_B", "ENV_C"]
+        sp = ["ENV_TUSCAN_VILLA_RENAISSANCE", "ENV_X", "ENV_Y"]
+        out = widen_compat_intersection(cat, sp)
+        # Intersection has 1 item — below threshold 3 — fall through
+        # to category list.
+        assert out == cat
+
+    def test_empty_intersection_falls_through_to_category(self):
+        from src.modes._llm_helpers import widen_compat_intersection
+        out = widen_compat_intersection(
+            ["ENV_A", "ENV_B", "ENV_C"], ["ENV_X", "ENV_Y", "ENV_Z"],
+        )
+        assert out == ["ENV_A", "ENV_B", "ENV_C"]
+
+    def test_two_item_intersection_below_threshold(self):
+        from src.modes._llm_helpers import widen_compat_intersection
+        cat = ["ENV_A", "ENV_B", "ENV_C", "ENV_D"]
+        sp = ["ENV_A", "ENV_B", "ENV_X"]
+        out = widen_compat_intersection(cat, sp)
+        # 2-item intersection still below default threshold 3 → fall
+        # through to category list.
+        assert out == cat
+
+    def test_only_category_populated(self):
+        from src.modes._llm_helpers import widen_compat_intersection
+        cat = ["ENV_A", "ENV_B"]
+        out = widen_compat_intersection(cat, [])
+        assert out == ["ENV_A", "ENV_B"]
+        out_none = widen_compat_intersection(cat, None)
+        assert out_none == ["ENV_A", "ENV_B"]
+
+    def test_only_style_profile_populated(self):
+        from src.modes._llm_helpers import widen_compat_intersection
+        sp = ["ENV_X", "ENV_Y"]
+        out = widen_compat_intersection([], sp)
+        assert out == ["ENV_X", "ENV_Y"]
+        out_none = widen_compat_intersection(None, sp)
+        assert out_none == ["ENV_X", "ENV_Y"]
+
+    def test_both_empty_returns_empty(self):
+        from src.modes._llm_helpers import widen_compat_intersection
+        assert widen_compat_intersection([], []) == []
+        assert widen_compat_intersection(None, None) == []
+
+    def test_returns_new_list_not_input_reference(self):
+        """Mutating the result must not mutate the caller's category list."""
+        from src.modes._llm_helpers import widen_compat_intersection
+        cat = ["ENV_A", "ENV_B", "ENV_C"]
+        out = widen_compat_intersection(cat, None)
+        out.append("ENV_X")
+        assert cat == ["ENV_A", "ENV_B", "ENV_C"]
+
+    def test_preserves_category_order_in_intersection(self):
+        """Intersection ordering follows the category list, not the
+        style_profile — keeps category's preferred order intact."""
+        from src.modes._llm_helpers import widen_compat_intersection
+        cat = ["ENV_C", "ENV_B", "ENV_A", "ENV_D"]
+        sp = ["ENV_A", "ENV_B", "ENV_C", "ENV_D"]
+        out = widen_compat_intersection(cat, sp)
+        # All 4 items in cat order.
+        assert out == ["ENV_C", "ENV_B", "ENV_A", "ENV_D"]
+
+    def test_min_size_param_can_be_overridden(self):
+        from src.modes._llm_helpers import widen_compat_intersection
+        cat = ["ENV_A", "ENV_B", "ENV_C", "ENV_D"]
+        sp = ["ENV_A", "ENV_B"]
+        # With default threshold 3 → 2-item intersection falls through.
+        assert widen_compat_intersection(cat, sp) == cat
+        # With threshold 2 → 2-item intersection survives.
+        assert widen_compat_intersection(
+            cat, sp, min_size=2,
+        ) == ["ENV_A", "ENV_B"]
