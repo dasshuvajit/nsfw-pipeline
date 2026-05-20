@@ -6,14 +6,20 @@ family: illustrious
 resolution_portrait: [832, 1216]
 resolution_square: [1024, 1024]
 resolution_landscape: [1216, 832]
+license: faipl_1.0_sd
+commercial_use: true
 active: true
 notes: >-
-  Illustrious XL NSFW realism merge. SDXL-compatible node graph
-  (CheckpointLoaderSimple + KSampler), native 1024². Creator
-  recommends dpmpp_3m_sde + simple (NOT normal) at steps=24, cfg=4.
-  Supports up to 2 LoRAs; IPAdapter SDXL-compatible. Quality suffix
-  (masterpiece, best quality, amazing quality, very aesthetic, newest)
-  is injected by the family composer — do NOT put it in trigger_words.
+  Civitai model 1257570 (NSFW realism merge on Illustrious XL).
+  Author-recommended template contract: dpmpp_3m_sde + simple (NOT
+  normal), 24 steps, CFG 4. SDXL-compatible node graph
+  (CheckpointLoaderSimple + KSampler), 1024² native. Inherits the
+  FAIPL 1.0-SD constraint from its Illustrious base — restricts
+  closed-source redistribution of the model itself but does not
+  restrict commercial use of generated images. The illustrious-family
+  composer injects the quality suffix
+  (`masterpiece, best quality, amazing quality, very aesthetic, newest`);
+  do NOT add it to trigger_words.
 
 prompt:
   extend:

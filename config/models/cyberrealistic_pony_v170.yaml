@@ -6,11 +6,15 @@ family: pony
 resolution_portrait: [896, 1152]
 resolution_square: [1024, 1024]
 resolution_landscape: [1152, 896]
+license: creativeml_openrail_pp_m
+commercial_use: true
 active: true
 notes: >-
-  CyberRealistic Pony V17.0 — same family as V16.0, more polished.
-  Uses the Pony family 6-tier score prefix (auto-prepended) + the
-  CyberRealistic negative TI embedding.
+  cyberdelia's Pony Diffusion V6 XL realism merge, Civitai model 443821.
+  CreativeML Open RAIL++-M — commercial use permitted with the usual
+  RAIL no-malicious-use carve-outs. Author-recommended settings (carry
+  through to whatever template the user wires): DPM++ SDE Karras /
+  Euler a, 30+ steps, CFG 5, clip_skip 2.
 
 prompt:
   extend:
@@ -20,6 +24,4 @@ prompt:
       - CyberRealistic_Negative_PONY_V2-neg
     avoid_words: [anime, cartoon, 3d render]
   override:
-    # Phase 3c — pin the photoreal vocabulary in the leading window
-    # right after the 6-tier score chain.
     structure_intro: ["source_photograph", "photo (medium)", "realistic"]

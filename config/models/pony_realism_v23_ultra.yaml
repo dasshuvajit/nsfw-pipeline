@@ -6,12 +6,18 @@ family: pony
 resolution_portrait: [896, 1152]
 resolution_square: [1024, 1024]
 resolution_landscape: [1152, 896]
+license: creativeml_openrail_pp_m
+commercial_use: true
 active: true
 notes: >-
-  Pony Realism V2.3 ULTRA — experimental variant with more natural
-  lighting and enhanced skin detail. AVOID dpmpp_2m. Keep individual
-  prompt weights <= 1.5. No model-specific embeddings. Phase 3
-  structure_intro pins the realism vocabulary in the leading window.
+  Civitai model 372465 (ULTRA variant of v2.3) — Pony Diffusion V6 XL
+  realism merge with more natural lighting and finer skin detail.
+  Author-recommended template contract: Euler A (or DPM++ 2M SDE
+  Karras / DPM++ 3M), 30+ steps, CFG 6-7, clip_skip 2. AVOID
+  DPM++ 2M Karras — explicitly flagged as not recommended. No
+  model-specific embeddings. Phase 3 structure_intro pins the realism
+  vocabulary in the leading CLIP window. Keep individual prompt
+  weights <= 1.5.
 
 prompt:
   extend:

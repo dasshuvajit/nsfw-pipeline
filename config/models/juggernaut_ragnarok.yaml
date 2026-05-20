@@ -3,11 +3,17 @@ display_name: Juggernaut XL Ragnarok
 filename: juggernautXL_ragnarokBy.safetensors
 architecture: sdxl
 family: sdxl
-resolution_portrait: [768, 1152]
+resolution_portrait: [832, 1216]
 resolution_square: [1024, 1024]
-resolution_landscape: [1152, 768]
+resolution_landscape: [1216, 832]
+license: creativeml_openrail_pp_m
+commercial_use: true
 active: true
-notes: Juggernaut variant — dpmpp_2m_sde/35/4.0 for optimal skin textures.
+notes: >-
+  Civitai model 133005 (RunDiffusion). VAE is baked in. Author-recommended
+  template contract: DPM++ 2M SDE, 30-40 steps, CFG 3-6 (lower → more
+  photoreal). No baked-in LoRAs. License explicitly allows reselling
+  outputs.
 
 prompt:
   extend:

@@ -1,13 +1,20 @@
 id: gonzalomo_flux_v30
-display_name: GonzalomoXL Flux v3.0
+display_name: GonzaLomo XL/Flux/Pony v3.0 Flux D AIO
 filename: gonzalomoXLFluxPony_v30FluxDAIO.safetensors
 architecture: flux
 family: flux
 resolution_portrait: [832, 1216]
 resolution_square: [1024, 1024]
 resolution_landscape: [1216, 832]
+license: creativeml_openrail_pp_m
+commercial_use: true
 active: true
-notes: Flux/Chroma branch. UNETLoader + DualCLIPLoader workflow. No negative prompt support.
+notes: >-
+  Civitai model 1513492 (Flux D AIO variant) — FLUX.1-schnell based,
+  so CFG is distilled at 1.0 and negative prompts are ignored.
+  Author-recommended template contract: LCM / Karras sampler,
+  12 steps, CFG 1.0. Loads via UNETLoader + DualCLIPLoader inside
+  the external template.
 
 prompt:
   extend:

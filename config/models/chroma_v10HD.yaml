@@ -1,17 +1,20 @@
 id: chroma_v10HD
-display_name: Chroma v1.0 HD
+display_name: Chroma1-HD
 filename: Chroma1-HD-Q8_0.gguf
 architecture: chroma
 family: chroma
 resolution_portrait: [832, 1216]
 resolution_square: [1152, 1152]
 resolution_landscape: [1216, 832]
+license: apache_2.0
+commercial_use: true
 active: true
 notes: >-
-  FLUX.1-schnell based MMDiT (8.9B params). GGUF Q8_0 quantized.
-  T5-only text encoding, supports negative prompts (unlike vanilla Flux
-  — Chroma was re-trained with CFG). UnetLoaderGGUF +
-  SamplerCustomAdvanced workflow. Model lives in unet/, not checkpoints/.
+  lodestones/Chroma1-HD on Hugging Face. 8.9B-param MMDiT derived from
+  FLUX.1-schnell (3.3B timestep-encoder collapsed into a 250M FFN).
+  Loaded via UnetLoaderGGUF (ComfyUI-GGUF custom node). T5-XXL text
+  encoder. Re-trained with CFG so supports negative prompts (unlike
+  vanilla FLUX.1). Lives under ComfyUI/models/unet/, not checkpoints/.
 
 prompt:
   extend:
