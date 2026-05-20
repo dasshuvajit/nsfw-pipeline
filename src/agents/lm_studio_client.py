@@ -196,6 +196,7 @@ class LMStudioClient:
         schema: "type[BaseModel] | None" = None,
         prefill: str | None = None,
         fallback_model: str | None = None,
+        skip_grammar_constraint: bool = False,
     ) -> dict | list:
         """Generate text, strip markdown fences, parse as JSON.
 
@@ -239,6 +240,7 @@ class LMStudioClient:
                 temperature=temperature,
                 num_predict=num_predict,
                 schema=schema,
+                skip_grammar_constraint=skip_grammar_constraint,
             )
         except LMStudioJSONParseError as primary_exc:
             if fallback_model and fallback_model != model:
@@ -254,6 +256,7 @@ class LMStudioClient:
                     temperature=temperature,
                     num_predict=num_predict,
                     schema=schema,
+                    skip_grammar_constraint=skip_grammar_constraint,
                 )
             raise primary_exc
 
@@ -266,10 +269,20 @@ class LMStudioClient:
         temperature: float,
         num_predict: int,
         schema: "type[BaseModel] | None",
+        skip_grammar_constraint: bool = False,
     ) -> dict | list:
-        """One attempt of generate_json — primary OR fallback model."""
+        """One attempt of generate_json — primary OR fallback model.
+
+        ``skip_grammar_constraint`` — Round-18 (2026-05-22). When True,
+        the ``response_format: json_schema`` field is omitted from the
+        request. Used for Qwen 3.5+ reasoning models whose
+        ``<think>...</think>`` chain-of-thought block is incompatible
+        with the grammar-constrained-decoding mode (the grammar
+        rejects the first ``<`` token, model stalls, content comes
+        back empty). Schema is still used for Pydantic post-validation.
+        """
         format_schema: dict | None = None
-        if schema is not None:
+        if schema is not None and not skip_grammar_constraint:
             try:
                 pydantic_schema = schema.model_json_schema()
             except Exception:  # pragma: no cover — defensive
@@ -297,6 +310,13 @@ class LMStudioClient:
             format_schema=format_schema,
         )
         cleaned = self._strip_fences(raw)
+        # Round-18 — reasoning models sometimes prefix their JSON with
+        # whitespace / newlines. Find the first { or [ and start there.
+        if skip_grammar_constraint and cleaned:
+            for i, ch in enumerate(cleaned):
+                if ch in "{[":
+                    cleaned = cleaned[i:]
+                    break
 
         if schema is not None:
             from pydantic import ValidationError as _ValidationError

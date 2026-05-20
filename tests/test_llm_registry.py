@@ -415,3 +415,52 @@ class TestBackendDispatch:
         entry = loader.get_llm("cydonia_v43_lm_studio")
         assert entry.backend == "lm_studio"
         assert entry.lm_studio_id == "thedrummer_cydonia-24b-v4.3"
+
+
+# ── Round-18 (2026-05-22): is_reasoning_model flag ──────────────────
+
+
+class TestReasoningModelFlag:
+    """The 2026-05-22 qwen3.6-27b integration exposed an
+    incompatibility between LM Studio's ``response_format:
+    json_schema`` grammar and Qwen 3.5+ thinking-model
+    <think>...</think> output traces. The ``is_reasoning_model``
+    flag tells the pool to skip schema-constrained decoding for
+    affected models."""
+
+    def test_default_is_false(self, llm_registry_yaml):
+        loader = LLMRegistryLoader(llm_registry_yaml)
+        entry = loader.get_default_llm()
+        assert entry.is_reasoning_model is False
+
+    def test_yaml_flag_picked_up(self, tmp_path):
+        yaml = _write(tmp_path / "r.yaml", """
+            llms:
+              thinking_one:
+                backend: lm_studio
+                lm_studio_id: "reasoning-9b"
+                is_reasoning_model: true
+                display_name: "Reasoning Model"
+            default_llm: thinking_one
+        """)
+        loader = LLMRegistryLoader(yaml)
+        assert loader.get_default_llm().is_reasoning_model is True
+
+    def test_is_reasoning_model_helper(self, tmp_path):
+        yaml = _write(tmp_path / "mix.yaml", """
+            llms:
+              normal:
+                ollama_id: "x"
+                display_name: "Normal"
+              reasoning:
+                backend: lm_studio
+                lm_studio_id: "y"
+                is_reasoning_model: true
+                display_name: "Reasoning"
+            default_llm: normal
+        """)
+        loader = LLMRegistryLoader(yaml)
+        assert loader.is_reasoning_model("x") is False
+        assert loader.is_reasoning_model("y") is True
+        # Unknown tag → False (defensive default)
+        assert loader.is_reasoning_model("unknown") is False

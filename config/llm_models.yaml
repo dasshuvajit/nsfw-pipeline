@@ -73,6 +73,85 @@ llms:
     families_recommended: ["all"]
     active: true
 
+  qwen36_27b_heretic_neo_imatrix:
+    backend: lm_studio
+    lm_studio_id: "qwen3.6-27b-heretic-uncensored-finetune-neo-code-di-imatrix-max"
+    # Round-18 — Qwen 3.5/3.6 thinking-mode finetunes emit a
+    # `<think>...</think>` chain-of-thought block that's incompatible
+    # with LM Studio's response_format:json_schema grammar. With this
+    # flag set, LMStudioClient skips the response_format constraint
+    # and falls back to free-form generation + Pydantic post-validation
+    # (the reasoning trace goes to the response's `reasoning_content`
+    # field, the actual JSON answer lands in `content`).
+    is_reasoning_model: true
+    display_name: "Qwen 3.6 27B Heretic NEO-Code DI (iMatrix Max)"
+    description: >-
+      27B-class community finetune of the Qwen 3.5/3.6 architecture
+      family (file declares qwen35 arch). Heretic abliteration step
+      removes refusal floor; "NEO-Code DI" is a code-distillation +
+      domain-instruct tune; "iMatrix Max" denotes the importance-
+      matrix calibrated GGUF quantization. 18.70 GB on disk.
+
+      ROUND-18 EVAL OUTCOME (2026-05-22): registered but marked
+      INACTIVE. Phase A wall-clock is impractical — the reasoning
+      trace (1500-3000 tokens per call before the answer starts)
+      multiplied by 25 scenes pushed the scene-generation step past
+      the 15-minute per-request timeout. A single SeriesPlan call
+      took 118s (vs 10s for Qwen3.5 9B MLX, 30s for Cydonia 24B).
+      Schema-constrained decoding is also incompatible with the
+      <think>...</think> trace: the grammar rejects the first `<`
+      token and the model returns empty content. The round-18
+      `is_reasoning_model: true` flag worked around the grammar
+      conflict (falls back to free-form generation + Pydantic
+      post-validation), but the wall-clock cost remains the
+      blocker. Re-evaluate when LM Studio supports parallel reason+
+      answer streaming OR when a faster reasoning-model variant
+      lands (Qwen3-Coder-30B-A3B-Thinking on MoE backend might fix
+      both axes). Kept registered to preserve the integration
+      framework for the next reasoning model.
+    quant: "GGUF_iMatrix"
+    size_gb: 19
+    context_tokens: 32768
+    refusal_rate: 2.0           # heretic abliteration
+    strengths:
+      - "27B dense — would-be richer prose than 9B (untested due to inactive)"
+      - "heretic abliteration (refusal-removed)"
+      - "NEO-Code DI fine-tune (instruct discipline + code competence)"
+      - "iMatrix-calibrated GGUF (better perplexity preservation)"
+    families_recommended: ["all"]
+    active: false
+
+  qwen35_9b_claude46_heretic_mlx:
+    backend: lm_studio
+    lm_studio_id: "qwen3.5-9b-claude-4.6-highiq-instruct-heretic-uncensored-mlx-mxfp8"
+    display_name: "Qwen 3.5 9B Claude-4.6 HighIQ Heretic (MLX MXFP8)"
+    description: >-
+      Qwen 3.5 9B dense base, fine-tuned on a Claude 4.6 HighIQ-Instruct
+      distillation corpus, then heretic-abliterated (refusal-removed).
+      Shipped in MLX MXFP8 format — the first MLX-native entry in this
+      registry, which means it runs through LM Studio's MLX runtime on
+      Apple Silicon (skipping the llama.cpp / GGUF path the other
+      LM Studio entries use). Round-16 registration (2026-05-21) for
+      A/B against the 24B / 30B options that have dominated the
+      Phase A wall-clock budget. Expectations: ~3x faster than
+      Cydonia 24B, ~2x smaller in memory (10.17 GB on disk), refusal
+      floor low (heretic step), creative-instruct tuning via Claude 4.6
+      distillation. Trade-off vs the 24B/30B models: ~1/3 the
+      parameter count → potentially shallower prose, but better
+      throughput per scene on the facet-generation hot path.
+    quant: "MXFP8"
+    size_gb: 10
+    context_tokens: 32768
+    refusal_rate: 2.0           # heretic abliteration
+    strengths:
+      - "MLX native — fastest LM Studio path on Apple Silicon"
+      - "9B dense — ~3x smaller / ~3x faster than 24B-class models"
+      - "Claude 4.6 HighIQ-Instruct distillation"
+      - "heretic abliteration (refusal-removed)"
+      - "MXFP8 — high-precision 8-bit microscaling float"
+    families_recommended: ["all"]
+    active: true
+
   cydonia_v43_lm_studio:
     backend: lm_studio
     lm_studio_id: "thedrummer_cydonia-24b-v4.3"

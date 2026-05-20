@@ -623,9 +623,22 @@ class LLMClientPool:
         return self._client_for(model).generate(*args, model=model, **kwargs)
 
     def generate_json(self, *args, model: str, **kwargs):
-        return self._client_for(model).generate_json(
-            *args, model=model, **kwargs,
-        )
+        # Round-18 — for LM-Studio reasoning models, tell the client to
+        # skip the response_format:json_schema grammar (which fights
+        # the model's <think>...</think> chain-of-thought trace).
+        # Pydantic post-validation still runs. Ollama path is
+        # unaffected (no kwarg recognised there).
+        client = self._client_for(model)
+        if (
+            hasattr(client, "_chat")
+            and "skip_grammar_constraint" not in kwargs
+        ):
+            from src.agents.lm_studio_client import LMStudioClient
+            if isinstance(client, LMStudioClient):
+                kwargs["skip_grammar_constraint"] = (
+                    self._registry.is_reasoning_model(model)
+                )
+        return client.generate_json(*args, model=model, **kwargs)
 
     def unload_model(self, model: str) -> None:
         self._client_for(model).unload_model(model)

@@ -102,6 +102,18 @@ class LLMRegistryEntry:
     # Round-14: LM Studio identifier. Required when backend=lm_studio,
     # ignored otherwise. Empty string is the YAML-side "not set".
     lm_studio_id: str = ""
+    # Round-18 (2026-05-22) — reasoning-model flag. Qwen 3.5+ thinking
+    # models emit a ``<think>...</think>`` chain-of-thought block
+    # before the answer, which is incompatible with LM Studio's
+    # ``response_format: json_schema`` grammar (the grammar forces the
+    # first token to be ``{`` but the model wants to start the
+    # reasoning trace, hits the grammar wall, and emits empty content).
+    # When ``is_reasoning_model: true``, LMStudioClient skips passing
+    # response_format and falls back to free-form generation +
+    # Pydantic post-validation (the reasoning trace goes into the
+    # separate ``reasoning_content`` field, and the actual answer
+    # lands in ``content`` cleanly).
+    is_reasoning_model: bool = False
 
     @property
     def model_tag(self) -> str:
@@ -158,6 +170,7 @@ class LLMRegistryEntry:
             strengths=list(d.get("strengths") or []),
             families_recommended=list(d.get("families_recommended") or []),
             active=bool(d.get("active", True)),
+            is_reasoning_model=bool(d.get("is_reasoning_model", False)),
         )
 
 
@@ -247,6 +260,16 @@ class LLMRegistryLoader:
             if entry.model_tag == model_tag:
                 return entry.backend
         return BACKEND_OLLAMA
+
+    def is_reasoning_model(self, model_tag: str) -> bool:
+        """Round-18 — return True iff ``model_tag`` matches a registry
+        entry flagged ``is_reasoning_model: true``. Used by the pool
+        to know when to skip LM Studio's ``response_format: json_schema``
+        constraint (incompatible with the reasoning <think> trace)."""
+        for entry in self._llms.values():
+            if entry.model_tag == model_tag:
+                return entry.is_reasoning_model
+        return False
 
     # ── internals ─────────────────────────────────────────────────────
     def _validate_default(self) -> None:
