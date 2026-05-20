@@ -658,6 +658,64 @@ def _make_tier_strict_schema(
     return strict_cls
 
 
+def _narrow_schema_body_examples(
+    body: str,
+    *,
+    compatible_environments: list[str] | None,
+    compatible_narratives: list[str] | None,
+) -> str:
+    """Round-13 (2026-05-21) — rewrite the inline example list in the
+    ``environment_setting`` / ``narrative_moment`` schema-body lines so
+    they advertise only category-compatible tags.
+
+    Pre-fix the schema body for the non-Pony bodies hard-coded example
+    lists like::
+
+        "narrative_moment": "[REQUIRED — every tier] One NARR_* concept
+        tag for the captured editorial moment (NARR_READING_LETTER_AT_DAWN,
+        NARR_STEPPING_FROM_BATH, NARR_LIGHTING_CIGARETTE, etc.) ..."
+
+    The post-fix audit (2026-05-21) showed Qwen3 picking
+    ``NARR_STEPPING_FROM_BATH`` on 17/25 chapel-themed scenes despite
+    the vocab block's ``narrative.moment`` namespace being narrowed —
+    because the schema-body inline examples kept advertising it.
+
+    This helper substitutes the in-parens example list of each line
+    with up to 5 picks from the compatibility whitelist. Empty / None
+    whitelist falls through unchanged (back-compat).
+    """
+    import re
+
+    def _rewrite_line(
+        line_field: str, whitelist: list[str] | None, max_examples: int = 5,
+    ) -> None:
+        nonlocal body
+        if not whitelist:
+            return
+        # Take up to N tags from the whitelist; if fewer, use what's there.
+        examples = ", ".join(whitelist[:max_examples])
+        if not examples:
+            return
+        # Match the schema-body line and replace the parenthetical that
+        # follows the leading prose. Pattern: `"field": "[REQUIRED... ] One
+        # X_* concept tag ... (A_TAG, B_TAG, etc.). rest"`. We swap the
+        # inside of the parens — leave the leading description + trailing
+        # prose intact.
+        pattern = (
+            rf'("{re.escape(line_field)}":\s*"\[[^\]]+\][^"]*?'
+            rf'(?:concept tag for[^"(]+)?)'
+            rf'\([^)]*\)'
+        )
+        replacement = rf'\1({examples}, etc.)'
+        new_body, n = re.subn(pattern, replacement, body, count=1)
+        if n == 1:
+            body = new_body
+
+    _rewrite_line("environment_setting", compatible_environments)
+    _rewrite_line("narrative_moment", compatible_narratives)
+    return body
+
+
 def _make_tier_active_schema_body(body: str, content_level: str) -> str:
     """Rewrite conditional ``[REQUIRED — T3+]`` / ``[REQUIRED — T4 only]``
     markers into unconditional ``[REQUIRED]`` or ``[OPTIONAL]`` based on
@@ -818,6 +876,55 @@ class _DiversityTracker:
               - lighting_directive: LIGHT_WINDOW_SIDE used 12/22 scenes (54%)
               - mood_aesthetic: MOOD_PENSIVE used 14/22 scenes (63%)
         """
+        return self._overused_summary_text()
+
+    def overused_tags(self) -> dict[str, str]:
+        """Round-13 (2026-05-21) — companion to :meth:`overused_summary`
+        that returns the structured ``{axis: dominant_tag}`` map for
+        validator-retry logic.
+
+        Empty dict when no axis has crossed the dominance threshold or
+        fewer than the min-facets gate have been recorded. Used by
+        :meth:`SceneFacetGenerator.generate` to detect when a freshly
+        generated facet landed on an already-over-represented tag and
+        should be rejected for a second-attempt retry.
+        """
+        if self._total < _DIVERSITY_MIN_FACETS_BEFORE_NUDGE:
+            return {}
+        out: dict[str, str] = {}
+        for axis in _DIVERSITY_TRACKED_AXES:
+            counts = self._counts[axis]
+            if not counts:
+                continue
+            top_tag, top_count = max(counts.items(), key=lambda kv: kv[1])
+            if (top_count / self._total) >= _DIVERSITY_DOMINANCE_THRESHOLD:
+                out[axis] = top_tag
+        return out
+
+    def overused_picks_in(self, facet: dict[str, Any]) -> dict[str, str]:
+        """Return the ``{axis: dominant_tag}`` map for axes where THIS
+        ``facet`` picked an already-over-represented tag.
+
+        Mode-switch from advisory nudge to validator-retry (round-13):
+        the engine's facet-generate loop will reject the first attempt
+        and force a retry-nudge when this method returns non-empty,
+        explicitly telling the LLM "do NOT pick X for axis Y this scene".
+        """
+        if not facet:
+            return {}
+        overused = self.overused_tags()
+        if not overused:
+            return {}
+        hits: dict[str, str] = {}
+        for axis, dominant_tag in overused.items():
+            val = facet.get(axis)
+            if val is None:
+                continue
+            if str(val).strip() == dominant_tag:
+                hits[axis] = dominant_tag
+        return hits
+
+    def _overused_summary_text(self) -> str:
         if self._total < _DIVERSITY_MIN_FACETS_BEFORE_NUDGE:
             return ""
         lines: list[str] = []
@@ -1169,6 +1276,8 @@ class SceneFacetGenerator:
             schema_body=schema_body,
             content_level=content_level,
             diversity_nudge=diversity_nudge,
+            compatible_environments=compatible_environments,
+            compatible_narratives=compatible_narratives,
         )
 
         effective_temp = (
@@ -1196,12 +1305,52 @@ class SceneFacetGenerator:
             facet, content_level,
             prompt_style=prompt_style, family_id=family.id,
         )
-        if facet is not None and not missing:
+        # Round-13 (2026-05-21) — promote diversity nudge from advisory
+        # user-prompt-only to validator-retry. If the first-attempt
+        # facet picked an already-over-represented tag for any tracked
+        # axis, reject it and retry with an explicit "do NOT pick X"
+        # nudge. The post-fix audit showed the advisory nudge alone
+        # left Qwen3 dominance unchanged on mood / env / narrative —
+        # validator-retry gives the LLM an explicit re-roll signal.
+        dominance_hits: dict[str, str] = (
+            diversity_tracker.overused_picks_in(facet or {})
+            if (facet is not None and diversity_tracker is not None)
+            else {}
+        )
+        if facet is not None and not missing and not dominance_hits:
             return _sanitize_facet_freetext(
                 _strip_none_values(facet),
                 scene_id=scene.get("id"),
                 family_id=family.id,
             )
+
+        # Round-13 — build the dominance-rejection clause once; appended
+        # to either retry branch (missing-fields OR diversity-only).
+        dominance_nudge_lines: list[str] = []
+        if dominance_hits:
+            dominance_nudge_lines.append(
+                "DIVERSITY-RETRY: your first attempt picked a tag that "
+                "is already over-represented in this series. Pick a "
+                "DIFFERENT tag for each of these axes:"
+            )
+            for axis, over_tag in dominance_hits.items():
+                # Hint with a couple of alternative picks from the same
+                # namespace's example list so the LLM has somewhere to
+                # land. Falls through to "any other tag from the system-
+                # prompt menu" when no examples list is registered.
+                examples = _FIELD_EXAMPLE_TAGS.get(axis, ())
+                alternatives = [e for e in examples if e != over_tag][:3]
+                if alternatives:
+                    dominance_nudge_lines.append(
+                        f"  - {axis}: NOT {over_tag}; try "
+                        f"{', '.join(alternatives)} or another tag from "
+                        f"that namespace."
+                    )
+                else:
+                    dominance_nudge_lines.append(
+                        f"  - {axis}: NOT {over_tag}; pick any other "
+                        f"tag from that namespace's menu."
+                    )
 
         if missing:
             logger.warning(
@@ -1223,16 +1372,46 @@ class SceneFacetGenerator:
                 f"null: {', '.join(missing)}.",
             ]
             for f in missing:
-                examples = _FIELD_EXAMPLE_TAGS.get(f)
+                # Round-13 — when the missing field is narrative_moment
+                # or environment_setting AND a category whitelist is
+                # active, use the whitelist intersection for the
+                # retry-nudge examples so the LLM doesn't re-anchor on
+                # an out-of-category tag from the static default list.
+                # Fall through to defaults when whitelist is absent or
+                # empty (back-compat).
+                if f == "narrative_moment" and compatible_narratives:
+                    examples = tuple(compatible_narratives[:3]) or _FIELD_EXAMPLE_TAGS.get(f)
+                elif f == "environment_setting" and compatible_environments:
+                    examples = tuple(compatible_environments[:3]) or _FIELD_EXAMPLE_TAGS.get(f)
+                else:
+                    examples = _FIELD_EXAMPLE_TAGS.get(f)
                 if examples:
                     nudge_lines.append(
                         f"  - {f}: pick exactly one of "
                         f"{', '.join(examples)} (or any other tag from "
                         f"that namespace's menu in the system prompt)."
                     )
+            nudge_lines.extend(dominance_nudge_lines)
             nudge_lines.append(
                 "Return ONLY a single JSON object with these fields "
                 "populated."
+            )
+            retry_prompt = user_prompt + "\n".join(nudge_lines)
+        elif dominance_hits:
+            # Round-13: facet is structurally valid (no missing fields)
+            # but landed on an already-over-represented tag for at
+            # least one tracked axis. Retry with the dominance-only
+            # nudge so the LLM picks a different tag this scene.
+            logger.warning(
+                "Scene facet generator: first attempt for family %s "
+                "picked over-represented tag(s) %s; retrying with "
+                "diversity nudge.",
+                family.id, dominance_hits,
+            )
+            nudge_lines = ["", ""]
+            nudge_lines.extend(dominance_nudge_lines)
+            nudge_lines.append(
+                "Return ONLY a single JSON object."
             )
             retry_prompt = user_prompt + "\n".join(nudge_lines)
         else:
@@ -1268,6 +1447,18 @@ class SceneFacetGenerator:
                     "this scene with --regen-facets to retry).",
                     family.id, still_missing,
                 )
+            # Round-13 — soft-fail logging when the retry STILL picks
+            # an over-represented tag. We don't reject here (would
+            # infinite-loop a stubborn LLM); just surface the metric.
+            if diversity_tracker is not None:
+                still_dominant = diversity_tracker.overused_picks_in(facet)
+                if still_dominant:
+                    logger.warning(
+                        "Scene facet generator: family %s second attempt "
+                        "STILL picked over-represented tag(s) %s; "
+                        "shipping the facet anyway.",
+                        family.id, still_dominant,
+                    )
             return _sanitize_facet_freetext(
                 _strip_none_values(facet),
                 scene_id=scene.get("id"),
@@ -1439,6 +1630,8 @@ class SceneFacetGenerator:
         schema_body: str,
         content_level: str,
         diversity_nudge: str = "",
+        compatible_environments: list[str] | None = None,
+        compatible_narratives: list[str] | None = None,
     ) -> str:
         """Render the user prompt with the scene's locked core inlined.
 
@@ -1483,6 +1676,17 @@ class SceneFacetGenerator:
         #   T4:    every [REQUIRED — ...] → [REQUIRED]; no demotions.
         active_body = _make_tier_active_schema_body(
             schema_body, content_level,
+        )
+        # Round-13 (2026-05-21) — rewrite the in-parens example lists
+        # for environment_setting + narrative_moment so they advertise
+        # only category-coherent tags. Closes the post-fix audit gap
+        # where Qwen3 was still picking NARR_STEPPING_FROM_BATH from
+        # the schema body's hard-coded example list even though the
+        # vocab block had narrowed the namespace correctly.
+        active_body = _narrow_schema_body_examples(
+            active_body,
+            compatible_environments=compatible_environments,
+            compatible_narratives=compatible_narratives,
         )
         return _USER_PROMPT_TEMPLATE.format(
             content_level=content_level,

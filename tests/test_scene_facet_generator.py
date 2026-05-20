@@ -779,3 +779,146 @@ def test_diversity_tracker_records_each_axis_independently():
     # Mood didn't (5 tags × 1 = each 20%, well under 50%).
     for mood in ("MOOD_SERENE", "MOOD_PENSIVE", "MOOD_PLAYFUL"):
         assert mood not in nudge
+
+
+# ── Round-13: schema-body + retry-nudge example narrowing ───────────
+
+
+def test_schema_body_narrowing_replaces_narrative_examples():
+    """Round-13 — `_narrow_schema_body_examples` rewrites the in-parens
+    example list for the narrative_moment line so the LLM doesn't
+    re-anchor on an out-of-category tag like NARR_STEPPING_FROM_BATH
+    in a chapel-themed series."""
+    from src.agents.scene_facet_generator import (
+        _narrow_schema_body_examples, _SCHEMA_BODY_BY_STYLE,
+    )
+    body = _SCHEMA_BODY_BY_STYLE["flux_natural"]
+    # Default body advertises STEPPING_FROM_BATH explicitly.
+    assert "NARR_STEPPING_FROM_BATH" in body
+    narrowed = _narrow_schema_body_examples(
+        body,
+        compatible_environments=None,
+        compatible_narratives=[
+            "NARR_READING_LETTER_AT_DAWN",
+            "NARR_LIGHTING_CANDLES_DUSK",
+            "NARR_LEANING_DOORWAY",
+        ],
+    )
+    # narrative_moment line now advertises whitelist tags only.
+    narrative_line = next(
+        line for line in narrowed.splitlines()
+        if "narrative_moment" in line
+    )
+    assert "NARR_READING_LETTER_AT_DAWN" in narrative_line
+    assert "NARR_LIGHTING_CANDLES_DUSK" in narrative_line
+    assert "NARR_STEPPING_FROM_BATH" not in narrative_line
+    # Other lines (environment_setting etc.) are untouched.
+    assert "ENV_VICTORIAN_CONSERVATORY" in narrowed
+
+
+def test_schema_body_narrowing_replaces_environment_examples():
+    """Same pattern for environment_setting."""
+    from src.agents.scene_facet_generator import (
+        _narrow_schema_body_examples, _SCHEMA_BODY_BY_STYLE,
+    )
+    body = _SCHEMA_BODY_BY_STYLE["flux_natural"]
+    narrowed = _narrow_schema_body_examples(
+        body,
+        compatible_environments=[
+            "ENV_RUINED_PALAZZO", "ENV_ABANDONED_BALLROOM",
+        ],
+        compatible_narratives=None,
+    )
+    env_line = next(
+        line for line in narrowed.splitlines()
+        if "environment_setting" in line
+    )
+    assert "ENV_RUINED_PALAZZO" in env_line
+    assert "ENV_ABANDONED_BALLROOM" in env_line
+    # Defaults that aren't on the whitelist are gone.
+    assert "ENV_BRUTALIST_CONCRETE_LOFT" not in env_line
+
+
+def test_schema_body_narrowing_is_noop_without_whitelist():
+    """No whitelist → body comes through unchanged (back-compat)."""
+    from src.agents.scene_facet_generator import (
+        _narrow_schema_body_examples, _SCHEMA_BODY_BY_STYLE,
+    )
+    body = _SCHEMA_BODY_BY_STYLE["flux_natural"]
+    out = _narrow_schema_body_examples(
+        body,
+        compatible_environments=None,
+        compatible_narratives=None,
+    )
+    assert out == body
+
+
+def test_schema_body_narrowing_handles_empty_whitelist():
+    """Empty list (`[]`) is the same as None — fall through to defaults
+    rather than producing an empty example list."""
+    from src.agents.scene_facet_generator import (
+        _narrow_schema_body_examples, _SCHEMA_BODY_BY_STYLE,
+    )
+    body = _SCHEMA_BODY_BY_STYLE["flux_natural"]
+    out = _narrow_schema_body_examples(
+        body, compatible_environments=[], compatible_narratives=[],
+    )
+    assert out == body
+
+
+# ── Round-13: validator-retry on dominance ──────────────────────────
+
+
+def test_diversity_tracker_overused_tags_returns_structured_map():
+    """``overused_tags()`` returns {axis: dominant_tag} for axes past
+    the dominance threshold — used by the validator-retry path."""
+    from src.agents.scene_facet_generator import _DiversityTracker
+    t = _DiversityTracker()
+    # 5 facets, all lock to one lighting tag → 100% dominance.
+    for _ in range(5):
+        t.record({
+            "lighting_directive": "LIGHT_WINDOW_SIDE",
+            "mood_aesthetic": "MOOD_PENSIVE",
+        })
+    over = t.overused_tags()
+    assert over == {
+        "lighting_directive": "LIGHT_WINDOW_SIDE",
+        "mood_aesthetic": "MOOD_PENSIVE",
+    }
+
+
+def test_diversity_tracker_overused_picks_in_returns_hits():
+    """``overused_picks_in(facet)`` — given a new candidate facet,
+    return the {axis: tag} hits where the candidate landed on an
+    over-represented tag. Empty when candidate diverged from prior
+    dominants."""
+    from src.agents.scene_facet_generator import _DiversityTracker
+    t = _DiversityTracker()
+    # Prime with 5 facets all dominated by LIGHT_WINDOW_SIDE.
+    for _ in range(5):
+        t.record({"lighting_directive": "LIGHT_WINDOW_SIDE"})
+    # Candidate landed on the dominant tag → hit returned.
+    hits = t.overused_picks_in({
+        "lighting_directive": "LIGHT_WINDOW_SIDE",
+    })
+    assert hits == {"lighting_directive": "LIGHT_WINDOW_SIDE"}
+    # Candidate diverged → no hit.
+    assert t.overused_picks_in({
+        "lighting_directive": "LIGHT_GOLDEN_HOUR",
+    }) == {}
+    # Candidate null on that axis → no hit (null is the not-picked
+    # signal, separate from dominance).
+    assert t.overused_picks_in({"lighting_directive": None}) == {}
+
+
+def test_diversity_tracker_overused_picks_silent_below_threshold():
+    """Same min-facets gate applies — tracker stays silent before
+    reaching the dominance-min-facets threshold."""
+    from src.agents.scene_facet_generator import _DiversityTracker
+    t = _DiversityTracker()
+    # Only 3 facets recorded — below the gate.
+    for _ in range(3):
+        t.record({"lighting_directive": "LIGHT_WINDOW_SIDE"})
+    assert t.overused_picks_in({
+        "lighting_directive": "LIGHT_WINDOW_SIDE",
+    }) == {}
