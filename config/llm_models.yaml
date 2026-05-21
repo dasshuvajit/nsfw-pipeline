@@ -143,6 +143,35 @@ llms:
     families_recommended: ["all"]
     active: false  # round-19: re-evaluated — context-vs-memory squeeze blocks 25-scene batch (see description above)
 
+  magnum_v4_12b_heretic:
+    backend: lm_studio
+    lm_studio_id: "magnum-v4-12b-heretic-i1"
+    display_name: "Magnum v4 12B Heretic (Mistral Nemo, imatrix)"
+    description: >-
+      anthracite-org/magnum-v4-12b passed through coder3101's heretic
+      abliteration step. Mistral Nemo 12B base + Magnum's Claude-3
+      Sonnet/Opus distillation + refusal-direction weight-orthogonalization
+      = the speed of Mistral Nemo (Apple-Silicon-friendly attention)
+      with Cydonia heretic's refusal floor and Magnum's creative prose
+      discipline.
+      iMatrix-calibrated GGUF (better perplexity at the same bit depth
+      than the non-imatrix sibling magnum_v4_12b). Expected wall-clock
+      parity with the plain magnum_v4_12b (~33 s/scene at T3) but with
+      a lower refusal floor for T4 explicit work — the trade-off plain
+      Magnum couldn't make.
+    quant: "Q5_K_M"
+    size_gb: 9
+    context_tokens: 32768
+    refusal_rate: 2.0           # heretic abliteration
+    strengths:
+      - "Mistral Nemo base — Metal-friendly attention"
+      - "Magnum tuning (Claude-3 Sonnet/Opus distillation)"
+      - "heretic abliteration — low refusal floor"
+      - "imatrix calibration — better perplexity vs static quants"
+      - "32K context (LM Studio loaded at full native)"
+    families_recommended: ["all"]
+    active: true
+
   magnum_v4_12b:
     backend: lm_studio
     lm_studio_id: "magnum-v4-12b"
