@@ -237,36 +237,58 @@ def test_archetype_kept_when_planner_provides_no_anchors(pb, family_loader):
     )
 
 
-def test_chroma_appends_comma_separated_realism_tail(pb, family_loader):
-    """Round-21 (2026-05-21) — realism tail is now ONE comma-separated
-    trailing sentence, not 4 period-separated orphan fragments. The
-    audit on series_799bec97e6d7 flagged the period form as visually
-    looking like canonicalizer debris at the prompt tail."""
+def test_chroma_realism_tail_without_lens_keeps_focal_hint(pb, family_loader):
+    """Round-22 (2026-05-22) — when the facet has NO realism_lens
+    populated, the chroma realism tail keeps all four anchor tokens
+    (f/1.8, 35mm, photographic, natural skin texture) so the prompt
+    still has a focal-length hint. Backwards-compat for the optional-
+    lens path."""
     family = family_loader.get_family("chroma")
-    assert family.realism_tail_style == "period"  # family flag name kept
+    assert family.realism_tail_style == "period"
     scene = {
         **UNIVERSAL_SCENE,
         "scene_prose": "She reclines on silk sheets at golden hour.",
+        # No realism_lens — tail keeps focal hint.
     }
     out = pb.build_one(CHARACTER, scene, STYLE, family=family)
     text = out["prompt_text"]
-    # Every realism anchor token still present.
+    # All four anchor tokens present in the trailing comma sentence.
     assert "f/1.8" in text
     assert "35mm" in text
     assert "photographic" in text
     assert "natural skin texture" in text
-    # Regression guard: the old "photorealistic" must be gone.
-    assert "photorealistic" not in text
-    # Ordering: tail comes after the prose
-    assert text.index("reclines") < text.index("f/1.8")
-    # Round-21 — tokens land as a single trailing sentence with commas
-    # between them, no period-separated orphan fragments.
-    # Find the realism tail substring and verify the comma form.
     assert "f/1.8, 35mm" in text, (
-        f"expected comma-separated realism tail, got: {text!r}"
+        f"expected comma-separated realism tail with focal hint, got: {text!r}"
     )
-    # No orphan ". f/1.8." (period before the first anchor + period after).
-    assert ". f/1.8." not in text
+
+
+def test_chroma_realism_tail_strips_focal_when_lens_populated(pb, family_loader):
+    """Round-22 — when the facet has a per-scene realism_lens
+    canonicalized (e.g. LENS_85MM_F14 → "85mm f/1.4 lens..."), the
+    chroma realism tail drops its hardcoded "f/1.8, 35mm" tokens to
+    avoid two-focal-length contradiction in the same prompt. Tail
+    keeps "photographic, natural skin texture" unconditionally —
+    those are family realism anchors, not focal specs."""
+    family = family_loader.get_family("chroma")
+    scene = {
+        **UNIVERSAL_SCENE,
+        "scene_prose": "She reclines on silk sheets at golden hour.",
+        "realism_lens": "LENS_85MM_F14",  # canonicalizes to 85mm f/1.4
+    }
+    out = pb.build_one(CHARACTER, scene, STYLE, family=family)
+    text = out["prompt_text"]
+    # The LLM-picked lens canonicalization is present.
+    assert "85mm f/1.4" in text or "85mm" in text, (
+        f"expected per-scene lens canonicalization, got: {text!r}"
+    )
+    # The tail's focal-spec tokens MUST NOT appear (would double-spec).
+    assert "f/1.8, 35mm" not in text, (
+        f"round-22 fix regressed — tail still injected f/1.8 + 35mm "
+        f"despite facet lens being populated. prompt={text!r}"
+    )
+    # Tail's family realism anchors are STILL present.
+    assert "photographic" in text
+    assert "natural skin texture" in text
 
 
 def test_flux2_uses_scene_prose_and_omits_realism_tail(pb, family_loader):

@@ -995,6 +995,10 @@ class PromptBuilder:
                 extra_keywords=list(extra_keywords),
             )
         if style == "flux_natural":
+            # Round-22 — pass facet_has_lens so the chroma realism tail
+            # can drop its hardcoded "f/1.8, 35mm" tokens when the LLM
+            # already picked a per-scene realism_lens (otherwise two
+            # focal lengths land in the same prompt).
             return _compose_natural(
                 segments, trigger_words=trig, avoid=avoid,
                 scene_prose=self._field(scene, "scene_prose"),
@@ -1002,6 +1006,7 @@ class PromptBuilder:
                 style_keywords=style_keywords,
                 extra_keywords=list(extra_keywords),
                 realism_tail_style=family.realism_tail_style,
+                facet_has_lens=bool(self._field(scene, "realism_lens")),
             )
         if style == "flux2_prose":
             return _compose_flux2_prose(
@@ -1259,6 +1264,7 @@ def _compose_natural(
     style_keywords: str = "",
     extra_keywords: Iterable[str] = (),
     realism_tail_style: str | None = None,
+    facet_has_lens: bool = False,
 ) -> str:
     """Join segments as flowing sentences for Flux / Chroma models.
 
@@ -1310,21 +1316,28 @@ def _compose_natural(
         text += "."
 
     if realism_tail_style == "period":
+        # Round-22 (2026-05-22) — drop the focal-spec tokens
+        # ("f/1.8", "35mm") from the tail when the LLM already picked
+        # a per-scene realism_lens. Otherwise the tail's hardcoded
+        # focal length contradicts the per-scene lens canonicalization
+        # (e.g. "85mm f/1.4 lens, shallow DoF" + "f/1.8, 35mm" in the
+        # same prompt). When the facet has NO lens populated, the tail
+        # still supplies the focal hint — preserves backwards-compat
+        # for the optional-lens path.
+        if facet_has_lens:
+            candidate_tail = tuple(
+                frag for frag in _CHROMA_REALISM_TAIL
+                if frag not in ("f/1.8", "35mm")
+            )
+        else:
+            candidate_tail = _CHROMA_REALISM_TAIL
         tail_fragments = [
-            frag for frag in _CHROMA_REALISM_TAIL
+            frag for frag in candidate_tail
             if frag.lower() not in avoid_set
             and frag.lower() not in text.lower()
         ]
         if tail_fragments:
-            # Round-21 (2026-05-21): collapse fragments into ONE comma-
-            # separated trailing sentence. Pre-round-21 emitted each
-            # fragment as its own period-terminated "sentence"
-            # ("f/1.8. 35mm. photographic.") which reads as orphaned
-            # canonicalizer debris at the end of long prose prompts.
-            # Comma-joined keeps every Chroma realism anchor token but
-            # reads as a single trailing sentence. T5's tokenization of
-            # `"f/1.8, 35mm, photographic"` carries the same anchor
-            # signal as the period form.
+            # Round-21 — comma-joined single trailing sentence.
             tail = ", ".join(tail_fragments) + "."
             text = f"{text} {tail}" if text else tail
 
