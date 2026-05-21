@@ -209,10 +209,62 @@ def test_illustrious_facet_requires_booru_and_prose():
 
 
 def test_flux_natural_facet_requires_scene_prose_only():
+    """Round-22 — minimum word count is 20 (was implicit at 1+ chars
+    pre-round-22). Real scene_prose is 40-90 words for the target
+    band; 25-word fixture below comfortably exceeds the floor."""
     f = SceneFacetFluxNatural.model_validate({
-        "scene_prose": "She leans against the wall, golden-hour rim light.",
+        "scene_prose": (
+            "She leans against the parlour wall in soft golden-hour "
+            "rim light. Her gaze drifts to the distant window where "
+            "long shadows fall across the antique velvet upholstery."
+        ),
     })
     assert f.scene_prose.startswith("She leans")
+
+
+def test_flux_natural_word_band_rejects_too_short():
+    """Round-22 (2026-05-22) — scene_prose word count must be ≥20
+    words. Pre-round-22 the spec was 1-3 sentences ~30 words; the
+    facet LLM saturated trying to compress everything into too little
+    space and nulled structured fields. New band 20-140 (target
+    40-90)."""
+    import pytest
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError, match=r"prose-family hard band is 20"):
+        SceneFacetFluxNatural.model_validate({
+            "scene_prose": "She leans against the wall in soft light.",  # 9 words
+        })
+
+
+def test_flux_natural_word_band_rejects_too_long():
+    """Round-22 — hard cap at 140 words; the band protects against
+    LLM drift toward giant narrative paragraphs that drown the
+    structured-tag picks."""
+    import pytest
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError, match=r"prose-family hard band is 20"):
+        SceneFacetFluxNatural.model_validate({
+            "scene_prose": " ".join(["word"] * 150),  # 150 words
+        })
+
+
+def test_flux_natural_word_band_warn_outside_target_inside_slack(caplog):
+    """Round-22 — soft warn when prose is inside the 20-140 hard band
+    but outside the 40-90 target band. Doesn't fail validation; just
+    logs at WARNING for operator visibility."""
+    import logging
+    caplog.set_level(logging.WARNING, logger="src.agents.schemas")
+    # 25 words — under 40, over 20.
+    SceneFacetFluxNatural.model_validate({
+        "scene_prose": " ".join(["word"] * 25),
+    })
+    assert any(
+        "outside the 40–90 target band" in rec.message
+        for rec in caplog.records
+    ), (
+        f"expected warn log about target band drift; got "
+        f"{[r.message for r in caplog.records]!r}"
+    )
 
 
 def test_flux2_facet_requires_prose_qa_fields_optional():
@@ -362,11 +414,18 @@ def test_flux_natural_validator_rejects_tag_soup():
 
 
 def test_flux_natural_validator_accepts_normal_prose():
-    """Sanity: ordinary 1-3-sentence prose passes through untouched."""
+    """Sanity: ordinary 2-4-sentence prose passes through untouched.
+    Round-22 — prose length expanded from "1-3 sentences" (~30 words)
+    to 2-4 sentences targeting 40-90 words; fixture below is ~45
+    words which lands cleanly in the target band."""
     f = SceneFacetFluxNatural.model_validate({
         "scene_prose": (
-            "She stands by the window in late-afternoon light. "
-            "The room glows in warm honey tones."
+            "She stands by the parlour window in late-afternoon "
+            "light, one hand resting lightly on the velvet sill. "
+            "The room glows in warm honey tones, soft shadows "
+            "tracing the curves of antique upholstery behind her. "
+            "Her gaze drifts toward the distant horizon, "
+            "contemplative and at ease."
         ),
     })
     assert "window" in f.scene_prose

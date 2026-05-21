@@ -638,9 +638,13 @@ class SceneFacetFluxNatural(BaseModel):
 
     scene_prose: str = Field(
         min_length=1,
-        description="1–3 complete sentences of natural-language prose. "
-        "Weave pose, lighting, lens character, environment, and mood "
-        "into flowing prose. No comma-tag lists, no weighting syntax.",
+        description="2–4 complete sentences, 40–90 words total. Weave "
+        "pose, lighting, lens character, environment, and mood into "
+        "flowing prose. Describe the woman + her pose + her gaze + "
+        "the room in vivid concrete detail. Do NOT weave series-level "
+        "photographer / art-movement / palette references into the "
+        "prose (composer canonicalizes those globally). No comma-tag "
+        "lists, no weighting syntax.",
     )
 
     # Phase 4a — full enum-field set.
@@ -670,7 +674,16 @@ class SceneFacetFluxNatural(BaseModel):
         """Prose families want flowing sentences, not tag soup. Reject:
         * ``(word:1.3)`` weighting syntax (Flux/Chroma ignore it),
         * tag-soup heuristic — more than 4 commas per sentence,
-        * underscored multi-word tags (``long_hair`` etc. — booru style)."""
+        * underscored multi-word tags (``long_hair`` etc. — booru style).
+
+        Round-22 (2026-05-22) — soft warn on word-count band 40–90
+        (target) vs 20–140 (hard reject). Pre-round-22 the prose was
+        capped at "1–3 sentences" which the facet LLM saturated when
+        trying to compress pose + lighting + lens + env + mood + 11+
+        tags into 30 words — then nulled structured fields under
+        attention pressure. Looser band lets the LLM write properly
+        descriptive prose without the saturation failure mode.
+        """
         prose = self.scene_prose or ""
         if re.search(r"\([^():]+:\d+(?:\.\d+)?\)", prose):
             raise ValueError(
@@ -694,6 +707,22 @@ class SceneFacetFluxNatural(BaseModel):
                 "SceneFacetFluxNatural.scene_prose contains "
                 "underscored multi-word tokens (booru style) — Flux / "
                 "Chroma encoders prefer space-separated natural words."
+            )
+        # Round-22 — word-count band. Hard reject outside 20–140 (clearly
+        # too short or pathologically long); soft warn outside 40–90
+        # target band. Mirrors SceneFacetFlux2's 25–95 / 30–80 pattern.
+        words = len(prose.split())
+        if not (20 <= words <= 140):
+            raise ValueError(
+                f"SceneFacetFluxNatural.scene_prose has {words} words; "
+                f"prose-family hard band is 20–140 (target 40–90). "
+                f"Tighten the prose."
+            )
+        if not (40 <= words <= 90):
+            logger.warning(
+                "SceneFacetFluxNatural.scene_prose word count %d is "
+                "outside the 40–90 target band (still inside 20–140 "
+                "slack). Consider tightening.", words,
             )
         return self
 

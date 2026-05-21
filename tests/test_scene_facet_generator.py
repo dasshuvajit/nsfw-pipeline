@@ -186,11 +186,16 @@ def test_illustrious_facet_dispatch(generator, loader):
 
 
 def test_flux_facet_dispatch_uses_flux_natural_schema(generator, loader):
-    """flux family → flux_natural prompt_style → SceneFacetFluxNatural."""
+    """flux family → flux_natural prompt_style → SceneFacetFluxNatural.
+
+    Round-22 — fixture prose is ~25 words to clear the 20-word floor
+    on the SceneFacetFluxNatural validator."""
     family = loader.get_family("flux")
     canned = (
-        '{"scene_prose": "She stands on a sunset balcony in an ivory silk '
-        'dress, golden-hour rim light catching her hair.", '
+        '{"scene_prose": "She stands on a sunset balcony in an ivory '
+        'silk dress, golden-hour rim light catching her hair. Soft '
+        'shadows fall across her bare shoulders and the polished '
+        'marble floor behind her.", '
         + _T2_REQUIRED_TAGS_JSON + '}'
     )
     with _patch_generate(canned):
@@ -199,10 +204,15 @@ def test_flux_facet_dispatch_uses_flux_natural_schema(generator, loader):
 
 
 def test_chroma_facet_uses_same_schema_as_flux(generator, loader):
-    """chroma family also uses flux_natural prompt_style."""
+    """chroma family also uses flux_natural prompt_style.
+
+    Round-22 — fixture prose extended to clear 20-word floor."""
     family = loader.get_family("chroma")
     canned = (
-        '{"scene_prose": "She leans against the balcony rail.", '
+        '{"scene_prose": "She leans against the balcony rail in soft '
+        'amber light, gaze drifting toward the distant rooftops. The '
+        'wrought-iron pattern casts intricate shadows across her bare '
+        'arms.", '
         + _T2_REQUIRED_TAGS_JSON + '}'
     )
     with _patch_generate(canned):
@@ -544,8 +554,13 @@ def test_system_prompt_carries_coherence_invariant(generator, loader):
 
     def capture(system_prompt, user_prompt, **kwargs):
         captured["system_prompt"] = system_prompt
-        return ('{"scene_prose": "She stands alone.", '
-                + _required_tags_for("T3_artnude") + '}')
+        return (
+            '{"scene_prose": "She stands alone in the parlour, soft '
+            'golden afternoon light falling across her bare shoulders. '
+            'Her gaze drifts toward the tall window, contemplative '
+            'and at ease in the quiet room.", '
+            + _required_tags_for("T3_artnude") + '}'
+        )
 
     with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
         generator.generate(
@@ -575,8 +590,14 @@ def test_system_prompt_t4_allows_explicit_anatomical_language(generator, loader)
 
     def capture(system_prompt, user_prompt, **kwargs):
         captured["system_prompt"] = system_prompt
-        return ('{"scene_prose": "Fully nude.", '
-                + _required_tags_for("T4_explicit") + '}')
+        return (
+            '{"scene_prose": "She stands fully nude in the dim '
+            'parlour, soft golden light tracing the curves of her '
+            'body and casting long shadows across the antique velvet. '
+            'Her gaze meets the lens with quiet, contemplative '
+            'intimacy.", '
+            + _required_tags_for("T4_explicit") + '}'
+        )
 
     with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
         generator.generate(
@@ -600,8 +621,13 @@ def test_system_prompt_below_t4_forbids_explicit_language(generator, loader):
 
     def capture(system_prompt, user_prompt, **kwargs):
         captured["system_prompt"] = system_prompt
-        return ('{"scene_prose": "She stands alone.", '
-                + _required_tags_for("T3_artnude") + '}')
+        return (
+            '{"scene_prose": "She stands alone in the parlour, soft '
+            'golden afternoon light falling across her bare shoulders. '
+            'Her gaze drifts toward the tall window, contemplative '
+            'and at ease in the quiet room.", '
+            + _required_tags_for("T3_artnude") + '}'
+        )
 
     with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
         generator.generate(

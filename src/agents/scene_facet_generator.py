@@ -1089,7 +1089,7 @@ _SCHEMA_BODY_BY_STYLE: dict[str, str] = {
 {_STRUCTURED_TAG_BODY_NON_PONY}""",
 
     "flux_natural": f"""\
-  "scene_prose": "<1–3 complete sentences of natural-language prose. Weave pose, lighting, lens character, environment, and mood into flowing prose. No comma-tag lists, no weighting syntax.>",
+  "scene_prose": "<2–4 complete sentences, 40–90 words total. Weave pose, lighting, lens character, environment, and mood into flowing prose. Describe the woman + her pose + her gaze + the room in vivid concrete detail. Do NOT weave series-level photographer / art-movement / palette references into the prose (composer canonicalizes those globally). No comma-tag lists, no weighting syntax.>",
 {_STRUCTURED_TAG_BODY_NON_PONY}""",
 
     "flux2_prose": f"""\
