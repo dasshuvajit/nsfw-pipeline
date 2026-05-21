@@ -454,7 +454,7 @@ class NicheMode(BaseMode):
             user=user_prompt,
             validator=self._validate_plan,
             temperature=temperature if temperature is not None else self.PLAN_TEMPERATURE,
-            num_predict=4096,  # round-18: bigger budget for reasoning-model trace
+            num_predict=8192,  # round-19: reasoning models eat 4k+ before emitting JSON
             mode_name="NicheMode plan",
             error_factory=NicheModeError,
             model=model,

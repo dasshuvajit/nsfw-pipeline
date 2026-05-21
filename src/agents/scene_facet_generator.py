@@ -1486,11 +1486,19 @@ class SceneFacetGenerator:
         (logged at WARNING — caller decides whether to retry).
         """
         try:
+            # Round-19 (2026-05-22) — bumped 2048 → 4096 to give
+            # reasoning-model variants (Qwen 3.5+ thinking-mode tunes)
+            # enough budget for their <think>...</think> trace before
+            # the answer JSON. Non-reasoning models don't use the
+            # extra headroom; no measured slowdown. Reasoning models
+            # at 2048 would emit empty content (entire budget consumed
+            # by reasoning) and the facet generator's retry loop
+            # would fire on every scene.
             result = self.llm.generate_json(
                 system_prompt,
                 user_prompt,
                 temperature=temperature,
-                num_predict=2048,
+                num_predict=4096,
                 schema=schema,
                 model=model,
             )

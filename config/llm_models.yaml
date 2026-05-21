@@ -92,26 +92,48 @@ llms:
       domain-instruct tune; "iMatrix Max" denotes the importance-
       matrix calibrated GGUF quantization. 18.70 GB on disk.
 
-      ROUND-18 EVAL OUTCOME (2026-05-22): registered but marked
-      INACTIVE. Phase A wall-clock is impractical — the reasoning
-      trace (1500-3000 tokens per call before the answer starts)
-      multiplied by 25 scenes pushed the scene-generation step past
-      the 15-minute per-request timeout. A single SeriesPlan call
-      took 118s (vs 10s for Qwen3.5 9B MLX, 30s for Cydonia 24B).
-      Schema-constrained decoding is also incompatible with the
-      <think>...</think> trace: the grammar rejects the first `<`
-      token and the model returns empty content. The round-18
-      `is_reasoning_model: true` flag worked around the grammar
-      conflict (falls back to free-form generation + Pydantic
-      post-validation), but the wall-clock cost remains the
-      blocker. Re-evaluate when LM Studio supports parallel reason+
-      answer streaming OR when a faster reasoning-model variant
-      lands (Qwen3-Coder-30B-A3B-Thinking on MoE backend might fix
-      both axes). Kept registered to preserve the integration
-      framework for the next reasoning model.
+      ROUND-19 EVAL OUTCOME (2026-05-22): registered but marked
+      INACTIVE after retry with timeout + context tuning. Two
+      separate impediments:
+
+      (1) Memory ceiling — full 32K context allocation requires
+          23 GB which LM Studio's memory guard blocks on this 48
+          GB M4 Pro. Falling back to 16K context (17.4 GB) works
+          for model load but doesn't leave enough headroom for
+          our scene-generation batch pattern.
+
+      (2) Context-window squeeze — for the 25-scene batch JSON,
+          input (system+user prompt) is ~5K tokens; reasoning
+          trace adds 2-3K; the 25-scene JSON array needs 8-10K.
+          Total demands ~15-18K which doesn't fit 16K. The plan
+          stage works (only 1 plan object, ~500 tokens). The scene
+          stage truncates mid-batch. Facets also fail because each
+          facet's reasoning + answer at num_predict=4096 still
+          comes back with empty content (the model spends the
+          entire budget on reasoning).
+
+      The round-18 `is_reasoning_model: true` flag worked around the
+      schema-grammar conflict. The round-19 bumps (plan
+      num_predict 4096→8192, facet num_predict 2048→4096, LM Studio
+      request timeout 900→3600) handled the timeout dimension. But
+      the context-vs-memory trade-off doesn't have a fix on this
+      hardware.
+
+      Re-evaluate when: (a) LM Studio supports parallel reason+
+      answer streaming, (b) a Qwen3 reasoning variant ships on the
+      MoE backend (fewer active params = lower memory ceiling for
+      bigger context), or (c) the hardware budget grows past 48 GB.
+      Integration framework stays in place — when a viable
+      reasoning model lands, just flip active to true.
     quant: "GGUF_iMatrix"
     size_gb: 19
-    context_tokens: 32768
+    # Round-19 (2026-05-22) — context capped at 16384 because 32K
+    # context allocation requested 23 GB which LM Studio's memory
+    # guard blocked on this 48 GB M4 Pro. 16K context lands at
+    # 17.4 GB, well inside budget. Our facet system prompt is ~5500
+    # tokens, so 16K leaves plenty of headroom for the reasoning
+    # trace + answer.
+    context_tokens: 16384
     refusal_rate: 2.0           # heretic abliteration
     strengths:
       - "27B dense — would-be richer prose than 9B (untested due to inactive)"
@@ -119,7 +141,7 @@ llms:
       - "NEO-Code DI fine-tune (instruct discipline + code competence)"
       - "iMatrix-calibrated GGUF (better perplexity preservation)"
     families_recommended: ["all"]
-    active: false
+    active: false  # round-19: re-evaluated — context-vs-memory squeeze blocks 25-scene batch (see description above)
 
   qwen35_9b_claude46_heretic_mlx:
     backend: lm_studio
