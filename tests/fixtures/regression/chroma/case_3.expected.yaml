@@ -2,7 +2,7 @@ expected:
   prompt_text: A single adult woman alone in the scene. Ariadne, thirty, copper-red hair, freckles, lithe
     figure. Ariadne lies on a velvet chaise against a warm-grey studio sweep. A single tungsten key from
     camera-left carves long shadows across her form, classical chiaroscuro. Fine art nude. classical chiaroscuro.
-    tasteful framing. f/1.8. 35mm. photographic. natural skin texture.
+    tasteful framing. f/1.8, 35mm, photographic, natural skin texture.
   prompt_token_count: 108
   negative_prompt: ''
   ratio: landscape

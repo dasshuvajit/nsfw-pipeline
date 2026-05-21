@@ -183,6 +183,38 @@ def test_celebrity_allowlist_keeps_photography_grams():
     assert _detect_celebrity_likeness("Medium Shot, eye level") == []
 
 
+def test_celebrity_allowlist_keeps_planner_chosen_photographers():
+    """Round-21 — every PHOTOG_* tag in prompt_vocabulary.yaml that the
+    planner can choose as the series ``photographer_ref`` is allowlisted.
+    Pre-round-21 the sanitizer stripped "Helmut Newton" from all 24
+    prompts of series_799bec97e6d7 even though the planner selected
+    PHOTOG_HELMUT_NEWTON deliberately."""
+    # Sample of the photographer names the planner CAN pick.
+    for prose in (
+        "Shot in the style of Helmut Newton — provocative editorial",
+        "Annie Leibovitz environmental portrait, painterly staging",
+        "Gregory Crewdson cinematic suburban tableaux",
+        "Sarah Moon ethereal blurred romanticism",
+        "Slim Aarons crisp midcentury leisure",
+    ):
+        assert _detect_celebrity_likeness(prose) == [], (
+            f"sanitizer should NOT flag planner-chosen photographer in: {prose!r}"
+        )
+
+
+def test_celebrity_allowlist_keeps_planner_chosen_locations():
+    """Round-21 — environment_setting tags like ENV_BERLIN_KREUZBERG_LOFT
+    canonicalize to prose containing "Berlin Kreuzberg" which the
+    pre-round-21 sanitizer flagged as a celebrity-name 2-gram."""
+    for prose in (
+        "A dim Berlin Kreuzberg loft with neon haze",
+        "A modern Tokyo love hotel suite",
+    ):
+        assert _detect_celebrity_likeness(prose) == [], (
+            f"sanitizer should NOT flag planner-chosen location in: {prose!r}"
+        )
+
+
 def test_celebrity_heuristic_flags_real_names():
     out = _detect_celebrity_likeness("Emma Stone sitting on bed")
     assert "Emma Stone" in out

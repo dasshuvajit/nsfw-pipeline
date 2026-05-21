@@ -160,19 +160,97 @@ def test_flux_produces_prose_sentences(pb, family_loader):
     assert "reclines on silk sheets" in text
 
 
-def test_chroma_appends_period_separated_realism_tail(pb, family_loader):
+def test_archetype_suppressed_when_planner_provided_anchors(pb, family_loader):
+    """Round-21 (2026-05-21) — when ``series_plan`` carries planner-
+    chosen aesthetic anchors (color_palette / photographer_ref /
+    art_movement) the operator's archetype ``base_style_keywords`` is
+    suppressed so it can't contradict the planner's vision.
+
+    The audit on series_799bec97e6d7 found every prompt carrying both
+    ``golden_hour_natural``'s "Golden hour, warm rim-light, haze,
+    natural outdoor" AND a planner-chosen Helmut-Newton/film-noir/
+    neon-noir aesthetic — direct visual contradiction."""
     family = family_loader.get_family("chroma")
-    assert family.realism_tail_style == "period"
+    scene = {
+        **UNIVERSAL_SCENE,
+        "scene_prose": "She reclines on silk sheets in a dim apartment.",
+    }
+    # Style profile carries the archetype keywords the operator picked.
+    archetype = {
+        "base_style_keywords": (
+            "Golden hour, warm rim-light, haze, natural outdoor, "
+            "lifestyle editorial, soft glow"
+        ),
+    }
+    # Planner chose its OWN aesthetic anchors — these override archetype.
+    series_plan = {
+        "color_palette": "PALETTE_TEAL_ORANGE_BLOCKBUSTER",
+        "photographer_ref": "PHOTOG_HELMUT_NEWTON",
+        "art_movement": "ART_MOVE_FILM_NOIR_1940S",
+    }
+    out = pb.build_one(
+        CHARACTER, scene, archetype,
+        family=family, series_plan=series_plan,
+    )
+    text = out["prompt_text"]
+    # Archetype keywords must NOT appear in the prompt.
+    assert "Golden hour" not in text, (
+        "archetype `Golden hour` leaked into a planner-overridden series — "
+        f"round-21 fix regressed. prompt={text!r}"
+    )
+    assert "natural outdoor" not in text, (
+        f"archetype keywords leaked — got: {text!r}"
+    )
+    # Planner anchors DID land via series_aesthetic canonicalization.
+    lower = text.lower()
+    assert "teal" in lower and "orange" in lower, (
+        "planner's color_palette anchor missing"
+    )
+
+
+def test_archetype_kept_when_planner_provides_no_anchors(pb, family_loader):
+    """Round-21 — the override fires ONLY when the planner provided
+    aesthetic anchors. Back-compat series without anchors still get
+    the operator's archetype keywords injected."""
+    family = family_loader.get_family("chroma")
+    scene = {
+        **UNIVERSAL_SCENE,
+        "scene_prose": "She reclines on silk sheets at golden hour.",
+    }
+    archetype = {
+        "base_style_keywords": "Golden hour, warm rim-light, soft glow",
+    }
+    # No series_plan → archetype must still be injected.
+    out = pb.build_one(CHARACTER, scene, archetype, family=family)
+    assert "Golden hour" in out["prompt_text"], (
+        "archetype was suppressed even though planner provided no anchors — "
+        "round-21 fix over-fired."
+    )
+    # Empty series_plan → same as None.
+    out2 = pb.build_one(
+        CHARACTER, scene, archetype,
+        family=family, series_plan={},
+    )
+    assert "Golden hour" in out2["prompt_text"], (
+        "archetype was suppressed for an EMPTY series_plan — round-21 "
+        "fix over-fired."
+    )
+
+
+def test_chroma_appends_comma_separated_realism_tail(pb, family_loader):
+    """Round-21 (2026-05-21) — realism tail is now ONE comma-separated
+    trailing sentence, not 4 period-separated orphan fragments. The
+    audit on series_799bec97e6d7 flagged the period form as visually
+    looking like canonicalizer debris at the prompt tail."""
+    family = family_loader.get_family("chroma")
+    assert family.realism_tail_style == "period"  # family flag name kept
     scene = {
         **UNIVERSAL_SCENE,
         "scene_prose": "She reclines on silk sheets at golden hour.",
     }
     out = pb.build_one(CHARACTER, scene, STYLE, family=family)
     text = out["prompt_text"]
-    # The period-separated tail is appended after the prose body.
-    # Tail uses "photographic" (not "photorealistic") per Civitai
-    # community guidance — photorealistic pushes toward photorealistic
-    # ART, photographic pushes toward real photos. Updated 2026-05-17.
+    # Every realism anchor token still present.
     assert "f/1.8" in text
     assert "35mm" in text
     assert "photographic" in text
@@ -181,6 +259,14 @@ def test_chroma_appends_period_separated_realism_tail(pb, family_loader):
     assert "photorealistic" not in text
     # Ordering: tail comes after the prose
     assert text.index("reclines") < text.index("f/1.8")
+    # Round-21 — tokens land as a single trailing sentence with commas
+    # between them, no period-separated orphan fragments.
+    # Find the realism tail substring and verify the comma form.
+    assert "f/1.8, 35mm" in text, (
+        f"expected comma-separated realism tail, got: {text!r}"
+    )
+    # No orphan ". f/1.8." (period before the first anchor + period after).
+    assert ". f/1.8." not in text
 
 
 def test_flux2_uses_scene_prose_and_omits_realism_tail(pb, family_loader):
@@ -407,3 +493,29 @@ def test_canonicalizer_changes_hash_when_concept_added(pb, family_loader):
     b = pb.build_one(CHARACTER, enriched, STYLE, family=family)
     # Enriched prompt has more content → different hash
     assert a["prompt_hash"] != b["prompt_hash"]
+
+
+# ── Round-21: archetype-override helper unit tests ─────────────────
+
+
+def test_archetype_overridden_helper_recognises_each_anchor():
+    """Round-21 — any one of color_palette / photographer_ref /
+    art_movement on the series_plan flips the override."""
+    from src.prompt.builder import archetype_overridden_by_planner
+    assert archetype_overridden_by_planner({"color_palette": "PALETTE_X"})
+    assert archetype_overridden_by_planner({"photographer_ref": "PHOTOG_Y"})
+    assert archetype_overridden_by_planner({"art_movement": "ART_MOVE_Z"})
+
+
+def test_archetype_overridden_helper_false_on_empty_or_none():
+    """Round-21 — back-compat: None / empty / no-anchors series_plan
+    must NOT flip the override (old series rendered before vocab v6)."""
+    from src.prompt.builder import archetype_overridden_by_planner
+    assert not archetype_overridden_by_planner(None)
+    assert not archetype_overridden_by_planner({})
+    assert not archetype_overridden_by_planner({
+        "theme": "X", "mood": "Y", "environment": "Z",
+    })
+    # Empty-string anchor is treated as missing.
+    assert not archetype_overridden_by_planner({"color_palette": ""})
+    assert not archetype_overridden_by_planner({"color_palette": "   "})

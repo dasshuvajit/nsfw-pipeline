@@ -183,6 +183,20 @@ _FIELD_EXAMPLE_TAGS: dict[str, tuple[str, ...]] = {
     "realism_lens": (
         "LENS_85MM_F14", "LENS_50MM_F18", "LENS_135MM_F2",
     ),
+    # Round-21 (2026-05-21) — example anchors for the two STRONGLY
+    # ENCOURAGED axes whose audit-observed adoption was 0%. These ride
+    # in the retry-nudge only when the LLM omitted them; we don't add
+    # them to _TIER_REQUIRED_FIELDS because cumulative required-axis
+    # bloat would explode the retry rate.
+    "art_style_reference": (
+        "ART_FINE_NUDE", "ART_BOUDOIR_NOIR", "ART_EDITORIAL_FASHION",
+    ),
+    "realism_angle": (
+        "ANGLE_EYE_LEVEL", "ANGLE_LOW", "ANGLE_HIGH",
+    ),
+    "realism_framing": (
+        "FRAMING_FULL_BODY", "FRAMING_MEDIUM_CLOSE", "FRAMING_CLOSE_UP",
+    ),
 }
 
 # Native danbooru NSFW vocabulary — booru families (pony, illustrious)
@@ -821,14 +835,20 @@ _DIVERSITY_TRACKED_AXES: tuple[str, ...] = (
 )
 
 # Fire the nudge when one tag is at or above this fraction of
-# facets-so-far. 0.5 = "more than half the series already used this tag".
-# Lower threshold → more nudges → more model retries; tuned at 0.5 from
-# the A/B audit's observed peak dominance ratios (24/24, 18/25, 14/24).
-_DIVERSITY_DOMINANCE_THRESHOLD: float = 0.5
+# facets-so-far. Round-21 (2026-05-21) tightened 0.5 → 0.35 after the
+# Ollama Cydonia heretic audit on series_799bec97e6d7 showed
+# narrative_moment:NARR_LIGHTING_CIGARETTE_BALCONY landing 10/24 (42%)
+# — under the prior 0.5 floor but visibly dominating the series.
+# 0.35 = "more than a third of the series already used this tag".
+# Lower threshold → more nudges → more model retries; pick of 0.35
+# balances the cost of a retry round-trip against series-level monotony.
+_DIVERSITY_DOMINANCE_THRESHOLD: float = 0.35
 
 # Don't nudge until at least this many facets have been emitted —
-# a 1-of-2 series shouldn't fire the nudge after the first facet.
-_DIVERSITY_MIN_FACETS_BEFORE_NUDGE: int = 4
+# at 0.35 dominance, the threshold is only meaningful once the series
+# has enough mass that a single tag landing on every facet still feels
+# like over-representation. Round-21 raised 4 → 6 for the same reason.
+_DIVERSITY_MIN_FACETS_BEFORE_NUDGE: int = 6
 
 
 class _DiversityTracker:
@@ -1001,9 +1021,9 @@ _STRUCTURED_TAG_BODY_NON_PONY = """\
   "environment_prop": "[OPTIONAL] One PROP_* concept tag for furniture/object anchor (PROP_CHAISE_LOUNGE_VELVET, PROP_HANDWRITTEN_LETTER, PROP_VELVET_CURTAIN_HEAVY, PROP_FOUR_POSTER_BED, etc.).",
   "composition_principle": "[OPTIONAL] One COMP_* concept tag for higher-order composition (COMP_LEADING_LINES_FLOOR, COMP_NEGATIVE_SPACE_DOMINANT, COMP_SYMMETRY_CENTERED, COMP_LOW_HERO_SHOT, etc.).",
   "realism_film_stock": "[OPTIONAL] One FILM_* concept tag for film-stock emulation (FILM_PORTRA_400, FILM_CINESTILL_800T, FILM_TRIX_400, etc.).",
-  "art_style_reference": "[OPTIONAL] One ART_STYLE_* concept tag for a named photographer reference. The composer translates this into family-shaped phrasing — do NOT write photographer names into scene_prose (the sanitizer strips celebrity-likeness leaks).",
-  "realism_angle": "[OPTIONAL] One ANGLE_* concept tag for camera angle.",
-  "realism_framing": "[OPTIONAL] One FRAMING_* concept tag for shot framing."\
+  "art_style_reference": "[STRONGLY ENCOURAGED — pick one most scenes] One ART_* concept tag for a per-scene art-style anchor (ART_FINE_NUDE, ART_BOUDOIR_NOIR, ART_OLD_HOLLYWOOD, ART_EDITORIAL_FASHION, ART_CLASSICAL, ART_HELMUT_NEWTON, ART_HERB_RITTS_BW, ART_IRVING_PENN_MINIMALISM, ART_NUDE_PHOTOGRAPHY). Distinct from the SERIES-level photographer_ref/art_movement — this is the per-scene visual style anchor. Vary across scenes. The composer translates the tag into family-shaped phrasing. Round-21 — pre-fix this field was 0% populated despite being a key per-scene variety axis.",
+  "realism_angle": "[STRONGLY ENCOURAGED — vary across scenes] One ANGLE_* concept tag for camera angle (ANGLE_LOW, ANGLE_EYE_LEVEL, ANGLE_HIGH, ANGLE_DUTCH, ANGLE_OVER_SHOULDER). Round-21 — pre-fix this field was 0% populated. Mix angles to break the visual monotony of every scene being shot at eye level.",
+  "realism_framing": "[ENCOURAGED] One FRAMING_* concept tag for shot framing (FRAMING_FULL_BODY, FRAMING_MEDIUM_CLOSE, FRAMING_CLOSE_UP, FRAMING_WIDE_ENVIRONMENT)."\
 """
 
 # Pony body — drops the 6 realism enum fields and composition_principle.

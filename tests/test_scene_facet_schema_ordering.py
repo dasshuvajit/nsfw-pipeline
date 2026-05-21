@@ -132,22 +132,41 @@ def test_pony_body_has_required_markers():
 
 
 def test_optional_fields_have_optional_marker():
-    """Inverse: every [OPTIONAL] field carries the marker explicitly.
+    """Inverse: every non-required field carries a non-required marker
+    explicitly — either [OPTIONAL] (low-priority) or [STRONGLY
+    ENCOURAGED]/[ENCOURAGED] (the round-21 tier between REQUIRED and
+    OPTIONAL).
 
     Round-12 (2026-05-21): realism_camera + realism_lens promoted to
     [REQUIRED — T3+], dropping the [OPTIONAL] count from 9 to 7.
-    The remaining 7 are: nsfw_posture, environment_prop,
-    composition_principle, realism_film_stock, art_style_reference,
-    realism_angle, realism_framing.
+
+    Round-21 (2026-05-21): art_style_reference / realism_angle /
+    realism_framing promoted from [OPTIONAL] to [STRONGLY ENCOURAGED]
+    or [ENCOURAGED] after the audit found 0/24 adoption. They're
+    still NOT in _TIER_REQUIRED_FIELDS (no retry-nudge), but the
+    stronger marker + concrete examples lift land-rate.
+
+    Expected: 4 [OPTIONAL] (nsfw_posture, environment_prop,
+    composition_principle, realism_film_stock) + 3 ENCOURAGED tier
+    (art_style_reference, realism_angle, realism_framing) = 7 total
+    non-required fields.
     """
+    non_required_lines = [
+        line for line in _STRUCTURED_TAG_BODY_NON_PONY.split("\n")
+        if "[OPTIONAL" in line or "[ENCOURAGED" in line or "[STRONGLY" in line
+    ]
+    assert len(non_required_lines) == 7, (
+        f"non-Pony body expected 7 non-required fields (OPTIONAL or "
+        f"ENCOURAGED tier), got {len(non_required_lines)} — schema body "
+        f"has drifted from the round-21 contract."
+    )
     optional_lines = [
         line for line in _STRUCTURED_TAG_BODY_NON_PONY.split("\n")
         if "[OPTIONAL" in line
     ]
-    assert len(optional_lines) == 7, (
-        f"non-Pony body expected 7 [OPTIONAL] fields, got "
-        f"{len(optional_lines)} — schema body has drifted from "
-        f"round-12 contract."
+    assert len(optional_lines) == 4, (
+        f"non-Pony body expected 4 [OPTIONAL] fields after round-21 "
+        f"promotion, got {len(optional_lines)}."
     )
 
 
@@ -172,16 +191,21 @@ def test_all_required_offsets_before_all_optional_offsets():
         required_offsets = [
             m.start() for m in re.finditer(r"\[REQUIRED\b", body)
         ]
-        optional_offsets = [
-            m.start() for m in re.finditer(r"\[OPTIONAL\b", body)
+        # Round-21 — the non-required tier includes both [OPTIONAL] and
+        # the new [ENCOURAGED] / [STRONGLY ENCOURAGED] markers; the
+        # REQUIRED block must end before any of them.
+        non_required_offsets = [
+            m.start() for m in re.finditer(
+                r"\[OPTIONAL\b|\[ENCOURAGED\b|\[STRONGLY\b", body
+            )
         ]
         assert required_offsets, f"{label}: no [REQUIRED] markers found"
-        assert optional_offsets, f"{label}: no [OPTIONAL] markers found"
+        assert non_required_offsets, f"{label}: no non-required markers found"
         max_req = max(required_offsets)
-        min_opt = min(optional_offsets)
+        min_opt = min(non_required_offsets)
         assert max_req < min_opt, (
-            f"{label}: [REQUIRED] block must end before any [OPTIONAL] "
-            f"begins. max_required={max_req}, min_optional={min_opt}"
+            f"{label}: [REQUIRED] block must end before any non-required "
+            f"marker. max_required={max_req}, min_non_required={min_opt}"
         )
 
 

@@ -91,6 +91,9 @@ _CELEBRITY_ALLOWLIST_STATIC: frozenset[str] = frozenset(
 _STYLE_PROFILES_PATH = (
     Path(__file__).resolve().parent.parent.parent / "config" / "style_profiles.yaml"
 )
+_PROMPT_VOCABULARY_PATH = (
+    Path(__file__).resolve().parent.parent.parent / "config" / "prompt_vocabulary.yaml"
+)
 
 
 @functools.lru_cache(maxsize=1)
@@ -123,8 +126,86 @@ def _load_archetype_2grams(path: Path = _STYLE_PROFILES_PATH) -> frozenset[str]:
     return frozenset(grams)
 
 
+@functools.lru_cache(maxsize=1)
+def _load_vocab_2grams(path: Path = _PROMPT_VOCABULARY_PATH) -> frozenset[str]:
+    """Round-21 — derive 2-gram allowlist entries from prompt_vocabulary
+    photographer-ref and environment-setting tag IDs.
+
+    The planner CHOOSES these tags as series anchors (e.g.
+    ``PHOTOG_HELMUT_NEWTON`` for photographer_ref, ``ENV_BERLIN_KREUZBERG_LOFT``
+    for environment_setting). The canonicalizer translates the tag ID into
+    prose that contains the literal name; without an allowlist entry the
+    sanitizer strips the planner's own intentional choice (audit found
+    "Helmut Newton" stripped on every one of 24 prompts).
+
+    Tag ID → 2-grams:
+      * Drop the namespace prefix (``PHOTOG_`` / ``ENV_``).
+      * Drop generic-noun suffixes that aren't part of the proper name
+        (``LOFT``, ``HOTEL``, ``PARLOUR``, ``SUITE``, ``ROOM``, ``STUDIO``,
+        ``GROVE``, ``NIGHT``, ``DAWN``).
+      * Lowercase + emit every consecutive 2-gram from the remaining
+        tokens. ``ENV_BERLIN_KREUZBERG_LOFT`` → ``"berlin kreuzberg"``.
+        ``PHOTOG_HELMUT_NEWTON`` → ``"helmut newton"``.
+
+    Missing or malformed YAML returns an empty set — the static allowlist
+    is sufficient fallback.
+    """
+    if not path.exists():
+        return frozenset()
+    try:
+        with open(path) as f:
+            data = yaml.safe_load(f) or {}
+    except Exception as exc:  # pragma: no cover — YAML parse failure
+        logger.warning("celebrity allowlist: failed to parse %s: %s", path, exc)
+        return frozenset()
+
+    # Generic suffix tokens that aren't part of the proper noun and
+    # should be discarded before emitting 2-grams. Keep the list short
+    # and conservative — only obvious common nouns.
+    _GENERIC_SUFFIX_TOKENS = {
+        "loft", "hotel", "parlour", "parlor", "suite", "room", "studio",
+        "grove", "garden", "night", "dawn", "dusk", "ruin", "ruins",
+        "cliff", "cliffside", "courtyard", "library", "ballroom",
+        "chapel", "boudoir", "lounge", "lobby", "balcony", "rooftop",
+        "spa", "bath", "bathhouse", "office", "kitchen", "loft",
+        "warehouse", "neon", "noir",
+    }
+
+    grams: set[str] = set()
+    # photographer_ref lives under `aesthetic.photographer_ref:`
+    photog_block = (data.get("aesthetic") or {}).get("photographer_ref") or {}
+    for tag_id in photog_block.keys():
+        if not isinstance(tag_id, str) or not tag_id.startswith("PHOTOG_"):
+            continue
+        # Drop "PHOTOG_" prefix, lowercase, split on underscores.
+        tokens = [t for t in tag_id[len("PHOTOG_"):].lower().split("_") if len(t) >= 3]
+        for i in range(len(tokens) - 1):
+            grams.add(f"{tokens[i]} {tokens[i + 1]}")
+
+    # environment.setting lives under `environment.setting:`.
+    setting_block = (data.get("environment") or {}).get("setting") or {}
+    for tag_id in setting_block.keys():
+        if not isinstance(tag_id, str) or not tag_id.startswith("ENV_"):
+            continue
+        tokens_all = tag_id[len("ENV_"):].lower().split("_")
+        # Drop the generic-noun tail tokens (LOFT/HOTEL/SUITE/etc.) but
+        # keep them as long as they sit BETWEEN proper-name tokens.
+        # Simpler: drop suffix tokens only if they're at the END.
+        while tokens_all and tokens_all[-1] in _GENERIC_SUFFIX_TOKENS:
+            tokens_all.pop()
+        tokens = [t for t in tokens_all if len(t) >= 3]
+        for i in range(len(tokens) - 1):
+            grams.add(f"{tokens[i]} {tokens[i + 1]}")
+
+    return frozenset(grams)
+
+
 def _celebrity_allowlist() -> frozenset[str]:
-    return _CELEBRITY_ALLOWLIST_STATIC | _load_archetype_2grams()
+    return (
+        _CELEBRITY_ALLOWLIST_STATIC
+        | _load_archetype_2grams()
+        | _load_vocab_2grams()
+    )
 
 
 def _detect_celebrity_likeness(body: str) -> list[str]:

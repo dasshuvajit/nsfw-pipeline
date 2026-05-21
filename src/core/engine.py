@@ -68,7 +68,11 @@ from src.modes.niche_mode import NicheMode
 from src.modes.style_mode import StyleMode
 from src.modes.theme_mode import ThemeMode
 from src.modes.variation_mode import VariationMode
-from src.prompt.builder import PromptBuilder, compute_prompt_hash
+from src.prompt.builder import (
+    PromptBuilder,
+    archetype_overridden_by_planner,
+    compute_prompt_hash,
+)
 from src.prompt.deduplicator import PromptDeduplicator
 from src.prompt.sanitizer import PromptSanitizer
 from src.prompt.vocabulary import VocabularyLoader
@@ -985,6 +989,23 @@ class PipelineEngine:
                         if guide and guide.negative_axes
                         else None
                     )
+                    # Round-21 (2026-05-21) — when the planner provided
+                    # its own aesthetic anchors (color_palette /
+                    # photographer_ref / art_movement) the operator-
+                    # archetype style_profile is overridden. Drop the
+                    # archetype's flat ``base_negative_prompt`` from the
+                    # stack — it carries quality-axis tokens calibrated
+                    # for the archetype (e.g. ``golden_hour_natural``
+                    # blocks "neon, low-key, indoor window-less") which
+                    # directly contradict planner-chosen themes.
+                    # ``base_style_keywords`` is already suppressed on
+                    # the positive side in ``build_one``; the negative
+                    # equivalent gets the same treatment here.
+                    style_neg_value = (
+                        None
+                        if archetype_overridden_by_planner(series_plan)
+                        else style_profile.get("base_negative_prompt")
+                    )
                     prompt_dict["negative_prompt"] = (
                         self.prompt_builder.assemble_negative_prompt(
                             model_negative=(
@@ -993,9 +1014,7 @@ class PipelineEngine:
                                 else None
                             ),
                             model_negative_axes=guide_axes,
-                            style_negative=style_profile.get(
-                                "base_negative_prompt"
-                            ),
+                            style_negative=style_neg_value,
                             character_negative=scene_character.get(
                                 "negative_prompt"
                             ),

@@ -153,6 +153,53 @@ _HARD_BLOCK_COMPOSITION_SAFETY_TIGHT = "grid, mirror"
 _TIGHT_BUDGET_THRESHOLD = 128
 
 
+def archetype_overridden_by_planner(
+    series_plan: Mapping[str, Any] | Any | None,
+) -> bool:
+    """Round-21 (2026-05-21) — True when the planner provided its OWN
+    aesthetic anchors that supersede the operator-chosen style archetype.
+
+    The operator passes a ``style_profile`` archetype (e.g.
+    ``golden_hour_natural``) as a default-hint. Modes (theme / niche /
+    style / variation) ask the planner LLM to pick a category and may
+    derive series-level ``color_palette`` / ``photographer_ref`` /
+    ``art_movement`` from that category's compatibility lists. When the
+    planner exercises that latitude — choosing a category whose
+    aesthetic doesn't match the archetype (e.g. operator hint
+    ``golden_hour_natural`` + planner pick ``dark_boudoir_neonoir``) —
+    the archetype's ``base_style_keywords`` directly CONTRADICT the
+    rest of the prompt ("Golden hour, warm rim-light, haze, natural
+    outdoor" inside a neon-noir series).
+
+    The audit on series_799bec97e6d7 showed every one of 24 prompts
+    carried this contradiction. Series-level aesthetic phrases
+    (canonicalized from the planner's anchors) already supply the
+    visual world, so the archetype keywords become redundant noise at
+    best, contradictory at worst. This helper centralises the override
+    detection so both ``build_one`` (positive prompt) and
+    ``engine.run_phase_a`` (negative prompt) skip the archetype layer
+    identically when the planner provided anchors.
+
+    Returns ``True`` when ``series_plan`` is non-empty AND has any of
+    ``color_palette`` / ``photographer_ref`` / ``art_movement``
+    populated. Returns ``False`` for back-compat callers passing
+    ``None`` (pre-vocab-v6 series have no anchors and should still get
+    the archetype injected).
+    """
+    if not series_plan:
+        return False
+    # Accept dict-like or attribute-bearing object.
+    def _get(key: str) -> Any:
+        if hasattr(series_plan, "get"):
+            return series_plan.get(key)
+        return getattr(series_plan, key, None)
+    for anchor_field in ("color_palette", "photographer_ref", "art_movement"):
+        val = _get(anchor_field)
+        if val and str(val).strip():
+            return True
+    return False
+
+
 def _resolve_hard_block(family: Any | None) -> str:
     """Return the appropriate HARD_BLOCK for the family's token budget.
 
@@ -663,9 +710,26 @@ class PromptBuilder:
         for phrase in vocab_phrases:
             segments.append(phrase)
 
-        style_keywords = self._field(style_profile, "base_style_keywords")
-        if style_keywords:
-            segments.append(style_keywords)
+        # Round-21 (2026-05-21) — suppress operator's archetype keywords
+        # when the planner picked its own aesthetic anchors (color_palette
+        # / photographer_ref / art_movement). The series-aesthetic phrases
+        # appended above already convey the chosen visual world; the
+        # archetype's ``base_style_keywords`` would inject contradictory
+        # vocabulary (e.g. ``golden_hour_natural``'s "Golden hour, natural
+        # outdoor" inside a planner-chosen neon-noir series). See
+        # :func:`archetype_overridden_by_planner` for the contract.
+        archetype_overridden = archetype_overridden_by_planner(series_plan)
+        if archetype_overridden:
+            style_keywords = ""
+            logger.debug(
+                "archetype keywords suppressed — planner provided aesthetic "
+                "anchors (color_palette/photographer_ref/art_movement) for "
+                "series, archetype style_keywords would contradict."
+            )
+        else:
+            style_keywords = self._field(style_profile, "base_style_keywords")
+            if style_keywords:
+                segments.append(style_keywords)
 
         # Combine caller-supplied extra_keywords with vocab phrases for
         # the prose-composer path (which reads extra_keywords as its
@@ -1252,7 +1316,16 @@ def _compose_natural(
             and frag.lower() not in text.lower()
         ]
         if tail_fragments:
-            tail = ". ".join(tail_fragments) + "."
+            # Round-21 (2026-05-21): collapse fragments into ONE comma-
+            # separated trailing sentence. Pre-round-21 emitted each
+            # fragment as its own period-terminated "sentence"
+            # ("f/1.8. 35mm. photographic.") which reads as orphaned
+            # canonicalizer debris at the end of long prose prompts.
+            # Comma-joined keeps every Chroma realism anchor token but
+            # reads as a single trailing sentence. T5's tokenization of
+            # `"f/1.8, 35mm, photographic"` carries the same anchor
+            # signal as the period form.
+            tail = ", ".join(tail_fragments) + "."
             text = f"{text} {tail}" if text else tail
 
     triggers = [

@@ -687,43 +687,65 @@ def test_field_example_tags_cover_realism_camera_lens():
 
 
 def test_diversity_tracker_silent_before_min_facets():
-    """Less than 4 facets recorded → tracker stays silent regardless
+    """Less than 6 facets recorded → tracker stays silent regardless
     of how dominant a tag is. Avoids false-positive nudges on tiny
-    series."""
+    series. (Round-21 raised the floor from 4 to 6.)"""
     from src.agents.scene_facet_generator import _DiversityTracker
     t = _DiversityTracker()
-    for _ in range(3):
+    for _ in range(5):
         t.record({"lighting_directive": "LIGHT_WINDOW_SIDE"})
     assert t.overused_summary() == ""
 
 
 def test_diversity_tracker_fires_nudge_at_dominance_threshold():
-    """50%+ of facets-so-far use the same tag for a tracked axis →
-    nudge text mentions the axis + tag + count."""
+    """35%+ of facets-so-far use the same tag for a tracked axis →
+    nudge text mentions the axis + tag + count. (Round-21 lowered the
+    threshold from 0.5 to 0.35 after audit found 42% over-representation
+    going uncaught.)"""
     from src.agents.scene_facet_generator import _DiversityTracker
     t = _DiversityTracker()
-    # 4 facets all locked to one lighting tag — 4/4 = 100% dominance,
-    # well above the 50% threshold.
-    for _ in range(4):
+    # 6 facets all locked to one lighting tag — 6/6 = 100% dominance,
+    # well above the 35% threshold and at the 6-facet min floor.
+    for _ in range(6):
         t.record({"lighting_directive": "LIGHT_WINDOW_SIDE"})
     nudge = t.overused_summary()
     assert "lighting_directive" in nudge
     assert "LIGHT_WINDOW_SIDE" in nudge
-    assert "4/4" in nudge
+    assert "6/6" in nudge
     assert "Diversity nudge" in nudge
 
 
 def test_diversity_tracker_silent_under_dominance_threshold():
-    """A balanced spread keeps every tag under 50% → no nudge fires."""
+    """A balanced spread keeps every tag under 35% → no nudge fires."""
     from src.agents.scene_facet_generator import _DiversityTracker
     t = _DiversityTracker()
-    # 4 facets, 4 different lighting tags (each 1/4 = 25%, under 50%).
+    # 6 facets, 6 different lighting tags (each 1/6 ≈ 17%, under 35%).
     for tag in (
         "LIGHT_WINDOW_SIDE", "LIGHT_GOLDEN_HOUR",
         "LIGHT_RIM_BACK", "LIGHT_REMBRANDT",
+        "LIGHT_SOFT_FILL", "LIGHT_SPLIT",
     ):
         t.record({"lighting_directive": tag})
     assert t.overused_summary() == ""
+
+
+def test_diversity_tracker_catches_one_third_concentration():
+    """Round-21 — the 0.35 threshold catches the audit-observed pattern
+    where one tag landed on 10/24 scenes (42%), which the pre-21 0.5
+    floor missed."""
+    from src.agents.scene_facet_generator import _DiversityTracker
+    t = _DiversityTracker()
+    # 7 facets, dominant tag on 3 of them (3/7 ≈ 43% > 35%).
+    for _ in range(3):
+        t.record({"narrative_moment": "NARR_LIGHTING_CIGARETTE_BALCONY"})
+    for tag in (
+        "NARR_POURING_WINE_ALONE", "NARR_TYPEWRITER_LATE_NIGHT",
+        "NARR_LIGHTING_CANDLES_DUSK", "NARR_LETTER_BURNING_FIRE",
+    ):
+        t.record({"narrative_moment": tag})
+    nudge = t.overused_summary()
+    assert "narrative_moment" in nudge
+    assert "NARR_LIGHTING_CIGARETTE_BALCONY" in nudge
 
 
 def test_diversity_tracker_handles_multiple_overused_axes():
@@ -740,9 +762,10 @@ def test_diversity_tracker_handles_multiple_overused_axes():
     for _ in range(2):
         t.record({"nsfw_anatomy": "NSFW_BREAST_NATURAL"})
     nudge = t.overused_summary()
+    # 7 facets total — past the round-21 min-6 floor.
     assert "lighting_directive" in nudge
     assert "mood_aesthetic" in nudge
-    # 5/7 NSFW_FULL_NUDE = 71% > 50% → also in nudge.
+    # 5/7 NSFW_FULL_NUDE = 71% > 35% → also in nudge.
     assert "nsfw_anatomy" in nudge
 
 
@@ -764,10 +787,10 @@ def test_diversity_tracker_records_each_axis_independently():
     should not happen."""
     from src.agents.scene_facet_generator import _DiversityTracker
     t = _DiversityTracker()
-    # Lighting locks; mood varies.
+    # Lighting locks; mood varies. 6 facets meet the round-21 min floor.
     for tag in (
         "MOOD_SERENE", "MOOD_PENSIVE", "MOOD_CONFIDENT",
-        "MOOD_INTIMATE", "MOOD_PLAYFUL",
+        "MOOD_INTIMATE", "MOOD_PLAYFUL", "MOOD_DEFIANT",
     ):
         t.record({
             "lighting_directive": "LIGHT_WINDOW_SIDE",
@@ -776,7 +799,7 @@ def test_diversity_tracker_records_each_axis_independently():
     nudge = t.overused_summary()
     # Lighting hit dominance.
     assert "LIGHT_WINDOW_SIDE" in nudge
-    # Mood didn't (5 tags × 1 = each 20%, well under 50%).
+    # Mood didn't (6 tags × 1 = each 17%, well under 35%).
     for mood in ("MOOD_SERENE", "MOOD_PENSIVE", "MOOD_PLAYFUL"):
         assert mood not in nudge
 
@@ -874,8 +897,9 @@ def test_diversity_tracker_overused_tags_returns_structured_map():
     the dominance threshold — used by the validator-retry path."""
     from src.agents.scene_facet_generator import _DiversityTracker
     t = _DiversityTracker()
-    # 5 facets, all lock to one lighting tag → 100% dominance.
-    for _ in range(5):
+    # 6 facets, all lock to one lighting tag → 100% dominance. Round-21
+    # raised min-facet floor from 4 to 6.
+    for _ in range(6):
         t.record({
             "lighting_directive": "LIGHT_WINDOW_SIDE",
             "mood_aesthetic": "MOOD_PENSIVE",
@@ -894,8 +918,9 @@ def test_diversity_tracker_overused_picks_in_returns_hits():
     dominants."""
     from src.agents.scene_facet_generator import _DiversityTracker
     t = _DiversityTracker()
-    # Prime with 5 facets all dominated by LIGHT_WINDOW_SIDE.
-    for _ in range(5):
+    # Prime with 6 facets all dominated by LIGHT_WINDOW_SIDE — round-21
+    # raised min-facet floor from 4 to 6.
+    for _ in range(6):
         t.record({"lighting_directive": "LIGHT_WINDOW_SIDE"})
     # Candidate landed on the dominant tag → hit returned.
     hits = t.overused_picks_in({
@@ -913,11 +938,11 @@ def test_diversity_tracker_overused_picks_in_returns_hits():
 
 def test_diversity_tracker_overused_picks_silent_below_threshold():
     """Same min-facets gate applies — tracker stays silent before
-    reaching the dominance-min-facets threshold."""
+    reaching the dominance-min-facets threshold (round-21: 6 facets)."""
     from src.agents.scene_facet_generator import _DiversityTracker
     t = _DiversityTracker()
-    # Only 3 facets recorded — below the gate.
-    for _ in range(3):
+    # Only 5 facets recorded — below the gate.
+    for _ in range(5):
         t.record({"lighting_directive": "LIGHT_WINDOW_SIDE"})
     assert t.overused_picks_in({
         "lighting_directive": "LIGHT_WINDOW_SIDE",
