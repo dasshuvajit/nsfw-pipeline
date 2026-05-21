@@ -2397,8 +2397,24 @@ class PipelineEngine:
 
         Returns a dict with `base_prompt` + `negative_prompt` keys.
         ``base_prompt`` is guaranteed non-empty.
+
+        Round-21 verification (2026-05-21) — when the planner provided
+        its own aesthetic anchors (color_palette / photographer_ref /
+        art_movement), the operator-archetype style_profile is
+        overridden. Drop the archetype's flat ``base_negative_prompt``
+        here too; otherwise it lands on ``scene_character.negative_prompt``
+        and ``assemble_negative_prompt`` pulls it back in via the
+        ``character_negative=`` parameter — bypassing the engine-level
+        suppression added in the first round-21 patch. Discovered when
+        the round-21 verification run still emitted golden_hour_natural's
+        "studio flash, fluorescent, low-key, neon, indoor window-less,
+        harsh midday sun" tokens on every prompt despite the engine-
+        level fix being in place.
         """
-        negative = style_profile.get("base_negative_prompt", "")
+        if archetype_overridden_by_planner(series_plan):
+            negative = ""
+        else:
+            negative = style_profile.get("base_negative_prompt", "")
         # Per-scene override wins when present.
         sd = scene.get("subject_detail", "") if scene else ""
         if sd:
