@@ -1603,6 +1603,71 @@ class SceneFacetGenerator:
         # directive declared on the YAML row.
         if llm_directive:
             parts.append(f"\n{llm_directive.strip()}\n")
+        # Round-22 (2026-05-22) — COHERENCE INVARIANT block. Placed
+        # right after the base preamble + tier directive so it has
+        # the next-highest attention weight after the most-critical
+        # tier framing. Three sub-clauses:
+        #   1. env_setting + atmosphere + narrative MUST imply ONE
+        #      consistent time of day + ONE consistent location.
+        #   2. DO NOT weave the series-level photographer_ref /
+        #      art_movement / color_palette into scene_prose. The
+        #      composer canonicalizes those globally per family;
+        #      repeating them in prose causes duplication.
+        #   3. At T4_explicit ONLY, the LLM may use direct anatomical
+        #      language in scene_prose (matching the canonical phrasing
+        #      tier-gating in vocabulary.py). Tier-conditional so this
+        #      directive cannot leak T4 vocab into T2/T3.
+        coherence_block = (
+            "\n"
+            "## COHERENCE INVARIANT (read first)\n"
+            "\n"
+            "1. **Scene coherence.** The environment_setting +\n"
+            "   environment_atmosphere + narrative_moment fields you\n"
+            "   pick MUST together imply ONE consistent time of day\n"
+            "   and ONE consistent location. NEVER combine a `3am`-\n"
+            "   anchored setting with an `afternoon-light` atmosphere,\n"
+            "   or an indoor lobby with `rain-slicked street` outdoor\n"
+            "   atmosphere. When you sense conflict, anchor to\n"
+            "   environment_setting and let atmosphere + narrative\n"
+            "   align with its time + place.\n"
+            "\n"
+            "2. **Do NOT weave series-level aesthetics into scene_prose.**\n"
+            "   The composer already canonicalizes the series-level\n"
+            "   `photographer_ref` / `art_movement` / `color_palette`\n"
+            "   into family-shaped prose and threads them into every\n"
+            "   prompt globally. If you also reference them in your\n"
+            "   `scene_prose` (e.g. 'shot like Helmut Newton, with a\n"
+            "   sepia palette'), they land TWICE in the final prompt\n"
+            "   and waste tokens. Your `scene_prose` should describe\n"
+            "   the woman + her pose + her gaze + the room, NOT the\n"
+            "   meta-aesthetic — the composer handles the meta.\n"
+        )
+        if content_level == "T4_explicit":
+            coherence_block += (
+                "\n"
+                "3. **T4_explicit anatomical clarity.** At this tier,\n"
+                "   you MAY use direct anatomical language in your\n"
+                "   `scene_prose` (e.g. 'her nipples are visible',\n"
+                "   'fully nude with visible vulva') when it aligns\n"
+                "   with the nsfw_anatomy + nsfw_act tags you picked.\n"
+                "   The canonicalizer already adds explicit phrasing\n"
+                "   from those tags — your prose should align with\n"
+                "   them, not contradict them (e.g. don't describe a\n"
+                "   'silk robe wrapping her body' when nsfw_anatomy =\n"
+                "   NSFW_FULL_NUDE).\n"
+            )
+        else:
+            coherence_block += (
+                "\n"
+                "3. **Tier-appropriate language.** At this tier you\n"
+                "   MUST NOT use directly anatomical language in your\n"
+                "   `scene_prose` (no 'visible vulva' / 'erect nipples'\n"
+                "   / 'fully nude' phrasing). The canonicalizer keeps\n"
+                "   T4-explicit vocabulary gated — your prose follows\n"
+                "   the same gate. Describe pose + light + setting +\n"
+                "   mood with appropriate tier restraint.\n"
+            )
+        parts.append(coherence_block)
         if prompt_guide:
             if prompt_guide.llm_hint:
                 parts.append(

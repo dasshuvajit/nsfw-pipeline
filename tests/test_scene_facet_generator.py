@@ -534,6 +534,90 @@ def test_user_prompt_threads_subject_description(generator, loader):
     )
 
 
+def test_system_prompt_carries_coherence_invariant(generator, loader):
+    """Round-22 (2026-05-22) — every SceneFacetGenerator call (regardless
+    of tier) carries the COHERENCE INVARIANT section in the system
+    prompt, with 3 sub-clauses on scene coherence + don't-weave-anchors
+    + tier-appropriate language."""
+    family = loader.get_family("chroma")
+    captured = {"system_prompt": ""}
+
+    def capture(system_prompt, user_prompt, **kwargs):
+        captured["system_prompt"] = system_prompt
+        return ('{"scene_prose": "She stands alone.", '
+                + _required_tags_for("T3_artnude") + '}')
+
+    with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
+        generator.generate(
+            scene=_scene(),
+            family=family,
+            content_level="T3_artnude",
+        )
+    sys_prompt = captured["system_prompt"]
+    assert "COHERENCE INVARIANT" in sys_prompt, (
+        "round-22 fix regressed — system prompt missing COHERENCE "
+        "INVARIANT header"
+    )
+    assert "ONE consistent time of day" in sys_prompt, (
+        "missing scene-coherence sub-clause"
+    )
+    assert "Do NOT weave series-level aesthetics" in sys_prompt, (
+        "missing don't-weave-anchors sub-clause"
+    )
+
+
+def test_system_prompt_t4_allows_explicit_anatomical_language(generator, loader):
+    """Round-22 — at T4_explicit ONLY, the system prompt explicitly
+    allows direct anatomical language in scene_prose to align with the
+    nsfw_anatomy + nsfw_act canonicalizations."""
+    family = loader.get_family("chroma")
+    captured = {"system_prompt": ""}
+
+    def capture(system_prompt, user_prompt, **kwargs):
+        captured["system_prompt"] = system_prompt
+        return ('{"scene_prose": "Fully nude.", '
+                + _required_tags_for("T4_explicit") + '}')
+
+    with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
+        generator.generate(
+            scene=_scene(),
+            family=family,
+            content_level="T4_explicit",
+        )
+    sys_prompt = captured["system_prompt"]
+    assert "T4_explicit anatomical clarity" in sys_prompt, (
+        "T4 system prompt missing the anatomical-clarity sub-clause"
+    )
+    assert "direct anatomical language" in sys_prompt
+
+
+def test_system_prompt_below_t4_forbids_explicit_language(generator, loader):
+    """Round-22 — at T1/T2/T3, the system prompt explicitly FORBIDS
+    direct anatomical language (mirrors the canonicalizer tier-gating
+    in vocabulary.py)."""
+    family = loader.get_family("chroma")
+    captured = {"system_prompt": ""}
+
+    def capture(system_prompt, user_prompt, **kwargs):
+        captured["system_prompt"] = system_prompt
+        return ('{"scene_prose": "She stands alone.", '
+                + _required_tags_for("T3_artnude") + '}')
+
+    with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
+        generator.generate(
+            scene=_scene(),
+            family=family,
+            content_level="T3_artnude",
+        )
+    sys_prompt = captured["system_prompt"]
+    assert "Tier-appropriate language" in sys_prompt, (
+        "T3 system prompt missing the tier-restraint sub-clause"
+    )
+    assert "MUST NOT use directly anatomical language" in sys_prompt
+    # T4-only header MUST NOT appear at T3.
+    assert "T4_explicit anatomical clarity" not in sys_prompt
+
+
 def test_user_prompt_subject_description_default_when_absent(generator, loader):
     """Round-22 back-compat — when caller doesn't pass
     subject_description, the user prompt falls back to "(not
