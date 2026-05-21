@@ -176,6 +176,37 @@ def _model_subfolder(family: str) -> str:
     return "checkpoints"
 
 
+def _synthetic_subject_anchor(content_level: str) -> str:
+    """Round-22 (2026-05-22) — synthesize a generic subject anchor for
+    modes that don't emit one in their series_plan.
+
+    Theme mode emits ``subject_description``. Niche mode emits
+    ``subject_bias``. Style and variation modes emit NEITHER — pre-fix
+    the facet generator's user prompt rendered "(not provided)" for
+    those two modes, which gave the LLM zero subject grounding when
+    picking nsfw_anatomy / nsfw_act.
+
+    The synthetic anchor is tier-aware: at T3/T4 it names the nudity
+    state directly so the facet LLM picks coherent NSFW tags; at
+    T1/T2 it stays clothed-implied. Keeps the single-female + adult-
+    age invariants the composer enforces downstream anyway.
+
+    Round-2 audit (2026-05-22) flagged style_mode + variation_mode as
+    the highest-risk gap from F5 — this helper closes it.
+    """
+    base = "An adult woman with mature features"
+    if content_level == "T1_suggestive":
+        return f"{base}, dressed elegantly with intention"
+    if content_level == "T2_implied":
+        return f"{base}, in suggestive dress or implied undress"
+    if content_level == "T3_artnude":
+        return f"{base}, artistic nudity per the scene's tier directive"
+    if content_level == "T4_explicit":
+        return f"{base}, fully nude per the scene's tier directive"
+    # Unknown / back-compat — minimal anchor.
+    return base
+
+
 def _resolve_db_path(cfg: dict) -> Path:
     raw = cfg.get("pipeline", {}).get("db_path", "nsfw_pipeline.db")
     return _PROJECT_ROOT / raw
@@ -924,9 +955,24 @@ class PipelineEngine:
                             # Round-22 (2026-05-22) — thread the series'
                             # subject_description so the facet LLM can
                             # pick nsfw_anatomy / nsfw_act coherent with
-                            # the locked subject identity.
+                            # the locked subject identity. Three-level
+                            # fallback:
+                            #   1. theme_mode emits subject_description
+                            #   2. niche_mode emits subject_bias (alias)
+                            #   3. style_mode / variation_mode emit
+                            #      neither → fall back to a tier-aware
+                            #      synthetic hint ("An adult woman with
+                            #      mature features, ...") so the facet
+                            #      LLM still sees a non-empty subject
+                            #      anchor instead of "(not provided)".
+                            #      Round-2 audit identified this as the
+                            #      single highest-risk gap from F5.
                             subject_description=(
-                                series_plan.get("subject_description") or ""
+                                series_plan.get("subject_description")
+                                or series_plan.get("subject_bias")
+                                or _synthetic_subject_anchor(
+                                    ctx.content_level
+                                )
                             ),
                         )
                         # Persist (Flux2 QA fields auto-dropped by repo).
