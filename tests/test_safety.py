@@ -202,6 +202,26 @@ def test_celebrity_allowlist_keeps_planner_chosen_photographers():
         )
 
 
+def test_celebrity_allowlist_keeps_planner_chosen_art_movements():
+    """2026-05-22 — ART_MOVE_* tag canonicalizations contain proper-noun
+    2-grams the planner deliberately chose. Pre-fix the sanitizer
+    stripped "Vermeer Dutch" + "Golden Age" on every prompt that
+    landed ART_MOVE_DUTCH_GOLDEN_VERMEER, leaving a verb-less
+    fragment ("tradition, side window illumination, ..."). Discovered
+    when magnum_v4_12b's full 29-scene run logged 29 strip events for
+    those tokens."""
+    for prose in (
+        "Vermeer Dutch Golden Age tradition, side window illumination",
+        "Wes Anderson symmetry framing, pastel palette",
+        "Rembrandt portrait, three-quarter face, warm umber background",
+        "Pre-Raphaelite tableau, fine textile detail",
+    ):
+        assert _detect_celebrity_likeness(prose) == [], (
+            f"sanitizer should NOT flag planner-chosen art_movement "
+            f"name in: {prose!r}"
+        )
+
+
 def test_celebrity_allowlist_keeps_planner_chosen_locations():
     """Round-21 — environment_setting tags like ENV_BERLIN_KREUZBERG_LOFT
     canonicalize to prose containing "Berlin Kreuzberg" which the

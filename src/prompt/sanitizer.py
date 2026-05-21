@@ -172,30 +172,35 @@ def _load_vocab_2grams(path: Path = _PROMPT_VOCABULARY_PATH) -> frozenset[str]:
     }
 
     grams: set[str] = set()
-    # photographer_ref lives under `aesthetic.photographer_ref:`
-    photog_block = (data.get("aesthetic") or {}).get("photographer_ref") or {}
-    for tag_id in photog_block.keys():
-        if not isinstance(tag_id, str) or not tag_id.startswith("PHOTOG_"):
-            continue
-        # Drop "PHOTOG_" prefix, lowercase, split on underscores.
-        tokens = [t for t in tag_id[len("PHOTOG_"):].lower().split("_") if len(t) >= 3]
-        for i in range(len(tokens) - 1):
-            grams.add(f"{tokens[i]} {tokens[i + 1]}")
 
-    # environment.setting lives under `environment.setting:`.
-    setting_block = (data.get("environment") or {}).get("setting") or {}
-    for tag_id in setting_block.keys():
-        if not isinstance(tag_id, str) or not tag_id.startswith("ENV_"):
-            continue
-        tokens_all = tag_id[len("ENV_"):].lower().split("_")
-        # Drop the generic-noun tail tokens (LOFT/HOTEL/SUITE/etc.) but
-        # keep them as long as they sit BETWEEN proper-name tokens.
-        # Simpler: drop suffix tokens only if they're at the END.
-        while tokens_all and tokens_all[-1] in _GENERIC_SUFFIX_TOKENS:
-            tokens_all.pop()
-        tokens = [t for t in tokens_all if len(t) >= 3]
-        for i in range(len(tokens) - 1):
-            grams.add(f"{tokens[i]} {tokens[i + 1]}")
+    # Strategy: scan the per-family canonicalization PROSE for every
+    # tag in the namespaces we want to allowlist, and extract every
+    # consecutive ``Cap-word Cap-word`` 2-gram from the prose. This is
+    # more robust than parsing the tag id alone because:
+    #   * Tag-id word order can differ from the prose
+    #     (ART_MOVE_DUTCH_GOLDEN_VERMEER → "Vermeer Dutch Golden Age")
+    #   * The prose can introduce era / qualifier tokens not in the id
+    #     ("Age" in "Golden Age" is absent from the tag id)
+    #   * Multiple family-shape phrasings (sdxl / chroma / flux / etc.)
+    #     can each surface different name variants
+    # We pull each (namespace, key) pair, walk every string value, and
+    # apply the same celebrity-likeness regex to harvest 2-grams the
+    # tag is known to legitimately emit.
+    namespaces = (
+        ("aesthetic", "photographer_ref"),
+        ("aesthetic", "art_movement"),
+        ("environment", "setting"),
+    )
+    for top, sub in namespaces:
+        block = (data.get(top) or {}).get(sub) or {}
+        for tag_id, family_map in block.items():
+            if not isinstance(family_map, dict):
+                continue
+            for family_prose in family_map.values():
+                if not isinstance(family_prose, str):
+                    continue
+                for match in _CELEB_2GRAM_PATTERN.findall(family_prose):
+                    grams.add(match.lower())
 
     return frozenset(grams)
 
