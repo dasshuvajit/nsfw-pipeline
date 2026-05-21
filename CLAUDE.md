@@ -128,8 +128,10 @@ The complete architecture is documented in ARCHITECTURE.md — read it fully bef
     avoid words) and PromptBuilder (per-model trigger / negative
     composition / canonicalizer thread).
   - `config/prompt_vocabulary.yaml` — versioned realism + NSFW concept
-    library (vocab_version 7 — anti-grid / anti-mirror cleanup of
-    2026-05-20; supersedes v6 creative-uplift). The LLM emits abstract
+    library (vocab_version 8 — round-22 (2026-05-22) incidental-ToD
+    strip from ATM_DUST_MOTES_IN_LIGHT to resolve env / atmosphere
+    time-of-day contradictions; supersedes v7 anti-grid / anti-mirror
+    cleanup of 2026-05-20 + v6 creative-uplift). The LLM emits abstract
     concept tags (e.g. `LIGHT_REMBRANDT`, `CAMERA_SONY_A7RV`,
     `FILM_PORTRA_400`, `NSFW_T4_SOLO_DISPLAY`,
     `ENV_TUSCAN_VILLA_RENAISSANCE`, `ATM_DUST_MOTES_IN_LIGHT`,

@@ -638,7 +638,7 @@ class SceneFacetFluxNatural(BaseModel):
 
     scene_prose: str = Field(
         min_length=1,
-        description="2–4 complete sentences, 40–90 words total. Weave "
+        description="2–4 complete sentences, 30–80 words total. Weave "
         "pose, lighting, lens character, environment, and mood into "
         "flowing prose. Describe the woman + her pose + her gaze + "
         "the room in vivid concrete detail. Do NOT weave series-level "
@@ -709,19 +709,23 @@ class SceneFacetFluxNatural(BaseModel):
                 "Chroma encoders prefer space-separated natural words."
             )
         # Round-22 — word-count band. Hard reject outside 20–140 (clearly
-        # too short or pathologically long); soft warn outside 40–90
-        # target band. Mirrors SceneFacetFlux2's 25–95 / 30–80 pattern.
+        # too short or pathologically long); soft warn outside 30–80
+        # target band. Round-6 audit (2026-05-22) empirically observed
+        # DavidAU's natural distribution at min=27, max=61, mean=43,
+        # median=42 — the prior 40-word floor flagged ~32% of facets
+        # spuriously. Lowered to 30-80 to match the model's actual
+        # natural mode. Mirrors SceneFacetFlux2's 25–95 / 30–80 pattern.
         words = len(prose.split())
         if not (20 <= words <= 140):
             raise ValueError(
                 f"SceneFacetFluxNatural.scene_prose has {words} words; "
-                f"prose-family hard band is 20–140 (target 40–90). "
+                f"prose-family hard band is 20–140 (target 30–80). "
                 f"Tighten the prose."
             )
-        if not (40 <= words <= 90):
+        if not (30 <= words <= 80):
             logger.warning(
                 "SceneFacetFluxNatural.scene_prose word count %d is "
-                "outside the 40–90 target band (still inside 20–140 "
+                "outside the 30–80 target band (still inside 20–140 "
                 "slack). Consider tightening.", words,
             )
         return self

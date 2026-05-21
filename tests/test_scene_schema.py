@@ -250,20 +250,44 @@ def test_flux_natural_word_band_rejects_too_long():
 
 def test_flux_natural_word_band_warn_outside_target_inside_slack(caplog):
     """Round-22 — soft warn when prose is inside the 20-140 hard band
-    but outside the 40-90 target band. Doesn't fail validation; just
-    logs at WARNING for operator visibility."""
+    but outside the 30-80 target band. Doesn't fail validation; just
+    logs at WARNING for operator visibility.
+
+    Round-6 audit (2026-05-22) lowered the lower bound 40 → 30 after
+    empirically observing DavidAU's natural prose at mean=43, median=42,
+    min=27 — the prior 40-word floor flagged ~32% of facets spuriously."""
     import logging
     caplog.set_level(logging.WARNING, logger="src.agents.schemas")
-    # 25 words — under 40, over 20.
+    # 25 words — under 30, over 20.
     SceneFacetFluxNatural.model_validate({
         "scene_prose": " ".join(["word"] * 25),
     })
     assert any(
-        "outside the 40–90 target band" in rec.message
+        "outside the 30–80 target band" in rec.message
         for rec in caplog.records
     ), (
         f"expected warn log about target band drift; got "
         f"{[r.message for r in caplog.records]!r}"
+    )
+
+
+def test_flux_natural_word_band_silent_inside_target(caplog):
+    """Round-6 follow-up: when prose is inside the 30-80 target band
+    (matching DavidAU's natural mode), NO warning fires. Pre-round-6
+    a 42-word prose triggered the warn because the floor was 40."""
+    import logging
+    caplog.set_level(logging.WARNING, logger="src.agents.schemas")
+    # 42 words — DavidAU's median.
+    SceneFacetFluxNatural.model_validate({
+        "scene_prose": " ".join(["word"] * 42),
+    })
+    band_warns = [
+        rec for rec in caplog.records
+        if "target band" in rec.message
+    ]
+    assert not band_warns, (
+        f"42-word prose should land inside 30-80 target band — no warn "
+        f"expected, got: {[r.message for r in band_warns]!r}"
     )
 
 
