@@ -839,10 +839,13 @@ _DIVERSITY_TRACKED_AXES: tuple[str, ...] = (
 # Ollama Cydonia heretic audit on series_799bec97e6d7 showed
 # narrative_moment:NARR_LIGHTING_CIGARETTE_BALCONY landing 10/24 (42%)
 # — under the prior 0.5 floor but visibly dominating the series.
-# 0.35 = "more than a third of the series already used this tag".
-# Lower threshold → more nudges → more model retries; pick of 0.35
-# balances the cost of a retry round-trip against series-level monotony.
-_DIVERSITY_DOMINANCE_THRESHOLD: float = 0.35
+# Round-21b (2026-05-21) — further lowered 0.35 → 0.30 after the
+# verification run on series_d13e84ccc70f showed narrative_moment
+# at 39% (9/23) and environment_setting at 39% (9/23) — over the
+# old floor but the LLM still locks. 0.30 = "more than 3 in 10".
+# Lower threshold → more nudges → more model retries; trade-off
+# accepted for the higher per-axis variety.
+_DIVERSITY_DOMINANCE_THRESHOLD: float = 0.30
 
 # Don't nudge until at least this many facets have been emitted —
 # at 0.35 dominance, the threshold is only meaningful once the series
