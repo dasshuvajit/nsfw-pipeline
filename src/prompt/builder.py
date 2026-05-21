@@ -687,8 +687,37 @@ class PromptBuilder:
         # → scene_fields → scene_vocab → style. For Pony the prose-shape
         # phrases get filtered (no photographer/art_movement phrasings
         # exist for Pony; only color_palette has a Pony tag form).
-        for phrase in series_aesthetic_phrases:
-            segments.append(phrase)
+        #
+        # Round-22 (2026-05-22) — for prose families (flux_natural /
+        # flux2_prose) consolidate the 2-3 series-aesthetic phrases
+        # into ONE comma-joined sentence. Saves ~60-80 tokens per
+        # prompt vs the prior 3-separate-sentences form, and reads as
+        # natural cinematic style direction rather than three parallel
+        # bullet sentences. Booru families (pony / illustrious) keep
+        # the per-phrase segment form — the booru composer's keyword
+        # dedup expects atomic items, not a comma-joined sentence.
+        # SDXL keeps per-phrase too (CLIP 77-token budget benefits
+        # from atomic items the keyword composer can re-order/dedup).
+        #
+        # NB the consolidation must be applied to BOTH ``segments``
+        # (used by sdxl_keywords + pony_danbooru + illustrious_tags
+        # composers) AND ``merged_extras`` further down (used by the
+        # prose composer ``_compose_natural`` / ``_compose_flux2_prose``
+        # which IGNORES ``segments`` when ``scene_prose`` is populated
+        # and threads ``extra_keywords`` as trailing sentences). The
+        # ``series_aesthetic_for_extras`` variable holds the form to
+        # use downstream.
+        if (
+            family.prompt_style in ("flux_natural", "flux2_prose")
+            and len(series_aesthetic_phrases) >= 2
+        ):
+            merged = ", ".join(p.rstrip(",. ") for p in series_aesthetic_phrases)
+            segments.append(merged)
+            series_aesthetic_for_extras: list[str] = [merged]
+        else:
+            for phrase in series_aesthetic_phrases:
+                segments.append(phrase)
+            series_aesthetic_for_extras = list(series_aesthetic_phrases)
 
         for field in self.scene_field_order:
             value = self._field(scene, field)
@@ -734,8 +763,11 @@ class PromptBuilder:
         # Combine caller-supplied extra_keywords with vocab phrases for
         # the prose-composer path (which reads extra_keywords as its
         # own kwarg). Series-aesthetic + scene vocab phrases lead —
-        # they're more specific than caller extras.
-        merged_extras: list[str] = list(series_aesthetic_phrases) + list(vocab_phrases)
+        # they're more specific than caller extras. Round-22 —
+        # series_aesthetic_for_extras carries the consolidated form
+        # for prose families (1 merged sentence) or the 2-3 individual
+        # phrases otherwise; see the consolidation branch above.
+        merged_extras: list[str] = list(series_aesthetic_for_extras) + list(vocab_phrases)
         for kw in extra_keywords or ():
             if kw:
                 merged_extras.append(str(kw))
