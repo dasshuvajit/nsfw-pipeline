@@ -143,6 +143,38 @@ llms:
     families_recommended: ["all"]
     active: false  # round-19: re-evaluated — context-vs-memory squeeze blocks 25-scene batch (see description above)
 
+  magnum_v4_12b:
+    backend: lm_studio
+    lm_studio_id: "magnum-v4-12b"
+    display_name: "Magnum v4 12B (Mistral Nemo)"
+    description: >-
+      anthracite-org/magnum-v4-12b. Mistral Nemo 12B base
+      fine-tuned on the same Claude-3-Sonnet/Opus distillation corpus
+      as Magnum v4 27B, but on the smaller (and Apple-Silicon-friendlier)
+      Mistral Nemo lineage rather than Gemma 2. The Magnum line is
+      designed to replicate Claude prose for creative / RP narrative;
+      Mistral Nemo's attention pattern is more Metal-friendly than
+      Gemma 2 so this should run measurably faster on M-series than
+      the 27B Gemma variant despite the smaller parameter gap.
+      NOT abliterated — refusal-rate is managed via training-data
+      selection rather than weight surgery, so the floor is higher
+      than Cydonia heretic but the prose discipline + vocabulary
+      adherence are typically stronger. Apache 2.0 (inherited from
+      Mistral Nemo). Registered as the speed/quality sweet spot
+      between Cydonia 24B (slow but disciplined) and qwen3.5-9b
+      (fast but hallucinates vocab tags).
+    quant: "Q4_K_M"
+    size_gb: 7
+    context_tokens: 32768
+    refusal_rate: 3.0           # creative-RP-tuned, not abliterated
+    strengths:
+      - "Mistral Nemo base — Metal-friendly attention, ~2× Cydonia 24B throughput"
+      - "Magnum tuning (Claude-3 Sonnet/Opus distillation)"
+      - "structured-tag vocabulary discipline (Mistral lineage)"
+      - "Q4_K_M GGUF — well-optimised for LM Studio's llama.cpp path"
+    families_recommended: ["all"]
+    active: true
+
   qwen35_9b_claude46_heretic_mlx:
     backend: lm_studio
     lm_studio_id: "qwen3.5-9b-claude-4.6-highiq-instruct-heretic-uncensored-mlx-mxfp8"
