@@ -124,6 +124,11 @@ _T3_REQUIRED_TAGS_JSON = (
     # Round-12: realism_camera + realism_lens promoted to required at T3+.
     ', "realism_camera": "CAMERA_SONY_A7RV"'
     ', "realism_lens": "LENS_85MM_F14"'
+    # Round-22: art_style_reference + realism_angle promoted to T3+
+    # required after r-21b showed encouraged-tier adoption stayed
+    # at 14% / 9% — unreliable.
+    ', "realism_angle": "ANGLE_EYE_LEVEL"'
+    ', "art_style_reference": "ART_FINE_NUDE"'
 )
 
 _T4_REQUIRED_TAGS_JSON = (

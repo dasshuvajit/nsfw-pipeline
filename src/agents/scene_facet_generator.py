@@ -100,14 +100,23 @@ _TIER_REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
     # for Pony. realism_film_stock + environment_prop stay [OPTIONAL]
     # — promoting more fields multiplies the retry rate exponentially
     # and these two are lower-leverage than camera + lens.
+    # Round-22 (2026-05-22) — promoted art_style_reference + realism_angle
+    # to T3+ required after round-21b verification showed the
+    # ENCOURAGED-tier marker landed only 14% / 9% adoption respectively
+    # (high run-to-run variance, never reliable). REQUIRED-tier fires
+    # the retry-nudge and will force the LLM to pick a tag from the
+    # vocabulary menu on every scene. Pony's schema omits both fields
+    # so ``_make_tier_strict_schema`` skips them for the Pony family.
     "T3_artnude":    (
         "lighting_directive", "mood_aesthetic", "nsfw_anatomy",
-        "realism_camera", "realism_lens",
+        "realism_camera", "realism_lens", "realism_angle",
+        "art_style_reference",
         "environment_setting", "environment_atmosphere", "narrative_moment",
     ),
     "T4_explicit":   (
         "lighting_directive", "mood_aesthetic", "nsfw_anatomy", "nsfw_act",
-        "realism_camera", "realism_lens",
+        "realism_camera", "realism_lens", "realism_angle",
+        "art_style_reference",
         "environment_setting", "environment_atmosphere", "narrative_moment",
     ),
 }
@@ -1020,12 +1029,12 @@ _STRUCTURED_TAG_BODY_NON_PONY = """\
   "nsfw_act": "[REQUIRED — T4 only] One NSFW_ACT_* concept tag — SOLO acts only (NSFW_T4_SOLO_TOUCH, NSFW_T4_SOLO_DISPLAY, NSFW_T4_SOLO_BATH, NSFW_T4_SOLO_RECLINING, etc.). At T1/T2/T3 emit null. Partnered tags are filtered.",
   "realism_camera": "[REQUIRED — T3+] One CAMERA_* concept tag for specific camera body (CAMERA_SONY_A7RV, CAMERA_HASSELBLAD_X2D, CAMERA_LEICA_M11, CAMERA_CANON_R5, etc.). Per-scene variety is desirable — do not lock to one camera across the series.",
   "realism_lens": "[REQUIRED — T3+] One LENS_* concept tag for lens spec (LENS_85MM_F14, LENS_50MM_F18, LENS_35MM_F2, LENS_135MM_F2, LENS_24MM_F14, etc.). Match the lens to the shot — wide for environment, long for portrait compression.",
+  "realism_angle": "[REQUIRED — T3+] One ANGLE_* concept tag for camera angle (ANGLE_LOW, ANGLE_EYE_LEVEL, ANGLE_HIGH, ANGLE_DUTCH, ANGLE_OVER_SHOULDER). Mix angles across the series — every scene shot at ANGLE_EYE_LEVEL looks visually identical at the framing level. Round-22 promoted from STRONGLY ENCOURAGED to REQUIRED after r-21b verification showed 9% adoption was unreliable.",
+  "art_style_reference": "[REQUIRED — T3+] One ART_* concept tag for a per-scene art-style anchor (ART_FINE_NUDE, ART_BOUDOIR_NOIR, ART_OLD_HOLLYWOOD, ART_EDITORIAL_FASHION, ART_CLASSICAL, ART_HELMUT_NEWTON, ART_HERB_RITTS_BW, ART_IRVING_PENN_MINIMALISM, ART_NUDE_PHOTOGRAPHY). Distinct from the SERIES-level photographer_ref/art_movement — this is the per-scene visual style anchor. Vary across scenes. The composer translates the tag into family-shaped phrasing. Round-22 promoted from STRONGLY ENCOURAGED to REQUIRED after r-21b verification showed 14% adoption was unreliable.",
   "nsfw_posture": "[OPTIONAL] One NSFW_POSTURE_* concept tag if the pose calls for it (T3+ only — null at T1/T2).",
   "environment_prop": "[OPTIONAL] One PROP_* concept tag for furniture/object anchor (PROP_CHAISE_LOUNGE_VELVET, PROP_HANDWRITTEN_LETTER, PROP_VELVET_CURTAIN_HEAVY, PROP_FOUR_POSTER_BED, etc.).",
   "composition_principle": "[OPTIONAL] One COMP_* concept tag for higher-order composition (COMP_LEADING_LINES_FLOOR, COMP_NEGATIVE_SPACE_DOMINANT, COMP_SYMMETRY_CENTERED, COMP_LOW_HERO_SHOT, etc.).",
   "realism_film_stock": "[OPTIONAL] One FILM_* concept tag for film-stock emulation (FILM_PORTRA_400, FILM_CINESTILL_800T, FILM_TRIX_400, etc.).",
-  "art_style_reference": "[STRONGLY ENCOURAGED — pick one most scenes] One ART_* concept tag for a per-scene art-style anchor (ART_FINE_NUDE, ART_BOUDOIR_NOIR, ART_OLD_HOLLYWOOD, ART_EDITORIAL_FASHION, ART_CLASSICAL, ART_HELMUT_NEWTON, ART_HERB_RITTS_BW, ART_IRVING_PENN_MINIMALISM, ART_NUDE_PHOTOGRAPHY). Distinct from the SERIES-level photographer_ref/art_movement — this is the per-scene visual style anchor. Vary across scenes. The composer translates the tag into family-shaped phrasing. Round-21 — pre-fix this field was 0% populated despite being a key per-scene variety axis.",
-  "realism_angle": "[STRONGLY ENCOURAGED — vary across scenes] One ANGLE_* concept tag for camera angle (ANGLE_LOW, ANGLE_EYE_LEVEL, ANGLE_HIGH, ANGLE_DUTCH, ANGLE_OVER_SHOULDER). Round-21 — pre-fix this field was 0% populated. Mix angles to break the visual monotony of every scene being shot at eye level.",
   "realism_framing": "[ENCOURAGED] One FRAMING_* concept tag for shot framing (FRAMING_FULL_BODY, FRAMING_MEDIUM_CLOSE, FRAMING_CLOSE_UP, FRAMING_WIDE_ENVIRONMENT)."\
 """
 

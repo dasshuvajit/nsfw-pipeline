@@ -79,16 +79,24 @@ def test_pony_required_fields_lead_optional():
     Round-12 (2026-05-21): realism_camera + realism_lens were promoted
     to T3+ required for non-Pony families, but Pony's schema doesn't
     declare those fields (booru tagging carries camera/lens implicitly
-    via tag patterns). These two fields are skipped for the Pony body
+    via tag patterns). These fields are skipped for the Pony body
     check; ``_make_tier_strict_schema``'s "skip fields not on base"
     branch handles them at run-time.
+
+    Round-22 (2026-05-22): art_style_reference + realism_angle were
+    promoted to T3+ required on the same family-exclusion principle —
+    Pony's booru convention carries art-style + angle implicitly via
+    tag patterns, so they're added to ``pony_excluded`` here.
     """
     first_optional = _first_optional_position(_STRUCTURED_TAG_BODY_PONY)
     assert first_optional > 0
-    # Pony schema omits realism_camera + realism_lens (booru tagging
-    # carries those implicitly). Skip those two from the Pony-body
+    # Pony schema omits the 4 realism enum fields (booru tagging
+    # carries those implicitly). Skip them from the Pony-body
     # ordering check.
-    pony_excluded = {"realism_camera", "realism_lens"}
+    pony_excluded = {
+        "realism_camera", "realism_lens",
+        "realism_angle", "art_style_reference",
+    }
     for field in _T4_REQUIRED_FIELDS - pony_excluded:
         pos = _field_position(_STRUCTURED_TAG_BODY_PONY, field)
         assert pos > -1, f"Pony body missing required field {field!r}"
@@ -119,8 +127,15 @@ def test_non_pony_body_has_required_markers():
 def test_pony_body_has_required_markers():
     """Round-12: realism_camera + realism_lens absent from Pony body;
     skip them in this check (see ``_STRUCTURED_TAG_BODY_PONY`` — Pony
-    doesn't carry those fields in its schema)."""
-    pony_excluded = {"realism_camera", "realism_lens"}
+    doesn't carry those fields in its schema).
+
+    Round-22: art_style_reference + realism_angle also absent from
+    Pony body for the same reason — Pony's booru convention carries
+    them implicitly via tag patterns."""
+    pony_excluded = {
+        "realism_camera", "realism_lens",
+        "realism_angle", "art_style_reference",
+    }
     for field in _T4_REQUIRED_FIELDS - pony_excluded:
         match = re.search(
             rf'"{re.escape(field)}":\s*"\[REQUIRED',
@@ -133,39 +148,41 @@ def test_pony_body_has_required_markers():
 
 def test_optional_fields_have_optional_marker():
     """Inverse: every non-required field carries a non-required marker
-    explicitly — either [OPTIONAL] (low-priority) or [STRONGLY
-    ENCOURAGED]/[ENCOURAGED] (the round-21 tier between REQUIRED and
-    OPTIONAL).
+    explicitly — either [OPTIONAL] (low-priority) or [ENCOURAGED]
+    (the tier between REQUIRED and OPTIONAL).
 
     Round-12 (2026-05-21): realism_camera + realism_lens promoted to
     [REQUIRED — T3+], dropping the [OPTIONAL] count from 9 to 7.
 
     Round-21 (2026-05-21): art_style_reference / realism_angle /
     realism_framing promoted from [OPTIONAL] to [STRONGLY ENCOURAGED]
-    or [ENCOURAGED] after the audit found 0/24 adoption. They're
-    still NOT in _TIER_REQUIRED_FIELDS (no retry-nudge), but the
-    stronger marker + concrete examples lift land-rate.
+    or [ENCOURAGED] after the audit found 0/24 adoption.
+
+    Round-22 (2026-05-22): art_style_reference + realism_angle further
+    promoted from [STRONGLY ENCOURAGED] to [REQUIRED — T3+] after the
+    r-21b verification showed encouraged-tier adoption stayed flaky
+    (14% / 9% respectively). realism_framing kept at [ENCOURAGED]
+    (already at 77% adoption).
 
     Expected: 4 [OPTIONAL] (nsfw_posture, environment_prop,
-    composition_principle, realism_film_stock) + 3 ENCOURAGED tier
-    (art_style_reference, realism_angle, realism_framing) = 7 total
-    non-required fields.
+    composition_principle, realism_film_stock) + 1 [ENCOURAGED]
+    (realism_framing) = 5 total non-required fields.
     """
     non_required_lines = [
         line for line in _STRUCTURED_TAG_BODY_NON_PONY.split("\n")
         if "[OPTIONAL" in line or "[ENCOURAGED" in line or "[STRONGLY" in line
     ]
-    assert len(non_required_lines) == 7, (
-        f"non-Pony body expected 7 non-required fields (OPTIONAL or "
+    assert len(non_required_lines) == 5, (
+        f"non-Pony body expected 5 non-required fields (OPTIONAL or "
         f"ENCOURAGED tier), got {len(non_required_lines)} — schema body "
-        f"has drifted from the round-21 contract."
+        f"has drifted from the round-22 contract."
     )
     optional_lines = [
         line for line in _STRUCTURED_TAG_BODY_NON_PONY.split("\n")
         if "[OPTIONAL" in line
     ]
     assert len(optional_lines) == 4, (
-        f"non-Pony body expected 4 [OPTIONAL] fields after round-21 "
+        f"non-Pony body expected 4 [OPTIONAL] fields after round-22 "
         f"promotion, got {len(optional_lines)}."
     )
 
@@ -624,9 +641,11 @@ def test_tier_active_body_pony_rewrite_full_matrix():
     assert "[REQUIRED — every tier]" not in out
     assert "[REQUIRED — T3+]" not in out
     assert "[REQUIRED — T4 only]" not in out
-    # Round-12: realism_camera + realism_lens are non-Pony only, skip
-    # those in this Pony-body check.
-    pony_excluded = {"realism_camera", "realism_lens"}
+    # Round-12 + round-22: 4 realism enum fields are non-Pony only.
+    pony_excluded = {
+        "realism_camera", "realism_lens",
+        "realism_angle", "art_style_reference",
+    }
     for fld in _T4_REQUIRED_FIELDS - pony_excluded:
         m = re.search(rf'"{re.escape(fld)}":\s*"\[REQUIRED\]', out)
         assert m is not None, (
@@ -656,8 +675,15 @@ def test_every_prompt_style_body_includes_required_markers():
     Round-12 (2026-05-21): realism_camera + realism_lens added to the
     tier-required set for non-Pony families. Pony's body legitimately
     omits those two (booru tagging carries camera/lens implicitly).
+
+    Round-22 (2026-05-22): art_style_reference + realism_angle added
+    to the tier-required set for non-Pony families. Pony's body
+    omits those two for the same reason.
     """
-    pony_excluded = {"realism_camera", "realism_lens"}
+    pony_excluded = {
+        "realism_camera", "realism_lens",
+        "realism_angle", "art_style_reference",
+    }
     for style, body in _SCHEMA_BODY_BY_STYLE.items():
         if style == "pony_danbooru":
             for field in _T4_REQUIRED_FIELDS - pony_excluded:
