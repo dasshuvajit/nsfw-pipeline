@@ -207,6 +207,38 @@ def _synthetic_subject_anchor(content_level: str) -> str:
     return base
 
 
+def resolve_subject_anchor(
+    series_plan: dict[str, Any] | None,
+    content_level: str,
+) -> str:
+    """Round-22 (2026-05-22) — resolve the subject anchor string from a
+    series_plan, applying the three-level fallback chain:
+
+    1. ``series_plan.subject_description`` (theme_mode emits this)
+    2. ``series_plan.subject_bias`` (niche_mode emits this — semantic
+       equivalent)
+    3. :func:`_synthetic_subject_anchor` (style_mode / variation_mode
+       emit neither — tier-aware synthetic fallback)
+
+    Public-ish helper (not underscored) so the engine's facet call
+    site can use it AND tests can exercise the fallback chain directly
+    without spinning up a full engine run. Round-3 audit (2026-05-22)
+    identified the absence of a mode-level integration test as a HIGH
+    risk; factoring this into a testable function closes that gap.
+
+    Always returns a non-empty string.
+    """
+    if not series_plan:
+        return _synthetic_subject_anchor(content_level)
+    desc = series_plan.get("subject_description")
+    if desc:
+        return str(desc)
+    bias = series_plan.get("subject_bias")
+    if bias:
+        return str(bias)
+    return _synthetic_subject_anchor(content_level)
+
+
 def _resolve_db_path(cfg: dict) -> Path:
     raw = cfg.get("pipeline", {}).get("db_path", "nsfw_pipeline.db")
     return _PROJECT_ROOT / raw
@@ -967,12 +999,8 @@ class PipelineEngine:
                             #      anchor instead of "(not provided)".
                             #      Round-2 audit identified this as the
                             #      single highest-risk gap from F5.
-                            subject_description=(
-                                series_plan.get("subject_description")
-                                or series_plan.get("subject_bias")
-                                or _synthetic_subject_anchor(
-                                    ctx.content_level
-                                )
+                            subject_description=resolve_subject_anchor(
+                                series_plan, ctx.content_level,
                             ),
                         )
                         # Persist (Flux2 QA fields auto-dropped by repo).

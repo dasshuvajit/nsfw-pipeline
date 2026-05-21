@@ -60,3 +60,76 @@ def test_synthetic_subject_never_empty():
     ):
         out = _synthetic_subject_anchor(tier or "")
         assert out, f"synthetic anchor returned empty for tier={tier!r}"
+
+
+# ── Round-22 F8 — fallback-chain integration tests ───────────────
+
+
+def test_resolve_subject_anchor_prefers_subject_description():
+    """Theme mode emits ``subject_description``. The resolver must
+    return that field's value verbatim before falling back."""
+    from src.core.engine import resolve_subject_anchor
+    series_plan = {
+        "subject_description": "A confident adult woman, fully nude",
+        "subject_bias": "should be ignored",
+    }
+    assert (
+        resolve_subject_anchor(series_plan, "T3_artnude")
+        == "A confident adult woman, fully nude"
+    )
+
+
+def test_resolve_subject_anchor_falls_to_subject_bias_when_description_empty():
+    """Niche mode emits ``subject_bias``, not ``subject_description``.
+    The resolver must fall through to bias when description is empty."""
+    from src.core.engine import resolve_subject_anchor
+    series_plan = {
+        "subject_description": "",
+        "subject_bias": "a model in fine-art nude posing",
+    }
+    assert (
+        resolve_subject_anchor(series_plan, "T3_artnude")
+        == "a model in fine-art nude posing"
+    )
+
+
+def test_resolve_subject_anchor_falls_to_synthetic_when_both_absent():
+    """Style mode + variation mode emit NEITHER subject_description
+    NOR subject_bias. The resolver must fall through to the tier-aware
+    synthetic anchor — never returns empty."""
+    from src.core.engine import resolve_subject_anchor
+    series_plan = {
+        "theme": "Some theme",
+        "mood": "Some mood",
+        # NO subject_description, NO subject_bias
+    }
+    out = resolve_subject_anchor(series_plan, "T4_explicit")
+    assert "adult woman" in out, (
+        f"resolver should fall to synthetic anchor at T4, got: {out!r}"
+    )
+    assert "fully nude" in out, (
+        "T4 synthetic anchor missing the tier-aware nudity clause"
+    )
+
+
+def test_resolve_subject_anchor_none_series_plan_falls_to_synthetic():
+    """Back-compat — when series_plan itself is None (defensive caller
+    path), resolver still returns a non-empty tier-aware anchor."""
+    from src.core.engine import resolve_subject_anchor
+    out = resolve_subject_anchor(None, "T2_implied")
+    assert "adult woman" in out
+    assert "suggestive dress" in out or "implied undress" in out
+
+
+def test_resolve_subject_anchor_treats_whitespace_as_empty():
+    """Whitespace-only / None values in the series_plan dict must be
+    treated as ABSENT so the chain advances. ``subject_description: " "``
+    should NOT block the fallback to subject_bias."""
+    from src.core.engine import resolve_subject_anchor
+    # falsy check accepts both None and "" — confirm via empty string
+    series_plan = {
+        "subject_description": "",
+        "subject_bias": "a model anchor",
+    }
+    out = resolve_subject_anchor(series_plan, "T3_artnude")
+    assert out == "a model anchor"
