@@ -500,6 +500,61 @@ def test_user_prompt_contains_content_level_line(
     assert f"Content level: {tier}" in captured["user_prompt"]
 
 
+def test_user_prompt_threads_subject_description(generator, loader):
+    """Round-22 (2026-05-22) — series_plan.subject_description is now
+    threaded into SceneFacetGenerator's user prompt so the facet LLM
+    can pick nsfw_anatomy / nsfw_act coherent with the locked series
+    subject identity (previously the facet LLM only saw per-scene
+    pose / camera / lighting fields, never the series subject)."""
+    family = loader.get_family("sdxl")
+    captured = {"user_prompt": ""}
+
+    def capture(system_prompt, user_prompt, **kwargs):
+        captured["user_prompt"] = user_prompt
+        return ('{"camera_spec": "x", "clothing": "y", '
+                + _required_tags_for("T3_artnude") + '}')
+
+    subject = (
+        "A mature adult woman, fully nude, natural skin, "
+        "standing confidently in dim light"
+    )
+    with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
+        generator.generate(
+            scene=_scene(),
+            family=family,
+            content_level="T3_artnude",
+            subject_description=subject,
+        )
+    assert "Series subject anchor" in captured["user_prompt"], (
+        "user prompt missing subject anchor header — round-22 fix regressed"
+    )
+    assert subject in captured["user_prompt"], (
+        f"subject_description not threaded into user prompt; got "
+        f"{captured['user_prompt'][:500]!r}"
+    )
+
+
+def test_user_prompt_subject_description_default_when_absent(generator, loader):
+    """Round-22 back-compat — when caller doesn't pass
+    subject_description, the user prompt falls back to "(not
+    provided)" without raising."""
+    family = loader.get_family("sdxl")
+    captured = {"user_prompt": ""}
+
+    def capture(system_prompt, user_prompt, **kwargs):
+        captured["user_prompt"] = user_prompt
+        return ('{"camera_spec": "x", "clothing": "y", '
+                + _required_tags_for("T3_artnude") + '}')
+
+    with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
+        generator.generate(
+            scene=_scene(),
+            family=family,
+            content_level="T3_artnude",
+        )
+    assert "(not provided)" in captured["user_prompt"]
+
+
 def test_system_prompt_carries_llm_directive(generator, loader):
     """When ``llm_directive`` is supplied, the SceneFacetGenerator
     injects it verbatim into the system prompt right after the

@@ -921,6 +921,13 @@ class PipelineEngine:
                                 or None
                             ),
                             diversity_tracker=diversity_tracker,
+                            # Round-22 (2026-05-22) — thread the series'
+                            # subject_description so the facet LLM can
+                            # pick nsfw_anatomy / nsfw_act coherent with
+                            # the locked subject identity.
+                            subject_description=(
+                                series_plan.get("subject_description") or ""
+                            ),
                         )
                         # Persist (Flux2 QA fields auto-dropped by repo).
                         insert_facet(

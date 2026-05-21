@@ -276,6 +276,7 @@ def test_user_prompt_template_renders_with_schema_body():
         prompt_style="flux_natural",
         schema_body=_SCHEMA_BODY_BY_STYLE["flux_natural"],
         diversity_nudge="",  # round-12 slot — empty for back-compat
+        subject_description="(not provided)",  # round-22 slot
     )
     # The RAW schema body still carries the conditional markers
     # (round-6 shape); the tier-active rewrite is applied later.

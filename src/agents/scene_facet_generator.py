@@ -799,6 +799,11 @@ and MUST receive a concrete concept tag from the vocabulary menu in the
 system prompt — null / empty / omitted values trigger an automatic retry:
 {tier_required_list}
 {diversity_nudge}
+Series subject anchor (locked once per series — every scene shares the
+SAME subject identity; let it inform your nsfw_anatomy / nsfw_act
+choices so they're coherent with this subject):
+  {subject_description}
+
 The scene's locked core fields:
 {scene_core_json}
 
@@ -1199,6 +1204,7 @@ class SceneFacetGenerator:
         compatible_environments: list[str] | None = None,
         compatible_narratives: list[str] | None = None,
         diversity_tracker: "_DiversityTracker | None" = None,
+        subject_description: str = "",
     ) -> dict[str, Any]:
         """Generate the family-shaped facet for one scene.
 
@@ -1310,6 +1316,7 @@ class SceneFacetGenerator:
             diversity_nudge=diversity_nudge,
             compatible_environments=compatible_environments,
             compatible_narratives=compatible_narratives,
+            subject_description=subject_description,
         )
 
         effective_temp = (
@@ -1672,6 +1679,7 @@ class SceneFacetGenerator:
         diversity_nudge: str = "",
         compatible_environments: list[str] | None = None,
         compatible_narratives: list[str] | None = None,
+        subject_description: str = "",
     ) -> str:
         """Render the user prompt with the scene's locked core inlined.
 
@@ -1728,8 +1736,14 @@ class SceneFacetGenerator:
             compatible_environments=compatible_environments,
             compatible_narratives=compatible_narratives,
         )
+        # Round-22 (2026-05-22) — subject_description from series_plan
+        # is now threaded into the user prompt so the facet LLM can pick
+        # nsfw_anatomy / nsfw_act coherent with the subject. Empty
+        # fallback "(not provided)" keeps back-compat for callers that
+        # don't supply it.
         return _USER_PROMPT_TEMPLATE.format(
             content_level=content_level,
+            subject_description=subject_description or "(not provided)",
             scene_core_json=json.dumps(core, indent=2),
             family_id=family.id,
             prompt_style=family.prompt_style,
