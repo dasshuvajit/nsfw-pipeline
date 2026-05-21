@@ -446,6 +446,62 @@ class TestReasoningModelFlag:
         loader = LLMRegistryLoader(yaml)
         assert loader.get_default_llm().is_reasoning_model is True
 
+    def test_mlx_entry_parses(self, tmp_path):
+        """Round-20 — MLX-backed entries declare mlx_model_id."""
+        yaml = _write(tmp_path / "mlx.yaml", """
+            llms:
+              mlx_one:
+                backend: mlx
+                mlx_model_id: "mlx-community/Cydonia-24B-v3.1-4bit"
+                display_name: "Cydonia MLX"
+            default_llm: mlx_one
+        """)
+        loader = LLMRegistryLoader(yaml)
+        entry = loader.get_default_llm()
+        assert entry.backend == "mlx"
+        assert entry.mlx_model_id == "mlx-community/Cydonia-24B-v3.1-4bit"
+        # ollama_id + lm_studio_id are empty for MLX entries.
+        assert entry.ollama_id == ""
+        assert entry.lm_studio_id == ""
+        # model_tag returns the mlx_model_id for routing.
+        assert entry.model_tag == "mlx-community/Cydonia-24B-v3.1-4bit"
+
+    def test_mlx_entry_missing_mlx_model_id_raises(self, tmp_path):
+        yaml = _write(tmp_path / "bad.yaml", """
+            llms:
+              broken:
+                backend: mlx
+                display_name: "no id"
+            default_llm: broken
+        """)
+        with pytest.raises(LLMRegistryError, match="mlx_model_id"):
+            LLMRegistryLoader(yaml)
+
+    def test_backend_for_tag_round_trips_mlx(self, tmp_path):
+        yaml = _write(tmp_path / "mix.yaml", """
+            llms:
+              ollama_one:
+                ollama_id: "tag_ollama"
+                display_name: "Ollama"
+              mlx_one:
+                backend: mlx
+                mlx_model_id: "tag_mlx"
+                display_name: "MLX"
+            default_llm: ollama_one
+        """)
+        loader = LLMRegistryLoader(yaml)
+        assert loader.backend_for_tag("tag_ollama") == "ollama"
+        assert loader.backend_for_tag("tag_mlx") == "mlx"
+
+    def test_real_registry_includes_mlx_cydonia(self):
+        """Round-20 — the shipped llm_models.yaml ships the
+        mlx_cydonia_v31_4bit entry for A/B vs the Ollama heretic
+        variant."""
+        loader = LLMRegistryLoader()
+        entry = loader.get_llm("mlx_cydonia_v31_4bit")
+        assert entry.backend == "mlx"
+        assert entry.mlx_model_id == "mlx-community/Cydonia-24B-v3.1-4bit"
+
     def test_is_reasoning_model_helper(self, tmp_path):
         yaml = _write(tmp_path / "mix.yaml", """
             llms:

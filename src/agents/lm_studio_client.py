@@ -92,7 +92,17 @@ class LMStudioGenerateError(LMStudioError):
     """Non-200 response from /v1/chat/completions."""
 
 
-class LMStudioJSONParseError(LMStudioError):
+# Round-20 (2026-05-22) — LMStudioJSONParseError inherits from
+# OllamaJSONParseError so the existing ``except OllamaJSONParseError``
+# blocks in ``src.modes._llm_helpers`` and
+# ``src.agents.scene_facet_generator`` catch LM Studio failures too.
+# Pre-round-20 the inheritance was off (LMStudioError) and LM Studio
+# parse failures crashed through the retry loop on the rare paths
+# where the grammar mode didn't catch the issue first.
+from src.agents.llm_client import OllamaJSONParseError as _OllamaJSONParseError
+
+
+class LMStudioJSONParseError(LMStudioError, _OllamaJSONParseError):
     """LLM response could not be parsed as valid JSON."""
 
 

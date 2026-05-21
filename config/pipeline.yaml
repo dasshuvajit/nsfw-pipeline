@@ -156,6 +156,37 @@ llm:
 #   4. Register the entry in config/llm_models.yaml with backend=lm_studio
 #      and lm_studio_id matching the model identifier shown in `lms ls`
 #   5. Reference the registry id with --llm <id>
+# Round-20 (2026-05-22) — MLX backend. The pipeline routes
+# entries with `backend: mlx` in config/llm_models.yaml through
+# the mlx_lm.server OpenAI-compatible REST API. Unlike Ollama
+# (which auto-starts via the daemon) and LM Studio (which runs
+# as a long-lived GUI app), mlx_lm.server is a foreground process
+# the operator starts manually:
+#
+#   HF_HOME=~/AI/models ~/AI/envs/mlx-env/bin/mlx_lm.server \
+#       --model mlx-community/Cydonia-24B-v3.1-4bit \
+#       --host 127.0.0.1 --port 8080 --log-level INFO
+#
+# The server hosts EXACTLY ONE model per process — switching LLMs
+# means restarting it. The pipeline's preflight verifies the
+# server is reachable; the operator is responsible for matching
+# the loaded model to the `--llm` flag passed to prepare_prompts.
+#
+# Phase B (ComfyUI render) requires unified memory to be freed
+# before the diffusion checkpoint loads. mlx_lm.server has no HTTP
+# unload endpoint, so the operator must stop the server process
+# (`pkill -f mlx_lm.server`) between Phase A and Phase B.
+mlx:
+  base_url: "http://127.0.0.1:8080"
+  # Per-request HTTP timeout (seconds). MLX on Apple Silicon is
+  # typically fast per token but a long facet prompt + cold prompt-
+  # cache miss can still take a few minutes.
+  request_timeout_seconds: 900
+  # Optional metadata — operator command for documentation; the
+  # pipeline doesn't auto-start the server. Edit for your install.
+  python_bin: "~/AI/envs/mlx-env/bin/python"
+  hf_home: "~/AI/models"
+
 lm_studio:
   base_url: "http://localhost:1234"
   # Per-request HTTP timeout (seconds) for /v1/chat/completions calls.

@@ -1761,19 +1761,23 @@ class PipelineEngine:
         A doesn't need it).
         """
         if not self.llm_client.is_available():
-            # Round-14 — pool.is_available is true if EITHER backend is
-            # reachable. False here means both Ollama AND LM Studio are
-            # down. Message both endpoints so operator knows which to
+            # Round-14/20 — pool.is_available is true if ANY backend is
+            # reachable. False here means every registered backend is
+            # down. Message each endpoint so operator knows which to
             # start.
             ollama_url = self.llm_client.ollama.base_url
             lm_studio_url = self.llm_client.lm_studio.base_url
+            mlx_url = self.llm_client.mlx.base_url
             raise PreflightError(
                 "Preflight check(s) failed:\n"
                 f"  - No LLM backend reachable.\n"
                 f"    Ollama at {ollama_url}: not reachable. "
                 f"Run `ollama serve` if you use Ollama.\n"
                 f"    LM Studio at {lm_studio_url}: not reachable. "
-                f"Start the LM Studio local server if you use LM Studio."
+                f"Start the LM Studio local server if you use LM Studio.\n"
+                f"    MLX at {mlx_url}: not reachable. "
+                f"Start mlx_lm.server if you use MLX (see "
+                f"pipeline.yaml::mlx for the startup command)."
             )
         logger.info("Preflight (Phase A): LLM backend reachable")
         # Round-17 (2026-05-21) — eager-load ONLY the LLM that will

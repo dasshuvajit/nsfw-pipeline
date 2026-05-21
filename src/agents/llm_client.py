@@ -588,6 +588,7 @@ class LLMClientPool:
         *,
         ollama_client: "OllamaClient | None" = None,
         lm_studio_client: "object | None" = None,
+        mlx_client: "object | None" = None,
         registry: "object | None" = None,
     ) -> None:
         # Lazy-import to avoid a circular dependency: LLMRegistryLoader
@@ -599,8 +600,12 @@ class LLMClientPool:
         if lm_studio_client is None:
             from src.agents.lm_studio_client import LMStudioClient
             lm_studio_client = LMStudioClient()
+        if mlx_client is None:
+            from src.agents.mlx_client import MlxClient
+            mlx_client = MlxClient()
         self._ollama = ollama_client or OllamaClient()
         self._lm_studio = lm_studio_client
+        self._mlx = mlx_client
         self._registry = registry
 
     # ------------------------------------------------------------------
@@ -609,10 +614,12 @@ class LLMClientPool:
 
     def _client_for(self, model: str):
         """Resolve a backend client for ``model`` (registry lookup)."""
-        from src.memory.llm_registry import BACKEND_LM_STUDIO
+        from src.memory.llm_registry import BACKEND_LM_STUDIO, BACKEND_MLX
         backend = self._registry.backend_for_tag(model)
         if backend == BACKEND_LM_STUDIO:
             return self._lm_studio
+        if backend == BACKEND_MLX:
+            return self._mlx
         return self._ollama
 
     # ------------------------------------------------------------------
@@ -646,13 +653,16 @@ class LLMClientPool:
     def unload_all(self) -> None:
         """Cascade unload to every sub-client.
 
-        Ollama and LM Studio each track their own ``loaded_models`` set.
-        Calling each sub-client's ``unload_all`` is cheap when nothing's
-        tracked (logged + returned). After this method returns, both
-        backends have an empty ``loaded_models`` set.
+        Each sub-client tracks its own ``loaded_models`` set. Calling
+        each one's ``unload_all`` is cheap when nothing's tracked
+        (logged + returned). MLX's ``unload_all`` logs a reminder
+        instead of actually unloading (mlx_lm.server has no HTTP
+        unload protocol). After this method returns every backend's
+        ``loaded_models`` is empty.
         """
         self._ollama.unload_all()
         self._lm_studio.unload_all()
+        self._mlx.unload_all()
 
     def is_available(self) -> bool:
         """True iff at least one sub-backend is reachable.
@@ -660,7 +670,11 @@ class LLMClientPool:
         The pool can still serve calls that target the reachable
         backend; failures for the offline one surface at call time.
         """
-        return self._ollama.is_available() or self._lm_studio.is_available()
+        return (
+            self._ollama.is_available()
+            or self._lm_studio.is_available()
+            or self._mlx.is_available()
+        )
 
     # ------------------------------------------------------------------
     # Sub-client accessors (mainly for tests + diagnostics)
@@ -673,3 +687,7 @@ class LLMClientPool:
     @property
     def lm_studio(self):
         return self._lm_studio
+
+    @property
+    def mlx(self):
+        return self._mlx

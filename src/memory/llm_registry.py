@@ -59,7 +59,10 @@ class LLMNotFound(LLMRegistryError):
 
 BACKEND_OLLAMA = "ollama"
 BACKEND_LM_STUDIO = "lm_studio"
-_KNOWN_BACKENDS: frozenset[str] = frozenset({BACKEND_OLLAMA, BACKEND_LM_STUDIO})
+BACKEND_MLX = "mlx"
+_KNOWN_BACKENDS: frozenset[str] = frozenset(
+    {BACKEND_OLLAMA, BACKEND_LM_STUDIO, BACKEND_MLX}
+)
 
 
 @dataclass(frozen=True)
@@ -102,6 +105,10 @@ class LLMRegistryEntry:
     # Round-14: LM Studio identifier. Required when backend=lm_studio,
     # ignored otherwise. Empty string is the YAML-side "not set".
     lm_studio_id: str = ""
+    # Round-20 (2026-05-22): MLX identifier (Hugging Face repo id the
+    # mlx_lm.server was started with). Required when backend=mlx,
+    # ignored otherwise.
+    mlx_model_id: str = ""
     # Round-18 (2026-05-22) — reasoning-model flag. Qwen 3.5+ thinking
     # models emit a ``<think>...</think>`` chain-of-thought block
     # before the answer, which is incompatible with LM Studio's
@@ -119,12 +126,18 @@ class LLMRegistryEntry:
     def model_tag(self) -> str:
         """Backend-specific model identifier used on the wire.
 
-        Returns ``lm_studio_id`` for LM Studio entries, ``ollama_id``
-        for Ollama entries (the default). :class:`LLMClientPool`
-        dispatches generate-calls using this value.
+        Returns the appropriate id for the entry's backend:
+          - ``ollama`` → ``ollama_id``
+          - ``lm_studio`` → ``lm_studio_id``
+          - ``mlx`` → ``mlx_model_id``
+
+        :class:`LLMClientPool` dispatches generate-calls using this
+        value.
         """
         if self.backend == BACKEND_LM_STUDIO:
             return self.lm_studio_id
+        if self.backend == BACKEND_MLX:
+            return self.mlx_model_id
         return self.ollama_id
 
     @classmethod
@@ -138,8 +151,10 @@ class LLMRegistryEntry:
         # Required identity per backend.
         if backend == BACKEND_OLLAMA:
             required = {"ollama_id", "display_name"}
-        else:  # BACKEND_LM_STUDIO
+        elif backend == BACKEND_LM_STUDIO:
             required = {"lm_studio_id", "display_name"}
+        else:  # BACKEND_MLX
+            required = {"mlx_model_id", "display_name"}
         missing = required - d.keys()
         if missing:
             raise LLMRegistryError(
@@ -150,6 +165,7 @@ class LLMRegistryEntry:
             id=llm_id,
             ollama_id=str(d.get("ollama_id") or ""),
             lm_studio_id=str(d.get("lm_studio_id") or ""),
+            mlx_model_id=str(d.get("mlx_model_id") or ""),
             backend=backend,
             display_name=str(d["display_name"]),
             description=str(d.get("description") or ""),

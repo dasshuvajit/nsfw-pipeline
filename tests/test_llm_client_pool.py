@@ -33,6 +33,10 @@ def _write_registry(tmp_path: Path) -> Path:
             backend: lm_studio
             lm_studio_id: "tag_lms"
             display_name: "LM Studio"
+          mlx_one:
+            backend: mlx
+            mlx_model_id: "tag_mlx"
+            display_name: "MLX"
         default_llm: ollama_one
     """))
     return yaml
@@ -46,6 +50,7 @@ def pool(tmp_path):
     return LLMClientPool(
         ollama_client=MagicMock(name="OllamaClient"),
         lm_studio_client=MagicMock(name="LMStudioClient"),
+        mlx_client=MagicMock(name="MlxClient"),
         registry=registry,
     )
 
@@ -98,6 +103,24 @@ def test_unload_all_cascades_to_every_backend(pool):
     pool.unload_all()
     pool.ollama.unload_all.assert_called_once()
     pool.lm_studio.unload_all.assert_called_once()
+    pool.mlx.unload_all.assert_called_once()
+
+
+def test_generate_json_dispatches_mlx_tag_to_mlx_client(pool):
+    """Round-20 — MLX-backed entries route to the MLX sub-client."""
+    pool.mlx.generate_json.return_value = {"ok": True}
+    out = pool.generate_json("system", "user", model="tag_mlx")
+    assert out == {"ok": True}
+    pool.mlx.generate_json.assert_called_once()
+    pool.ollama.generate_json.assert_not_called()
+    pool.lm_studio.generate_json.assert_not_called()
+
+
+def test_unload_model_routes_mlx(pool):
+    pool.unload_model("tag_mlx")
+    pool.mlx.unload_model.assert_called_once_with("tag_mlx")
+    pool.ollama.unload_model.assert_not_called()
+    pool.lm_studio.unload_model.assert_not_called()
 
 
 def test_unknown_tag_defaults_to_ollama_backend(pool):
@@ -115,9 +138,18 @@ def test_is_available_true_when_any_backend_reachable(pool):
     assert pool.is_available() is True
 
 
-def test_is_available_false_when_both_offline(pool):
+def test_is_available_true_when_only_mlx_reachable(pool):
+    """Round-20 — MLX counts as a backend for is_available."""
     pool.ollama.is_available.return_value = False
     pool.lm_studio.is_available.return_value = False
+    pool.mlx.is_available.return_value = True
+    assert pool.is_available() is True
+
+
+def test_is_available_false_when_all_offline(pool):
+    pool.ollama.is_available.return_value = False
+    pool.lm_studio.is_available.return_value = False
+    pool.mlx.is_available.return_value = False
     assert pool.is_available() is False
 
 

@@ -174,6 +174,50 @@ llms:
     families_recommended: ["all"]
     active: true
 
+  mlx_cydonia_v31_4bit:
+    backend: mlx
+    mlx_model_id: "mlx-community/Cydonia-24B-v3.1-4bit"
+    display_name: "Cydonia 24B v3.1 (MLX 4-bit)"
+    description: >-
+      mlx-community's 4-bit quantization of TheDrummer/Cydonia-24B-v3.1
+      (an earlier Cydonia v3.1 base, predates the v4.3 heretic-vision
+      Ollama entry by 2 minor versions). Served via mlx_lm.server's
+      OpenAI-compatible REST API on 127.0.0.1:8080. Apple-Silicon-
+      native MLX runtime — typically faster per token than llama.cpp
+      via Ollama for the same parameter count. Cached under
+      ~/AI/models/hub/ (HF_HOME convention).
+
+      Setup (one-time):
+        mkdir -p ~/AI/envs && cd ~/AI/envs
+        python3 -m venv mlx-env && source mlx-env/bin/activate
+        pip install --upgrade pip
+        pip install mlx mlx-lm
+        export HF_HOME=~/AI/models  # add to ~/.zshrc
+
+      Each session start:
+        HF_HOME=~/AI/models ~/AI/envs/mlx-env/bin/mlx_lm.server \\
+            --model mlx-community/Cydonia-24B-v3.1-4bit \\
+            --host 127.0.0.1 --port 8080 --log-level INFO
+
+      Each session end (BEFORE running ComfyUI render):
+        pkill -f mlx_lm.server   # release ~17 GB unified memory
+
+      Round-20 registration (2026-05-22). Notes vs the Ollama entry:
+      v3.1 base is older than v4.3 (no heretic abliteration, no
+      vision graft); refusal floor is the v3.1 Cydonia level
+      (creative-tuned but not abliterated). Comparison run scheduled
+      to confirm whether MLX speed compensates for the older base.
+    quant: "4bit"
+    size_gb: 13
+    context_tokens: 32768
+    refusal_rate: 3.0           # v3.1 base, no heretic step
+    strengths:
+      - "MLX runtime — typically faster per token than llama.cpp"
+      - "24B Cydonia base — established creative prose tune"
+      - "OpenAI-compatible REST API via mlx_lm.server"
+    families_recommended: ["all"]
+    active: true
+
   cydonia_v43_lm_studio:
     backend: lm_studio
     lm_studio_id: "thedrummer_cydonia-24b-v4.3"
