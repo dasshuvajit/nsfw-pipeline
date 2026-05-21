@@ -1705,6 +1705,19 @@ class SceneFacetGenerator:
             "   the woman + her pose + her gaze + the room, NOT the\n"
             "   meta-aesthetic — the composer handles the meta.\n"
         )
+        # Round-22 (2026-05-22) revised — tier-conditional clause 3 with
+        # FOUR distinct sub-clauses, one per T1-T4. Pre-revision the T3
+        # clause contradicted T3's llm_directive ("describe the nude
+        # form directly" vs "MUST NOT use directly anatomical language").
+        # Round-4 audit caught this. New wording aligns each tier with
+        # its categories.yaml llm_directive:
+        #   T1: clothed-implied, no anatomical detail
+        #   T2: implied undress / suggestive only, no direct anatomy
+        #   T3: tasteful artistic nudity allowed (bare shoulders,
+        #       natural skin texture, full nude form) BUT no explicit
+        #       T4 phrasing (vulva visible / nipples erect / explicit
+        #       acts)
+        #   T4: full explicit allowed including vulva / nipples / acts
         if content_level == "T4_explicit":
             coherence_block += (
                 "\n"
@@ -1719,16 +1732,45 @@ class SceneFacetGenerator:
                 "   'silk robe wrapping her body' when nsfw_anatomy =\n"
                 "   NSFW_FULL_NUDE).\n"
             )
-        else:
+        elif content_level == "T3_artnude":
             coherence_block += (
                 "\n"
-                "3. **Tier-appropriate language.** At this tier you\n"
-                "   MUST NOT use directly anatomical language in your\n"
-                "   `scene_prose` (no 'visible vulva' / 'erect nipples'\n"
-                "   / 'fully nude' phrasing). The canonicalizer keeps\n"
-                "   T4-explicit vocabulary gated — your prose follows\n"
-                "   the same gate. Describe pose + light + setting +\n"
-                "   mood with appropriate tier restraint.\n"
+                "3. **T3_artnude tasteful nudity.** This is gallery-\n"
+                "   print fine-art nude — the subject IS nude. Your\n"
+                "   `scene_prose` MUST describe the nude form directly\n"
+                "   in tasteful framing (e.g. 'her bare shoulders\n"
+                "   catch the window light', 'natural skin texture\n"
+                "   across her hip', 'the gentle curve of her back').\n"
+                "   ALLOWED: bare / nude / natural skin / artistic\n"
+                "   anatomical reference. NOT ALLOWED at this tier:\n"
+                "   T4-explicit vocabulary like 'visible vulva',\n"
+                "   'erect nipples', or explicit-act phrasing —\n"
+                "   those are tier-gated to T4_explicit only.\n"
+            )
+        elif content_level == "T2_implied":
+            coherence_block += (
+                "\n"
+                "3. **T2_implied suggestive restraint.** Your\n"
+                "   `scene_prose` should suggest sensuality through\n"
+                "   pose + light + composition + implied undress —\n"
+                "   not direct anatomy. Allowed: 'silk robe slipping\n"
+                "   from a shoulder', 'sheer fabric catching the\n"
+                "   light', 'her gaze drifts toward the window'.\n"
+                "   NOT ALLOWED: 'bare breasts', 'nude form',\n"
+                "   'visible' anything explicit. The canonicalizer\n"
+                "   keeps T3+ NSFW vocabulary gated; your prose\n"
+                "   follows the same gate.\n"
+            )
+        else:
+            # T1_suggestive (or unknown — defensive default).
+            coherence_block += (
+                "\n"
+                "3. **T1_suggestive clothed restraint.** Your\n"
+                "   `scene_prose` describes a fully-clothed subject\n"
+                "   in tasteful poses. No nudity, no implied undress,\n"
+                "   no anatomical detail beyond what's visible in\n"
+                "   ordinary clothing. The canonicalizer keeps T2+\n"
+                "   NSFW vocabulary gated.\n"
             )
         parts.append(coherence_block)
         if prompt_guide:

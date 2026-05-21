@@ -612,10 +612,13 @@ def test_system_prompt_t4_allows_explicit_anatomical_language(generator, loader)
     assert "direct anatomical language" in sys_prompt
 
 
-def test_system_prompt_below_t4_forbids_explicit_language(generator, loader):
-    """Round-22 — at T1/T2/T3, the system prompt explicitly FORBIDS
-    direct anatomical language (mirrors the canonicalizer tier-gating
-    in vocabulary.py)."""
+def test_system_prompt_t3_allows_tasteful_anatomical_language(generator, loader):
+    """Round-22 (revised round-4) — at T3_artnude the system prompt
+    EXPLICITLY ALLOWS tasteful anatomical reference ('bare shoulders',
+    'natural skin texture across her hip') matching T3's llm_directive
+    in categories.yaml. NOT ALLOWED at T3: T4-explicit vocabulary like
+    'visible vulva' / 'erect nipples'. Pre-round-4 the clause was
+    over-restrictive and contradicted T3's directive."""
     family = loader.get_family("chroma")
     captured = {"system_prompt": ""}
 
@@ -636,12 +639,77 @@ def test_system_prompt_below_t4_forbids_explicit_language(generator, loader):
             content_level="T3_artnude",
         )
     sys_prompt = captured["system_prompt"]
-    assert "Tier-appropriate language" in sys_prompt, (
-        "T3 system prompt missing the tier-restraint sub-clause"
+    assert "T3_artnude tasteful nudity" in sys_prompt, (
+        "T3 system prompt missing the tasteful-nudity sub-clause"
     )
-    assert "MUST NOT use directly anatomical language" in sys_prompt
+    # T3 explicitly allows tasteful anatomy + nude framing.
+    assert "ALLOWED: bare / nude / natural skin" in sys_prompt
+    # But forbids T4 explicit vocab.
+    assert "visible vulva" in sys_prompt
+    assert "tier-gated to T4_explicit only" in sys_prompt
     # T4-only header MUST NOT appear at T3.
     assert "T4_explicit anatomical clarity" not in sys_prompt
+
+
+def test_system_prompt_t2_forbids_direct_anatomy(generator, loader):
+    """Round-22 (revised) — T2_implied uses implied-undress language
+    only, no direct anatomy."""
+    family = loader.get_family("chroma")
+    captured = {"system_prompt": ""}
+
+    def capture(system_prompt, user_prompt, **kwargs):
+        captured["system_prompt"] = system_prompt
+        return (
+            '{"scene_prose": "She stands in soft afternoon light, '
+            'silk robe slipping from one shoulder as she gazes '
+            'thoughtfully toward the window in the warm parlour.", '
+            + _required_tags_for("T2_implied") + '}'
+        )
+
+    with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
+        generator.generate(
+            scene=_scene(),
+            family=family,
+            content_level="T2_implied",
+        )
+    sys_prompt = captured["system_prompt"]
+    assert "T2_implied suggestive restraint" in sys_prompt, (
+        "T2 system prompt missing the implied-restraint sub-clause"
+    )
+    assert "implied undress" in sys_prompt
+    assert "NOT ALLOWED" in sys_prompt
+    # T3 and T4 headers MUST NOT appear at T2.
+    assert "T3_artnude tasteful nudity" not in sys_prompt
+    assert "T4_explicit anatomical clarity" not in sys_prompt
+
+
+def test_system_prompt_t1_requires_clothed(generator, loader):
+    """Round-22 (revised) — T1_suggestive is fully clothed restraint."""
+    family = loader.get_family("chroma")
+    captured = {"system_prompt": ""}
+
+    def capture(system_prompt, user_prompt, **kwargs):
+        captured["system_prompt"] = system_prompt
+        return (
+            '{"scene_prose": "She stands at the kitchen counter in a '
+            'cotton dress, late morning light catching the steam from '
+            'her coffee cup, peaceful and unhurried in the quiet '
+            'house.", '
+            + _required_tags_for("T1_suggestive") + '}'
+        )
+
+    with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
+        generator.generate(
+            scene=_scene(),
+            family=family,
+            content_level="T1_suggestive",
+        )
+    sys_prompt = captured["system_prompt"]
+    assert "T1_suggestive clothed restraint" in sys_prompt, (
+        "T1 system prompt missing the clothed-restraint sub-clause"
+    )
+    assert "fully-clothed subject" in sys_prompt
+    assert "No nudity" in sys_prompt
 
 
 def test_user_prompt_subject_description_default_when_absent(generator, loader):
