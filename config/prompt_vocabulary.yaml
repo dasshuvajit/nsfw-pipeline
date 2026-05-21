@@ -27,7 +27,7 @@
 #   3. Bump ``version:`` at the top.
 #   4. Re-run regression suite — fixtures pin the byte-stable output.
 
-version: 7
+version: 8
 
 realism:
   # ── Lighting ─────────────────────────────────────────────────────────
@@ -1064,12 +1064,20 @@ environment:
   atmosphere:
     # ─── Particulate / suspended ───
     ATM_DUST_MOTES_IN_LIGHT:
-      sdxl:        "dust motes drifting through a shaft of afternoon light"
+      # Round-22 (2026-05-22) — stripped "afternoon" ToD token.
+      # Dust motes are a time-of-day-neutral atmospheric element
+      # (any directional light source produces them). Pre-fix the
+      # hardcoded "afternoon light" conflicted with night-anchored
+      # environment_setting picks (e.g. ENV_HOTEL_LOBBY_NOIR / 3am).
+      # The light-direction anchor comes from lighting_directive +
+      # environment_setting; this canonicalization no longer
+      # over-specifies it.
+      sdxl:        "dust motes drifting through a shaft of light"
       pony:        "dust_motes, light_shaft, particles_in_light, atmospheric_dust"
       illustrious: "dust_motes_in_light_shaft, particles_floating"
-      flux:        "Dust motes drifting visibly through a shaft of afternoon light"
-      chroma:      "dust motes drifting visibly through a shaft of afternoon light"
-      flux2:       "Dust motes drifting visibly through a shaft of afternoon light, every particle catching the warm directional illumination"
+      flux:        "Dust motes drifting visibly through a shaft of light"
+      chroma:      "dust motes drifting visibly through a shaft of light"
+      flux2:       "Dust motes drifting visibly through a shaft of directional light, every particle catching the illumination"
     ATM_INCENSE_SMOKE_CURL:
       sdxl:        "single curl of incense smoke rising from a brass holder"
       pony:        "incense_smoke, smoke_curl, brass_holder, smoke_trail"
