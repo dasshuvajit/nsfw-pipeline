@@ -1117,3 +1117,59 @@ def test_diversity_tracker_overused_picks_silent_below_threshold():
     assert t.overused_picks_in({
         "lighting_directive": "LIGHT_WINDOW_SIDE",
     }) == {}
+
+
+def test_diversity_third_attempt_fires_hard_ban_nudge(generator, loader):
+    """Round-22 (2026-05-22) — when both first AND second attempts pick
+    a dominant tag, a THIRD attempt fires with a HARD BAN nudge. Closes
+    the gap where the soft retry was ignored by the LLM ~50% of the
+    time (round-21b audit observed NARR_AFTER_THE_PARTY landing 12/24
+    despite first-retry nudges firing)."""
+    from src.agents.scene_facet_generator import _DiversityTracker
+    family = loader.get_family("chroma")
+
+    tracker = _DiversityTracker()
+    # Prime tracker with 7 facets all locked to LIGHT_WINDOW_SIDE so
+    # that any new facet picking it triggers the dominance flag.
+    for _ in range(7):
+        tracker.record({"lighting_directive": "LIGHT_WINDOW_SIDE"})
+
+    captured_prompts: list[str] = []
+
+    def capture(system_prompt, user_prompt, **kwargs):
+        captured_prompts.append(user_prompt)
+        # ALL THREE attempts return a facet that still picks the
+        # dominant tag — forces the third-attempt path to fire.
+        return (
+            '{"scene_prose": "She stands alone in the parlour, soft '
+            'afternoon window light catching the curves of her bare '
+            'shoulders. Her gaze drifts toward the distant horizon, '
+            'pensive and at ease.", '
+            '"lighting_directive": "LIGHT_WINDOW_SIDE", '
+            '"mood_aesthetic": "MOOD_SERENE", '
+            '"narrative_moment": "NARR_COFFEE_MORNING_PAPER"'
+            '}'
+        )
+
+    with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
+        generator.generate(
+            scene=_scene(),
+            family=family,
+            content_level="T2_implied",
+            diversity_tracker=tracker,
+        )
+
+    # Three attempts should have fired.
+    assert len(captured_prompts) == 3, (
+        f"expected 3 attempts (1 initial + 2 retries), got "
+        f"{len(captured_prompts)}"
+    )
+    # First retry uses the standard diversity nudge.
+    assert "DIVERSITY-RETRY" in captured_prompts[1]
+    # Third attempt uses the HARD BAN nudge — distinct from the
+    # standard retry.
+    assert "HARD BAN" in captured_prompts[2], (
+        f"third attempt missing HARD BAN nudge. got: {captured_prompts[2][-500:]!r}"
+    )
+    assert "BANNED = LIGHT_WINDOW_SIDE" in captured_prompts[2]
+    assert "final attempt" in captured_prompts[2]

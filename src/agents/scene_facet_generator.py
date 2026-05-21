@@ -1486,18 +1486,81 @@ class SceneFacetGenerator:
                     "this scene with --regen-facets to retry).",
                     family.id, still_missing,
                 )
-            # Round-13 — soft-fail logging when the retry STILL picks
-            # an over-represented tag. We don't reject here (would
-            # infinite-loop a stubborn LLM); just surface the metric.
+            # Round-22 (2026-05-22) — bump diversity retry budget from
+            # 1 to 2. When the SECOND attempt STILL picks an over-
+            # represented tag, fire a THIRD attempt with a much
+            # harder-worded "HARD BAN" nudge. Only soft-ship after 3
+            # attempts. Round-21b audit showed the soft retry was
+            # ignored by the LLM ~50% of the time (NARR_AFTER_THE_PARTY
+            # landed 12/24 in series_57d3aea57c85 despite first-retry
+            # nudges firing); a stricter ban-list re-roll should close
+            # the gap. Cost: ~30-50s wall-clock on scenes where the
+            # LLM hits dominance twice (acceptable for offline pipeline).
             if diversity_tracker is not None:
                 still_dominant = diversity_tracker.overused_picks_in(facet)
                 if still_dominant:
                     logger.warning(
                         "Scene facet generator: family %s second attempt "
                         "STILL picked over-represented tag(s) %s; "
-                        "shipping the facet anyway.",
+                        "firing third attempt with HARD BAN nudge.",
                         family.id, still_dominant,
                     )
+                    hard_ban_lines = [
+                        "",
+                        "",
+                        "HARD BAN — your previous TWO attempts both picked "
+                        "tags that are already over-represented in this "
+                        "series. You MUST NOT pick the following tags on "
+                        "this attempt:",
+                    ]
+                    for axis, over_tag in still_dominant.items():
+                        examples = _FIELD_EXAMPLE_TAGS.get(axis, ())
+                        alternatives = [e for e in examples if e != over_tag][:5]
+                        if alternatives:
+                            hard_ban_lines.append(
+                                f"  - {axis}: BANNED = {over_tag}. You MUST "
+                                f"pick one of: {', '.join(alternatives)} or "
+                                f"another tag from that namespace that is "
+                                f"NOT {over_tag}."
+                            )
+                        else:
+                            hard_ban_lines.append(
+                                f"  - {axis}: BANNED = {over_tag}. Pick "
+                                f"any other tag from that namespace."
+                            )
+                    hard_ban_lines.append(
+                        "This is your final attempt — adhere to the ban "
+                        "or the facet ships with reduced diversity. "
+                        "Return ONLY a single JSON object."
+                    )
+                    third_prompt = user_prompt + "\n".join(hard_ban_lines)
+                    facet_third = self._attempt(
+                        system_prompt, third_prompt, schema,
+                        effective_temp, model=model,
+                    )
+                    if facet_third is not None:
+                        # Use the third attempt regardless of whether it
+                        # cleared dominance — if it did, great. If it
+                        # didn't, we soft-fail-log below.
+                        facet = facet_third
+                        final_dominant = diversity_tracker.overused_picks_in(
+                            facet
+                        )
+                        if final_dominant:
+                            logger.warning(
+                                "Scene facet generator: family %s THIRD "
+                                "attempt STILL picked over-represented "
+                                "tag(s) %s after HARD BAN — LLM is "
+                                "stubbornly locked; shipping the facet "
+                                "anyway.",
+                                family.id, final_dominant,
+                            )
+                        else:
+                            logger.info(
+                                "Scene facet generator: family %s third "
+                                "attempt with HARD BAN cleared dominance.",
+                                family.id,
+                            )
             return _sanitize_facet_freetext(
                 _strip_none_values(facet),
                 scene_id=scene.get("id"),
