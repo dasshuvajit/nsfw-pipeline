@@ -288,11 +288,29 @@ class TestRealRegistry:
         default = loader.get_default_llm()
         assert default.active is True
 
-    def test_real_default_is_cydonia_heretic(self):
-        """Cydonia 24B v4.3 Heretic Vision is the project's chosen default
-        (2026-05-18 LLM swap)."""
+    def test_real_default_is_davidau_thinking_heretic(self):
+        """2026-05-22 default swap — DavidAU Mistral-Nemo 12B
+        thinking-heretic Claude-Opus replaced Cydonia 24B as the
+        project default after T3 + T4 verification runs showed 2× the
+        throughput at acceptable schema discipline (3-5% required-axis
+        hallucination rate, all of which the canonicalizer + retry-
+        nudge absorb). Cydonia stays as the registered fallback for
+        primary-side failures and as a different-backend quality
+        backstop."""
         loader = LLMRegistryLoader()
-        assert loader.default_llm_id == "cydonia_heretic_24b"
+        assert loader.default_llm_id == "davidau_nemo_thinking_heretic_claude_opus"
+
+    def test_real_fallback_is_cydonia_heretic(self):
+        """2026-05-22 — Cydonia 24B is the fallback (was qwen3_abliterated_30b).
+        Two reasons for the swap: Cydonia has better vocabulary
+        discipline (~0.4 hallucination/scene vs DavidAU's 0.79), and
+        Cydonia runs through Ollama while DavidAU runs through LM
+        Studio — so a primary failure has both a quality backstop and
+        an infrastructure backstop. The prior choice (qwen3 30B MoE)
+        was a different-lineage retry but oversized as a backup for a
+        12B primary."""
+        loader = LLMRegistryLoader()
+        assert loader.fallback_llm_id == "cydonia_heretic_24b"
 
     def test_real_installed_llms_active(self):
         """The installed LLMs (Cydonia Heretic Vision 24B + Qwen3

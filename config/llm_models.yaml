@@ -143,6 +143,42 @@ llms:
     families_recommended: ["all"]
     active: false  # round-19: re-evaluated — context-vs-memory squeeze blocks 25-scene batch (see description above)
 
+  davidau_nemo_thinking_heretic_claude_opus:
+    backend: lm_studio
+    lm_studio_id: "mistral-nemo-inst-2407-12b-thinking-uncensored-heretic-hi-claude-opus-i1"
+    display_name: "DavidAU Mistral-Nemo 12B Thinking-Heretic Claude-Opus (i1)"
+    description: >-
+      DavidAU/Mistral-Nemo-Inst-2407-12B-Thinking-Uncensored-HERETIC-HI-Claude-Opus.
+      Mistral Nemo 12B Instruct → coder3101 heretic abliteration (refusal
+      direction removed via weight orthogonalization, drops refusal rate
+      from 87/100 to 14/100) → Unsloth fine-tune on Claude 4.5 HighIQ-
+      Reasoning distillation corpus → adds a compact thinking/reasoning
+      "engine" (3-6 paragraph reasoning blocks, conditionally activated
+      by prompt complexity).
+      iMatrix Q4_K_M GGUF (mradermacher quant). Loaded in LM Studio at
+      16384 context.
+      Registered as a "Cydonia heretic at half the parameter count"
+      candidate after plain magnum_v4_12b_heretic failed the 10-scene
+      discipline test (1.8 hallucinations / scene). The thinking circuit
+      MAY help by giving the model space to self-correct toward vocab
+      tags before emitting JSON; or it may add latency without
+      improving discipline. Validator decides.
+    quant: "Q4_K_M"
+    size_gb: 7
+    context_tokens: 16384
+    refusal_rate: 1.4           # heretic abliteration (14/100 per card)
+    strengths:
+      - "heretic abliteration — refusal rate 14/100"
+      - "Claude 4.5 HighIQ-Reasoning distillation"
+      - "thinking circuit — may self-correct toward vocab tags"
+      - "Mistral Nemo base — Metal-friendly attention"
+      - "iMatrix Q4_K_M — best perplexity at 4-bit"
+    risks:
+      - "thinking-trace latency may eat the speed advantage"
+      - "schema-constrained calls may not trigger thinking → output may revert to base"
+    families_recommended: ["all"]
+    active: true
+
   magnum_v4_12b_heretic:
     backend: lm_studio
     lm_studio_id: "magnum-v4-12b-heretic-i1"
@@ -345,7 +381,7 @@ llms:
 # Default LLM used when --llm flag is omitted on the CLI and no per-role
 # routing entry in pipeline.yaml::llm.routing applies. Must be the registry
 # id (not the ollama_id) of an active entry above.
-default_llm: cydonia_heretic_24b
+default_llm: davidau_nemo_thinking_heretic_claude_opus
 
 # Fallback LLM — used by ``OllamaClient.generate_json(fallback_model=...)``
 # when the primary model fails twice in a row (constrained-decoding +
@@ -354,4 +390,12 @@ default_llm: cydonia_heretic_24b
 # Must be a registry id of an active entry above. Set to a DIFFERENT id from
 # default_llm to gain diversity on the retry; set to the same id to collapse
 # the fallback dimension (single-LLM operation).
-fallback_llm: qwen3_abliterated_30b
+#
+# 2026-05-22 — pointed at cydonia_heretic_24b. Cydonia is the
+# gold-standard for vocabulary discipline (~0.4 hallucination/scene vs
+# DavidAU's 0.79) and a different runtime backend (Ollama vs LM Studio),
+# so a primary-side failure has both a quality backstop and an
+# infrastructure backstop. Prior choice qwen3_abliterated_30b was a
+# different-lineage retry but is itself a 30B MoE — too heavyweight as
+# a backup for a 12B primary; Cydonia 24B is the right size class.
+fallback_llm: cydonia_heretic_24b
