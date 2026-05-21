@@ -455,7 +455,7 @@ class ThemeMode(BaseMode):
             user=user_prompt,
             validator=self._validate_plan,
             temperature=temperature if temperature is not None else self.PLAN_TEMPERATURE,
-            num_predict=2048,
+            num_predict=4096,  # round-18: bigger budget for reasoning-model trace
             mode_name="ThemeMode plan",
             error_factory=ThemeModeError,
             model=model,
