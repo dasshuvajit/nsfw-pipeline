@@ -64,21 +64,31 @@ SCENES = [
 def main() -> int:
     loader = FamilyLoader()
     family = loader.get_family("chroma")
-    gen = SceneFacetGenerator(OllamaClient())
+    client = OllamaClient()
+    gen = SceneFacetGenerator(client)
 
     results: list[dict] = []
     t0 = time.time()
-    for i, scene in enumerate(SCENES):
-        per_t0 = time.time()
-        print(f"\n=== Scene {i+1}/3 — generating facet ===")
-        facet = gen.generate(
-            scene=scene,
-            family=family,
-            content_level="T3_artnude",
-        )
-        dt = time.time() - per_t0
-        print(f"  ({dt:.1f}s)")
-        results.append(facet)
+    try:
+        for i, scene in enumerate(SCENES):
+            per_t0 = time.time()
+            print(f"\n=== Scene {i+1}/3 — generating facet ===")
+            facet = gen.generate(
+                scene=scene,
+                family=family,
+                content_level="T3_artnude",
+            )
+            dt = time.time() - per_t0
+            print(f"  ({dt:.1f}s)")
+            results.append(facet)
+    finally:
+        # Hard invariant (CLAUDE.md): LLM must release unified memory
+        # before any subsequent ComfyUI run. Always unload, even when
+        # the generator raised mid-scene. Cydonia 24B holds ~21.5 GB
+        # of VRAM; leaving it loaded blocks Phase B and burns memory
+        # on idle.
+        print("\n=== Unloading LLM ===")
+        client.unload_all()
 
     total = time.time() - t0
     print(f"\n=== All 3 scenes done in {total:.1f}s ===\n")
