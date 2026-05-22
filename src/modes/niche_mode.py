@@ -360,6 +360,11 @@ class NicheMode(BaseMode):
             cluster.get("compatible_narratives", []) or []
         )
 
+        # 2026-05-23 — art_style narrowing per style_profile.
+        plan["compatible_art_styles"] = list(
+            ctx.style_profile.get("compatible_art_styles", []) or []
+        )
+
         logger.info(
             "NicheMode: plan — theme=%r, %d visual_elements, %d keywords",
             plan["theme"],

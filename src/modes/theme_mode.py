@@ -364,6 +364,15 @@ class ThemeMode(BaseMode):
             category.get("compatible_narratives", []) or []
         )
 
+        # 2026-05-23 (Verifier C3) — propagate the style_profile's
+        # compatible_art_styles list so SceneFacetGenerator narrows
+        # the LLM's per-scene art_style_reference menu. Missing list
+        # falls through as full menu (back-compat for profiles that
+        # haven't been annotated).
+        plan["compatible_art_styles"] = list(
+            ctx.style_profile.get("compatible_art_styles", []) or []
+        )
+
         logger.info(
             "ThemeMode: plan — theme=%r, mood=%r, subject=%r",
             plan["theme"], plan["mood"], plan.get("subject_description", ""),
