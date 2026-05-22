@@ -237,6 +237,7 @@ def _build_baseline_ctx(
         db_path=engine.db_path,
         model_id=baseline_model_id,
         commercial_mode=engine._commercial_mode,
+        scene_count_override=getattr(args, "scenes", None),
     )
     return ctx
 
@@ -390,6 +391,17 @@ def main() -> int:
             "comparison: --series-id S --llm qwen3_abliterated_30b. "
             "Default: "
             "registry's default_llm."
+        ),
+    )
+    parser.add_argument(
+        "--scenes",
+        type=int,
+        default=None,
+        help=(
+            "Override the default scene_count (25) for the planner. "
+            "Use small values (3-5) to generate a SHORT series for "
+            "rapid quality testing — ~3-5 min wall-clock vs ~25 min "
+            "for full series. Production runs should omit this flag."
         ),
     )
     parser.add_argument(

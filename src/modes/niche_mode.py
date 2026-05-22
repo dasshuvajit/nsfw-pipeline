@@ -386,7 +386,7 @@ class NicheMode(BaseMode):
             getattr(ctx.content_rules, "llm_directive", "")
             or f"(No directive declared for {ctx.content_level}.)"
         )
-        scene_count = 25
+        scene_count = ctx.scene_count_override or 25
         user_prompt = _SCENE_USER_TEMPLATE.format(
             scene_count=scene_count,
             theme=series_plan["theme"],

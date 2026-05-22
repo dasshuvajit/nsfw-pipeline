@@ -72,6 +72,13 @@ class GenerationContext:
     # ── target discriminator (added 2026-05 for family-level prep) ──
     target_kind: Literal["model", "family"] = "model"
 
+    # 2026-05-23 — `--scenes N` CLI override for rapid testing. None
+    # means use the mode's default scene_count (25). Set to a small
+    # number (3-5) to generate a short series in ~3-5 min wall-clock
+    # for fast iteration during quality tuning. Production runs leave
+    # this None.
+    scene_count_override: int | None = None
+
     def __post_init__(self) -> None:
         """Enforce target_kind ↔ model_id/model_config consistency.
 
@@ -194,6 +201,7 @@ def build_context(
     model_id: str,
     model_override: str | None = None,
     commercial_mode: bool = False,
+    scene_count_override: int | None = None,
 ) -> GenerationContext:
     """Construct a model-kind ``GenerationContext``.
 
@@ -226,6 +234,7 @@ def build_context(
         model_prompt_guide=prompt_guide,
         db_path=db_path,
         target_kind="model",
+        scene_count_override=scene_count_override,
     )
 
 
