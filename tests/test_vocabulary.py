@@ -1440,6 +1440,82 @@ def test_drop_counter_records_clean_run_as_all_zero(loader):
     )
 
 
+# ── lighting-shaped atm dedup (2026-05-23 Verifier C4) ──────────────
+
+
+def test_canonicalize_facet_drops_lighting_shaped_atm_when_lighting_set(loader):
+    """When both lighting_directive (LIGHT_*) and a lighting-shaped
+    atm (ATM_VOLUMETRIC_GOLDEN, ATM_OVERCAST_DIFFUSE, etc.) are set,
+    the atm gets dropped to avoid competing lighting recipes in the
+    final prompt."""
+    from src.prompt.vocabulary import canonicalize_facet
+    facet = {
+        "lighting_directive": "LIGHT_REMBRANDT",
+        "environment_atmosphere": "ATM_VOLUMETRIC_GOLDEN",
+    }
+    phrases = canonicalize_facet(facet, "chroma", content_level="T3_artnude", loader=loader)
+    assert any("rembrandt" in p.lower() for p in phrases), (
+        "lighting_directive (LIGHT_REMBRANDT) must survive — it's the "
+        "source-of-truth lighting field"
+    )
+    assert not any("volumetric" in p.lower() for p in phrases), (
+        f"lighting-shaped atm should have been dropped. Got: {phrases}"
+    )
+
+
+def test_canonicalize_facet_keeps_atm_when_no_lighting_directive(loader):
+    """When lighting_directive is NOT set, the lighting-shaped atm
+    survives (it's the only lighting recipe in the prompt)."""
+    from src.prompt.vocabulary import canonicalize_facet
+    facet = {
+        "environment_atmosphere": "ATM_VOLUMETRIC_GOLDEN",
+    }
+    phrases = canonicalize_facet(facet, "chroma", content_level="T3_artnude", loader=loader)
+    assert any("volumetric" in p.lower() for p in phrases), (
+        f"atm should survive when lighting_directive is null. Got: {phrases}"
+    )
+
+
+def test_canonicalize_facet_keeps_non_lighting_atm_alongside_lighting(loader):
+    """Non-lighting-shaped atm tags (ATM_FOG_ROLLING_IN, ATM_HAIR_MOVING_WIND,
+    ATM_FIREFLIES_DUSK) survive even when lighting_directive is set —
+    they describe atmosphere not lighting and don't compete."""
+    from src.prompt.vocabulary import canonicalize_facet
+    facet = {
+        "lighting_directive": "LIGHT_REMBRANDT",
+        "environment_atmosphere": "ATM_BREEZE_IN_CURTAIN",
+    }
+    phrases = canonicalize_facet(facet, "chroma", content_level="T3_artnude", loader=loader)
+    assert any("rembrandt" in p.lower() for p in phrases)
+    assert any("breeze" in p.lower() for p in phrases), (
+        f"non-lighting atm should survive. Got: {phrases}"
+    )
+
+
+@pytest.mark.parametrize("atm_tag", [
+    "ATM_VOLUMETRIC_GOLDEN",
+    "ATM_OVERCAST_DIFFUSE",
+    "ATM_CREPUSCULAR_RAYS",
+    "ATM_CINESTILL_HALATION",
+    "ATM_LENS_FLARE_ANAMORPHIC",
+])
+def test_lighting_shaped_atm_dedup_covers_all_listed_tags(loader, atm_tag):
+    """Every tag listed in _LIGHTING_SHAPED_ATM_TAGS must be dropped
+    when lighting_directive is set."""
+    from src.prompt.vocabulary import canonicalize_facet
+    facet = {
+        "lighting_directive": "LIGHT_REMBRANDT",
+        "environment_atmosphere": atm_tag,
+    }
+    phrases = canonicalize_facet(facet, "chroma", content_level="T3_artnude", loader=loader)
+    # The atm should have been dropped (no canonicalization of it in phrases).
+    atm_canon = loader.canonicalize(atm_tag, "chroma")
+    assert atm_canon not in phrases, (
+        f"{atm_tag} dedup didn't fire. atm canon: {atm_canon!r} "
+        f"appeared in phrases: {phrases}"
+    )
+
+
 # ── pose ↔ nsfw_act / nsfw_posture geometric coherence ─────────────
 
 

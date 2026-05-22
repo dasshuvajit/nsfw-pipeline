@@ -766,6 +766,24 @@ def check_facet_env_coherence(
     return violations
 
 
+# 2026-05-23 — ATM tags whose canonical prose describes a full
+# lighting recipe ("Volumetric golden light streaming through a high
+# window", "Flat overcast diffuse light"). When the facet also has
+# a `lighting_directive` set, the two compete in the final prompt
+# (Verifier audit found "Rembrandt lighting" + "volumetric golden
+# light streaming" on 4 scenes — direct high-key vs low-key
+# contradiction). The atm tag's other semantic content (golden,
+# dust motes etc.) is conveyed by the lighting_directive's own
+# canonicalization. Drop the atm when both compete.
+_LIGHTING_SHAPED_ATM_TAGS: frozenset[str] = frozenset({
+    "ATM_VOLUMETRIC_GOLDEN",
+    "ATM_OVERCAST_DIFFUSE",
+    "ATM_CREPUSCULAR_RAYS",
+    "ATM_CINESTILL_HALATION",
+    "ATM_LENS_FLARE_ANAMORPHIC",
+})
+
+
 def canonicalize_facet(
     scene_facet: Mapping[str, Any],
     family_id: str,
@@ -783,10 +801,32 @@ def canonicalize_facet(
 
     Round-22 F13 — drops also increment :data:`_DROP_COUNTS` so the
     engine can surface the aggregate at end of Phase A.
+
+    2026-05-23 — lighting-shaped atm dedup (Verifier C4). When the
+    facet has both ``lighting_directive`` (a LIGHT_* tag) and an
+    ``environment_atmosphere`` whose canonicalization is itself a
+    lighting recipe (ATM_VOLUMETRIC_GOLDEN, ATM_OVERCAST_DIFFUSE,
+    ATM_CINESTILL_HALATION, etc.), drop the atm to avoid duplicate /
+    contradictory lighting fragments in the final prompt. Keeps
+    lighting_directive as the source of truth — it's the explicit
+    field for the technique.
     """
     loader = loader or _default_loader()
+    # Detect lighting-shaped atm + lighting_directive collision.
+    has_lighting = bool(scene_facet.get("lighting_directive"))
+    atm_tag = str(scene_facet.get("environment_atmosphere") or "").strip()
+    skip_atm = has_lighting and atm_tag in _LIGHTING_SHAPED_ATM_TAGS
+    if skip_atm:
+        logger.info(
+            "canonicalize_facet: lighting-shaped atm %r dropped (collides "
+            "with lighting_directive=%r); keeping lighting_directive as the "
+            "single lighting recipe.",
+            atm_tag, scene_facet.get("lighting_directive"),
+        )
     out: list[str] = []
     for field_name in _FIELD_TO_NAMESPACE:
+        if skip_atm and field_name == "environment_atmosphere":
+            continue
         concept = scene_facet.get(field_name)
         if not concept:
             continue
