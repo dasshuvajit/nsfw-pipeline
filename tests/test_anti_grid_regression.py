@@ -387,6 +387,9 @@ def test_narrative_dressing_for_evening_strips_mirror(vocab):
     canary."""
     entry = vocab["narrative"]["moment"]["NARR_DRESSING_FOR_EVENING"]
     for family, prose in entry.items():
+        # Skip metadata keys (place_constraint is a dict, not a prose string).
+        if not isinstance(prose, str):
+            continue
         assert "mirror" not in prose.lower(), (
             f"NARR_DRESSING_FOR_EVENING.{family} still mentions a mirror: "
             f"{prose!r}"
@@ -899,6 +902,9 @@ def test_environment_vocab_strips_mirror_mentions(vocab):
         entry = settings.get(tag_name)
         assert entry is not None, f"{tag_name} missing"
         for family, prose in entry.items():
+            # Skip metadata keys (place_constraint is dict-shaped).
+            if not isinstance(prose, str):
+                continue
             assert "mirror" not in prose.lower(), (
                 f"{tag_name}.{family} still mentions a mirror: {prose!r}"
             )

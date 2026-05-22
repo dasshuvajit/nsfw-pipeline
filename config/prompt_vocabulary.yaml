@@ -27,7 +27,7 @@
 #   3. Bump ``version:`` at the top.
 #   4. Re-run regression suite — fixtures pin the byte-stable output.
 
-version: 10
+version: 11
 
 realism:
   # ── Lighting ─────────────────────────────────────────────────────────
@@ -1064,6 +1064,9 @@ environment:
   atmosphere:
     # ─── Particulate / suspended ───
     ATM_DUST_MOTES_IN_LIGHT:
+      place_constraint:
+        requires_env_keyword: ["window", "interior", "indoor", "parlour", "library", "study", "bedroom", "boudoir", "loft", "drawing room", "hotel", "manor", "villa", "castle", "studio", "attic", "apartment", "salon", "atelier"]
+        reason: "dust motes in a shaft of light requires an indoor space with a directional light source"
       # Round-22 (2026-05-22) — stripped "afternoon" ToD token.
       # Dust motes are a time-of-day-neutral atmospheric element
       # (any directional light source produces them). Pre-fix the
@@ -1125,7 +1128,10 @@ environment:
       chroma:      "rain streaming down the windowpane, refracted light from beyond softening into bokeh"
       flux2:       "Rain streaming down the windowpane in slow rivulets, refracted light from beyond softening into bokeh, the world outside reduced to abstract colour and shape"
     ATM_FOG_ROLLING_IN:
-      sdxl:        "low fog rolling in across the field at dusk"
+      place_constraint:
+        requires_env_keyword: ["outdoor", "field", "forest", "meadow", "valley", "moor", "coast", "garden", "courtyard", "terrace", "balcony", "rooftop", "beach", "pine", "fog"]
+        reason: "fog rolling in across a field requires an outdoor space"
+      sdxl:       "low fog rolling in across the field at dusk"
       pony:        "low_fog, fog_rolling, dusk_fog, atmospheric_fog"
       illustrious: "low_fog_rolling, dusk_atmosphere"
       flux:        "Low fog rolling in across the field at dusk, softening every distant element into silhouette"
@@ -1171,6 +1177,9 @@ environment:
       chroma:      "crepuscular rays — god rays — breaking through a heavy cloud bank in distinct golden columns"
       flux2:       "Crepuscular rays — god rays — breaking through a heavy cloud bank in distinct golden columns, each ray catching airborne moisture and rendering visible the path of the light"
     ATM_VOLUMETRIC_GOLDEN:
+      place_constraint:
+        requires_env_keyword: ["window", "interior", "indoor", "parlour", "library", "study", "bedroom", "suite", "boudoir", "loft", "salon", "drawing room", "hotel", "manor", "villa", "castle", "studio", "attic", "apartment"]
+        reason: "volumetric golden light streaming through a high window requires an indoor space with a window"
       sdxl:        "volumetric light through a high window, illuminating airborne dust"
       pony:        "volumetric_light, high_window_light, dust_in_beam, light_made_visible"
       illustrious: "volumetric_golden_light, dust_in_light_shaft"
@@ -1218,6 +1227,9 @@ environment:
       flux2:       "Fabric drifting weightlessly underwater, slow ripples of cloth suspended in the water column, every fold caught in fluid motion, the surface a refracting boundary above"
     # ─── Halation / Optical ───
     ATM_CINESTILL_HALATION:
+      place_constraint:
+        requires_env_keyword: ["streetlamp", "street", "neon", "urban", "night", "balcony", "rooftop", "tokyo", "berlin", "fire escape", "hotel lobby", "city"]
+        reason: "Cinestill halation glow around streetlamps requires a night/urban environment with light sources"
       sdxl:        "Cinestill 800T halation glow around streetlamps and bright lights"
       pony:        "cinestill_halation, halation_glow, red_halation, light_halation"
       illustrious: "cinestill_halation_glow, red_orange_around_lights"
@@ -1483,6 +1495,9 @@ environment:
 narrative:
   moment:
     NARR_READING_LETTER_AT_DAWN:
+      place_constraint:
+        requires_env_keyword: ["library", "study", "desk", "parlour", "drawing room", "bedroom", "boudoir", "salon", "den", "office", "loft", "apartment", "morning", "side table"]
+        reason: "reading letter at dawn with fountain pen requires an indoor reading / desk space"
       sdxl:        "reading a handwritten letter by morning light, fountain pen on the side table"
       pony:        "reading_letter, morning_light, fountain_pen, sitting, contemplative_moment"
       illustrious: "reading_letter, morning_light, fountain_pen, contemplative_moment"
@@ -1490,6 +1505,9 @@ narrative:
       chroma:      "reading a handwritten letter by morning light, fountain pen resting on the side table, contemplative pause"
       flux2:       "The subject is reading a handwritten letter in the soft morning light, a fountain pen lying on the polished side table beside her, a contemplative pause caught mid-thought"
     NARR_JUST_WOKEN_TANGLED_SHEETS:
+      place_constraint:
+        requires_env_keyword: ["bedroom", "bed", "boudoir", "suite", "loft", "apartment", "hotel"]
+        reason: "just woken with tangled sheets requires a bedroom / bed environment"
       sdxl:        "just woken, hair tangled, sheets wrapped, reaching for a water glass"
       pony:        "just_woken, tangled_hair, sheets_wrapped, reaching, morning_moment"
       illustrious: "just_woken_moment, tangled_hair, sheets_wrapped, reaching_for_water"
@@ -1497,6 +1515,9 @@ narrative:
       chroma:      "just woken with tangled hair across the pillow, sheets wrapped around her, reaching for the water glass on the nightstand"
       flux2:       "She has just woken, hair tangled across the pillow, the sheets wrapped loosely around her as she reaches for the water glass on the nightstand, the room slow and silent"
     NARR_DRESSING_FOR_EVENING:
+      place_constraint:
+        requires_env_keyword: ["dressing room", "boudoir", "bedroom", "vanity", "closet", "wardrobe", "suite", "hotel"]
+        reason: "mid-zip on an evening gown requires a dressing room / bedroom / boudoir"
       sdxl:        "mid-zip on a black evening gown, earrings still loose, dresser lamp glow"
       pony:        "dressing, evening_gown, mid_zip, getting_ready, earrings, dresser_lamp, preparing_for_evening"
       illustrious: "dressing_for_evening, mid_zip_gown, earrings_loose, dresser_lamp"
@@ -1504,6 +1525,9 @@ narrative:
       chroma:      "mid-zip on a black silk evening gown, earrings still loose between her fingers, single dresser lamp casting warm light behind her"
       flux2:       "She is mid-zip on a black silk evening gown, earrings still loose between her fingers, a single dresser lamp casting warm light behind her, a moment of unfinished elegance"
     NARR_UNDRESSING_AT_NIGHT:
+      place_constraint:
+        requires_env_keyword: ["bedroom", "boudoir", "dressing room", "suite", "hotel", "loft", "apartment", "manor"]
+        reason: "stepping out of a dress to the floor requires an indoor undressing space"
       sdxl:        "stepping out of a dress that has slipped to the floor"
       pony:        "undressing, dress_on_floor, stepping_out, night_moment, intimate_moment"
       illustrious: "undressing, dress_slipped_to_floor, stepping_out"
@@ -1556,6 +1580,9 @@ narrative:
       chroma:      "reaching up for a leather-bound book on a high oak shelf, soft light from the high library window catching her arm"
       flux2:       "She is reaching up for a leather-bound book on a high oak shelf, soft light from the high library window catching her extended arm and ribcage, the rest of the library falling into warm shadow"
     NARR_LACING_CORSET_BACK:
+      place_constraint:
+        requires_env_keyword: ["dressing room", "boudoir", "bedroom", "vanity", "wardrobe", "closet", "hotel", "suite", "victorian", "manor"]
+        reason: "lacing a corset back requires a dressing room / boudoir / bedroom"
       sdxl:        "lacing a corset, ribbon trailing, back to camera"
       pony:        "lacing_corset, ribbon_trailing, back_to_camera, corset_lacing, dressing"
       illustrious: "lacing_corset_back, ribbon_trailing, back_view"
@@ -1563,6 +1590,9 @@ narrative:
       chroma:      "lacing the back of a corset, ribbon trailing down her spine, back turned to the camera"
       flux2:       "She is lacing the back of a corset, the silk ribbon trailing down her spine, her back turned to the camera, each pull tightening the shape of her waist"
     NARR_AFTER_THE_PARTY:
+      place_constraint:
+        requires_env_keyword: ["interior", "indoor", "bedroom", "parlour", "drawing room", "loft", "apartment", "hotel", "suite", "salon", "boudoir", "manor"]
+        reason: "after-the-party with crumpled dress + champagne glass requires an indoor space"
       sdxl:        "after the party, single shoe off, dress crumpled, champagne glass tipped"
       pony:        "after_party, single_shoe_off, crumpled_dress, tipped_champagne_glass, late_night, exhausted_moment"
       illustrious: "after_the_party, single_shoe_off, crumpled_dress, tipped_glass"
@@ -1570,6 +1600,9 @@ narrative:
       chroma:      "after the party, single shoe off and discarded, silk dress crumpled around her, champagne glass tipped on the floor"
       flux2:       "After the party — a single shoe off and discarded, the silk dress crumpled around her, a champagne glass tipped on the floor, the room holding the quiet of an evening just ended"
     NARR_LISTENING_TO_RECORD:
+      place_constraint:
+        requires_env_keyword: ["parlour", "library", "study", "drawing room", "salon", "den", "loft", "apartment", "bedroom", "boudoir", "rug", "phonograph", "manor"]
+        reason: "lying on a Persian rug listening to a vinyl phonograph requires an indoor parlour / library / drawing room space"
       sdxl:        "lying on a Persian rug, listening to a vinyl record, eyes closed"
       pony:        "lying_on_rug, persian_rug, listening_to_record, vinyl_record, eyes_closed, relaxed_moment"
       illustrious: "lying_on_persian_rug, listening_record, eyes_closed"
@@ -1624,6 +1657,9 @@ narrative:
       chroma:      "at a vintage typewriter under a single desk lamp, draft pages piled to her left, fingers paused mid-thought"
       flux2:       "She is at a vintage typewriter under a single desk lamp, draft pages piled to her left and floor scattered with discarded sheets, fingers paused mid-thought above the keys"
     NARR_PUTTING_ON_STOCKINGS:
+      place_constraint:
+        requires_env_keyword: ["bedroom", "boudoir", "dressing room", "bed", "vanity", "suite", "hotel"]
+        reason: "seated on edge of bed sliding on a stocking requires a bedroom / dressing room"
       sdxl:        "seated on the edge of bed, sliding on a single sheer stocking"
       pony:        "putting_on_stocking, seated_on_bed, sheer_stocking, dressing, intimate_moment"
       illustrious: "putting_on_stocking, seated_edge_of_bed, sheer_stocking"
@@ -1638,6 +1674,9 @@ narrative:
       chroma:      "leaning against the window, palm pressed to the cool glass, watching rain stream down the other side"
       flux2:       "She is leaning against the window, palm pressed to the cool glass, watching rain stream down the other side, the city beyond softened into refracted abstract colour"
     NARR_FLOWERS_ARRANGING:
+      place_constraint:
+        requires_env_keyword: ["kitchen", "counter", "vase", "parlour", "salon", "conservatory", "greenhouse", "drawing room", "atelier", "studio", "loft"]
+        reason: "arranging flowers in a vase requires a counter / table / parlour with the vase visible"
       sdxl:        "arranging peonies in a vase, scissors and trimmings on the counter"
       pony:        "arranging_flowers, peonies, vase, scissors, trimmings, domestic_moment"
       illustrious: "arranging_peonies_in_vase, scissors_and_trimmings"
@@ -1645,6 +1684,9 @@ narrative:
       chroma:      "arranging peonies in a tall crystal vase, scissors and stem trimmings scattered across the marble counter"
       flux2:       "She is arranging peonies in a tall crystal vase, scissors and stem trimmings scattered across the marble counter, the room filling with the heavy scent of the open blooms"
     NARR_COFFEE_MORNING_PAPER:
+      place_constraint:
+        requires_env_keyword: ["kitchen", "breakfast", "morning", "counter", "loft", "apartment", "scullery", "pantry"]
+        reason: "morning coffee with newspaper at counter requires a kitchen / breakfast space"
       sdxl:        "morning coffee and folded newspaper, soft kitchen light"
       pony:        "morning_coffee, newspaper, folded_paper, kitchen_light, breakfast_moment"
       illustrious: "morning_coffee_and_newspaper, kitchen_light"
@@ -1652,6 +1694,9 @@ narrative:
       chroma:      "morning coffee and folded newspaper at the kitchen counter, soft early light filling the room"
       flux2:       "She is at the kitchen counter with a cup of morning coffee and a folded newspaper, soft early light filling the room, the day not yet begun in earnest"
     NARR_BRUSHING_HAIR_VANITY:
+      place_constraint:
+        requires_env_keyword: ["vanity", "dressing room", "boudoir", "bedroom", "vintage", "hotel", "suite"]
+        reason: "brushing hair at a vanity requires a vanity / dressing room / boudoir"
       sdxl:        "brushing long hair at a vintage vanity, slow strokes"
       pony:        "brushing_hair, vintage_vanity, slow_strokes, dressing_room_moment, hair_brush"
       illustrious: "brushing_long_hair_at_vanity, slow_strokes"
@@ -1659,6 +1704,9 @@ narrative:
       chroma:      "brushing her long hair at a vintage vanity with slow careful strokes, perfume bottles arranged behind her"
       flux2:       "She is brushing her long hair at a vintage vanity with slow careful strokes, perfume bottles arranged behind her on the polished surface, the morning ritual unhurried"
     NARR_TYING_ROBE_SASH:
+      place_constraint:
+        requires_env_keyword: ["bedroom", "boudoir", "bathroom", "bath", "dressing room", "vanity", "suite", "hotel", "ryokan", "spa"]
+        reason: "tying a robe sash at the waist requires a bathroom / bedroom / dressing room"
       sdxl:        "tying the sash of a silk robe at her waist"
       pony:        "tying_robe_sash, silk_robe, dressing, intimate_moment, getting_dressed"
       illustrious: "tying_silk_robe_sash, dressing_moment"
@@ -1673,6 +1721,9 @@ narrative:
       chroma:      "leaning in the doorway, weight balanced on one hip, considering whether to enter the room beyond"
       flux2:       "She is leaning in the doorway with her weight balanced on one hip, considering whether to enter the room beyond, the threshold itself becoming the subject of the moment"
     NARR_LIGHTING_CANDLES_DUSK:
+      place_constraint:
+        requires_env_keyword: ["interior", "indoor", "parlour", "library", "drawing room", "salon", "boudoir", "bedroom", "manor", "villa", "castle", "victorian", "cabin", "candles"]
+        reason: "lighting candles at dusk requires an indoor space where candles belong"
       sdxl:        "lighting tall ivory candles at dusk, single match flame"
       pony:        "lighting_candles, tall_candles, ivory_candles, dusk, match_flame, intimate_moment"
       illustrious: "lighting_candles_at_dusk, single_match_flame"
@@ -1680,6 +1731,9 @@ narrative:
       chroma:      "lighting tall ivory candles at dusk, single match flame briefly illuminating her face before passing to the wick"
       flux2:       "She is lighting tall ivory candles at dusk, the single match flame briefly illuminating her face from below before passing to the wick, the room slowly filling with warm intimate glow"
     NARR_REACHING_CLOSET_DRESS:
+      place_constraint:
+        requires_env_keyword: ["closet", "wardrobe", "dressing room", "bedroom", "boudoir", "vanity", "hotel", "suite"]
+        reason: "reaching into a closet for a dress requires a closet / dressing room / bedroom"
       sdxl:        "reaching into the closet, choosing between two dresses on hangers"
       pony:        "reaching_into_closet, choosing_dress, two_dresses_on_hangers, dressing_room_moment"
       illustrious: "reaching_into_closet, choosing_between_dresses"
@@ -1687,6 +1741,9 @@ narrative:
       chroma:      "reaching into the closet, choosing between two dresses on hangers — one silk and dark, one cotton and pale"
       flux2:       "She is reaching into the closet, choosing between two dresses on hangers — one silk and dark, one cotton and pale — a moment of small but considered decision"
     NARR_OPENING_LETTER_KNIFE:
+      place_constraint:
+        requires_env_keyword: ["desk", "study", "library", "office", "parlour", "salon", "drawing room", "loft", "apartment", "side table"]
+        reason: "slitting open an envelope at a desk requires a desk / study / library"
       sdxl:        "slitting open an envelope with a brass letter-opener"
       pony:        "opening_envelope, letter_opener, brass_knife, slitting_paper, correspondence_moment"
       illustrious: "slitting_envelope_with_letter_opener, brass_knife"

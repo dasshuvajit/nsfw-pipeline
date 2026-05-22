@@ -1325,15 +1325,16 @@ def test_env_coherence_silent_when_tags_compatible(loader):
 
 
 def test_env_coherence_skips_tags_without_place_constraint(loader):
-    """Round-22 F15 — most ATM / NARR tags have no place_constraint
-    (flexible). The check skips them so a series with e.g.
-    ATM_DUST_MOTES_IN_LIGHT (no constraint) + any env_setting always
-    passes — no violations."""
+    """Round-22 F15 — ATM / NARR tags with no place_constraint are
+    flexible and pass the check unconditionally. Pick tags that
+    genuinely have no constraint (vocab v11 added constraints to
+    several previously-unconstrained tags; ATM_HAIR_MOVING_WIND
+    and NARR_LACING_BOOT_LEG remain unconstrained as of v11)."""
     from src.prompt.vocabulary import check_facet_env_coherence
     violations = check_facet_env_coherence(
         environment_setting="ENV_FIRE_ESCAPE_NEON",
-        environment_atmosphere="ATM_DUST_MOTES_IN_LIGHT",  # no constraint
-        narrative_moment="NARR_AFTER_THE_PARTY",  # no constraint
+        environment_atmosphere="ATM_HAIR_MOVING_WIND",  # no constraint
+        narrative_moment="NARR_LACING_BOOT_LEG",  # no constraint
         loader=loader,
     )
     assert violations == []
@@ -1361,20 +1362,23 @@ def test_pydantic_validator_rejects_incoherent_facet():
 
 
 def test_pydantic_validator_passes_coherent_facet():
-    """Round-22 F15 — coherent env+atmosphere passes validation."""
+    """Round-22 F15 — coherent env+atmosphere passes validation.
+    Vocab v11 (2026-05-23) added place_constraint on
+    ATM_DUST_MOTES_IN_LIGHT (requires indoor with window). Use a
+    matching indoor environment here so coherence holds."""
     from src.agents.schemas import SceneFacetFluxNatural
     facet = SceneFacetFluxNatural.model_validate({
         "scene_prose": (
-            "A woman reclines on a Mediterranean villa courtyard, "
+            "A woman reclines in the warm parlour interior, golden "
             "afternoon sunlight streaming across her bare shoulders "
-            "and the warm stone tiles, pensive and at ease in the "
-            "quiet space."
+            "and the worn velvet upholstery, pensive and at ease in "
+            "the quiet space, the sheer curtains glowing softly."
         ),
-        "environment_setting": "ENV_MEDITERRANEAN_COURTYARD",
+        "environment_setting": "ENV_VICTORIAN_PARLOUR",
         "environment_atmosphere": "ATM_DUST_MOTES_IN_LIGHT",
-        "narrative_moment": "NARR_SUNBATHING_TERRACE",
+        "narrative_moment": "NARR_LISTENING_TO_RECORD",
     })
-    assert facet.environment_setting == "ENV_MEDITERRANEAN_COURTYARD"
+    assert facet.environment_setting == "ENV_VICTORIAN_PARLOUR"
 
 
 def test_drop_counter_records_clean_run_as_all_zero(loader):
