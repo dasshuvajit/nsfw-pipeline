@@ -27,7 +27,7 @@
 #   3. Bump ``version:`` at the top.
 #   4. Re-run regression suite — fixtures pin the byte-stable output.
 
-version: 8
+version: 9
 
 realism:
   # ── Lighting ─────────────────────────────────────────────────────────
@@ -1093,6 +1093,13 @@ environment:
       chroma:      "thin cigarette haze hanging at chest height across the room"
       flux2:       "A thin cigarette haze hanging at chest height across the room, the smoke catching the directional light and softening every surface beyond it"
     ATM_FIREPLACE_EMBERS:
+      # Round-22 F15 (2026-05-22) — place_constraint: fireplace embers
+      # require an INDOOR environment with a fireplace. Pre-F15 the
+      # LLM occasionally paired this with outdoor settings (e.g.
+      # ENV_FIRE_ESCAPE_NEON) producing physically incoherent scenes.
+      place_constraint:
+        requires_env_keyword: ["fireplace", "parlour", "library", "drawing room", "study", "boudoir", "interior", "indoor"]
+        reason: "fireplace embers require an indoor space with a hearth"
       sdxl:        "fireplace embers glowing low, soft warmth in the foreground"
       pony:        "fireplace_embers, glowing_embers, warm_foreground_light, fire"
       illustrious: "fireplace_embers, low_glow, warm_foreground"
@@ -1108,6 +1115,9 @@ environment:
       flux2:       "Pollen floating visibly in slanted golden-hour air, every particle illuminated by the warm directional light, a sense of summer stillness"
     # ─── Weather / Water ───
     ATM_RAIN_ON_GLASS:
+      place_constraint:
+        requires_env_keyword: ["window", "interior", "indoor", "parlour", "loft", "apartment", "bedroom", "suite", "studio", "library", "drawing room", "kitchen", "boudoir", "hotel"]
+        reason: "rain on glass requires an indoor space with a window"
       sdxl:        "rain streaming down the windowpane, refracted light beyond"
       pony:        "rain_on_window, rain_on_glass, refracted_light, water_streaming"
       illustrious: "rain_on_windowpane, refracted_light"
@@ -1122,6 +1132,9 @@ environment:
       chroma:      "low fog rolling in across the field at dusk, softening every distant element into silhouette"
       flux2:       "Low fog rolling in across the field at dusk, softening every distant element into silhouette, the cool damp air settling and slowing the entire scene"
     ATM_STEAM_FROM_BATH:
+      place_constraint:
+        requires_env_keyword: ["bath", "bathhouse", "shower", "hammam", "spa", "tub"]
+        reason: "bath steam requires a bath / spa environment"
       sdxl:        "steam rising from a hot bath, thick at the surface"
       pony:        "steam, bath_steam, hot_water_steam, thick_steam"
       illustrious: "steam_rising_from_bath, thick_at_surface"
@@ -1194,6 +1207,9 @@ environment:
       chroma:      "loose hair caught by a soft breeze, gentle motion lifting individual strands across the face and shoulder"
       flux2:       "Loose hair caught by a soft breeze, gentle motion lifting individual strands across the face and shoulder, the movement caught at the exact moment the hair is suspended"
     ATM_FABRIC_FLOATING_UNDERWATER:
+      place_constraint:
+        requires_env_keyword: ["pool", "underwater", "submerged", "bath", "ocean", "lagoon", "lake", "water", "aquatic"]
+        reason: "underwater fabric requires a water environment"
       sdxl:        "fabric drifting weightlessly underwater, slow ripples"
       pony:        "fabric_underwater, drifting_fabric, slow_ripples, underwater_motion"
       illustrious: "fabric_drifting_underwater, weightless_motion"
@@ -1495,6 +1511,9 @@ narrative:
       chroma:      "stepping out of a dress that has slipped down to puddle around her ankles on the floor"
       flux2:       "She is stepping out of a dress that has slipped down to puddle around her ankles on the floor, the moment caught between dressed and undressed"
     NARR_STEPPING_FROM_BATH:
+      place_constraint:
+        requires_env_keyword: ["bath", "bathhouse", "shower", "hammam", "spa", "tub", "wet room"]
+        reason: "stepping from a bath requires a bath / spa environment"
       sdxl:        "stepping from a clawfoot bath, towel half-wrapped, steam rising"
       pony:        "stepping_out_of_bath, clawfoot_bathtub, towel, steam, wet_skin, candid_moment"
       illustrious: "stepping_out_of_bath, clawfoot_bathtub, half_wrapped_towel, steam, wet_skin"
@@ -1502,6 +1521,9 @@ narrative:
       chroma:      "stepping from a clawfoot bath, linen towel half-wrapped, steam rising from warm water behind her, wet skin catching the light"
       flux2:       "The subject is stepping from a clawfoot porcelain bath, a thick linen towel half-wrapped around her body, steam still rising from the warm water behind her, water droplets catching the soft window light on her skin"
     NARR_LIGHTING_CIGARETTE_BALCONY:
+      place_constraint:
+        requires_env_keyword: ["balcony", "terrace", "rooftop", "fire escape", "hotel", "outdoor", "patio", "veranda", "loggia"]
+        reason: "lighting cigarette on balcony requires an outdoor / balcony space"
       sdxl:        "lighting a single cigarette on a hotel balcony at 2am, city lights below"
       pony:        "lighting_cigarette, balcony, night_city, hotel_balcony, smoking, late_night_moment"
       illustrious: "lighting_cigarette_balcony, 2am, hotel_balcony, city_below"
@@ -1524,6 +1546,9 @@ narrative:
     # GAZING_OUT_WINDOW (kept) covers the "quiet self-regard moment"
     # without the mirror.
     NARR_REACHING_FOR_BOOK_SHELF:
+      place_constraint:
+        requires_env_keyword: ["library", "study", "shelf", "bookshelf", "parlour", "drawing room", "office", "salon", "den"]
+        reason: "reaching for shelf book requires a library / study with bookshelves"
       sdxl:        "reaching up for a book on a high shelf, light from the high window"
       pony:        "reaching_up, bookshelf, high_window_light, library, reading_moment"
       illustrious: "reaching_for_book, high_shelf, high_window_light"
@@ -1552,6 +1577,9 @@ narrative:
       chroma:      "lying on a worn Persian rug, eyes closed, listening to a vinyl record spinning on a nearby phonograph"
       flux2:       "She is lying on a worn Persian rug, eyes closed in concentration, listening to a vinyl record spinning on a nearby phonograph, the music almost tangible in the air"
     NARR_LETTER_BURNING_FIRE:
+      place_constraint:
+        requires_env_keyword: ["fireplace", "parlour", "library", "drawing room", "study", "boudoir", "hearth", "salon", "interior", "indoor", "victorian", "manor", "castle"]
+        reason: "burning letter in fireplace requires an indoor space with a hearth"
       sdxl:        "watching a handwritten letter curl in the fireplace"
       pony:        "burning_letter, fireplace, watching_paper_curl, handwritten_letter, contemplative_moment"
       illustrious: "watching_letter_burn, fireplace, paper_curling"
@@ -1566,6 +1594,9 @@ narrative:
       chroma:      "drying her long hair with a linen towel at an open window, the breeze lifting damp strands"
       flux2:       "She is drying her long hair with a linen towel at an open window, the breeze lifting damp strands across her face, the morning light brightening every droplet"
     NARR_BAREFOOT_AT_3AM_KITCHEN:
+      place_constraint:
+        requires_env_keyword: ["kitchen", "pantry", "scullery"]
+        reason: "barefoot at 3am in kitchen requires a kitchen environment"
       sdxl:        "barefoot at the kitchen counter at 3am, single under-cabinet light"
       pony:        "barefoot, kitchen_at_night, 3am_moment, under_cabinet_light, late_night_kitchen"
       illustrious: "barefoot_kitchen_3am, under_cabinet_light"
@@ -1573,6 +1604,9 @@ narrative:
       chroma:      "barefoot at the kitchen counter at 3am, single under-cabinet light casting low warm illumination across the marble"
       flux2:       "She is barefoot at the kitchen counter at 3am, a single under-cabinet light casting low warm illumination across the marble, the rest of the house asleep around her"
     NARR_SUNBATHING_TERRACE:
+      place_constraint:
+        requires_env_keyword: ["terrace", "balcony", "rooftop", "courtyard", "patio", "deck", "garden", "outdoor", "villa", "poolside", "veranda", "mediterranean"]
+        reason: "sunbathing requires an outdoor sunlit space"
       sdxl:        "sunbathing on a stone terrace, book face-down beside her"
       pony:        "sunbathing, stone_terrace, book_face_down, afternoon, lounging_moment"
       illustrious: "sunbathing_on_terrace, book_face_down, afternoon_sun"
@@ -1580,6 +1614,9 @@ narrative:
       chroma:      "sunbathing on a sun-warmed stone terrace, book face-down beside her, the afternoon spread out unhurried"
       flux2:       "She is sunbathing on a sun-warmed stone terrace, a book face-down beside her on the cool tile, the afternoon spread out unhurried, the heat of the sun on her skin"
     NARR_TYPEWRITER_LATE_NIGHT:
+      place_constraint:
+        requires_env_keyword: ["study", "office", "desk", "library", "parlour", "loft", "attic", "writer", "den", "salon"]
+        reason: "typewriter at a desk requires an indoor study / office space"
       sdxl:        "at a typewriter under a single desk lamp, draft pages piled"
       pony:        "at_typewriter, single_desk_lamp, draft_pages, late_night_writing, focused_moment"
       illustrious: "typewriter_late_night, desk_lamp, draft_pages"

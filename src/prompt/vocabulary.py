@@ -238,6 +238,66 @@ class VocabularyLoader:
                 return True
         return False
 
+    def get_place_constraint(
+        self, top: str, sub: str, tag: str,
+    ) -> dict | None:
+        """Round-22 F15 (2026-05-22) — return the ``place_constraint``
+        dict declared on a vocabulary tag, or ``None`` if the tag has
+        none.
+
+        ``place_constraint`` shape (only set on tags with hard
+        environment dependencies, e.g. ATM_FABRIC_FLOATING_UNDERWATER
+        or NARR_LETTER_BURNING_FIRE)::
+
+            place_constraint:
+              requires_env_keyword: ["pool", "underwater", "bath", ...]
+              reason: "underwater fabric requires a water environment"
+
+        The :func:`facet_env_coherent` helper consumes this to validate
+        cross-field facet coherence — when the planner-side LLM picks
+        an ``environment_setting`` whose family-shape prose contains
+        NONE of the required env keywords, the facet is incoherent and
+        the Pydantic validator on SceneFacetFluxNatural rejects → the
+        retry-nudge fires.
+        """
+        if top == "version":
+            return None
+        top_dict = self._data.get(top)
+        if not isinstance(top_dict, dict):
+            return None
+        sub_dict = top_dict.get(sub)
+        if not isinstance(sub_dict, dict):
+            return None
+        row = sub_dict.get(tag)
+        if not isinstance(row, dict):
+            return None
+        constraint = row.get("place_constraint")
+        return constraint if isinstance(constraint, dict) else None
+
+    def env_setting_prose(
+        self, env_tag: str, family_id: str = "chroma",
+    ) -> str:
+        """Round-22 F15 — fetch the family-shape prose for an
+        ``environment_setting`` tag. Used by the coherence validator to
+        check whether an env's prose contains the keywords required by
+        a paired atm / narr tag.
+
+        Falls through to any family flavor if ``family_id`` doesn't
+        have one (since the constraint check just looks for keywords
+        in any prose flavor — they're synonyms across families).
+        """
+        env_block = (self._data.get("environment") or {}).get("setting") or {}
+        row = env_block.get(env_tag)
+        if not isinstance(row, dict):
+            return ""
+        # Prefer the requested family; fall through to chroma → flux →
+        # sdxl → any.
+        for fam in (family_id, "chroma", "flux", "sdxl", "flux2", "pony", "illustrious"):
+            v = row.get(fam)
+            if isinstance(v, str) and v:
+                return v
+        return ""
+
     def tag_exists(self, top: str, sub: str, tag: str) -> bool:
         """Round-22 F14 (2026-05-22) — check whether a concept tag
         exists in the specified vocabulary namespace.
@@ -424,6 +484,73 @@ def _record_drop(kind: str) -> None:
     :meth:`VocabularyLoader.canonicalize`."""
     if kind in _DROP_COUNTS:
         _DROP_COUNTS[kind] += 1
+
+
+def check_facet_env_coherence(
+    *,
+    environment_setting: str | None,
+    environment_atmosphere: str | None,
+    narrative_moment: str | None,
+    loader: VocabularyLoader | None = None,
+) -> list[tuple[str, str, str]]:
+    """Round-22 F15 (2026-05-22) — validate cross-field environmental
+    coherence between ``environment_setting`` and the
+    ``environment_atmosphere`` + ``narrative_moment`` picks.
+
+    Some ATM / NARR tags declare a ``place_constraint`` in the
+    vocabulary: a list of keywords at least one of which MUST appear in
+    the chosen environment_setting's family-shape prose. If the
+    environment_setting's prose contains NONE of those keywords, the
+    paired tag is physically incoherent with the environment (e.g.
+    ATM_FABRIC_FLOATING_UNDERWATER paired with ENV_FIRE_ESCAPE_NEON —
+    underwater fabric in a Manhattan fire escape is not a real scene).
+
+    Returns a list of ``(field, tag, reason)`` tuples for each
+    incoherent pair. Empty list means the facet's three env-related
+    tags pass coherence. The list is used by the Pydantic validator on
+    SceneFacetFluxNatural to reject incoherent facets, triggering the
+    existing retry-with-nudge mechanism in :mod:`src.agents.scene_facet_generator`.
+
+    When ``environment_setting`` is None (LLM didn't pick one), the
+    constraint check is skipped — atmosphere and narrative get the
+    benefit of the doubt (they may still render coherently against the
+    scene-core fields).
+    """
+    if not environment_setting:
+        return []
+    loader = loader or _default_loader()
+    env_prose = loader.env_setting_prose(environment_setting).lower()
+    if not env_prose:
+        # Unknown environment_setting — the canonicalizer will catch
+        # it elsewhere; nothing to validate against.
+        return []
+    violations: list[tuple[str, str, str]] = []
+    for field, top, sub, tag in (
+        ("environment_atmosphere", "environment", "atmosphere", environment_atmosphere),
+        ("narrative_moment", "narrative", "moment", narrative_moment),
+    ):
+        if not tag:
+            continue
+        constraint = loader.get_place_constraint(top, sub, str(tag))
+        if not constraint:
+            continue
+        required = constraint.get("requires_env_keyword") or []
+        if not required:
+            continue
+        if any(kw.lower() in env_prose for kw in required):
+            continue
+        # No required keyword present in env's prose → incoherent pair.
+        reason = (
+            constraint.get("reason")
+            or f"requires env containing one of {required}"
+        )
+        violations.append((
+            field,
+            str(tag),
+            f"{reason} — but environment_setting={environment_setting!r} "
+            f"has none of {required}",
+        ))
+    return violations
 
 
 def canonicalize_facet(

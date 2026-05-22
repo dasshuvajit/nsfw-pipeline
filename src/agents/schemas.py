@@ -728,6 +728,34 @@ class SceneFacetFluxNatural(BaseModel):
                 "outside the 30–80 target band (still inside 20–140 "
                 "slack). Consider tightening.", words,
             )
+
+        # Round-22 F15 (2026-05-22) — env / atmosphere / narrative
+        # cross-field coherence check. Some ATM / NARR tags declare a
+        # ``place_constraint`` requiring specific env keywords (e.g.
+        # ATM_FABRIC_FLOATING_UNDERWATER requires the
+        # environment_setting prose to mention water / pool / bath).
+        # If the LLM picked an incompatible combination (env: fire
+        # escape, atm: underwater fabric), reject the facet here so
+        # the existing retry-with-nudge mechanism in scene_facet_
+        # generator.py fires. Grok's audit on series_bf84fa88de1c
+        # caught exactly this pattern.
+        from src.prompt.vocabulary import check_facet_env_coherence
+        violations = check_facet_env_coherence(
+            environment_setting=self.environment_setting,
+            environment_atmosphere=self.environment_atmosphere,
+            narrative_moment=self.narrative_moment,
+        )
+        if violations:
+            joined = "; ".join(
+                f"{field}={tag!r}: {reason}"
+                for field, tag, reason in violations
+            )
+            raise ValueError(
+                f"SceneFacetFluxNatural cross-field coherence failed: "
+                f"{joined}. Re-pick atm / narrative or change "
+                f"environment_setting so they imply ONE physically "
+                f"plausible scene."
+            )
         return self
 
 
