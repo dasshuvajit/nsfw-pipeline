@@ -764,13 +764,18 @@ class PromptBuilder:
         # and threads ``extra_keywords`` as trailing sentences). The
         # ``series_aesthetic_for_extras`` variable holds the form to
         # use downstream.
-        if (
-            family.prompt_style in ("flux_natural", "flux2_prose")
-            and len(series_aesthetic_phrases) >= 2
-        ):
-            merged = ", ".join(p.rstrip(",. ") for p in series_aesthetic_phrases)
-            segments.append(merged)
-            series_aesthetic_for_extras: list[str] = [merged]
+        # 2026-05-23 dual-write pivot iter4 follow-up — for prose
+        # families, SUPPRESS series_aesthetic from segments entirely
+        # (it would land in the prompt fallback path when facet
+        # generation fails). The LLM weaves the series aesthetic into
+        # scene_prose itself under dual-write; fallback paths get
+        # clean output (sparse but no tag soup) rather than the old
+        # palette+photog+art_movement stitch.
+        if family.prompt_style in ("flux_natural", "flux2_prose"):
+            # Don't append series_aesthetic to segments. Keep
+            # series_aesthetic_for_extras = [] so merged_extras stays
+            # empty (the is_prose_family_drop branch below).
+            series_aesthetic_for_extras: list[str] = []
         else:
             for phrase in series_aesthetic_phrases:
                 segments.append(phrase)
@@ -793,8 +798,19 @@ class PromptBuilder:
         # Phase 4a — vocabulary phrases land BEFORE style_keywords so
         # the realism/lighting/mood phrasing sits next to the scene
         # body, ahead of the aesthetic style boosters.
-        for phrase in vocab_phrases:
-            segments.append(phrase)
+        #
+        # 2026-05-23 dual-write pivot, iter4 follow-up — for prose
+        # families, DON'T append vocab_phrases to segments either.
+        # When LLM facet generation FAILS for one scene (scene_001 of
+        # series_010704977930), composer falls back to segments-based
+        # composition because scene_prose is empty. Without this drop,
+        # the fallback path stitches canonicalizations into the prompt,
+        # producing the tag-soup output the pivot exists to eliminate.
+        # This guarantees the fallback path ALSO produces clean prose
+        # output (just sparse — base + scene-core + realism tail).
+        if family.prompt_style not in ("flux_natural", "flux2_prose"):
+            for phrase in vocab_phrases:
+                segments.append(phrase)
 
         # Round-21 (2026-05-21) — suppress operator's archetype keywords
         # when the planner picked its own aesthetic anchors (color_palette
