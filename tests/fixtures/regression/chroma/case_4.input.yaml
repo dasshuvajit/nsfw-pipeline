@@ -1,0 +1,24 @@
+description: "T3 — round-22 F1 lens-populated branch — chroma tail drops f/1.8 + 35mm when realism_lens canonicalizes"
+family: chroma
+content_level: T3_artnude
+audience: null
+character:
+  base_prompt: "Mira, twenty-eight, raven-black hair, green eyes, slender."
+  negative_prompt: ""
+scene:
+  pose: "standing confident"
+  camera: "medium shot"
+  camera_angle: "eye-level"
+  lighting: "golden hour rim light"
+  environment_detail: "Tuscan villa courtyard"
+  composition_intent: "medium shot"
+  scene_prose: "Mira stands confidently in the sun-warmed Tuscan villa courtyard, golden afternoon light catching her bare shoulders and tracing the curve of her collarbone. The faint scent of olive trees drifts on the breeze, and her serene gaze rests on the distant hills beyond the stone wall."
+  realism_lens: "LENS_85MM_F14"
+  realism_camera: "CAMERA_SONY_A7RV"
+  lighting_directive: "LIGHT_GOLDEN_HOUR"
+  mood_aesthetic: "MOOD_SERENE"
+  nsfw_anatomy: "NSFW_BARE_CHEST"
+style_profile:
+  base_style_keywords: ""
+  base_negative_prompt: ""
+trigger_words: []

@@ -26,6 +26,34 @@ def test_boost_appended_when_missing():
     assert "artistic" in out
 
 
+def test_boost_strips_trailing_period_before_appending_comma():
+    """Round-22 followup (2026-05-22) — when the input ends with "."
+    (prose-family composer outputs end with a period), the boost-keyword
+    append must strip that period before joining with ", ". Pre-fix the
+    boost produced ", lingerie" after a "." giving "natural skin texture.,
+    lingerie" — period-comma jammed together looks like a cosmetic bug
+    in the final prompt."""
+    s = PromptSanitizer(
+        suppress_keywords=[],
+        boost_keywords=["lingerie", "swimwear"],
+    )
+    out = s.sanitize_text(
+        "She stands in golden hour light. f/1.8, 35mm, photographic, "
+        "natural skin texture."
+    )
+    # Boost keywords landed.
+    assert "lingerie" in out
+    assert "swimwear" in out
+    # NO period-then-comma sequence.
+    assert ".," not in out, (
+        f"period-then-comma found in: {out!r}"
+    )
+    # ALSO no "., " (period followed by comma+space) — same defect class.
+    assert "., " not in out, (
+        f"period-then-comma+space found in: {out!r}"
+    )
+
+
 def test_boost_idempotent():
     s = PromptSanitizer(
         suppress_keywords=[],

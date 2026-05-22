@@ -305,14 +305,20 @@ class PromptSanitizer:
 
         # 3. Boost: append any missing boost keyword (case-insensitive
         # whole-word check, so "soft lighting" already in the prompt
-        # short-circuits the addition).
+        # short-circuits the addition). 2026-05-22 — also strip the
+        # trailing "." that the prose-family composer leaves on its
+        # output. Pre-fix the boost append produced "f/1.8, 35mm,
+        # photographic, natural skin texture., lingerie, ..." with
+        # the period-comma jammed together. New form: strip "." too
+        # before adding the comma so the boost lands as a continuation
+        # of the comma-list ending the prompt.
         for word in self.boost_keywords:
             if not word:
                 continue
             if not re.search(
                 rf"\b{re.escape(word)}\b", text, flags=re.IGNORECASE
             ):
-                text = (text.rstrip(", ") + (", " if text else "") + word).strip()
+                text = (text.rstrip(", .") + (", " if text else "") + word).strip()
 
         # 4. Celebrity-likeness safety. Always-on, tier-agnostic — the
         # heuristic is the same platform-compliance gate regardless of

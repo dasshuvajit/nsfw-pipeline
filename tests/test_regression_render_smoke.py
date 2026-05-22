@@ -46,12 +46,17 @@ _INPUT_FIXTURES = discover_input_fixtures()
 
 # Spell out the expected count so a missing/misnamed fixture trips a
 # loud failure rather than silently shrinking the regression surface.
+# Round-22 (2026-05-22) — chroma gained a 4th case (case_4) covering
+# the F1 lens-populated branch (realism_lens canonicalizes to "85mm
+# f/1.4 lens..." and the chroma realism tail drops its hardcoded
+# "f/1.8, 35mm" tokens to avoid two-focal-length contradiction).
 _EXPECTED_FAMILIES = {"sdxl", "pony", "illustrious", "flux", "chroma", "flux2"}
-_EXPECTED_TOTAL = len(_EXPECTED_FAMILIES) * 3  # 3 cases per family
+_EXPECTED_TOTAL = (len(_EXPECTED_FAMILIES) * 3) + 1  # +1 for chroma/case_4
 
 
 def test_fixture_inventory_complete() -> None:
-    """6 families × 3 cases each = 18 input fixtures."""
+    """6 families × 3 cases each = 18 input fixtures, plus chroma/case_4
+    (round-22 F1 regression coverage) = 19 total."""
     assert len(_INPUT_FIXTURES) == _EXPECTED_TOTAL, (
         f"Expected {_EXPECTED_TOTAL} input fixtures, found "
         f"{len(_INPUT_FIXTURES)}: {[relpath(p) for p in _INPUT_FIXTURES]}"
