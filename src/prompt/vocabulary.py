@@ -186,6 +186,7 @@ class VocabularyLoader:
                 "_SOLO_MODE_BANNED_TAGS.",
                 concept, content_level,
             )
+            _record_drop("solo")
             return None
         # Walk every namespace looking for the concept.
         for top, top_dict in self._data.items():
@@ -208,6 +209,7 @@ class VocabularyLoader:
                             "(tier_min=%r) at content_level=%r",
                             concept, tier_min, content_level,
                         )
+                        _record_drop("tier")
                         return None
                     phrasing = row.get("phrasing") or {}
                 else:
@@ -219,6 +221,7 @@ class VocabularyLoader:
                         "family %r — skipping",
                         concept, family_id,
                     )
+                    _record_drop("family")
                     return None
                 return str(phrase).strip()
         # No match anywhere.
@@ -226,6 +229,7 @@ class VocabularyLoader:
             "vocabulary: unknown concept %r — skipping (LLM drift?)",
             concept,
         )
+        _record_drop("unknown")
         return None
 
     def is_nsfw_concept(self, concept: str) -> bool:
@@ -355,6 +359,47 @@ def canonicalize_series_aesthetic(
     return out
 
 
+# Round-22 F13 (2026-05-22) — per-series drop counter for observability.
+# The canonicalizer silently drops unknown / tier-gated / family-omitted
+# concept tags with an INFO log per drop. For long series the INFO
+# stream is noisy; round-22 audit round-6 recommended an aggregate
+# count surfaced at end of Phase A so the operator sees the planner-
+# side drift rate at a glance ("3% of picks dropped — normal" vs
+# "60% dropped — planner is hallucinating, investigate").
+#
+# Engine usage:
+#   reset_drop_counter()   # at start of phase A
+#   ... facet generation ...
+#   counts = get_drop_counts()  # at end of phase A
+#   logger.info("Vocab drops: unknown=%d tier=%d family=%d solo=%d",
+#               counts["unknown"], counts["tier"], counts["family"],
+#               counts["solo"])
+_DROP_COUNTS: dict[str, int] = {
+    "unknown": 0,  # concept not in any namespace (LLM drift)
+    "tier": 0,     # NSFW tier-min above content_level
+    "family": 0,   # concept exists but no phrasing for this family
+    "solo": 0,     # solo-mode banned tag (partnered nsfw_act)
+}
+
+
+def reset_drop_counter() -> None:
+    """Zero the per-series drop counter. Call once at start of Phase A."""
+    for k in _DROP_COUNTS:
+        _DROP_COUNTS[k] = 0
+
+
+def get_drop_counts() -> dict[str, int]:
+    """Return a copy of the per-series drop counter."""
+    return dict(_DROP_COUNTS)
+
+
+def _record_drop(kind: str) -> None:
+    """Increment the per-kind drop counter. Internal — used by
+    :meth:`VocabularyLoader.canonicalize`."""
+    if kind in _DROP_COUNTS:
+        _DROP_COUNTS[kind] += 1
+
+
 def canonicalize_facet(
     scene_facet: Mapping[str, Any],
     family_id: str,
@@ -369,6 +414,9 @@ def canonicalize_facet(
     :data:`_FIELD_TO_NAMESPACE` so the composer's downstream segment
     ordering stays stable. Empty / unknown / below-tier concepts are
     silently dropped (logged at INFO inside :meth:`VocabularyLoader.canonicalize`).
+
+    Round-22 F13 — drops also increment :data:`_DROP_COUNTS` so the
+    engine can surface the aggregate at end of Phase A.
     """
     loader = loader or _default_loader()
     out: list[str] = []

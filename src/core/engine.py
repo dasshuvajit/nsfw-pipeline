@@ -822,6 +822,13 @@ class PipelineEngine:
         prompts_created_total = 0
         models_completed: list[str] = []
         families_completed: list[str] = []
+        # Round-22 F13 — reset the canonicalizer's drop counter so this
+        # series's facet+prompt loop reports clean drift metrics at the
+        # end of Phase A.
+        from src.prompt.vocabulary import (
+            reset_drop_counter as _vocab_reset_drops,
+        )
+        _vocab_reset_drops()
 
         for target_kind, target_id in targets:
             # Per-target ctx — model-kind uses build_context (existing
@@ -1204,6 +1211,26 @@ class PipelineEngine:
         # client.loaded_models and frees each.
         self.llm_client.unload_all()
         logger.info("LLM unloaded. Phase A complete.")
+
+        # Round-22 F13 — surface aggregate vocabulary-drop metrics so the
+        # operator can spot planner-side hallucinations or LLM drift at
+        # a glance. Sum across all canonicalize calls during this Phase
+        # A (per-scene + per-series). 0% = clean; >20% suggests planner
+        # is emitting invalid tag names that don't exist in the vocab.
+        from src.prompt.vocabulary import (
+            get_drop_counts as _vocab_get_drops,
+        )
+        drops = _vocab_get_drops()
+        if any(drops.values()):
+            logger.info(
+                "Vocab drops this series: unknown=%d (LLM drift) "
+                "tier_gated=%d (tier-min above content_level) "
+                "family_omitted=%d (concept exists but no phrasing for "
+                "this family) solo_banned=%d (partnered nsfw_act blocked "
+                "by single-female enforcement)",
+                drops["unknown"], drops["tier"],
+                drops["family"], drops["solo"],
+            )
 
         return {
             "series_id": series_id,

@@ -1180,3 +1180,87 @@ def test_vocab_block_environment_and_narrative_narrow_independently(loader):
     # Narrative narrowed
     assert "NARR_READING_LETTER_AT_DAWN" in narr_line
     assert "NARR_AFTER_THE_PARTY" not in narr_line
+
+
+# ── Round-22 F13: drop-counter observability ──────────────────────
+
+
+def test_drop_counter_increments_on_unknown_concept(loader):
+    """Round-22 F13 — when the LLM picks a concept that doesn't exist
+    in any namespace, the drop counter increments under 'unknown'."""
+    from src.prompt.vocabulary import (
+        reset_drop_counter, get_drop_counts, canonicalize_facet,
+    )
+    reset_drop_counter()
+    canonicalize_facet(
+        {"lighting_directive": "LIGHT_DEFINITELY_NOT_REAL"},
+        family_id="chroma",
+        loader=loader,
+    )
+    counts = get_drop_counts()
+    assert counts["unknown"] == 1
+    assert counts["tier"] == 0
+    assert counts["family"] == 0
+
+
+def test_drop_counter_increments_on_tier_gated_nsfw(loader):
+    """Round-22 F13 — when an NSFW concept's tier_min exceeds the
+    content_level, the canonicalizer drops it and increments 'tier'."""
+    from src.prompt.vocabulary import (
+        reset_drop_counter, get_drop_counts, canonicalize_facet,
+    )
+    reset_drop_counter()
+    # NSFW_BARE_CHEST is T4_explicit; T3_artnude is below its tier_min
+    canonicalize_facet(
+        {"nsfw_anatomy": "NSFW_BARE_CHEST"},
+        family_id="chroma",
+        content_level="T3_artnude",
+        loader=loader,
+    )
+    counts = get_drop_counts()
+    assert counts["tier"] == 1
+    assert counts["unknown"] == 0
+
+
+def test_drop_counter_reset_zeros_all_axes(loader):
+    """Round-22 F13 — reset_drop_counter() zeros every axis."""
+    from src.prompt.vocabulary import (
+        reset_drop_counter, get_drop_counts, canonicalize_facet,
+    )
+    # Prime with drops.
+    canonicalize_facet(
+        {"lighting_directive": "LIGHT_UNKNOWN_ABC",
+         "nsfw_anatomy": "NSFW_BARE_CHEST"},
+        family_id="chroma",
+        content_level="T3_artnude",
+        loader=loader,
+    )
+    pre = get_drop_counts()
+    assert any(v > 0 for v in pre.values())
+    reset_drop_counter()
+    post = get_drop_counts()
+    assert all(v == 0 for v in post.values())
+
+
+def test_drop_counter_records_clean_run_as_all_zero(loader):
+    """Round-22 F13 — a clean canonicalize (all tags valid + in-tier)
+    leaves the counter at zero."""
+    from src.prompt.vocabulary import (
+        reset_drop_counter, get_drop_counts, canonicalize_facet,
+    )
+    reset_drop_counter()
+    phrases = canonicalize_facet(
+        {
+            "lighting_directive": "LIGHT_GOLDEN_HOUR",
+            "mood_aesthetic": "MOOD_SERENE",
+            "realism_camera": "CAMERA_SONY_A7RV",
+        },
+        family_id="chroma",
+        content_level="T3_artnude",
+        loader=loader,
+    )
+    assert len(phrases) == 3, f"expected 3 phrases, got: {phrases}"
+    counts = get_drop_counts()
+    assert all(v == 0 for v in counts.values()), (
+        f"clean run produced non-zero drops: {counts}"
+    )

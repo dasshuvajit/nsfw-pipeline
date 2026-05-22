@@ -3,7 +3,25 @@
 > **Platform:** Mac M4 Pro, 48 GB unified RAM  
 > **Target:** DeviantArt, Patreon  
 > **Stack:** Python 3.11, SQLite, ComfyUI, Ollama 0.5+
-> **Last sync:** 2026-05-20 (External-templates-only cleanup —
+> **Last sync:** 2026-05-22 (Round-22 prompt-quality fixes — Grok
+> feedback drove 11 surgical fixes (F1-F11) + 8 independent codebase
+> audit rounds + 4-tier verification (T1/T2/T3/T4) on the live LLM.
+> Highlights: F1 conditional chroma realism tail (drops `f/1.8, 35mm`
+> when facet has `realism_lens`), F2 vocab v8 strip of incidental
+> time-of-day from `ATM_DUST_MOTES_IN_LIGHT`, F3 diversity retry
+> budget 1→2 + HARD BAN nudge on 3rd attempt, F4 series-aesthetic
+> 3-sentence→1-sentence consolidation for prose families, F5
+> subject_description threading into facet user prompt, F6 system-
+> prompt COHERENCE INVARIANT block with per-tier clause 3 (T1/T2/T3/T4
+> aligned to each tier's llm_directive), F7+F9 `scene_prose` word
+> band (2-4 sentences, 30-80 target / 20-140 hard), F8 synthetic
+> subject anchor for style+variation modes, F10 sanitizer period-
+> comma cosmetic fix, F11 chroma case_4 regression fixture exercising
+> F1's lens-populated branch. New default LLM: `davidau_nemo_thinking_
+> heretic_claude_opus` (Mistral Nemo 12B, 2.2× faster than Cydonia
+> 24B at T3, 0 refusals at T4). 1335 tests passing. See
+> `docs/audits/2026-05-22_round_22_prompt_quality.md`.)
+> **Prior sync:** 2026-05-20 (External-templates-only cleanup —
 > custom-workflow generation + IPAdapter + character mode + 8 legacy
 > scripts + postprocess Upscaler/FaceRefiner + workflow capability
 > flags ALL deleted. Pipeline now renders ONLY through external
@@ -13,9 +31,9 @@
 > mode_weights rebalanced to theme 0.50 / niche 0.25 / style 0.125 /
 > variation 0.125. DB drops to 9 tables (characters removed).
 > See `PROJECT_GUIDE.md` for the new CLI reference.)
-> **Prior sync:** 2026-05-20 (Anti-grid / anti-mirror cleanup — vocab v7
+> **Earlier sync:** 2026-05-20 (Anti-grid / anti-mirror cleanup — vocab v7
 > dropped 6 mirror / reflection / frame-within-frame entries.)
-> **Earlier sync:** 2026-05-19 (Creative-uplift overhaul — vocab v6 +
+> **Yet earlier sync:** 2026-05-19 (Creative-uplift overhaul — vocab v6 +
 > 6 namespaces + series-level aesthetic inheritance. User reported
 > rendered images were "boring, non-creative, static boring
 > backgrounds, can't generate any profit selling these". Root-cause
