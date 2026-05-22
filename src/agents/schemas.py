@@ -708,23 +708,23 @@ class SceneFacetFluxNatural(BaseModel):
                 "underscored multi-word tokens (booru style) — Flux / "
                 "Chroma encoders prefer space-separated natural words."
             )
-        # 2026-05-23 dual-write pivot — scene_prose is the prompt body.
-        # Iteration 1 (series_628bdf54cec6, 0/5 facets at 100-floor)
-        # showed DavidAU 12B's empirical range is 65-100 words on first
-        # attempt despite system-prompt directive for 150-300. Verifier
-        # predicted this. Adjusting band to match empirical range:
-        # 60-350 hard, 100-250 target. The composer-drop fix still
-        # delivers most of the win (no more 12-canon-sentence tag soup)
-        # even at 80-100 words because the canonicalizations stop
-        # firing as separate sentences. The LLM just needs to weave
-        # subject + pose + anatomy + light + env + mood in 80-150
-        # words — that's still 2-3x the old 30-80 contract and the
-        # composer no longer adds 10 parallel attribute sentences.
+        # 2026-05-23 dual-write pivot — band calibration iter 2.
+        # Iteration 2 (series_ffd7509f0af3, 0/5 facets at 60-floor)
+        # showed DavidAU 12B's actual range is 45-90 words despite
+        # system-prompt directive for 100-250. Adopt LLM's empirical
+        # mode: 40-350 hard, 100-250 target (warn only). Composer-
+        # drop still delivers the architectural win — eliminating
+        # 12-canon-sentence tag soup — even at 50-word LLM prose,
+        # because the parallel attribute sentences stop firing entirely
+        # for prose families. Final prompt = solo anchor (~5w) +
+        # adult anchor (~5w) + scene_prose (~50-90w) + camera tail
+        # (~10w) + realism tail (~5w) ≈ 75-115 words — MUCH cleaner
+        # than the old 250-word tag-soup outputs that scored 4.88/10.
         words = len(prose.split())
-        if not (60 <= words <= 350):
+        if not (40 <= words <= 350):
             raise ValueError(
                 f"SceneFacetFluxNatural.scene_prose has {words} words; "
-                f"prose-family hard band is 60-350 (target 100-250). "
+                f"prose-family hard band is 40-350 (target 100-250). "
                 f"At dual-write contract, scene_prose IS the prompt body "
                 f"and must cover subject + pose + anatomy + light + env "
                 f"+ mood + style in ONE coherent paragraph."
@@ -732,7 +732,7 @@ class SceneFacetFluxNatural(BaseModel):
         if not (100 <= words <= 250):
             logger.warning(
                 "SceneFacetFluxNatural.scene_prose word count %d is "
-                "outside the 100-250 target band (still inside 60-350 "
+                "outside the 100-250 target band (still inside 40-350 "
                 "slack). Tighten or expand for better axis coverage.",
                 words,
             )
@@ -842,16 +842,14 @@ class SceneFacetFlux2(BaseModel):
 
     @model_validator(mode="after")
     def _check_word_count_band(self) -> "SceneFacetFlux2":
-        """2026-05-23 dual-write pivot — Flux2 Klein 9B pivots to
-        scene_prose-as-prompt-body, matching the SceneFacetFluxNatural
-        contract. Band adjusted to LLM empirical range after iter1:
-        60-350 hard, 100-250 target."""
+        """2026-05-23 dual-write pivot iter2 — band adjusted to LLM's
+        actual empirical range. 40-350 hard, 100-250 target (warn)."""
         prose = self.scene_prose or ""
         words = len(prose.split())
-        if not (60 <= words <= 350):
+        if not (40 <= words <= 350):
             raise ValueError(
                 f"SceneFacetFlux2.scene_prose has {words} words; dual-"
-                f"write pivot band is 60-350 (target 100-250). "
+                f"write pivot band is 40-350 (target 100-250). "
                 f"scene_prose IS the prompt body; weave subject + pose "
                 f"+ anatomy + light + env + mood + style into ONE "
                 f"coherent paragraph."
@@ -859,7 +857,7 @@ class SceneFacetFlux2(BaseModel):
         if not (100 <= words <= 250):
             logger.warning(
                 "SceneFacetFlux2.scene_prose word count %d is outside "
-                "the 100-250 target band (still inside 60-350 slack). "
+                "the 100-250 target band (still inside 40-350 slack). "
                 "Consider tightening or expanding.", words,
             )
         return self
