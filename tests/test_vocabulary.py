@@ -1714,6 +1714,69 @@ def test_pose_act_coherence_passes_non_bath_act_on_any_env(loader):
     assert violations == []
 
 
+# ── subject continuity (Verifier I4) ────────────────────────────────
+
+
+def test_subject_continuity_catches_curves_vs_muscular():
+    """Scene_015 of series_79ae3b962c8d said 'muscular frame' while
+    subject_description anchored 'mature curves'. The continuity
+    validator must flag this contradiction."""
+    from src.prompt.vocabulary import check_subject_continuity
+    violations = check_subject_continuity(
+        subject_description="A confident adult woman, fully nude, mature curves, natural skin",
+        scene_prose="She stands proud, her muscular frame catching the harsh window light.",
+    )
+    assert len(violations) == 1
+    field, word, reason = violations[0]
+    assert field == "scene_prose"
+    assert "muscular" in word.lower() or "curves" in reason.lower()
+
+
+def test_subject_continuity_catches_youthful_vs_mature():
+    """Age-group contradictions."""
+    from src.prompt.vocabulary import check_subject_continuity
+    violations = check_subject_continuity(
+        subject_description="A mature woman in her 40s, silver hair",
+        scene_prose="A fresh-faced youthful figure stands by the window.",
+    )
+    assert len(violations) >= 1
+
+
+def test_subject_continuity_passes_when_aligned():
+    """No contradictions when traits align."""
+    from src.prompt.vocabulary import check_subject_continuity
+    violations = check_subject_continuity(
+        subject_description="A confident adult woman, mature curves, natural skin",
+        scene_prose="She stands with her full curves catching the golden window light.",
+    )
+    assert violations == []
+
+
+def test_subject_continuity_silent_on_mood_phrasing():
+    """Conservative — only flags physical-trait contradictions, not
+    mood / posture / expression variations."""
+    from src.prompt.vocabulary import check_subject_continuity
+    violations = check_subject_continuity(
+        subject_description="A confident adult woman, mature curves, natural skin",
+        scene_prose="She gazes pensively at the floor, melancholy etched in her expression.",
+    )
+    # "pensive" / "melancholy" are mood not body type → no violation.
+    assert violations == []
+
+
+def test_subject_continuity_silent_when_either_input_empty():
+    """Fail-open when subject_description or scene_prose is None/empty."""
+    from src.prompt.vocabulary import check_subject_continuity
+    assert check_subject_continuity(
+        subject_description=None,
+        scene_prose="She stands muscular by the window.",
+    ) == []
+    assert check_subject_continuity(
+        subject_description="curvy mature woman",
+        scene_prose=None,
+    ) == []
+
+
 # ── vocab orthogonality — palette/lighting/art_style must not duplicate phrases ──
 
 

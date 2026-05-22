@@ -1654,6 +1654,28 @@ class SceneFacetGenerator:
                                 "attempt with HARD BAN cleared dominance.",
                                 family.id,
                             )
+            # 2026-05-23 (Verifier I4) — subject-continuity check.
+            # Catch hard physical contradictions between the series'
+            # subject_description and the scene_prose (scene_015 of
+            # series_79ae3b962c8d said "muscular frame" when the
+            # subject_description anchored "mature curves"). Log at
+            # WARNING; don't reject the facet (the contradiction is
+            # cosmetic — series consistency, not safety).
+            if subject_description and facet.get("scene_prose"):
+                from src.prompt.vocabulary import check_subject_continuity
+                continuity_violations = check_subject_continuity(
+                    subject_description=subject_description,
+                    scene_prose=facet.get("scene_prose"),
+                )
+                if continuity_violations:
+                    for field, word, reason in continuity_violations:
+                        logger.warning(
+                            "Scene facet generator: family %s subject "
+                            "continuity violation — %s. Shipping anyway "
+                            "(cosmetic, not safety).",
+                            family.id, reason,
+                        )
+
             # 2026-05-23 — post-retry pose-act re-check (P0.B fix).
             # System prompt instruction + first-attempt validator was
             # silent in production: most first attempts failed on

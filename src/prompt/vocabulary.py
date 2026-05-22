@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import functools
 import logging
+import re
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
@@ -696,6 +697,94 @@ def check_pose_act_coherence(
                     f"or change environment_setting to ENV_CLAWFOOT_BATHROOM "
                     f"/ ENV_HAMMAM_STEAM / ENV_INDOOR_POOL_NIGHT."
                 ))
+    return violations
+
+
+# ── Subject continuity (2026-05-23 Verifier I4) ──────────────────────
+#
+# scene_015 of series_79ae3b962c8d called the woman "muscular frame"
+# while the series subject_description said "mature curves natural
+# skin". Hard contradiction in body type breaks series consistency —
+# buyers following a 24-scene set expect ONE subject across all
+# scenes. This catches the most-egregious contradictions; mild
+# variation in prose phrasing (calm vs serene mood) is unaffected.
+_SUBJECT_TRAIT_GROUPS: tuple[tuple[frozenset[str], frozenset[str]], ...] = (
+    # Build axes that physically can't coexist.
+    (
+        frozenset({"curvy", "curves", "voluptuous", "full figure", "full curves",
+                   "soft figure", "plush", "mature curves", "rubenesque"}),
+        frozenset({"muscular", "athletic", "toned", "ripped", "lean",
+                   "slender", "slim", "skinny", "gaunt", "thin frame",
+                   "wiry"}),
+    ),
+    # Age groups.
+    (
+        frozenset({"mature", "middle-aged", "older", "in her 40s",
+                   "grey-streaked", "silver hair"}),
+        frozenset({"youthful", "young", "fresh-faced", "in her 20s",
+                   "girlish", "ingénue"}),
+    ),
+    # Height groups (rare but real contradictions).
+    (
+        frozenset({"petite", "diminutive", "small frame", "short"}),
+        frozenset({"tall", "statuesque", "amazonian", "towering"}),
+    ),
+)
+
+
+def _contains_any(text_lower: str, words: frozenset[str]) -> str | None:
+    """Return the first matched word from ``words`` in ``text_lower``,
+    else None. Whole-word matching on space-delimited boundaries."""
+    for w in words:
+        # Word-boundary match — avoid matching "short" inside "shorts".
+        if re.search(r"\b" + re.escape(w) + r"\b", text_lower):
+            return w
+    return None
+
+
+def check_subject_continuity(
+    *,
+    subject_description: str | None,
+    scene_prose: str | None,
+) -> list[tuple[str, str, str]]:
+    """Detect physical contradictions between the series-level
+    ``subject_description`` and a scene's ``scene_prose``. Returns a
+    list of ``(field, conflict_word, reason)`` tuples.
+
+    Conservative — only flags clear contradictions on the build /
+    age / height axes (curvy vs muscular, mature vs youthful,
+    petite vs tall). Mild phrasing variation in mood / posture /
+    expression is unaffected. Same fail-open principle as F15 —
+    when either input is empty / None, returns [].
+    """
+    if not subject_description or not scene_prose:
+        return []
+    desc_lower = subject_description.lower()
+    prose_lower = scene_prose.lower()
+    violations: list[tuple[str, str, str]] = []
+    for group_a, group_b in _SUBJECT_TRAIT_GROUPS:
+        desc_a = _contains_any(desc_lower, group_a)
+        prose_b = _contains_any(prose_lower, group_b)
+        if desc_a and prose_b:
+            violations.append((
+                "scene_prose",
+                prose_b,
+                f"subject_description anchors '{desc_a}' but scene_prose "
+                f"uses contradicting trait '{prose_b}'. Buyers follow ONE "
+                f"subject across the series — physical traits must match. "
+                f"Re-phrase scene_prose to honor '{desc_a}'."
+            ))
+        desc_b = _contains_any(desc_lower, group_b)
+        prose_a = _contains_any(prose_lower, group_a)
+        if desc_b and prose_a:
+            violations.append((
+                "scene_prose",
+                prose_a,
+                f"subject_description anchors '{desc_b}' but scene_prose "
+                f"uses contradicting trait '{prose_a}'. Buyers follow ONE "
+                f"subject across the series — physical traits must match. "
+                f"Re-phrase scene_prose to honor '{desc_b}'."
+            ))
     return violations
 
 
