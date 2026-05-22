@@ -900,6 +900,8 @@ class PromptBuilder:
         # Positive-side age safety scan — every family. Strips any
         # age-ambiguity terms the LLM may have slipped into the body
         # and prepends an adult anchor when a match is found.
+        prompt_text = _positive_sad_token_scan(prompt_text, family)
+        prompt_text = _positive_mirror_prose_scan(prompt_text, family)
         prompt_text = _positive_age_safety_scan(prompt_text, family)
 
         # Positive-side subject-count scan (2026-05-17) — every family.
@@ -1617,6 +1619,83 @@ def _strip_avoid_tokens(segment: str, avoid_set: set[str]) -> str:
         if t.strip() and t.strip().lower() not in avoid_set
     ]
     return ", ".join(kept)
+
+
+# 2026-05-23 verifier audit — sad/sorrow vocabulary that leaked from
+# scene-core fields (mood_note, expression) into composed prompts on
+# the facet-failure fallback path. The schema-level validator only
+# catches LLM-emitted scene_prose; this catches the broader path.
+_SAD_TOKEN_PATTERN = re.compile(
+    r"\b(?:"
+    r"tear[- ]?streaked|tearful|tears\b|crying|weeping|sobbing|sob|"
+    r"mournful|grieving|grief|sorrow(?:ful)?|"
+    r"melancholic|melancholy|wistful sadness|"
+    r"numb detachment|vacant stare|blank stare|"
+    r"sad expression|sad gaze"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def _positive_sad_token_scan(text: str, family: FamilyConfig) -> str:
+    """Strip sad/sorrow tokens from positive prompts. User explicit
+    ban (2026-05-23): commercial adult-art markets sell confidence +
+    sensuality, NOT sorrow. The schema-level scene_prose validator
+    catches LLM-emitted instances; this catches scene-core mood_note
+    + expression leaks on the facet-fallback path."""
+    if not text:
+        return text
+    matches = _SAD_TOKEN_PATTERN.findall(text)
+    if not matches:
+        return text
+    logger.warning(
+        "Sad/sorrow tokens detected in positive prompt — stripping. "
+        "matches=%s family=%r",
+        sorted({m.lower() for m in matches}), family.id,
+    )
+    stripped = _SAD_TOKEN_PATTERN.sub("", text)
+    # Cleanup dangling connectors left after strip ("tender and ." → "tender.").
+    stripped = re.sub(r"\b(?:and|or|of)\s*([.,])", r"\1", stripped)
+    stripped = re.sub(r",\s*,+", ",", stripped)
+    stripped = re.sub(r"\s{2,}", " ", stripped)
+    return stripped.strip()
+
+
+# Subject-mirror prose patterns that leak from LLM free-text.
+_MIRROR_PROSE_PATTERN = re.compile(
+    r"\b(?:"
+    r"her (?:own )?reflection|"
+    r"reflecting her [a-z]+ back|"
+    r"reflected back at her|"
+    r"her (?:own )?form reflected|"
+    r"her distorted form|"
+    r"her warped image|"
+    r"reflective surface|"
+    r"mirror[s]?"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def _positive_mirror_prose_scan(text: str, family: FamilyConfig) -> str:
+    """Strip subject-mirror language. Chroma renders mirrors as warped
+    faces. Defense-in-depth on top of the existing _drop_mirror_sentences
+    + the SceneFacetFluxNatural schema validator."""
+    if not text:
+        return text
+    matches = _MIRROR_PROSE_PATTERN.findall(text)
+    if not matches:
+        return text
+    logger.warning(
+        "Mirror/reflection language detected in positive prompt — "
+        "stripping. matches=%s family=%r",
+        sorted({m.lower() for m in matches}), family.id,
+    )
+    # Strip whole sentences containing mirror language (safer than
+    # surgical word removal — avoids dangling syntax).
+    sentences = re.split(r"(?<=[.!?])\s+", text)
+    kept = [s for s in sentences if not _MIRROR_PROSE_PATTERN.search(s)]
+    return " ".join(kept).strip()
 
 
 def _positive_age_safety_scan(text: str, family: FamilyConfig) -> str:
