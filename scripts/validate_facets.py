@@ -51,7 +51,9 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.agents.llm_client import OllamaClient  # noqa: E402
+from src.agents.llm_client import LLMClientPool, OllamaClient  # noqa: E402
+from src.agents.lm_studio_client import LMStudioClient  # noqa: E402
+from src.agents.mlx_client import MlxClient  # noqa: E402
 from src.agents.scene_facet_generator import (  # noqa: E402
     _TIER_REQUIRED_FIELDS,
     SceneFacetGenerator,
@@ -175,7 +177,17 @@ def main() -> int:
     llm_entry = llm_registry.get_llm(llm_id, require_active=True)
     model_tag = llm_entry.model_tag
 
-    client = OllamaClient()
+    # Build the backend-aware pool so this script handles Ollama /
+    # LM Studio / MLX entries uniformly — the SceneFacetGenerator only
+    # needs an object with the OllamaClient public-method shape, and
+    # LLMClientPool exposes that contract while dispatching internally
+    # by backend.
+    client = LLMClientPool(
+        ollama_client=OllamaClient(),
+        lm_studio_client=LMStudioClient(),
+        mlx_client=MlxClient(),
+        registry=llm_registry,
+    )
     gen = SceneFacetGenerator(client)
 
     print(

@@ -1399,3 +1399,67 @@ def test_drop_counter_records_clean_run_as_all_zero(loader):
     assert all(v == 0 for v in counts.values()), (
         f"clean run produced non-zero drops: {counts}"
     )
+
+
+# ── vocab orthogonality — palette/lighting/art_style must not duplicate phrases ──
+
+
+def test_light_rembrandt_chroma_does_not_duplicate_palette_caravaggio(loader):
+    """Vocab v10 — LIGHT_REMBRANDT chroma rephrased away from the
+    generic 'dramatic chiaroscuro shadow' token so it doesn't duplicate
+    PALETTE_BAROQUE_CARAVAGGIO when both fire on the same prompt.
+    Production prompt evidence (series_7898201654ae) had both tags emit
+    'dramatic chiaroscuro shadow' twice."""
+    rembrandt = loader.canonicalize("LIGHT_REMBRANDT", "chroma")
+    caravaggio = loader.canonicalize("PALETTE_BAROQUE_CARAVAGGIO", "chroma")
+    assert rembrandt is not None and caravaggio is not None
+    assert "chiaroscuro" not in rembrandt.lower(), (
+        "LIGHT_REMBRANDT chroma should anchor on the lighting TECHNIQUE "
+        "(triangle of light, key placement) not the generic 'chiaroscuro' "
+        "vocabulary that overlaps with palette canonicalization. Found: "
+        f"{rembrandt!r}"
+    )
+    rembrandt_phrases = set(p.strip() for p in rembrandt.split(","))
+    caravaggio_phrases = set(p.strip() for p in caravaggio.split(","))
+    shared = rembrandt_phrases & caravaggio_phrases
+    assert not shared, (
+        f"LIGHT_REMBRANDT + PALETTE_BAROQUE_CARAVAGGIO share phrases: {shared}"
+    )
+
+
+def test_light_rembrandt_chroma_carries_technical_specifics(loader):
+    """LIGHT_REMBRANDT chroma now describes the technique geometrically
+    (triangle of light on unlit cheek) rather than the generic
+    'chiaroscuro shadow'. Mirrors how flux/flux2 already specify the
+    triangle-on-cheek geometry."""
+    out = loader.canonicalize("LIGHT_REMBRANDT", "chroma")
+    assert "triangle" in out.lower(), (
+        f"LIGHT_REMBRANDT chroma missing triangle-of-light geometry: {out!r}"
+    )
+
+
+def test_art_boudoir_noir_does_not_carry_vintage_hollywood(loader):
+    """Vocab v10 — ART_BOUDOIR_NOIR canonicalization stripped of
+    'vintage Hollywood' phrasing. Vintage Hollywood is its own style
+    profile (`old_hollywood_glamour`) — leaking the phrase into
+    boudoir_noir created semantic conflict with modern photographer
+    references (Helmut Newton) in the same prompt."""
+    for family in ("sdxl", "illustrious", "flux", "chroma", "flux2"):
+        out = loader.canonicalize("ART_BOUDOIR_NOIR", family)
+        assert out is not None, f"ART_BOUDOIR_NOIR missing for {family}"
+        assert "vintage hollywood" not in out.lower() and "vintage_hollywood" not in out.lower(), (
+            f"ART_BOUDOIR_NOIR {family} still carries 'vintage Hollywood' "
+            f"vocab — should be domain-orthogonal to ART_OLD_HOLLYWOOD. "
+            f"Found: {out!r}"
+        )
+
+
+def test_art_old_hollywood_still_carries_vintage_marker(loader):
+    """Regression guard — when stripping 'vintage Hollywood' from
+    ART_BOUDOIR_NOIR we MUST NOT also strip it from ART_OLD_HOLLYWOOD,
+    where it's the load-bearing aesthetic anchor."""
+    out = loader.canonicalize("ART_OLD_HOLLYWOOD", "chroma")
+    assert out is not None
+    assert "old hollywood" in out.lower() or "hollywood" in out.lower(), (
+        f"ART_OLD_HOLLYWOOD should still anchor on Hollywood vocab: {out!r}"
+    )

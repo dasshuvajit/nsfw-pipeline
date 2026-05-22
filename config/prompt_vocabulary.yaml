@@ -27,7 +27,7 @@
 #   3. Bump ``version:`` at the top.
 #   4. Re-run regression suite — fixtures pin the byte-stable output.
 
-version: 9
+version: 10
 
 realism:
   # ── Lighting ─────────────────────────────────────────────────────────
@@ -37,8 +37,8 @@ realism:
       pony:        "rembrandt_lighting, dramatic_shadow, side_lit"
       illustrious: "rembrandt_lighting, dramatic shadow, chiaroscuro"
       flux:        "Rembrandt lighting with a soft triangle of light on the unlit cheek and a deep shadow on the rest of the face"
-      chroma:      "Rembrandt lighting, dramatic chiaroscuro shadow"
-      flux2:       "Rembrandt key light from camera-left at 45 degrees, soft triangle of light on the cheek opposite the key, deep chiaroscuro on the unlit half of the face"
+      chroma:      "Rembrandt lighting, soft triangle of light on the unlit cheek, deep shadow on the rest of the face"
+      flux2:       "Rembrandt key light from camera-left at 45 degrees, soft triangle of light on the cheek opposite the key, deep shadow on the unlit half of the face"
     LIGHT_BUTTERFLY:
       sdxl:        "butterfly lighting, paramount lighting, soft shadow under nose"
       pony:        "butterfly_lighting, paramount_lighting"
@@ -263,11 +263,11 @@ realism:
       chroma:      "fine art nude photograph, gallery quality, sculptural"
       flux2:       "Fine art nude photography composition in the gallery-print tradition, sculptural figure study emphasising form, tonal range, and lighting over story"
     ART_BOUDOIR_NOIR:
-      sdxl:        "boudoir noir photography, low key, intimate, vintage Hollywood"
-      illustrious: "boudoir_noir, low_key, intimate, vintage_hollywood"
-      flux:        "Boudoir noir photography, low-key intimate atmosphere with vintage Hollywood character"
-      chroma:      "boudoir noir, low-key intimate, vintage Hollywood feel"
-      flux2:       "Boudoir-noir photographic style, low-key intimate atmosphere, with vintage Hollywood character in the lighting, wardrobe, and tonal range"
+      sdxl:        "boudoir noir photography, low key, intimate, warm shadow editorial"
+      illustrious: "boudoir_noir, low_key, intimate, warm_shadow_editorial"
+      flux:        "Boudoir noir photography, low-key intimate atmosphere with a warm-shadow editorial mood"
+      chroma:      "boudoir noir, low-key intimate, warm-shadow editorial"
+      flux2:       "Boudoir-noir photographic style, low-key intimate atmosphere, warm-shadow editorial mood, the subject framed against deep darkness"
     ART_OLD_HOLLYWOOD:
       sdxl:        "Old Hollywood glamour photography, polished, timeless, Helmut Newton-esque"
       illustrious: "old_hollywood, glamour, polished, timeless"

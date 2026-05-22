@@ -545,10 +545,12 @@ def test_user_prompt_threads_subject_description(generator, loader):
 
 
 def test_system_prompt_carries_coherence_invariant(generator, loader):
-    """Round-22 (2026-05-22) — every SceneFacetGenerator call (regardless
-    of tier) carries the COHERENCE INVARIANT section in the system
-    prompt, with 3 sub-clauses on scene coherence + don't-weave-anchors
-    + tier-appropriate language."""
+    """Every SceneFacetGenerator call (regardless of tier) carries the
+    COHERENCE INVARIANT section in the system prompt, with 5 sub-clauses
+    (3 universal + 2 tier-conditional at T3+): scene coherence,
+    don't-weave-anchors, pose-angle-act geometric validity, tier-
+    appropriate anatomical language, and (T3+) no hair-as-censor
+    poetic phrasing."""
     family = loader.get_family("chroma")
     captured = {"system_prompt": ""}
 
@@ -570,8 +572,7 @@ def test_system_prompt_carries_coherence_invariant(generator, loader):
         )
     sys_prompt = captured["system_prompt"]
     assert "COHERENCE INVARIANT" in sys_prompt, (
-        "round-22 fix regressed — system prompt missing COHERENCE "
-        "INVARIANT header"
+        "system prompt missing COHERENCE INVARIANT header"
     )
     assert "ONE consistent time of day" in sys_prompt, (
         "missing scene-coherence sub-clause"
@@ -579,6 +580,101 @@ def test_system_prompt_carries_coherence_invariant(generator, loader):
     assert "Do NOT weave series-level aesthetics" in sys_prompt, (
         "missing don't-weave-anchors sub-clause"
     )
+    assert "GEOMETRICALLY VALID composition" in sys_prompt, (
+        "missing pose-angle-act geometric coherence sub-clause"
+    )
+    assert "hair-as-censor" in sys_prompt.lower() or "hair as censor" in sys_prompt.lower() or "hair-veil" in sys_prompt.lower() or "poetic-veil" in sys_prompt, (
+        "missing hair-as-censor sub-clause at T3+"
+    )
+
+
+_LONG_PROSE = (
+    "She stands by the tall window in the quiet parlour, soft "
+    "golden morning light falling across her shoulders and tracing "
+    "the line of her arm. Her gaze drifts toward the distant horizon, "
+    "contemplative and at ease in the silent room."
+)
+
+
+def test_system_prompt_geometric_coherence_universal(generator, loader):
+    """The pose+angle+nsfw_act geometric coherence sub-clause is
+    UNIVERSAL — present at every tier (not just T3/T4) since pose vs
+    angle coherence applies even when there's no NSFW content."""
+    family = loader.get_family("chroma")
+    for tier in ("T1_suggestive", "T2_implied", "T3_artnude", "T4_explicit"):
+        captured = {"system_prompt": ""}
+
+        def capture(system_prompt, user_prompt, **kwargs):
+            captured["system_prompt"] = system_prompt
+            return (
+                '{"scene_prose": "' + _LONG_PROSE + '", '
+                + _required_tags_for(tier) + '}'
+            )
+
+        with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
+            generator.generate(
+                scene=_scene(),
+                family=family,
+                content_level=tier,
+            )
+        sys_prompt = captured["system_prompt"]
+        assert "GEOMETRICALLY VALID composition" in sys_prompt, (
+            f"geometric coherence clause missing at {tier}"
+        )
+        assert "reclining pose + low angle" in sys_prompt, (
+            f"geometric coherence example missing at {tier}"
+        )
+
+
+def test_system_prompt_hair_clause_gated_to_t3_plus(generator, loader):
+    """The no-hair-as-censor sub-clause is tier-gated to T3+ (where
+    nudity is visible). T1/T2 don't need it since the subject is
+    clothed."""
+    family = loader.get_family("chroma")
+    for tier in ("T3_artnude", "T4_explicit"):
+        captured = {"system_prompt": ""}
+
+        def capture(system_prompt, user_prompt, **kwargs):
+            captured["system_prompt"] = system_prompt
+            return (
+                '{"scene_prose": "' + _LONG_PROSE + '", '
+                + _required_tags_for(tier) + '}'
+            )
+
+        with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
+            generator.generate(
+                scene=_scene(),
+                family=family,
+                content_level=tier,
+            )
+        sys_prompt = captured["system_prompt"]
+        assert "hair as 'cascading around select areas'" in sys_prompt, (
+            f"hair-as-censor clause missing at {tier}"
+        )
+        assert "poetic-veil" in sys_prompt, (
+            f"poetic-veil phrasing absent at {tier}"
+        )
+
+    for tier in ("T1_suggestive", "T2_implied"):
+        captured = {"system_prompt": ""}
+
+        def capture(system_prompt, user_prompt, **kwargs):
+            captured["system_prompt"] = system_prompt
+            return (
+                '{"scene_prose": "' + _LONG_PROSE + '", '
+                + _required_tags_for(tier) + '}'
+            )
+
+        with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
+            generator.generate(
+                scene=_scene(),
+                family=family,
+                content_level=tier,
+            )
+        sys_prompt = captured["system_prompt"]
+        assert "hair as 'cascading around select areas'" not in sys_prompt, (
+            f"hair-as-censor clause leaked into {tier} (should be T3+ only)"
+        )
 
 
 def test_system_prompt_t4_allows_explicit_anatomical_language(generator, loader):
