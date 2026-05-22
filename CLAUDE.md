@@ -249,9 +249,52 @@ ComfyUI runs separately from this project. The install path varies per machine �
 Workflow JSON templates live in this project under config/comfyui_workflows/{family}/ (one subdir per family — sdxl/, pony/, illustrious/, flux/, flux2/, chroma/).
 External user-authored workflow templates live under config/comfyui_workflows/templates/{family}/ — see docs/COMFYUI_WORKFLOWS.md § External templates.
 
+## Dual-write prose contract (2026-05-23) — for chroma / flux / flux2
+After three rounds of incremental tag-soup patching that left avg
+prompt quality at 4.88/10 (Grok + Claude web audits on series
+_79ae3b962c8d / _753f4daae5f2), the architecture pivoted for
+prose-family prompts (chroma / flux / flux2):
+
+- **LLM emits BOTH** structured tags (for validators + analytics +
+  diversity tracking) AND a 40-350 word `scene_prose` paragraph
+  weaving subject + pose + anatomy + light + env + mood + style into
+  ONE coherent narrative. 100-250 is the target band; 40 is the
+  empirical minimum DavidAU 12B / Cydonia 24B hit; 350 is the upper
+  hard band.
+- **Composer for prose families** drops per-axis canonicalizations
+  AND series_aesthetic AND archetype style_keywords from the final
+  prompt body. The LLM's scene_prose is the body; composer adds:
+  - solo_anchor + adult_anchor prefix (safety)
+  - camera/lens shorthand tail (realism_tail_style: "period" for
+    chroma — "photographic, natural skin texture")
+  - negative stack
+- **Tier-required field set narrowed** at T3/T4 (was 11, now 3-4):
+  T3 → nsfw_anatomy + environment_setting + narrative_moment
+  T4 → adds nsfw_act
+  Demoted (no longer strict-schema-required): lighting_directive,
+  mood_aesthetic, realism_camera/lens/angle, art_style_reference,
+  environment_atmosphere — the LLM weaves these into scene_prose.
+- **SDXL / Pony / Illustrious** (CLIP encoder) keep the previous
+  keyword-stitched architecture. CLIP rewards comma-tag stacking;
+  T5 (chroma/flux/flux2) wants flowing prose.
+- **Cydonia 24B (32K context)** is the recommended LLM for prose
+  families. DavidAU 12B at 4K-16K context can't fit the dual-write
+  system prompt reliably. `--llm cydonia_heretic_24b` to switch.
+- **Sad/crying ban (vocab v12)**: MOOD_PENSIVE + MOOD_MELANCHOLIC
+  rebranded to "introspective / contemplative / quiet composure".
+  System prompt explicitly forbids tears, crying, weeping,
+  mournful, grieving in scene_prose. Commercial NSFW sells
+  confidence + sensuality, not sorrow.
+
+5-scene T4 Cydonia verification (series_010704977930): 5/5 prompts
+score 10/10 on the audit_prompts.py rubric, vs baseline 0/24
+excellent on series_753f4daae5f2.
+
 ## Key Files
 - ARCHITECTURE.md — System design; living doc, update when code drifts (last sync: 2026-05-20 — vocab v7 anti-grid / anti-mirror cleanup; supersedes v6 creative-uplift)
 - CLAUDE.md — This file (project context for Claude Code)
 - PROJECT_GUIDE.md — Living document: setup, run, test instructions (UPDATE after every implementation)
-- config/prompt_vocabulary.yaml — Versioned realism + NSFW + environment + narrative + aesthetic + composition concept library (vocab v7, anti-grid / anti-mirror cleanup 2026-05-20; canonicalizer translates abstract concept tags to family phrasing at compose time)
-- config/llm_models.yaml — LLM registry (multi-LLM upgrade, 2026-05). Per-CLI `--llm <id>` overrides routing + default; validated at startup.
+- config/prompt_vocabulary.yaml — Versioned realism + NSFW + environment + narrative + aesthetic + composition concept library (vocab v12, 2026-05-23 — sad/crying mood softening; mood_pensive + mood_melancholic rebranded to introspective/contemplative)
+- config/llm_models.yaml — LLM registry (multi-LLM upgrade, 2026-05). Per-CLI `--llm <id>` overrides routing + default; validated at startup. **Cydonia 24B recommended for prose families** (32K context, sustained 100+ word coherent prose).
+- scripts/audit_prompts.py — mechanical scoring of composed prompts against Grok/Claude-web rubric (style stacking, lighting collision, camera angle contradiction, B&W vs color, tag soup, T4 anatomy, repetition). `python scripts/audit_prompts.py <series_id>`.
+- `prepare_prompts.py --scenes N` — short-series testing (N=1 for fast iteration; default 25 for production).
