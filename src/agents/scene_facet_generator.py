@@ -841,6 +841,15 @@ _DIVERSITY_TRACKED_AXES: tuple[str, ...] = (
     "lighting_directive",
     "mood_aesthetic",
     "nsfw_anatomy",
+    # nsfw_act added 2026-05-23: T4 verification series
+    # (series_c572709666a2) showed NSFW_T4_SOLO_DISPLAY at 13/24 =
+    # 54% — untouched because the tracker only watched the 8 axes
+    # above. Adding nsfw_act extends the diversity nudge to T4
+    # explicit-act tags so the LLM rotates through SOLO_DISPLAY /
+    # SOLO_GAZE / SOLO_RECLINING / SOLO_TOUCH / SOLO_BATH / SOLO_
+    # OUTDOOR instead of locking on one. Null below T4 (the axis is
+    # silently skipped by the tracker's None-guard).
+    "nsfw_act",
     "environment_setting",
     "environment_atmosphere",
     "narrative_moment",
@@ -1356,7 +1365,29 @@ class SceneFacetGenerator:
             if (facet is not None and diversity_tracker is not None)
             else {}
         )
-        if facet is not None and not missing and not dominance_hits:
+        # Pose ↔ nsfw_act / nsfw_posture geometric coherence (clause 3
+        # defense-in-depth, 2026-05-23). System-prompt instruction
+        # alone proved unreliable on series_c572709666a2: 4/5 reclining
+        # poses correctly avoided SOLO_DISPLAY but scene_021 ignored
+        # the clause. This rejects the incoherent facet so the existing
+        # retry-with-nudge mechanism fires — same shape as F15 + the
+        # dominance retry.
+        from src.prompt.vocabulary import check_pose_act_coherence
+        pose_act_violations: list[tuple[str, str, str]] = (
+            check_pose_act_coherence(
+                pose=scene.get("pose"),
+                nsfw_act=facet.get("nsfw_act") if facet else None,
+                nsfw_posture=facet.get("nsfw_posture") if facet else None,
+            )
+            if facet is not None
+            else []
+        )
+        if (
+            facet is not None
+            and not missing
+            and not dominance_hits
+            and not pose_act_violations
+        ):
             return _sanitize_facet_freetext(
                 _strip_none_values(facet),
                 scene_id=scene.get("id"),
@@ -1390,6 +1421,21 @@ class SceneFacetGenerator:
                         f"  - {axis}: NOT {over_tag}; pick any other "
                         f"tag from that namespace's menu."
                     )
+
+        # Pose-act coherence nudge — assembled separately so the retry
+        # branch logic stays readable. Same pattern as dominance.
+        pose_act_nudge_lines: list[str] = []
+        if pose_act_violations:
+            pose_act_nudge_lines.append(
+                "GEOMETRIC-RETRY: your first attempt picked nsfw_act / "
+                "nsfw_posture tag(s) that are physically incompatible "
+                "with the scene's pose. The camera cannot photograph "
+                "the body in two orientations at once. Re-pick:"
+            )
+            for field, bad_tag, reason in pose_act_violations:
+                pose_act_nudge_lines.append(
+                    f"  - {field}: NOT {bad_tag}. Why: {reason}"
+                )
 
         if missing:
             logger.warning(
@@ -1431,24 +1477,37 @@ class SceneFacetGenerator:
                         f"that namespace's menu in the system prompt)."
                     )
             nudge_lines.extend(dominance_nudge_lines)
+            nudge_lines.extend(pose_act_nudge_lines)
             nudge_lines.append(
                 "Return ONLY a single JSON object with these fields "
                 "populated."
             )
             retry_prompt = user_prompt + "\n".join(nudge_lines)
-        elif dominance_hits:
+        elif dominance_hits or pose_act_violations:
             # Round-13: facet is structurally valid (no missing fields)
-            # but landed on an already-over-represented tag for at
-            # least one tracked axis. Retry with the dominance-only
-            # nudge so the LLM picks a different tag this scene.
+            # but landed on an already-over-represented tag (diversity)
+            # OR a geometrically incoherent pose-act combination
+            # (added 2026-05-23). Retry with the matching nudge(s).
+            if dominance_hits and pose_act_violations:
+                reason_msg = (
+                    f"over-represented tag(s) {dominance_hits} AND "
+                    f"pose-act coherence violation(s) {[(f, t) for f, t, _ in pose_act_violations]}"
+                )
+            elif dominance_hits:
+                reason_msg = f"over-represented tag(s) {dominance_hits}"
+            else:
+                reason_msg = (
+                    f"pose-act coherence violation(s) "
+                    f"{[(f, t) for f, t, _ in pose_act_violations]}"
+                )
             logger.warning(
                 "Scene facet generator: first attempt for family %s "
-                "picked over-represented tag(s) %s; retrying with "
-                "diversity nudge.",
-                family.id, dominance_hits,
+                "rejected — %s; retrying with explicit nudge.",
+                family.id, reason_msg,
             )
             nudge_lines = ["", ""]
             nudge_lines.extend(dominance_nudge_lines)
+            nudge_lines.extend(pose_act_nudge_lines)
             nudge_lines.append(
                 "Return ONLY a single JSON object."
             )

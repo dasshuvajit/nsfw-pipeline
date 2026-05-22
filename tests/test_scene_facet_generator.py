@@ -1116,6 +1116,28 @@ def test_diversity_tracker_catches_one_third_concentration():
     assert "NARR_LIGHTING_CIGARETTE_BALCONY" in nudge
 
 
+def test_diversity_tracker_catches_nsfw_act_dominance():
+    """T4 verification series (series_c572709666a2) showed SOLO_DISPLAY
+    at 13/24 = 54% — pre-fix the tracker watched 8 axes but not
+    nsfw_act, so the diversity nudge never fired on it. Adding
+    nsfw_act to _DIVERSITY_TRACKED_AXES brings T4 explicit-act
+    rotation into the diversity discipline."""
+    from src.agents.scene_facet_generator import _DiversityTracker
+    t = _DiversityTracker()
+    # 7 facets — 4 with SOLO_DISPLAY (4/7 ≈ 57% > 30%).
+    for _ in range(4):
+        t.record({"nsfw_act": "NSFW_T4_SOLO_DISPLAY"})
+    for tag in (
+        "NSFW_T4_SOLO_RECLINING", "NSFW_T4_SOLO_GAZE", "NSFW_T4_SOLO_TOUCH",
+    ):
+        t.record({"nsfw_act": tag})
+    nudge = t.overused_summary()
+    assert "nsfw_act" in nudge, (
+        "nsfw_act dominance not surfaced — tracker missed the axis"
+    )
+    assert "NSFW_T4_SOLO_DISPLAY" in nudge
+
+
 def test_diversity_tracker_handles_multiple_overused_axes():
     """When two axes both hit dominance, both appear in the nudge."""
     from src.agents.scene_facet_generator import _DiversityTracker
@@ -1371,3 +1393,101 @@ def test_diversity_third_attempt_fires_hard_ban_nudge(generator, loader):
     )
     assert "BANNED = LIGHT_WINDOW_SIDE" in captured_prompts[2]
     assert "final attempt" in captured_prompts[2]
+
+
+def test_pose_act_coherence_triggers_retry_with_nudge(generator, loader):
+    """Defense-in-depth for COHERENCE INVARIANT clause 3 (2026-05-23):
+    when the LLM picks an nsfw_act that's geometrically incompatible
+    with the scene's pose (e.g. reclining + SOLO_DISPLAY, the exact
+    scene_021 bug from series_c572709666a2), reject the facet and
+    retry with the GEOMETRIC-RETRY nudge."""
+    family = loader.get_family("chroma")
+    reclining_scene = dict(_scene(), pose="reclining expressive with dramatic side lighting")
+
+    # First attempt → SOLO_DISPLAY (incompatible with reclining).
+    # Second attempt → SOLO_RECLINING (compatible).
+    attempts: list[str] = []
+    captured_prompts: list[str] = []
+
+    def capture(system_prompt, user_prompt, **kwargs):
+        captured_prompts.append(user_prompt)
+        if len(attempts) == 0:
+            attempts.append("display")
+            return (
+                '{"scene_prose": "She reclines on the velvet chaise, '
+                'soft golden light tracing the curve of her hip and '
+                'the long line of her bare back, her gaze drifting '
+                'languidly toward the open balcony door.", '
+                + _T4_REQUIRED_TAGS_JSON.replace(
+                    "NSFW_T4_SOLO_TOUCH", "NSFW_T4_SOLO_DISPLAY",
+                )
+                + '}'
+            )
+        attempts.append("reclining")
+        return (
+            '{"scene_prose": "She reclines on the velvet chaise, '
+            'soft golden light tracing the curve of her hip and the '
+            'long line of her bare back, her gaze drifting languidly '
+            'toward the open balcony door.", '
+            + _T4_REQUIRED_TAGS_JSON.replace(
+                "NSFW_T4_SOLO_TOUCH", "NSFW_T4_SOLO_RECLINING",
+            )
+            + '}'
+        )
+
+    with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
+        result = generator.generate(
+            scene=reclining_scene,
+            family=family,
+            content_level="T4_explicit",
+        )
+
+    # At least 2 attempts (first + retry); ≥2 is enough since the
+    # retry could have succeeded on attempt 2 OR needed a 3rd.
+    assert len(captured_prompts) >= 2, (
+        f"expected at least 2 attempts, got {len(captured_prompts)}"
+    )
+    # The retry prompt must carry the GEOMETRIC-RETRY nudge.
+    assert "GEOMETRIC-RETRY" in captured_prompts[1], (
+        f"retry prompt missing GEOMETRIC-RETRY nudge. "
+        f"got: {captured_prompts[1][-500:]!r}"
+    )
+    assert "NOT NSFW_T4_SOLO_DISPLAY" in captured_prompts[1], (
+        "retry nudge should explicitly cite the rejected tag"
+    )
+    # Final facet should have the compatible act.
+    assert result is not None
+    assert result.get("nsfw_act") == "NSFW_T4_SOLO_RECLINING"
+
+
+def test_pose_act_neutral_act_does_not_trigger_retry(generator, loader):
+    """Sanity check — when the LLM picks an orientation-neutral act
+    (SOLO_GAZE / SOLO_TOUCH) on a reclining scene, no retry fires.
+    Confirms the check fires only on real incoherence."""
+    family = loader.get_family("chroma")
+    reclining_scene = dict(_scene(), pose="reclining expressive")
+    captured_prompts: list[str] = []
+
+    def capture(system_prompt, user_prompt, **kwargs):
+        captured_prompts.append(user_prompt)
+        # SOLO_TOUCH = orientation-neutral, always compatible
+        return (
+            '{"scene_prose": "She reclines on the velvet chaise, '
+            'soft golden light tracing the curve of her hip and the '
+            'long line of her bare back, her gaze drifting languidly '
+            'toward the open balcony door.", '
+            + _T4_REQUIRED_TAGS_JSON
+            + '}'
+        )
+
+    with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
+        generator.generate(
+            scene=reclining_scene,
+            family=family,
+            content_level="T4_explicit",
+        )
+    # SOLO_TOUCH is fine; should succeed on first attempt.
+    assert len(captured_prompts) == 1, (
+        f"unnecessary retry — SOLO_TOUCH is orientation-neutral. "
+        f"got {len(captured_prompts)} attempts"
+    )

@@ -486,6 +486,137 @@ def _record_drop(kind: str) -> None:
         _DROP_COUNTS[kind] += 1
 
 
+# ── Pose ↔ nsfw_act / nsfw_posture geometric coherence ───────────────
+#
+# Defense-in-depth for COHERENCE INVARIANT clause 3. System-prompt
+# instruction alone proved unreliable: a T4 verification series
+# (series_c572709666a2) showed 4/5 reclining poses correctly paired
+# with SOLO_RECLINING / SOLO_GAZE but scene_021 ignored the clause
+# and picked SOLO_DISPLAY on a reclining body. This module-level
+# check rejects the incoherent facet so the existing retry-with-
+# nudge mechanism fires, same architecture as F15.
+#
+# Pose-class detection: keyword scan on the scene's pose string. The
+# scene's pose is free-text from the SceneGenerator, not a structured
+# tag, so we classify by substring matching. Add new keywords here as
+# the SceneGenerator's pose vocabulary evolves.
+_POSE_ORIENTATION_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "RECLINING": ("reclin", "lying", "lounging", "sprawled", "supine"),
+    "STANDING": ("standing", "stand", "leaning",),
+    "KNEELING": ("kneeling", "kneel", "on her knees"),
+    "SEATED": ("sitting", "seated", "perched"),
+    "ARCHED": ("arching", "arched back"),
+}
+
+# Per-orientation acts that the camera physically cannot see when the
+# body is in that orientation. ARCHED back is left unconstrained
+# because the spine arch is compatible with reclining + display +
+# standing; the orientation is the supporting pose, not the arch.
+_POSE_INCOMPATIBLE_ACTS: dict[str, frozenset[str]] = {
+    "RECLINING": frozenset({
+        "NSFW_T4_SOLO_DISPLAY",
+        "NSFW_T4_SOLO_PERFORMER",
+    }),
+    "STANDING": frozenset({
+        "NSFW_T4_SOLO_RECLINING",
+        "NSFW_T4_AFTERGLOW",
+    }),
+    "KNEELING": frozenset({
+        "NSFW_T4_SOLO_RECLINING",
+        "NSFW_T4_AFTERGLOW",
+    }),
+    "SEATED": frozenset({
+        "NSFW_T4_SOLO_RECLINING",
+        "NSFW_T4_AFTERGLOW",
+    }),
+}
+
+# Each pose orientation has exactly ONE matching nsfw_posture tag.
+# Any other posture tag is by definition contradictory.
+_POSE_MATCHING_POSTURE: dict[str, str] = {
+    "RECLINING": "NSFW_RECLINED_NUDE",
+    "STANDING": "NSFW_STANDING_NUDE",
+    "KNEELING": "NSFW_KNEELING_NUDE",
+    "SEATED": "NSFW_SEATED_NUDE",
+    "ARCHED": "NSFW_ARCHED_BACK_NUDE",
+}
+
+
+def _classify_pose_orientation(pose: str | None) -> str | None:
+    """Return the orientation class for ``pose`` (RECLINING / STANDING /
+    KNEELING / SEATED / ARCHED) by keyword scan, or ``None`` when no
+    keyword matches (ambiguous pose → skip the check)."""
+    if not pose:
+        return None
+    pose_lower = pose.lower()
+    # Order matters — RECLINING / KNEELING checked first so "leaning"
+    # in STANDING doesn't match "kneeling with arms leaning over chair".
+    # ARCHED checked before STANDING so "arched back standing" is
+    # classified as ARCHED.
+    for orientation in ("ARCHED", "RECLINING", "KNEELING", "SEATED", "STANDING"):
+        keywords = _POSE_ORIENTATION_KEYWORDS[orientation]
+        if any(kw in pose_lower for kw in keywords):
+            return orientation
+    return None
+
+
+def check_pose_act_coherence(
+    *,
+    pose: str | None,
+    nsfw_act: str | None,
+    nsfw_posture: str | None,
+) -> list[tuple[str, str, str]]:
+    """Validate that the LLM's ``nsfw_act`` + ``nsfw_posture`` picks
+    are geometrically compatible with the scene's ``pose`` field.
+
+    Returns a list of ``(field, tag, reason)`` tuples for each
+    incoherent pair. Empty list = the facet's pose/act/posture form
+    a physically valid composition.
+
+    Used by SceneFacetGenerator's retry loop to reject facets that
+    violate COHERENCE INVARIANT clause 3 — same retry-with-nudge
+    mechanism as the dominance check + F15.
+
+    When ``pose`` doesn't match any known orientation keyword the
+    check is skipped (we don't know the body's orientation, so we
+    can't judge the act). Same fail-open principle as F15.
+    """
+    orientation = _classify_pose_orientation(pose)
+    if orientation is None:
+        return []
+    violations: list[tuple[str, str, str]] = []
+    # nsfw_act check — orientation-incompatible acts.
+    if nsfw_act:
+        incompatible = _POSE_INCOMPATIBLE_ACTS.get(orientation, frozenset())
+        if str(nsfw_act).strip() in incompatible:
+            violations.append((
+                "nsfw_act",
+                str(nsfw_act),
+                f"scene pose={pose!r} is {orientation}-oriented but "
+                f"nsfw_act={nsfw_act} implies a different body "
+                f"orientation — the camera physically cannot see this "
+                f"combination as one coherent shot. Pick an act compatible "
+                f"with {orientation} (e.g. NSFW_T4_SOLO_GAZE / "
+                f"NSFW_T4_SOLO_TOUCH for any orientation; "
+                f"NSFW_T4_SOLO_RECLINING for RECLINING; "
+                f"NSFW_T4_SOLO_DISPLAY / NSFW_T4_SOLO_PERFORMER for "
+                f"STANDING / KNEELING / SEATED)."
+            ))
+    # nsfw_posture check — exact-match enforcement.
+    if nsfw_posture:
+        expected = _POSE_MATCHING_POSTURE.get(orientation)
+        if expected and str(nsfw_posture).strip() != expected:
+            violations.append((
+                "nsfw_posture",
+                str(nsfw_posture),
+                f"scene pose={pose!r} is {orientation}-oriented; "
+                f"nsfw_posture must be {expected!r} to match. Got "
+                f"{nsfw_posture!r} which describes a different "
+                f"orientation entirely."
+            ))
+    return violations
+
+
 def check_facet_env_coherence(
     *,
     environment_setting: str | None,

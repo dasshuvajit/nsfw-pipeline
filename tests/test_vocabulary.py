@@ -1401,6 +1401,110 @@ def test_drop_counter_records_clean_run_as_all_zero(loader):
     )
 
 
+# ── pose ↔ nsfw_act / nsfw_posture geometric coherence ─────────────
+
+
+def test_pose_act_coherence_passes_reclining_with_reclining_act():
+    from src.prompt.vocabulary import check_pose_act_coherence
+    violations = check_pose_act_coherence(
+        pose="reclining expressive on a velvet chaise",
+        nsfw_act="NSFW_T4_SOLO_RECLINING",
+        nsfw_posture=None,
+    )
+    assert violations == []
+
+
+def test_pose_act_coherence_rejects_reclining_with_solo_display():
+    """The exact scene_021 bug — reclining pose + SOLO_DISPLAY act
+    is geometrically impossible (low angle of a reclining body sees
+    feet-first, not torso-frontal)."""
+    from src.prompt.vocabulary import check_pose_act_coherence
+    violations = check_pose_act_coherence(
+        pose="reclining expressive with dramatic side lighting",
+        nsfw_act="NSFW_T4_SOLO_DISPLAY",
+        nsfw_posture=None,
+    )
+    assert len(violations) == 1
+    field, tag, reason = violations[0]
+    assert field == "nsfw_act"
+    assert tag == "NSFW_T4_SOLO_DISPLAY"
+    assert "RECLINING" in reason
+
+
+def test_pose_act_coherence_rejects_standing_with_reclining_act():
+    """Inverse case — standing pose + SOLO_RECLINING is impossible."""
+    from src.prompt.vocabulary import check_pose_act_coherence
+    violations = check_pose_act_coherence(
+        pose="standing confident with open body language",
+        nsfw_act="NSFW_T4_SOLO_RECLINING",
+        nsfw_posture=None,
+    )
+    assert len(violations) == 1
+    assert violations[0][0] == "nsfw_act"
+
+
+def test_pose_act_coherence_rejects_kneeling_with_reclining_act():
+    from src.prompt.vocabulary import check_pose_act_coherence
+    violations = check_pose_act_coherence(
+        pose="kneeling on a chair with arms draped over the back",
+        nsfw_act="NSFW_T4_AFTERGLOW",
+        nsfw_posture=None,
+    )
+    assert len(violations) == 1
+    assert "KNEELING" in violations[0][2]
+
+
+def test_pose_act_coherence_rejects_posture_mismatch():
+    """nsfw_posture must MATCH the scene's pose orientation. Reclining
+    scene + STANDING_NUDE posture is contradictory."""
+    from src.prompt.vocabulary import check_pose_act_coherence
+    violations = check_pose_act_coherence(
+        pose="reclining expressive",
+        nsfw_act=None,
+        nsfw_posture="NSFW_STANDING_NUDE",
+    )
+    assert len(violations) == 1
+    field, tag, reason = violations[0]
+    assert field == "nsfw_posture"
+    assert tag == "NSFW_STANDING_NUDE"
+    assert "RECLINED_NUDE" in reason  # expected posture cited
+
+
+def test_pose_act_coherence_accepts_neutral_acts_at_any_pose():
+    """SOLO_GAZE and SOLO_TOUCH are orientation-neutral — compatible
+    with any pose."""
+    from src.prompt.vocabulary import check_pose_act_coherence
+    for pose in ("reclining", "standing", "kneeling", "sitting"):
+        for act in ("NSFW_T4_SOLO_GAZE", "NSFW_T4_SOLO_TOUCH"):
+            assert check_pose_act_coherence(
+                pose=pose, nsfw_act=act, nsfw_posture=None,
+            ) == [], f"{pose} + {act} should be neutral"
+
+
+def test_pose_act_coherence_skipped_for_ambiguous_pose():
+    """When the pose doesn't match any known orientation keyword, the
+    check fails open — we can't classify, so we trust the LLM."""
+    from src.prompt.vocabulary import check_pose_act_coherence
+    violations = check_pose_act_coherence(
+        pose="contemplative gesture with hands in hair",
+        nsfw_act="NSFW_T4_SOLO_RECLINING",
+        nsfw_posture=None,
+    )
+    assert violations == []
+
+
+def test_pose_act_coherence_skipped_when_no_act_or_posture():
+    """When both act and posture are null (T1-T3 below the gate),
+    nothing to check."""
+    from src.prompt.vocabulary import check_pose_act_coherence
+    violations = check_pose_act_coherence(
+        pose="reclining expressive",
+        nsfw_act=None,
+        nsfw_posture=None,
+    )
+    assert violations == []
+
+
 # ── vocab orthogonality — palette/lighting/art_style must not duplicate phrases ──
 
 
