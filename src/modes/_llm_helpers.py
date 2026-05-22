@@ -247,6 +247,79 @@ def widen_compat_intersection(
     return cat
 
 
+def validate_aesthetic_anchors_in_vocab(
+    plan: dict[str, Any],
+    *,
+    mode_name: str,
+) -> None:
+    """Round-22 F14 (2026-05-22) — null any series-aesthetic anchor
+    tag that doesn't exist in the vocabulary.
+
+    The SeriesPlan schema's regex validator on the 3 anchor fields
+    (``color_palette`` / ``photographer_ref`` / ``art_movement``)
+    checks only the prefix (``PALETTE_*`` / ``PHOTOG_*`` /
+    ``ART_MOVE_*``). A hallucinated tag with the right prefix but
+    no entry in :file:`config/prompt_vocabulary.yaml` (e.g.
+    ``PALETTE_DUTCH_GOLDEN_VERMEER`` when only ``ART_MOVE_DUTCH_GOLDEN_VERMEER``
+    exists) passes the schema check and silently disappears at the
+    canonicalizer — F13's drop counter surfaces the aggregate but
+    the planner doesn't learn.
+
+    This helper closes the loop:
+      1. Read each anchor tag the planner emitted.
+      2. Look it up in the vocab namespace.
+      3. If missing: NULL the field + log WARNING with the invalid
+         tag name. The series renders without that one anchor — F4's
+         consolidation still works on the remaining anchors.
+
+    Called from each mode's ``_validate_plan`` AFTER
+    :func:`repair_aesthetic_anchor_keys` and BEFORE
+    :func:`warn_if_missing_aesthetic_anchors` so the "missing" warning
+    catches both "planner never emitted" + "emitted but invalid →
+    nulled here" paths.
+    """
+    from src.prompt.vocabulary import VocabularyLoader
+    loader = VocabularyLoader()
+    namespaces: tuple[tuple[str, str, str], ...] = (
+        # (plan field, vocab top namespace, vocab sub namespace)
+        ("color_palette",    "aesthetic", "color_palette"),
+        ("photographer_ref", "aesthetic", "photographer_ref"),
+        ("art_movement",     "aesthetic", "art_movement"),
+    )
+    for field, top, sub in namespaces:
+        tag = plan.get(field)
+        if not tag:
+            continue
+        if not loader.tag_exists(top, sub, str(tag)):
+            logger.warning(
+                "%s: SeriesPlanner emitted invalid %s=%r — tag is "
+                "not in %s.%s namespace in prompt_vocabulary.yaml "
+                "(LLM hallucination). Nulling so the canonicalizer "
+                "doesn't waste cycles dropping it later; the series "
+                "will render with %d aesthetic anchor(s) instead of "
+                "the full 3.",
+                mode_name, field, tag, top, sub,
+                _count_remaining_aesthetic_anchors(plan, field),
+            )
+            plan[field] = None
+
+
+def _count_remaining_aesthetic_anchors(
+    plan: dict[str, Any], nulled_field: str,
+) -> int:
+    """Helper for F14's log message — count how many aesthetic anchors
+    will SURVIVE after the field about to be nulled. Used to make the
+    warning explicit about the cost ("rendering with 2 anchors instead
+    of 3")."""
+    remaining = 0
+    for field in _AESTHETIC_ANCHOR_FIELDS:
+        if field == nulled_field:
+            continue
+        if plan.get(field):
+            remaining += 1
+    return remaining
+
+
 def warn_if_missing_aesthetic_anchors(
     plan: dict[str, Any], *, mode_name: str,
 ) -> None:

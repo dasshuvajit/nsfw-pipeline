@@ -31,6 +31,7 @@ from src.modes._llm_helpers import (
     repair_colon_suffix_aesthetic_keys,
     run_llm_with_retry,
     validate_scene_list,
+    validate_aesthetic_anchors_in_vocab,
     warn_if_missing_aesthetic_anchors,
     widen_compat_intersection,
 )
@@ -435,6 +436,13 @@ class ThemeMode(BaseMode):
         # schema-required `"color_palette": null`. Repair-then-warn
         # so the warning only fires on real misses.
         repair_colon_suffix_aesthetic_keys(result)
+        # Round-22 F14 (2026-05-22) — null any anchor the planner
+        # hallucinated (passed the regex prefix check but doesn't
+        # exist in vocab). MUST run AFTER repair (which fixes
+        # cosmetic key typos) and BEFORE the missing-anchors warn
+        # (which logs both "never emitted" and "emitted-but-nulled-
+        # here" paths uniformly).
+        validate_aesthetic_anchors_in_vocab(result, mode_name="ThemeMode")
         # Verifier round-4 IMPORTANT-5 — soft warn when aesthetic anchors
         # are missing. Doesn't reject (Pony legitimately omits two of
         # three), but surfaces silent Phase 3 degradation in run_log.

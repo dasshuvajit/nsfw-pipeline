@@ -103,6 +103,120 @@ def test_no_warning_when_all_three_populated(caplog):
     )
 
 
+# ── Round-22 F14: planner anchor-validation against vocab ──────────
+
+
+def test_validate_anchors_nulls_invalid_palette(caplog):
+    """Round-22 F14 — when the planner emits PALETTE_DUTCH_GOLDEN_VERMEER
+    (which doesn't exist in vocab — only the art_movement variant
+    does), the validator nulls it and logs a WARNING with the
+    invalid tag name. Mirrors the exact failure mode observed in
+    T3 verification series_6a762d7bc949."""
+    from src.modes._llm_helpers import validate_aesthetic_anchors_in_vocab
+    caplog.set_level(logging.WARNING, logger="src.modes._llm_helpers")
+    plan = {
+        "color_palette": "PALETTE_DUTCH_GOLDEN_VERMEER",   # NOT in vocab
+        "photographer_ref": "PHOTOG_HELMUT_NEWTON",        # valid
+        "art_movement": "ART_MOVE_DUTCH_GOLDEN_VERMEER",   # valid
+    }
+    validate_aesthetic_anchors_in_vocab(plan, mode_name="TestMode")
+    assert plan["color_palette"] is None, (
+        f"invalid palette should have been nulled; got {plan['color_palette']!r}"
+    )
+    # Valid anchors survive.
+    assert plan["photographer_ref"] == "PHOTOG_HELMUT_NEWTON"
+    assert plan["art_movement"] == "ART_MOVE_DUTCH_GOLDEN_VERMEER"
+    # WARN log fired with the invalid tag.
+    assert any(
+        "PALETTE_DUTCH_GOLDEN_VERMEER" in r.message
+        for r in caplog.records
+    ), f"WARN should mention the invalid tag; got: {[r.message for r in caplog.records]!r}"
+
+
+def test_validate_anchors_silent_on_all_valid(caplog):
+    """Round-22 F14 — when all three anchors are valid vocab entries,
+    nothing is nulled and no "invalid" WARN fires."""
+    from src.modes._llm_helpers import validate_aesthetic_anchors_in_vocab
+    caplog.set_level(logging.WARNING, logger="src.modes._llm_helpers")
+    plan = {
+        "color_palette": "PALETTE_TEAL_ORANGE_BLOCKBUSTER",
+        "photographer_ref": "PHOTOG_HELMUT_NEWTON",
+        "art_movement": "ART_MOVE_FILM_NOIR_1940S",
+    }
+    validate_aesthetic_anchors_in_vocab(plan, mode_name="TestMode")
+    assert plan["color_palette"] == "PALETTE_TEAL_ORANGE_BLOCKBUSTER"
+    assert plan["photographer_ref"] == "PHOTOG_HELMUT_NEWTON"
+    assert plan["art_movement"] == "ART_MOVE_FILM_NOIR_1940S"
+    invalid_warns = [
+        r for r in caplog.records
+        if "SeriesPlanner emitted invalid" in r.message
+    ]
+    assert not invalid_warns, (
+        f"expected zero invalid-tag warns on a clean plan; got: "
+        f"{[r.message for r in invalid_warns]!r}"
+    )
+
+
+def test_validate_anchors_skips_empty_fields():
+    """Round-22 F14 — empty / None / absent fields are NOT validated
+    (no warn, no exception). Pony legitimately omits photographer_ref
+    + art_movement; that path must remain silent."""
+    from src.modes._llm_helpers import validate_aesthetic_anchors_in_vocab
+    plan = {
+        "color_palette": "PALETTE_TEAL_ORANGE_BLOCKBUSTER",
+        "photographer_ref": None,
+    }
+    validate_aesthetic_anchors_in_vocab(plan, mode_name="TestMode")
+    assert "art_movement" not in plan
+    assert plan["photographer_ref"] is None
+
+
+def test_validate_anchors_nulls_multiple_invalid(caplog):
+    """Round-22 F14 — multiple invalid anchors all get nulled
+    independently. Matches the actual T3 verification pattern where
+    BOTH photographer_ref AND color_palette were hallucinated."""
+    from src.modes._llm_helpers import validate_aesthetic_anchors_in_vocab
+    caplog.set_level(logging.WARNING, logger="src.modes._llm_helpers")
+    plan = {
+        "color_palette": "PALETTE_DUTCH_GOLDEN_VERMEER",  # invalid
+        "photographer_ref": "PHOTOG_JOHANNES_VERMEER",    # invalid
+        "art_movement": "ART_MOVE_DUTCH_GOLDEN_VERMEER",  # valid
+    }
+    validate_aesthetic_anchors_in_vocab(plan, mode_name="TestMode")
+    assert plan["color_palette"] is None
+    assert plan["photographer_ref"] is None
+    assert plan["art_movement"] == "ART_MOVE_DUTCH_GOLDEN_VERMEER"
+    invalid_warns = [
+        r for r in caplog.records
+        if "SeriesPlanner emitted invalid" in r.message
+    ]
+    assert len(invalid_warns) == 2
+
+
+def test_tag_exists_helper_namespaces():
+    """Round-22 F14 — VocabularyLoader.tag_exists distinguishes a tag's
+    presence by namespace. ART_MOVE_DUTCH_GOLDEN_VERMEER exists in
+    aesthetic.art_movement but NOT in aesthetic.color_palette."""
+    from src.prompt.vocabulary import VocabularyLoader
+    loader = VocabularyLoader()
+    # Tag exists in its own namespace.
+    assert loader.tag_exists(
+        "aesthetic", "art_movement", "ART_MOVE_DUTCH_GOLDEN_VERMEER",
+    )
+    # Same name does NOT exist in a different namespace.
+    assert not loader.tag_exists(
+        "aesthetic", "color_palette", "ART_MOVE_DUTCH_GOLDEN_VERMEER",
+    )
+    # Hallucinated tag never exists.
+    assert not loader.tag_exists(
+        "aesthetic", "color_palette", "PALETTE_DUTCH_GOLDEN_VERMEER",
+    )
+    # Real palette exists.
+    assert loader.tag_exists(
+        "aesthetic", "color_palette", "PALETTE_TEAL_ORANGE_BLOCKBUSTER",
+    )
+
+
 def test_mode_name_appears_in_warning(caplog):
     """Operators grep run_log by mode_name when triaging."""
     plan = {"theme": "x", "mood": "y", "environment": "z",

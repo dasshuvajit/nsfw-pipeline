@@ -238,6 +238,32 @@ class VocabularyLoader:
                 return True
         return False
 
+    def tag_exists(self, top: str, sub: str, tag: str) -> bool:
+        """Round-22 F14 (2026-05-22) — check whether a concept tag
+        exists in the specified vocabulary namespace.
+
+        Used by the planner-side validation pass to catch
+        hallucinated aesthetic anchors before they reach the
+        canonicalizer (e.g. SeriesPlanner emitting
+        ``PALETTE_DUTCH_GOLDEN_VERMEER`` when the namespace only has
+        ``ART_MOVE_DUTCH_GOLDEN_VERMEER``). The pre-F14 schema
+        validator checked only the ``PALETTE_*`` regex prefix —
+        invalid full names slipped through.
+
+        Returns True iff ``self._data[top][sub][tag]`` is a dict
+        (the standard concept-row shape). Returns False for missing
+        top / sub / tag, OR for the special ``version`` key.
+        """
+        if top == "version":
+            return False
+        top_dict = self._data.get(top)
+        if not isinstance(top_dict, dict):
+            return False
+        sub_dict = top_dict.get(sub)
+        if not isinstance(sub_dict, dict):
+            return False
+        return isinstance(sub_dict.get(tag), dict)
+
     def tier_min_for(self, concept: str) -> str | None:
         for sub_dict in (self._data.get("nsfw") or {}).values():
             if isinstance(sub_dict, dict):

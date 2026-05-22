@@ -31,6 +31,7 @@ from src.modes._llm_helpers import (
     repair_colon_suffix_aesthetic_keys,
     run_llm_with_retry,
     validate_scene_list,
+    validate_aesthetic_anchors_in_vocab,
     warn_if_missing_aesthetic_anchors,
     widen_compat_intersection,
 )
@@ -437,6 +438,9 @@ class NicheMode(BaseMode):
             return None
         # Round-5 defensive: salvage colon-suffix aesthetic keys first.
         repair_colon_suffix_aesthetic_keys(result)
+        # Round-22 F14 — null any anchor not in vocab (planner
+        # hallucinated past the regex prefix check).
+        validate_aesthetic_anchors_in_vocab(result, mode_name="NicheMode")
         # Verifier round-4 IMPORTANT-5 — soft Phase 3 anchor check.
         warn_if_missing_aesthetic_anchors(result, mode_name="NicheMode")
         return result
