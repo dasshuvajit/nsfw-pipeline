@@ -596,6 +596,40 @@ _LONG_PROSE = (
 )
 
 
+def test_system_prompt_subject_continuity_universal(generator, loader):
+    """The subject-continuity sub-clause is UNIVERSAL — present at
+    every tier. Buyers follow a specific subject across a 24-scene
+    set; inconsistent body/hair/age scene-to-scene breaks the
+    commercial value of the set."""
+    family = loader.get_family("chroma")
+    for tier in ("T1_suggestive", "T2_implied", "T3_artnude", "T4_explicit"):
+        captured = {"system_prompt": ""}
+
+        def capture(system_prompt, user_prompt, **kwargs):
+            captured["system_prompt"] = system_prompt
+            return (
+                '{"scene_prose": "' + _LONG_PROSE + '", '
+                + _required_tags_for(tier) + '}'
+            )
+
+        with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
+            generator.generate(
+                scene=_scene(),
+                family=family,
+                content_level=tier,
+            )
+        sys_prompt = captured["system_prompt"]
+        assert "Subject continuity across the series" in sys_prompt, (
+            f"subject-continuity clause missing at {tier}"
+        )
+        assert "subject_description" in sys_prompt, (
+            f"subject_description reference missing at {tier}"
+        )
+        assert "24-scene set" in sys_prompt, (
+            f"commercial-value reasoning absent at {tier}"
+        )
+
+
 def test_system_prompt_geometric_coherence_universal(generator, loader):
     """The pose+angle+nsfw_act geometric coherence sub-clause is
     UNIVERSAL — present at every tier (not just T3/T4) since pose vs

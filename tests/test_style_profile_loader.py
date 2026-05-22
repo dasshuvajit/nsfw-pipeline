@@ -117,16 +117,23 @@ def test_flux2_suited_families_routing(loader):
 # ── Verifier round-3 BLOCKER regression: aesthetic-compat fields ────
 
 
-# Five profiles declare full aesthetic-compat lists (Phase 3 vocab v6).
-# These are the seeds for the SeriesPlanner's aesthetic-anchor menu
-# narrowing; if the loader silently strips them (the bug round-3
-# found), the menu falls back to the full vocab and the signature-
-# look pinning becomes inert.
+# All 10 profiles now declare full aesthetic-compat lists. Original 5
+# came from Phase 3 vocab v6; the additional 5 (old_hollywood_glamour,
+# vintage_pinup_kodachrome, editorial_fashion_nude, moody_bw,
+# fantasy_castlecore) were added in vocab v10 (2026-05-22) to close
+# the env+photographer cross-axis incoherence — without compat lists
+# these profiles let the LLM pick any env+photog combination, which
+# produced clashes like fantasy_castlecore + Newton + ruined palazzo.
 PROFILES_WITH_COMPAT = {
     "boudoir_noir",
+    "old_hollywood_glamour",
     "golden_hour_natural",
     "cinematic_wet_set",
     "fine_art_figurative",
+    "vintage_pinup_kodachrome",
+    "editorial_fashion_nude",
+    "moody_bw",
+    "fantasy_castlecore",
     "neo_noir_neon",
 }
 

@@ -94,6 +94,32 @@ profiles:
     lighting_hint: butterfly key + fill + tail, high-contrast studio
     suited_tiers: [T1_suggestive, T2_implied, T3_artnude]
     suited_families: [sdxl, illustrious, chroma, flux2]
+    # Vintage studio glam pairs with sepia / monochrome / jewel-tone
+    # palettes, vintage editorial photographers (Avedon / Lindbergh /
+    # Newton early work), and art-deco / film-noir art movements.
+    compatible_palettes:
+      - PALETTE_SEPIA_PLATINUM
+      - PALETTE_MONOCHROME_HIGH_CONTRAST
+      - PALETTE_GREAT_GATSBY_JEWEL
+      - PALETTE_VOGUE_EDITORIAL
+    compatible_photographers:
+      - PHOTOG_RICHARD_AVEDON
+      - PHOTOG_HELMUT_NEWTON
+      - PHOTOG_HERB_RITTS
+      - PHOTOG_PETER_LINDBERGH
+      - PHOTOG_SARAH_MOON
+    compatible_art_movements:
+      - ART_MOVE_ART_DECO_1920S
+      - ART_MOVE_FILM_NOIR_1940S
+      - ART_MOVE_HOPPER
+    compatible_environments:
+      - ENV_OLD_HOLLYWOOD_BOUDOIR
+      - ENV_ART_DECO_HOTEL_SUITE
+      - ENV_VICTORIAN_PARLOUR
+      - ENV_BACKSTAGE_DRESSING_ROOM
+      - ENV_CABARET_STAGE_DARK
+      - ENV_VANITY_DRESSING_ROOM
+      - ENV_HOTEL_LOBBY_NOIR
 
   golden_hour_natural:
     name: Golden-Hour Natural
@@ -249,6 +275,30 @@ profiles:
     lighting_hint: warm studio key + strong fill, catchlight-heavy
     suited_tiers: [T1_suggestive, T2_implied]
     suited_families: [sdxl, chroma]
+    # Pin-up Kodachrome pairs with warm jewel / earth / pink-gold
+    # palettes, vintage outdoor / editorial photographers (Aarons
+    # for sunny Mediterranean cheesecake, Avedon / Lindbergh for
+    # studio vintage), art-deco era art movement only.
+    compatible_palettes:
+      - PALETTE_GREAT_GATSBY_JEWEL
+      - PALETTE_VOGUE_EDITORIAL
+      - PALETTE_PINK_AND_GOLD
+      - PALETTE_TUSCAN_EARTH
+    compatible_photographers:
+      - PHOTOG_SLIM_AARONS
+      - PHOTOG_RICHARD_AVEDON
+      - PHOTOG_PETER_LINDBERGH
+    compatible_art_movements:
+      - ART_MOVE_ART_DECO_1920S
+    compatible_environments:
+      - ENV_GREEK_ISLAND_TERRACE
+      - ENV_MEDITERRANEAN_COURTYARD
+      - ENV_BACKSTAGE_DRESSING_ROOM
+      - ENV_ART_DECO_HOTEL_SUITE
+      - ENV_VANITY_DRESSING_ROOM
+      - ENV_MORNING_BEDROOM
+      - ENV_OLD_HOLLYWOOD_BOUDOIR
+      - ENV_BALINESE_VILLA
 
   editorial_fashion_nude:
     name: Editorial Fashion Nude
@@ -266,6 +316,36 @@ profiles:
     lighting_hint: beauty dish key + large soft fill, clean highlight
     suited_tiers: [T2_implied, T3_artnude]
     suited_families: [sdxl, flux, chroma, flux2]
+    # Editorial fashion nude pairs with Vogue / monochrome / muted-
+    # earth palettes, high-fashion photographers (Avedon /
+    # Lindbergh / Roversi / Testino / Ritts / Newton), minimalist
+    # / Bauhaus / New-Topographics art movements, architectural-
+    # minimalist environments.
+    compatible_palettes:
+      - PALETTE_VOGUE_EDITORIAL
+      - PALETTE_MONOCHROME_HIGH_CONTRAST
+      - PALETTE_MUTED_EARTH_WARM
+      - PALETTE_WES_ANDERSON_PASTEL
+      - PALETTE_NORDIC_DESATURATED
+    compatible_photographers:
+      - PHOTOG_RICHARD_AVEDON
+      - PHOTOG_HELMUT_NEWTON
+      - PHOTOG_PETER_LINDBERGH
+      - PHOTOG_PAOLO_ROVERSI
+      - PHOTOG_MARIO_TESTINO
+      - PHOTOG_HERB_RITTS
+    compatible_art_movements:
+      - ART_MOVE_BAUHAUS_MINIMAL
+      - ART_MOVE_NEW_TOPOGRAPHICS
+      - ART_MOVE_HOPPER
+    compatible_environments:
+      - ENV_STUDIO_CYC_MINIMAL
+      - ENV_BRUTALIST_CONCRETE_LOFT
+      - ENV_WAREHOUSE_CONVERSION
+      - ENV_ART_DECO_HOTEL_SUITE
+      - ENV_ROOFTOP_CITY_NIGHT
+      - ENV_PARIS_ATTIC_APARTMENT
+      - ENV_BACKSTAGE_DRESSING_ROOM
 
   moody_bw:
     name: Moody B&W
@@ -284,6 +364,41 @@ profiles:
     lighting_hint: single hard source + deep shadow, no fill
     suited_tiers: [T1_suggestive, T2_implied, T3_artnude, T4_explicit]
     suited_families: [sdxl, flux, chroma, illustrious, flux2]
+    # Moody B&W pairs with monochrome / sepia palettes, B&W-fluent
+    # photographers (Newton, Mapplethorpe, Ritts, Henson,
+    # Lindbergh, Avedon, Moon), high-contrast art movements
+    # (Caravaggio chiaroscuro, Rembrandt, Film Noir, Hopper).
+    # Environments curated for clear high-contrast lighting
+    # potential.
+    compatible_palettes:
+      - PALETTE_MONOCHROME_HIGH_CONTRAST
+      - PALETTE_MONOCHROME_LOW_KEY
+      - PALETTE_BLACK_AND_WHITE_NIGHT
+      - PALETTE_SEPIA_PLATINUM
+    compatible_photographers:
+      - PHOTOG_HELMUT_NEWTON
+      - PHOTOG_ROBERT_MAPPLETHORPE
+      - PHOTOG_HERB_RITTS
+      - PHOTOG_BILL_HENSON
+      - PHOTOG_PETER_LINDBERGH
+      - PHOTOG_RICHARD_AVEDON
+      - PHOTOG_SARAH_MOON
+    compatible_art_movements:
+      - ART_MOVE_BAROQUE_CARAVAGGIO
+      - ART_MOVE_REMBRANDT_PORTRAIT
+      - ART_MOVE_FILM_NOIR_1940S
+      - ART_MOVE_HOPPER
+    compatible_environments:
+      - ENV_HOTEL_LOBBY_NOIR
+      - ENV_STUDIO_CYC_MINIMAL
+      - ENV_GEORGIAN_LIBRARY
+      - ENV_PARIS_ATTIC_APARTMENT
+      - ENV_DERELICT_THEATRE
+      - ENV_BRUTALIST_CONCRETE_LOFT
+      - ENV_ABANDONED_BALLROOM
+      - ENV_RUINED_PALAZZO
+      - ENV_LOG_CABIN_FIRELIT
+      - ENV_FOG_PINE_FOREST
 
   fantasy_castlecore:
     name: Fantasy Castlecore
@@ -301,6 +416,43 @@ profiles:
     lighting_hint: candlelight key + cool ambient fill, painterly
     suited_tiers: [T1_suggestive, T2_implied, T3_artnude]
     suited_families: [sdxl, illustrious, flux, flux2]
+    # Fantasy Castlecore pairs with painterly / Renaissance /
+    # baroque palettes, dreamy painterly photographers (Roversi /
+    # Moon / Henson twilight / Crewdson cinematic), classical
+    # painting movements (Pre-Raphaelite / Caravaggio / Rembrandt /
+    # Vermeer / Klimt / Symbolist), gothic / Renaissance / ruin
+    # environments. EXPLICITLY EXCLUDES Newton (modern fashion),
+    # Crewdson neon (modern), monochrome night palettes — these
+    # don't compose with candlelit-stone settings.
+    compatible_palettes:
+      - PALETTE_BAROQUE_CARAVAGGIO
+      - PALETTE_GREAT_GATSBY_JEWEL
+      - PALETTE_MUTED_EARTH_WARM
+      - PALETTE_TUSCAN_EARTH
+      - PALETTE_SEPIA_PLATINUM
+    compatible_photographers:
+      - PHOTOG_PAOLO_ROVERSI
+      - PHOTOG_SARAH_MOON
+      - PHOTOG_BILL_HENSON
+      - PHOTOG_GREGORY_CREWDSON
+    compatible_art_movements:
+      - ART_MOVE_PRE_RAPHAELITE
+      - ART_MOVE_BAROQUE_CARAVAGGIO
+      - ART_MOVE_REMBRANDT_PORTRAIT
+      - ART_MOVE_DUTCH_GOLDEN_VERMEER
+      - ART_MOVE_ART_NOUVEAU_KLIMT
+      - ART_MOVE_SYMBOLIST_MOREAU
+    compatible_environments:
+      - ENV_RUINED_PALAZZO
+      - ENV_TUSCAN_VILLA_RENAISSANCE
+      - ENV_VICTORIAN_CONSERVATORY
+      - ENV_GEORGIAN_LIBRARY
+      - ENV_VICTORIAN_OBSERVATORY
+      - ENV_FOG_PINE_FOREST
+      - ENV_LOG_CABIN_FIRELIT
+      - ENV_OVERGROWN_GREENHOUSE
+      - ENV_ABANDONED_BALLROOM
+      - ENV_VICTORIAN_PARLOUR
 
   neo_noir_neon:
     name: Neo-Noir Neon

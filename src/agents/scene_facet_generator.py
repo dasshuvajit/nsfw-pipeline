@@ -1669,7 +1669,7 @@ class SceneFacetGenerator:
         # COHERENCE INVARIANT block. Placed right after the base
         # preamble + tier directive so it has the next-highest
         # attention weight after the most-critical tier framing.
-        # Five sub-clauses (3 universal + 2 tier-conditional):
+        # Six sub-clauses (4 universal + 2 tier-conditional):
         #   1. env_setting + atmosphere + narrative MUST imply ONE
         #      consistent time of day + ONE consistent location.
         #   2. DO NOT weave the series-level photographer_ref /
@@ -1681,11 +1681,16 @@ class SceneFacetGenerator:
         #      pose cannot pair with full-frontal-display act;
         #      standing pose cannot pair with overhead angle +
         #      full-frontal display; etc.
-        #   4. Tier-conditional anatomical clarity (T1: clothed
+        #   4. Subject continuity — scene_prose MUST honor the
+        #      subject_description's age/build/hair/body-type
+        #      EXACTLY across all 24 scenes. Buyers follow one
+        #      subject; inconsistent traits break commercial
+        #      value of the set.
+        #   5. Tier-conditional anatomical clarity (T1: clothed
         #      restraint, T2: implied only, T3: tasteful nudity
         #      direct, T4: full explicit allowed). Aligns each tier
         #      with its categories.yaml llm_directive.
-        #   5. Tier-conditional T3+ — no hair-as-censor poetic
+        #   6. Tier-conditional T3+ — no hair-as-censor poetic
         #      phrasing. "Hair cascades around select areas, hiding
         #      nothing while suggesting everything" type language
         #      makes diffusion models occlude the body with hair.
@@ -1738,6 +1743,22 @@ class SceneFacetGenerator:
             "   pick the matching posture and act. The composition\n"
             "   must be something a real photographer could actually\n"
             "   shoot from the given angle.\n"
+            "\n"
+            "4. **Subject continuity across the series.** The series-\n"
+            "   level `subject_description` carries the woman's age,\n"
+            "   build, hair, body type (e.g. 'curvy 32-year-old with\n"
+            "   long auburn hair', 'athletic 28-year-old with short\n"
+            "   black hair', 'mature 40-year-old with grey-streaked\n"
+            "   hair'). Your `scene_prose` MUST reflect these traits\n"
+            "   EXACTLY — same age range, same build, same hair color,\n"
+            "   same body type — across every scene in the series.\n"
+            "   Buyers follow a specific subject across a 24-scene set;\n"
+            "   inconsistent body/hair/age scene-to-scene breaks the\n"
+            "   commercial value of the set. If subject_description\n"
+            "   says 'curvy', write 'her full curves' and never 'her\n"
+            "   slender frame'. If it says 'athletic', write 'her toned\n"
+            "   shoulders' not 'her soft figure'. Subject continuity\n"
+            "   beats per-scene creative variation.\n"
         )
         # Round-22 (2026-05-22) revised — tier-conditional clause 3 with
         # FOUR distinct sub-clauses, one per T1-T4. Pre-revision the T3
@@ -1755,7 +1776,7 @@ class SceneFacetGenerator:
         if content_level == "T4_explicit":
             coherence_block += (
                 "\n"
-                "4. **T4_explicit anatomical clarity.** At this tier,\n"
+                "5. **T4_explicit anatomical clarity.** At this tier,\n"
                 "   you MAY use direct anatomical language in your\n"
                 "   `scene_prose` (e.g. 'her nipples are visible',\n"
                 "   'fully nude with visible vulva') when it aligns\n"
@@ -1766,7 +1787,7 @@ class SceneFacetGenerator:
                 "   'silk robe wrapping her body' when nsfw_anatomy =\n"
                 "   NSFW_FULL_NUDE).\n"
                 "\n"
-                "5. **No hair-as-censor poetic phrasing.** At T3+ the\n"
+                "6. **No hair-as-censor poetic phrasing.** At T3+ the\n"
                 "   subject's nudity is the composition. NEVER describe\n"
                 "   hair as 'cascading around select areas', 'covering\n"
                 "   intimate parts', 'artfully suggesting while hiding\n"
@@ -1781,7 +1802,7 @@ class SceneFacetGenerator:
         elif content_level == "T3_artnude":
             coherence_block += (
                 "\n"
-                "4. **T3_artnude tasteful nudity.** This is gallery-\n"
+                "5. **T3_artnude tasteful nudity.** This is gallery-\n"
                 "   print fine-art nude — the subject IS nude. Your\n"
                 "   `scene_prose` MUST describe the nude form directly\n"
                 "   in tasteful framing (e.g. 'her bare shoulders\n"
@@ -1793,7 +1814,7 @@ class SceneFacetGenerator:
                 "   'erect nipples', or explicit-act phrasing —\n"
                 "   those are tier-gated to T4_explicit only.\n"
                 "\n"
-                "5. **No hair-as-censor poetic phrasing.** The\n"
+                "6. **No hair-as-censor poetic phrasing.** The\n"
                 "   subject's nude form is the composition. NEVER\n"
                 "   describe hair as 'cascading around select areas',\n"
                 "   'covering intimate parts', 'artfully suggesting\n"
@@ -1808,7 +1829,7 @@ class SceneFacetGenerator:
         elif content_level == "T2_implied":
             coherence_block += (
                 "\n"
-                "4. **T2_implied suggestive restraint.** Your\n"
+                "5. **T2_implied suggestive restraint.** Your\n"
                 "   `scene_prose` should suggest sensuality through\n"
                 "   pose + light + composition + implied undress —\n"
                 "   not direct anatomy. Allowed: 'silk robe slipping\n"
@@ -1823,7 +1844,7 @@ class SceneFacetGenerator:
             # T1_suggestive (or unknown — defensive default).
             coherence_block += (
                 "\n"
-                "4. **T1_suggestive clothed restraint.** Your\n"
+                "5. **T1_suggestive clothed restraint.** Your\n"
                 "   `scene_prose` describes a fully-clothed subject\n"
                 "   in tasteful poses. No nudity, no implied undress,\n"
                 "   no anatomical detail beyond what's visible in\n"
