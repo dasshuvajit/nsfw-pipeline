@@ -233,42 +233,39 @@ def test_flux_natural_facet_requires_scene_prose_only():
 
 
 def test_flux_natural_word_band_rejects_too_short():
-    """Dual-write pivot (2026-05-23) — scene_prose IS the final prompt
-    body now (composer no longer stitches per-axis canonicalizations).
-    The LLM must weave subject + pose + anatomy + light + env + mood +
-    style into ONE coherent paragraph. New band: 100-350 hard,
-    150-300 target."""
+    """Dual-write pivot iter1 calibration (2026-05-23) — band adjusted
+    to LLM empirical range after series_628bdf54cec6 showed DavidAU
+    12B's natural floor is ~65 words. New band: 60-350 hard,
+    100-250 target."""
     import pytest
     from pydantic import ValidationError
-    with pytest.raises(ValidationError, match=r"prose-family hard band is 100"):
+    with pytest.raises(ValidationError, match=r"prose-family hard band is 60"):
         SceneFacetFluxNatural.model_validate({
-            "scene_prose": " ".join(["word"] * 50),  # 50 words — too short
+            "scene_prose": " ".join(["word"] * 40),  # 40 words — too short
         })
 
 
 def test_flux_natural_word_band_rejects_too_long():
-    """Dual-write — hard cap at 350 words; protects against LLM drift
-    toward giant narrative paragraphs that exceed T5's useful budget."""
+    """Hard cap at 350 words."""
     import pytest
     from pydantic import ValidationError
-    with pytest.raises(ValidationError, match=r"prose-family hard band is 100"):
+    with pytest.raises(ValidationError, match=r"prose-family hard band is 60"):
         SceneFacetFluxNatural.model_validate({
-            "scene_prose": " ".join(["word"] * 400),  # 400 words
+            "scene_prose": " ".join(["word"] * 400),
         })
 
 
 def test_flux_natural_word_band_warn_outside_target_inside_slack(caplog):
-    """Dual-write — soft warn when prose is inside the 100-350 hard band
-    but outside the 150-300 target band. Doesn't fail validation; just
-    logs at WARNING for operator visibility."""
+    """Soft warn when prose is inside the 60-350 hard band but outside
+    the 100-250 target band."""
     import logging
     caplog.set_level(logging.WARNING, logger="src.agents.schemas")
-    # 110 words — under 150, over 100.
+    # 70 words — under 100, over 60.
     SceneFacetFluxNatural.model_validate({
-        "scene_prose": " ".join(["word"] * 110),
+        "scene_prose": " ".join(["word"] * 70),
     })
     assert any(
-        "outside the 150-300 target band" in rec.message
+        "outside the 100-250 target band" in rec.message
         for rec in caplog.records
     ), (
         f"expected warn log about target band drift; got "
@@ -277,19 +274,19 @@ def test_flux_natural_word_band_warn_outside_target_inside_slack(caplog):
 
 
 def test_flux_natural_word_band_silent_inside_target(caplog):
-    """Inside 150-300 target band, no warning fires."""
+    """Inside 100-250 target band, no warning fires."""
     import logging
     caplog.set_level(logging.WARNING, logger="src.agents.schemas")
-    # 200 words — sweet spot.
+    # 150 words — sweet spot.
     SceneFacetFluxNatural.model_validate({
-        "scene_prose": " ".join(["word"] * 200),
+        "scene_prose": " ".join(["word"] * 150),
     })
     band_warns = [
         rec for rec in caplog.records
         if "target band" in rec.message
     ]
     assert not band_warns, (
-        f"200-word prose should land inside 150-300 target band — no warn "
+        f"150-word prose should land inside 100-250 target band — no warn "
         f"expected, got: {[r.message for r in band_warns]!r}"
     )
 
@@ -474,35 +471,33 @@ def test_flux_natural_validator_accepts_normal_prose():
 
 
 def test_flux2_validator_rejects_too_short_prose():
-    """Dual-write pivot (2026-05-23) — flux2 also pivots to scene_prose-
-    as-prompt-body. New band: 100-350 hard (target 150-300). Below
-    100-word floor → fail."""
+    """Dual-write pivot iter1 calibration — band 60-350 hard."""
     from pydantic import ValidationError as VE
-    with pytest.raises(VE, match="100-350"):
+    with pytest.raises(VE, match="60-350"):
         SceneFacetFlux2.model_validate({
-            "scene_prose": " ".join(["word"] * 50),  # 50 words — too short
+            "scene_prose": " ".join(["word"] * 40),
         })
 
 
 def test_flux2_validator_rejects_too_long_prose():
     """Above 350-word ceiling → fail."""
     from pydantic import ValidationError as VE
-    with pytest.raises(VE, match="100-350"):
+    with pytest.raises(VE, match="60-350"):
         SceneFacetFlux2.model_validate({
             "scene_prose": " ".join(["word"] * 400),
         })
 
 
 def test_flux2_validator_warns_outside_30_80_band(caplog):
-    """120-word prose passes (in 100-350 slack) but logs WARNING
-    when outside 150-300 target band."""
+    """70-word prose passes (in 60-350 slack) but logs WARNING
+    when outside 100-250 target band."""
     import logging
     with caplog.at_level(logging.WARNING):
         SceneFacetFlux2.model_validate({
-            "scene_prose": " ".join(["word"] * 120),
+            "scene_prose": " ".join(["word"] * 70),
         })
     assert any(
-        "outside the 150-300 target band" in r.message
+        "outside the 100-250 target band" in r.message
         for r in caplog.records
     )
 
