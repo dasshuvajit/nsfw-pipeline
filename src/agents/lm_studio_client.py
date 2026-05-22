@@ -495,17 +495,33 @@ class LMStudioClient:
             "ensure_loaded: loading %s with context_length=%d gpu=%s …",
             model, context_length, gpu_offload,
         )
+        # 2026-05-23 — when model id has a ":N" suffix (multi-instance
+        # selector e.g. ":3" for 32K context), split it: pass the base
+        # model id to `lms load` and the full id to --identifier so
+        # the loaded instance gets the expected identifier. Without
+        # this split, `lms load mistral-...:3` looks for a file with
+        # ":3" in the name and fails.
+        base_model = model
+        load_args = [
+            self.lms_binary, "load", model,
+            "--context-length", str(context_length),
+            "--gpu", gpu_offload,
+        ]
+        if ":" in model.split("/")[-1]:
+            base_model = model.rsplit(":", 1)[0]
+            load_args = [
+                self.lms_binary, "load", base_model,
+                "--identifier", model,
+                "--context-length", str(context_length),
+                "--gpu", gpu_offload,
+            ]
         try:
             result = subprocess.run(
-                [
-                    self.lms_binary, "load", model,
-                    "--context-length", str(context_length),
-                    "--gpu", gpu_offload,
-                ],
+                load_args,
                 check=False,
                 capture_output=True,
                 text=True,
-                timeout=180,
+                timeout=300,  # bumped 180 → 300; 12B Q4 can take ~60-90s cold
             )
         except subprocess.TimeoutExpired:
             logger.warning(
