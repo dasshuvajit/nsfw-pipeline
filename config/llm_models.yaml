@@ -145,7 +145,16 @@ llms:
 
   davidau_nemo_thinking_heretic_claude_opus:
     backend: lm_studio
-    lm_studio_id: "mistral-nemo-inst-2407-12b-thinking-uncensored-heretic-hi-claude-opus-i1"
+    # 2026-05-23 — explicit ":3" instance suffix. LM Studio has
+    # multiple DavidAU instances loaded at different contexts:
+    #   :1 (no suffix) → 4K context (default)
+    #   :2 → 16K context
+    #   :3 → 32K context  ← USING THIS
+    #   :4 → 32K context (duplicate)
+    # User explicit feedback: "test everyhting with mistral-nemo-inst
+    # ...:3 this model from lm studio". Without the suffix LM Studio
+    # routes to :1 (4K) which fails the dual-write system prompt.
+    lm_studio_id: "mistral-nemo-inst-2407-12b-thinking-uncensored-heretic-hi-claude-opus-i1:3"
     display_name: "DavidAU Mistral-Nemo 12B Thinking-Heretic Claude-Opus (i1)"
     description: >-
       DavidAU/Mistral-Nemo-Inst-2407-12B-Thinking-Uncensored-HERETIC-HI-Claude-Opus.
