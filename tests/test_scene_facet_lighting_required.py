@@ -28,20 +28,21 @@ from src.agents.scene_facet_generator import (
 
 
 @pytest.mark.parametrize("tier", [
-    "T1_suggestive", "T2_implied", "T3_artnude", "T4_explicit",
+    "T1_suggestive", "T2_implied",
 ])
 def test_lighting_directive_required_at_every_tier(tier):
-    """The realism vocab_version 2 contract: lighting is too important
-    to leave to free-text. Every tier requires the enum tag."""
+    """Dual-write iter3 (2026-05-23): lighting_directive REQUIRED at
+    T1/T2 only. Demoted at T3/T4 — the LLM's scene_prose weaves
+    lighting language into the narrative body under dual-write."""
     assert "lighting_directive" in _TIER_REQUIRED_FIELDS[tier]
 
 
 @pytest.mark.parametrize("tier", [
-    "T1_suggestive", "T2_implied", "T3_artnude", "T4_explicit",
+    "T1_suggestive", "T2_implied",
 ])
 def test_null_lighting_flagged_at_every_tier(tier):
-    """A facet missing lighting_directive triggers the retry-nudge
-    regardless of tier (the canonicalizer needs the tag to fire)."""
+    """At T1/T2 a facet missing lighting_directive still triggers the
+    retry-nudge. At T3/T4 lighting flows through scene_prose now."""
     facet = {"camera_spec": "85mm", "clothing": "silk", "lighting_directive": None}
     missing = _missing_required_fields(facet, tier, prompt_style="sdxl_keywords")
     assert "lighting_directive" in missing
@@ -108,16 +109,15 @@ def test_booru_relaxation_still_satisfies_nsfw_anatomy_via_tags():
 
 
 def test_booru_relaxation_does_not_apply_to_lighting():
-    """Even with full booru tags, missing lighting_directive is still
-    flagged — lighting concepts are not part of the booru vocabulary
-    that the relaxation covers."""
+    """Dual-write iter3 — lighting_directive demoted at T3+, so this
+    test now exercises T2_implied where it's still required."""
     facet = {
         "booru_tags": "1girl, solo, nude, breasts",
         "lighting_directive": None,
         "nsfw_anatomy": None,
     }
     missing = _missing_required_fields(
-        facet, "T3_artnude", prompt_style="pony_danbooru",
+        facet, "T2_implied", prompt_style="pony_danbooru",
     )
     assert "lighting_directive" in missing
 
@@ -213,11 +213,11 @@ def test_unknown_tag_check_disabled_when_family_id_omitted():
 
 
 @pytest.mark.parametrize("tier", [
-    "T1_suggestive", "T2_implied", "T3_artnude", "T4_explicit",
+    "T1_suggestive", "T2_implied",
 ])
 def test_mood_aesthetic_required_at_every_tier(tier):
-    """mood_aesthetic joined lighting_directive as a tier-required
-    field — same reasoning, complementary canonicalizer namespace."""
+    """Dual-write iter3 — mood_aesthetic required at T1/T2 only;
+    demoted at T3+ (prose carries mood)."""
     assert "mood_aesthetic" in _TIER_REQUIRED_FIELDS[tier]
 
 

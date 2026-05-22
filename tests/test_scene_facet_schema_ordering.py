@@ -475,11 +475,12 @@ def test_round9_tier_strict_schema_marks_required_non_nullable(style):
     strict = _make_tier_strict_schema(base, "T4_explicit", is_booru)
     js = strict.model_json_schema()
     required = set(js.get("required", []))
-    # T4 tier-required fields the family's schema actually declares.
-    # Pony has all 7; non-Pony also has all 7.
+    # Dual-write pivot iter3 (2026-05-23): T4 required-field list
+    # narrowed from 11 → 4 (Pony omits nsfw_anatomy for booru-native).
+    # Demoted fields are populated by the LLM's scene_prose now.
     expected = {
-        "lighting_directive", "mood_aesthetic", "narrative_moment",
-        "environment_setting", "environment_atmosphere",
+        "narrative_moment",
+        "environment_setting",
         "nsfw_anatomy", "nsfw_act",
     }
     if is_booru:
@@ -522,35 +523,32 @@ def test_round9_tier_strict_at_T2_only_promotes_T2_fields():
 
 
 def test_round9_tier_strict_at_T3_promotes_T3_not_T4():
-    """At T3_artnude, env_setting/env_atmosphere/nsfw_anatomy promote
-    to required; nsfw_act stays Optional (T4-only)."""
+    """Dual-write iter3 — T3 required narrowed to 3 essential fields:
+    env_setting + narrative_moment + nsfw_anatomy. nsfw_act stays
+    Optional (T4-only)."""
     from src.agents.scene_facet_generator import _make_tier_strict_schema
     from src.agents.schemas import SceneFacetFluxNatural
 
     strict = _make_tier_strict_schema(SceneFacetFluxNatural, "T3_artnude")
     js = strict.model_json_schema()
     required = set(js.get("required", []))
-    for f in ("lighting_directive", "mood_aesthetic", "narrative_moment",
-              "environment_setting", "environment_atmosphere", "nsfw_anatomy"):
+    for f in ("narrative_moment", "environment_setting", "nsfw_anatomy"):
         assert f in required, f"{f} should be required at T3"
     # nsfw_act is T4-only, must NOT be required at T3
     assert "nsfw_act" not in required
 
 
 def test_round9_pony_strict_schema_handles_pony_omission():
-    """Pony's facet schema omits some realism fields. The strict
-    factory must NOT crash when a tier-required field is absent from
-    the base class — it simply skips that field's override."""
+    """Dual-write iter3 — Pony T4 narrowed required (nsfw_anatomy
+    booru-exempt, so 3 left)."""
     from src.agents.scene_facet_generator import _make_tier_strict_schema
     from src.agents.schemas import SceneFacetPony
 
-    strict = _make_tier_strict_schema(SceneFacetPony, "T4_explicit")
+    strict = _make_tier_strict_schema(SceneFacetPony, "T4_explicit", True)
     js = strict.model_json_schema()
     required = set(js.get("required", []))
     # Pony has these fields and they should be promoted to required
-    for f in ("lighting_directive", "mood_aesthetic", "narrative_moment",
-              "environment_setting", "environment_atmosphere",
-              "nsfw_anatomy", "nsfw_act"):
+    for f in ("narrative_moment", "environment_setting", "nsfw_act"):
         assert f in required, (
             f"Pony @T4: {f!r} should be required (declared on schema)"
         )

@@ -1028,11 +1028,16 @@ def test_t1_t2_boost_keywords_still_present():
 # ── Round-12: realism_camera + realism_lens required at T3+ ─────────
 
 
+@pytest.mark.skip(
+    reason="Dual-write iter3 (2026-05-23): realism_camera + realism_lens "
+    "demoted from T3+ required to optional. Under dual-write, scene_prose "
+    "weaves camera/lens info into the narrative; the chroma realism "
+    "tail still appends a generic '85mm f/1.8' fallback when lens is "
+    "missing. Round-12's reason (LLM null-emit) no longer applies "
+    "because the structured tags no longer drive the final prompt body."
+)
 def test_t3_requires_realism_camera_and_lens():
-    """Round-12 (2026-05-21) fix — the 2026-05-20 A/B run showed both
-    Cydonia and Qwen3 nulling realism_camera/lens on 23+/24 facets
-    despite the family few-shot exemplars. Promoting these to
-    tier-required at T3+ lets the retry-nudge fire on misses."""
+    """Round-12 (2026-05-21) fix — DEPRECATED by dual-write iter3."""
     from src.agents.scene_facet_generator import _TIER_REQUIRED_FIELDS
     assert "realism_camera" in _TIER_REQUIRED_FIELDS["T3_artnude"]
     assert "realism_lens" in _TIER_REQUIRED_FIELDS["T3_artnude"]

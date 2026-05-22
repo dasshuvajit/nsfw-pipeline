@@ -107,17 +107,35 @@ _TIER_REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
     # the retry-nudge and will force the LLM to pick a tag from the
     # vocabulary menu on every scene. Pony's schema omits both fields
     # so ``_make_tier_strict_schema`` skips them for the Pony family.
+    # T3 narrowed similarly — 10 fields → 3 essential.
     "T3_artnude":    (
-        "lighting_directive", "mood_aesthetic", "nsfw_anatomy",
-        "realism_camera", "realism_lens", "realism_angle",
-        "art_style_reference",
-        "environment_setting", "environment_atmosphere", "narrative_moment",
+        "nsfw_anatomy",
+        "environment_setting", "narrative_moment",
     ),
+    # 2026-05-23 dual-write iter3 — narrowed T4 required from 11
+    # fields to 5. Under dual-write, scene_prose IS the rendered
+    # body and weaves lighting / mood / camera / angle / style /
+    # atmosphere into the narrative. Strict-schema enforcement of
+    # all those tags simultaneously was over-budgeting the LLM —
+    # observed in series_2236d97fad70 (iter3) where DavidAU
+    # consistently dropped 3-5 tags per attempt under prose load.
+    # Demoted to optional (composer handles None gracefully):
+    #   lighting_directive (prose has lighting language)
+    #   mood_aesthetic (prose has mood)
+    #   realism_camera (tail still appends generic)
+    #   realism_lens (composer F1 tail fallback handles)
+    #   realism_angle (prose has angle)
+    #   art_style_reference (prose has style)
+    #   environment_atmosphere (prose has atmosphere)
+    # Kept REQUIRED:
+    #   scene_prose (the body — no fallback)
+    #   nsfw_anatomy (T4 safety + content gate)
+    #   nsfw_act (T4 content + pose-act validator)
+    #   environment_setting (F15 place_constraint check anchor)
+    #   narrative_moment (diversity tracker — the most-locked axis)
     "T4_explicit":   (
-        "lighting_directive", "mood_aesthetic", "nsfw_anatomy", "nsfw_act",
-        "realism_camera", "realism_lens", "realism_angle",
-        "art_style_reference",
-        "environment_setting", "environment_atmosphere", "narrative_moment",
+        "nsfw_anatomy", "nsfw_act",
+        "environment_setting", "narrative_moment",
     ),
 }
 
@@ -1552,10 +1570,17 @@ class SceneFacetGenerator:
                 # scene 023's one-word-fragment output. T1-T3 still
                 # soft-ship (graceful degradation acceptable for non-
                 # explicit tiers).
+                # Dual-write pivot iter2 (2026-05-23): loosened critical
+                # set. lighting_directive removed from T4-critical because
+                # the LLM weaves lighting into scene_prose under the new
+                # contract. Composer no longer emits lighting_directive
+                # as a separate sentence; if it's missing as a tag but
+                # the prose mentions lighting, the prompt is still
+                # complete. Only scene_prose + nsfw_act remain critical
+                # at T4 (must have a body and an explicit act).
                 _T4_CRITICAL = {
                     "scene_prose",
                     "nsfw_act",
-                    "lighting_directive",
                 }
                 critical_missing = [
                     f for f in still_missing if f in _T4_CRITICAL
