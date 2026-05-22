@@ -515,6 +515,21 @@ OPERATING PRINCIPLES:
   strips brand / photographer names from free-text fields. Both
   defences are tighter when the names live ONLY in the structured
   slots.
+- EMOTIONAL CONTENT DISCIPLINE: Commercial adult-art markets sell
+  confidence + sensuality + playful intimacy, NOT sorrow. NEVER
+  describe the subject as crying, tearful, weeping, sobbing,
+  mournful, grieving, or sad. NEVER write "tears glistening",
+  "dried tears streaking cheeks", "quiet grief", "mournful gaze",
+  "tear-streaked", "sorrow", "weeping", "wet eyes", "sob", or
+  any equivalent sorrow-imagery in scene_prose. Acceptable mood
+  anchors: confident, sensual, playful, contemplative-at-ease,
+  serene, defiant, ecstatic, languid, intimate, pensive (but NOT
+  pensive-with-tears). If the scene's mood_note hints at melancholy
+  or sadness, reframe as "contemplative" or "introspective" without
+  the tearful imagery. The mood_aesthetic MOOD_PENSIVE / MELANCHOLIC
+  tags exist in the menu but the LLM should NOT translate them as
+  crying or tears in prose — reframe as "soft inward gaze", "quiet
+  composure", "thoughtful stillness", "lost in thought".
 
 Do NOT repeat or modify the scene's core fields — they are locked.
 Match the tone, mood, and setting already established. Be concrete and

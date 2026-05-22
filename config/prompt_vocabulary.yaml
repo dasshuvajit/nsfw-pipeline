@@ -27,7 +27,7 @@
 #   3. Bump ``version:`` at the top.
 #   4. Re-run regression suite — fixtures pin the byte-stable output.
 
-version: 11
+version: 12
 
 realism:
   # ── Lighting ─────────────────────────────────────────────────────────
@@ -339,12 +339,12 @@ realism:
       chroma:      "playful joyful mood, light-hearted, candid"
       flux2:       "A playful and joyful atmosphere, light-hearted and candid in feel, captured in a slightly informal moment"
     MOOD_PENSIVE:
-      sdxl:        "pensive, thoughtful, melancholic, soft gaze away from camera"
-      pony:        "pensive, thoughtful, looking_away"
-      illustrious: "pensive, thoughtful, melancholic"
-      flux:        "A pensive and thoughtful mood, slightly melancholic, with a soft gaze drifting away from the camera"
-      chroma:      "pensive thoughtful mood, slight melancholy, soft gaze"
-      flux2:       "A pensive and thoughtful atmosphere with a touch of melancholy, soft unfocused gaze drifting away from the camera"
+      sdxl:        "pensive, thoughtful, contemplative, soft inward gaze"
+      pony:        "pensive, thoughtful, contemplative, looking_inward"
+      illustrious: "pensive, thoughtful, contemplative_gaze"
+      flux:        "A pensive and contemplative mood, soft inward gaze, the quiet composure of someone lost in thought"
+      chroma:      "pensive contemplative mood, soft inward gaze, quiet composure"
+      flux2:       "A pensive contemplative atmosphere with quiet composure, soft inward gaze, the stillness of someone lost in thought"
     MOOD_DEFIANT:
       sdxl:        "defiant, intense, direct gaze, strong posture"
       pony:        "defiant, intense_gaze, strong_pose"
@@ -367,12 +367,16 @@ realism:
       chroma:      "serene calm mood, balanced, peaceful expression"
       flux2:       "A serene and calm atmosphere, balanced peaceful expression, quiet stillness suffusing the entire scene"
     MOOD_MELANCHOLIC:
-      sdxl:        "melancholic, wistful, distant gaze, quiet sadness"
-      pony:        "melancholic, wistful, distant_gaze, quiet_sadness"
-      illustrious: "melancholic, wistful, distant_gaze"
-      flux:        "A melancholic and wistful mood, gaze drifting away into the middle distance, quiet sadness underneath the composure"
-      chroma:      "melancholic wistful mood, distant gaze, quiet sadness"
-      flux2:       "A melancholic and wistful atmosphere, the gaze drifting away into the middle distance, a quiet sadness humming underneath the composure"
+      # 2026-05-23 — sad/crying ban (user feedback): "melancholy" +
+      # "sadness" vocab was producing tears + sorrowful prose in
+      # commercial T4 output. Rebranded to "introspective" — same
+      # quiet inward energy without the tearful associations.
+      sdxl:        "introspective, wistful, distant gaze, quiet composure"
+      pony:        "introspective, wistful, distant_gaze, quiet_composure"
+      illustrious: "introspective, wistful, distant_gaze"
+      flux:        "An introspective and wistful mood, gaze drifting away into the middle distance, quiet composure throughout"
+      chroma:      "introspective wistful mood, distant gaze, quiet composure"
+      flux2:       "An introspective and wistful atmosphere, the gaze drifting away into the middle distance, a quiet composure humming underneath the surface"
 
   # ── Camera angle (Q10, vocab v4) ─────────────────────────────────────
   # Pony omits this namespace — booru tags carry angle implicitly via
