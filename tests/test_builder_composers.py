@@ -262,6 +262,38 @@ def test_chroma_realism_tail_without_lens_keeps_focal_hint(pb, family_loader):
     )
 
 
+def test_chroma_prompt_ends_with_period(pb, family_loader):
+    """Verifier NC7 (2026-05-23) — every chroma/flux/flux2 prompt must
+    end with a period. fit_to_budget's piece-pack occasionally drops
+    the trailing period at separator boundaries, leaving the prompt
+    looking unfinished. Defensive period-ensure at the end of
+    build_one fixes this."""
+    family = family_loader.get_family("chroma")
+    scene = {
+        **UNIVERSAL_SCENE,
+        "scene_prose": "She reclines on velvet sheets in soft window light.",
+    }
+    out = pb.build_one(CHARACTER, scene, STYLE, family=family)
+    text = out["prompt_text"]
+    assert text.rstrip().endswith("."), (
+        f"chroma prompt does not end with period: ...{text[-50:]!r}"
+    )
+
+
+def test_flux2_prompt_ends_with_period(pb, family_loader):
+    """Same NC7 fix applied to flux2_prose."""
+    family = family_loader.get_family("flux2")
+    scene = {
+        **UNIVERSAL_SCENE,
+        "scene_prose": "She reclines on velvet sheets in soft window light.",
+    }
+    out = pb.build_one(CHARACTER, scene, STYLE, family=family)
+    text = out["prompt_text"]
+    assert text.rstrip().endswith("."), (
+        f"flux2 prompt does not end with period: ...{text[-50:]!r}"
+    )
+
+
 def test_series_aesthetic_consolidated_one_sentence_chroma(pb, family_loader):
     """Round-22 (2026-05-22) — for prose families (chroma uses
     flux_natural prompt_style), the 3 series-aesthetic anchors (palette

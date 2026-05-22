@@ -873,6 +873,18 @@ class PromptBuilder:
             break_marker=family.break_marker,
         )
         _warn_if_post_trim_truncated(family, prompt_text)
+        # 2026-05-23 (Verifier NC7) — defensive trailing-period ensure
+        # for prose families. fit_to_budget's piece-pack can drop the
+        # trailing period when trimming at separator boundaries; the
+        # missing period leaves the prompt looking unfinished and
+        # subtly degrades T5's parse. SDXL keyword family doesn't
+        # need the period (comma-joined), so skip there.
+        if (
+            family.prompt_style in {"flux_natural", "flux2_prose"}
+            and prompt_text
+            and not prompt_text.rstrip().endswith((".", "!", "?"))
+        ):
+            prompt_text = prompt_text.rstrip() + "."
 
         if negative_prompt_override is not None:
             negative_prompt = negative_prompt_override
