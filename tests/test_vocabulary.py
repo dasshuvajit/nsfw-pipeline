@@ -1128,6 +1128,41 @@ def test_vocab_block_narrows_narrative_moment_to_whitelist(loader):
     assert "NARR_AFTER_THE_PARTY" not in narr_line
 
 
+def test_vocab_block_narrows_art_style_to_whitelist(loader):
+    """2026-05-23 — same pattern as environment/narrative narrowing,
+    applied to realism.art_style. Verifier audit found Lindbergh-
+    anchored series picking ART_HELMUT_NEWTON (opposite school) on
+    5/28 scenes. Style-profile-driven compat list constrains the
+    per-scene art_style_reference menu."""
+    whitelist = ["ART_FINE_NUDE", "ART_NUDE_PHOTOGRAPHY", "ART_CLASSICAL"]
+    block = llm_vocabulary_block(
+        "sdxl", content_level="T3_artnude", loader=loader,
+        compatible_art_styles=whitelist,
+    )
+    for tag in whitelist:
+        assert tag in block
+    art_line = next(
+        line for line in block.splitlines()
+        if line.strip().startswith("realism.art_style:")
+    )
+    assert "ART_FINE_NUDE" in art_line
+    assert "ART_NUDE_PHOTOGRAPHY" in art_line
+    assert "ART_CLASSICAL" in art_line
+    # Non-whitelisted art_style tags filtered out
+    assert "ART_HELMUT_NEWTON" not in art_line
+    assert "ART_BOUDOIR_NOIR" not in art_line
+
+
+def test_vocab_block_no_compat_art_styles_shows_full_art_menu(loader):
+    """No `compatible_art_styles` → full vocab menu (back-compat)."""
+    block_none = llm_vocabulary_block(
+        "sdxl", content_level="T3_artnude", loader=loader,
+        compatible_art_styles=None,
+    )
+    assert "ART_HELMUT_NEWTON" in block_none
+    assert "ART_FINE_NUDE" in block_none
+
+
 def test_vocab_block_no_compat_narratives_shows_full_narrative_menu(loader):
     """No `compatible_narratives` (None or empty) → full vocab menu."""
     block_none = llm_vocabulary_block(

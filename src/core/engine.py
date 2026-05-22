@@ -285,6 +285,7 @@ def _load_style_profile(db_path: Path, style_profile_id: str) -> dict[str, Any]:
         "compatible_photographers": list(p.compatible_photographers),
         "compatible_art_movements": list(p.compatible_art_movements),
         "compatible_environments": list(p.compatible_environments),
+        "compatible_art_styles": list(p.compatible_art_styles),
     }
 
 
@@ -988,6 +989,14 @@ class PipelineEngine:
                             # result on series_plan.
                             compatible_narratives=(
                                 series_plan.get("compatible_narratives")
+                                or None
+                            ),
+                            # 2026-05-23 — narrow the per-scene
+                            # `art_style_reference` menu so a Lindbergh-
+                            # anchored series can't pick Helmut Newton
+                            # (Verifier audit C3). Style-profile-driven.
+                            compatible_art_styles=(
+                                series_plan.get("compatible_art_styles")
                                 or None
                             ),
                             diversity_tracker=diversity_tracker,

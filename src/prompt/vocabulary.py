@@ -805,6 +805,7 @@ def llm_vocabulary_block(
     loader: VocabularyLoader | None = None,
     compatible_environments: Iterable[str] | None = None,
     compatible_narratives: Iterable[str] | None = None,
+    compatible_art_styles: Iterable[str] | None = None,
 ) -> str:
     """Build the system-prompt block listing the abstract tags the LLM
     may pick for ``family_id``.
@@ -870,6 +871,18 @@ def llm_vocabulary_block(
             narrowed = [t for t in by_ns[narr_key] if t in narr_whitelist]
             if narrowed:
                 by_ns[narr_key] = narrowed
+    # 2026-05-23 — same pattern for realism.art_style. Verifier audit
+    # of series_79ae3b962c8d found Lindbergh-anchored series picking
+    # ART_HELMUT_NEWTON (opposite school) on 5/28 scenes. Style-
+    # profile-driven compat list constrains per-scene art_style_
+    # reference to schools coherent with the series anchors.
+    if compatible_art_styles:
+        art_whitelist = {str(t).strip() for t in compatible_art_styles if t}
+        art_key = "realism.art_style"
+        if art_whitelist and art_key in by_ns:
+            narrowed = [t for t in by_ns[art_key] if t in art_whitelist]
+            if narrowed:
+                by_ns[art_key] = narrowed
     lines = [
         "REALISM VOCABULARY (abstract tags — composer translates to "
         "family-specific phrasing):",

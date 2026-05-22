@@ -1212,6 +1212,7 @@ class SceneFacetGenerator:
         model: str | None = None,
         compatible_environments: list[str] | None = None,
         compatible_narratives: list[str] | None = None,
+        compatible_art_styles: list[str] | None = None,
         diversity_tracker: "_DiversityTracker | None" = None,
         subject_description: str = "",
     ) -> dict[str, Any]:
@@ -1305,6 +1306,7 @@ class SceneFacetGenerator:
             llm_directive=llm_directive,
             compatible_environments=compatible_environments,
             compatible_narratives=compatible_narratives,
+            compatible_art_styles=compatible_art_styles,
         )
         # Round-12 diversity nudge — pulls running tag-frequency stats
         # from the engine-owned tracker and injects an "avoid these
@@ -1736,6 +1738,7 @@ class SceneFacetGenerator:
         llm_directive: str = "",
         compatible_environments: list[str] | None = None,
         compatible_narratives: list[str] | None = None,
+        compatible_art_styles: list[str] | None = None,
     ) -> str:
         """Assemble the family-aware system prompt.
 
@@ -2014,6 +2017,7 @@ class SceneFacetGenerator:
             family.id, content_level=content_level or None,
             compatible_environments=compatible_environments,
             compatible_narratives=compatible_narratives,
+            compatible_art_styles=compatible_art_styles,
         )
         if vocab_block:
             parts.append(f"\n{vocab_block}")

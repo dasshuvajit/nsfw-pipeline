@@ -194,6 +194,10 @@ def test_compat_lists_use_known_concept_tags(loader):
             _tags_in_namespace("aesthetic", "art_movement"),
         "compatible_environments":
             _tags_in_namespace("environment", "setting"),
+        # 2026-05-23 — added compatible_art_styles per style profile
+        # (Verifier audit C3 — Lindbergh + Newton clash).
+        "compatible_art_styles":
+            _tags_in_namespace("realism", "art_style"),
     }
     for pid in PROFILES_WITH_COMPAT:
         p = loader.get_profile(pid)
@@ -204,3 +208,16 @@ def test_compat_lists_use_known_concept_tags(loader):
                 f"{pid}.{field_name} references unknown vocab tag(s) "
                 f"{unknown!r} — typo in the YAML or stale tag name."
             )
+
+
+def test_profiles_with_compat_load_art_style_lists(loader):
+    """All 10 profiles declare compatible_art_styles (2026-05-23).
+    Missing = per-scene art_style_reference menu unconstrained,
+    Lindbergh + Newton clash class re-opens."""
+    for pid in PROFILES_WITH_COMPAT:
+        p = loader.get_profile(pid)
+        assert p.compatible_art_styles, (
+            f"{pid}: compatible_art_styles is empty — per-scene "
+            f"art_style_reference menu will be unconstrained, "
+            f"re-opening the Lindbergh + Newton style clash class."
+        )

@@ -76,6 +76,16 @@ profiles:
       - ENV_HOTEL_LOBBY_NOIR
       - ENV_LOG_CABIN_FIRELIT
       - ENV_VANITY_DRESSING_ROOM
+    # 2026-05-23 — per-scene art_style menu narrowing. Boudoir noir
+    # pairs with intimate / editorial / classic-glam art styles;
+    # excludes Herb Ritts (outdoor sun-shadow), Irving Penn (high-key
+    # minimalism), classical Renaissance figure-study.
+    compatible_art_styles:
+      - ART_BOUDOIR_NOIR
+      - ART_FINE_NUDE
+      - ART_NUDE_PHOTOGRAPHY
+      - ART_OLD_HOLLYWOOD
+      - ART_HELMUT_NEWTON
 
   old_hollywood_glamour:
     name: Old Hollywood Glamour
@@ -120,6 +130,15 @@ profiles:
       - ENV_CABARET_STAGE_DARK
       - ENV_VANITY_DRESSING_ROOM
       - ENV_HOTEL_LOBBY_NOIR
+    # Vintage studio glam — pairs with old Hollywood + boudoir +
+    # editorial + Newton's vintage fashion work. Excludes classical
+    # Renaissance, Ritts outdoor, Penn minimalism, modern editorial.
+    compatible_art_styles:
+      - ART_OLD_HOLLYWOOD
+      - ART_BOUDOIR_NOIR
+      - ART_HELMUT_NEWTON
+      - ART_EDITORIAL_FASHION
+      - ART_FINE_NUDE
 
   golden_hour_natural:
     name: Golden-Hour Natural
@@ -167,6 +186,14 @@ profiles:
       - ENV_DESERT_OASIS_PALMS
       - ENV_FOG_PINE_FOREST
       - ENV_BLACK_SAND_BEACH
+    # Outdoor naturalistic — pairs with classical Renaissance,
+    # Ritts sun-shadow, fine-art figure study. Excludes Newton (urban
+    # hard light), Boudoir noir (indoor low-key), Old Hollywood (studio).
+    compatible_art_styles:
+      - ART_FINE_NUDE
+      - ART_NUDE_PHOTOGRAPHY
+      - ART_CLASSICAL
+      - ART_HERB_RITTS_BW
 
   cinematic_wet_set:
     name: Cinematic Wet-Set
@@ -209,6 +236,16 @@ profiles:
       - ENV_INDOOR_POOL_NIGHT
       - ENV_CLAWFOOT_BATHROOM
       - ENV_HOTEL_LOBBY_NOIR
+    # Cinematic wet-set — pairs with Newton's urban hard-light,
+    # editorial fashion (modern Vogue), boudoir noir (low-key
+    # cinematic), fine-art nude. Excludes classical Renaissance,
+    # Old Hollywood (vintage studio), Herb Ritts (outdoor sun).
+    compatible_art_styles:
+      - ART_HELMUT_NEWTON
+      - ART_BOUDOIR_NOIR
+      - ART_EDITORIAL_FASHION
+      - ART_NUDE_PHOTOGRAPHY
+      - ART_FINE_NUDE
 
   fine_art_figurative:
     name: Fine-Art Figurative
@@ -259,6 +296,16 @@ profiles:
       - ENV_VICTORIAN_OBSERVATORY
       - ENV_PRINT_WORKSHOP
       - ENV_PARIS_ATTIC_APARTMENT
+    # Fine-art figurative — pairs with gallery / sculptural / classical
+    # / minimalist photographer references. Excludes Newton (fashion
+    # provocative), Boudoir noir (intimate not figure-study), Old
+    # Hollywood (glamour not sculptural).
+    compatible_art_styles:
+      - ART_FINE_NUDE
+      - ART_NUDE_PHOTOGRAPHY
+      - ART_CLASSICAL
+      - ART_HERB_RITTS_BW
+      - ART_IRVING_PENN_MINIMALISM
 
   vintage_pinup_kodachrome:
     name: Vintage Pin-Up Kodachrome
@@ -299,6 +346,11 @@ profiles:
       - ENV_MORNING_BEDROOM
       - ENV_OLD_HOLLYWOOD_BOUDOIR
       - ENV_BALINESE_VILLA
+    # Vintage pin-up — pairs with Old Hollywood + editorial-fashion
+    # vintage tradition. Excludes everything modern, classical, dark.
+    compatible_art_styles:
+      - ART_OLD_HOLLYWOOD
+      - ART_EDITORIAL_FASHION
 
   editorial_fashion_nude:
     name: Editorial Fashion Nude
@@ -346,6 +398,17 @@ profiles:
       - ENV_ROOFTOP_CITY_NIGHT
       - ENV_PARIS_ATTIC_APARTMENT
       - ENV_BACKSTAGE_DRESSING_ROOM
+    # Editorial fashion nude — pairs with Vogue editorial / Newton
+    # high-fashion / Penn minimalism / Old Hollywood vintage editorial /
+    # Ritts sculptural / fine-art. Excludes Boudoir noir (low-key
+    # intimate) and classical Renaissance figure-study.
+    compatible_art_styles:
+      - ART_EDITORIAL_FASHION
+      - ART_HELMUT_NEWTON
+      - ART_IRVING_PENN_MINIMALISM
+      - ART_OLD_HOLLYWOOD
+      - ART_HERB_RITTS_BW
+      - ART_FINE_NUDE
 
   moody_bw:
     name: Moody B&W
@@ -399,6 +462,17 @@ profiles:
       - ENV_RUINED_PALAZZO
       - ENV_LOG_CABIN_FIRELIT
       - ENV_FOG_PINE_FOREST
+    # Moody B&W — pairs with high-contrast classical (Caravaggio,
+    # Rembrandt), Ritts B&W sculptural, Newton B&W fashion work,
+    # Boudoir noir, fine-art figure-study. Excludes high-key Vogue
+    # editorial fashion + Old Hollywood (vintage color tradition).
+    compatible_art_styles:
+      - ART_FINE_NUDE
+      - ART_NUDE_PHOTOGRAPHY
+      - ART_HERB_RITTS_BW
+      - ART_BOUDOIR_NOIR
+      - ART_HELMUT_NEWTON
+      - ART_CLASSICAL
 
   fantasy_castlecore:
     name: Fantasy Castlecore
@@ -453,6 +527,15 @@ profiles:
       - ENV_OVERGROWN_GREENHOUSE
       - ENV_ABANDONED_BALLROOM
       - ENV_VICTORIAN_PARLOUR
+    # Fantasy Castlecore — pairs with classical Renaissance figure-
+    # study + fine-art nude (Pre-Raphaelite painterly tradition).
+    # Explicitly excludes everything modern: Newton, Old Hollywood,
+    # editorial fashion, Boudoir noir (modern bedroom), Ritts (modern
+    # sun-shadow), Penn (modern minimalism).
+    compatible_art_styles:
+      - ART_CLASSICAL
+      - ART_FINE_NUDE
+      - ART_NUDE_PHOTOGRAPHY
 
   neo_noir_neon:
     name: Neo-Noir Neon
@@ -497,3 +580,11 @@ profiles:
       - ENV_BRUTALIST_CONCRETE_LOFT
       - ENV_WAREHOUSE_CONVERSION
       - ENV_CABARET_STAGE_DARK
+    # Neo-noir neon — pairs with Newton (urban hard light), Boudoir
+    # noir (low-key cinematic), editorial fashion (modern). Excludes
+    # everything classical / vintage / outdoor-natural.
+    compatible_art_styles:
+      - ART_HELMUT_NEWTON
+      - ART_BOUDOIR_NOIR
+      - ART_EDITORIAL_FASHION
+      - ART_FINE_NUDE

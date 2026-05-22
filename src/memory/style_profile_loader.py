@@ -61,6 +61,12 @@ class StyleProfile:
     compatible_photographers: list[str] = field(default_factory=list)
     compatible_art_movements: list[str] = field(default_factory=list)
     compatible_environments: list[str] = field(default_factory=list)
+    # 2026-05-23 — per-scene `art_style_reference` (boudoir noir,
+    # Helmut Newton, Herb Ritts) was uncurated: a Lindbergh-anchored
+    # series let SOLO_DISPLAY pick ART_HELMUT_NEWTON on 5/28 scenes,
+    # creating visible style contradiction (Lindbergh natural B&W vs
+    # Newton high-fashion provocative hard light). Verifier audit C3.
+    compatible_art_styles: list[str] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, profile_id: str, d: dict) -> "StyleProfile":
@@ -89,6 +95,9 @@ class StyleProfile:
             ),
             compatible_environments=list(
                 d.get("compatible_environments") or []
+            ),
+            compatible_art_styles=list(
+                d.get("compatible_art_styles") or []
             ),
         )
 
