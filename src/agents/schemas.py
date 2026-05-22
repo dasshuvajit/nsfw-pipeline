@@ -708,25 +708,51 @@ class SceneFacetFluxNatural(BaseModel):
                 "underscored multi-word tokens (booru style) — Flux / "
                 "Chroma encoders prefer space-separated natural words."
             )
-        # Round-22 — word-count band. Hard reject outside 20–140 (clearly
-        # too short or pathologically long); soft warn outside 30–80
-        # target band. Round-6 audit (2026-05-22) empirically observed
-        # DavidAU's natural distribution at min=27, max=61, mean=43,
-        # median=42 — the prior 40-word floor flagged ~32% of facets
-        # spuriously. Lowered to 30-80 to match the model's actual
-        # natural mode. Mirrors SceneFacetFlux2's 25–95 / 30–80 pattern.
+        # 2026-05-23 dual-write pivot — scene_prose is NOW the prompt
+        # body (composer no longer stitches per-axis canonicalizations
+        # for prose families). Band widens dramatically: 100-350 hard,
+        # 150-300 target. The LLM must weave ALL axes (subject + pose
+        # + anatomy + light + env + mood + style) into ONE coherent
+        # paragraph. Prior 30-80 band was for the description-only
+        # contract where canonicalizations supplied the rest.
         words = len(prose.split())
-        if not (20 <= words <= 140):
+        if not (100 <= words <= 350):
             raise ValueError(
                 f"SceneFacetFluxNatural.scene_prose has {words} words; "
-                f"prose-family hard band is 20–140 (target 30–80). "
-                f"Tighten the prose."
+                f"prose-family hard band is 100-350 (target 150-300). "
+                f"At dual-write contract, scene_prose IS the prompt body "
+                f"and must cover subject + pose + anatomy + light + env "
+                f"+ mood + style in ONE coherent paragraph."
             )
-        if not (30 <= words <= 80):
+        if not (150 <= words <= 300):
             logger.warning(
                 "SceneFacetFluxNatural.scene_prose word count %d is "
-                "outside the 30–80 target band (still inside 20–140 "
-                "slack). Consider tightening.", words,
+                "outside the 150-300 target band (still inside 100-350 "
+                "slack). Tighten or expand.", words,
+            )
+
+        # 2026-05-23 — max ONE photographer reference per prompt.
+        # Verifier audit (Grok + Claude web): Lindbergh + Newton +
+        # Caravaggio simultaneously = mud. Photographer names belong
+        # in art_style_reference structured tag, not in prose body —
+        # but the LLM sometimes leaks them. Cap at 1 mention.
+        _PHOTOGRAPHER_NAMES = (
+            "Helmut Newton", "Peter Lindbergh", "Herb Ritts",
+            "Robert Mapplethorpe", "Petter Hegre", "Slim Aarons",
+            "Annie Leibovitz", "Mario Testino", "Richard Avedon",
+            "Sarah Moon", "Paolo Roversi", "Bill Henson",
+            "Petra Collins", "Gregory Crewdson", "Nan Goldin",
+            "Irving Penn",
+        )
+        prose_lower = prose.lower()
+        photog_hits = [n for n in _PHOTOGRAPHER_NAMES if n.lower() in prose_lower]
+        if len(photog_hits) > 1:
+            raise ValueError(
+                f"SceneFacetFluxNatural.scene_prose contains {len(photog_hits)} "
+                f"photographer references {photog_hits} — max 1 allowed. "
+                f"Photographer schools have opposite aesthetics; stacking "
+                f"them produces averaged-out mud. Pick ONE photographer "
+                f"reference and remove the others from scene_prose."
             )
 
         # Round-22 F15 (2026-05-22) — env / atmosphere / narrative
@@ -810,23 +836,27 @@ class SceneFacetFlux2(BaseModel):
 
     @model_validator(mode="after")
     def _check_word_count_band(self) -> "SceneFacetFlux2":
-        """BFL Klein 9B targets 30–80 words; with 5-word slack the
-        accept band is 25–95. Outside that, fail hard so a retry is
-        triggered. Inside 25–95 but outside 30–80, log a warning so
-        operators can monitor drift without blocking renders."""
+        """2026-05-23 dual-write pivot — Flux2 Klein 9B also pivots
+        to scene_prose-as-prompt-body, matching the SceneFacetFluxNatural
+        contract. New band: 100-350 hard, 150-300 target. Pre-pivot
+        band was 25-95 (BFL guide target 30-80) which assumed the
+        composer would stitch per-axis canonicalizations after.
+        Now the LLM weaves all axes into one paragraph."""
         prose = self.scene_prose or ""
         words = len(prose.split())
-        if not (25 <= words <= 95):
+        if not (100 <= words <= 350):
             raise ValueError(
-                f"SceneFacetFlux2.scene_prose has {words} words; BFL "
-                f"Klein 9B requires 25–95 (target 30–80). Tighten the "
-                f"prose."
+                f"SceneFacetFlux2.scene_prose has {words} words; dual-"
+                f"write pivot band is 100-350 (target 150-300). "
+                f"scene_prose IS the prompt body; weave subject + pose "
+                f"+ anatomy + light + env + mood + style into ONE "
+                f"coherent paragraph."
             )
-        if not (30 <= words <= 80):
+        if not (150 <= words <= 300):
             logger.warning(
                 "SceneFacetFlux2.scene_prose word count %d is outside "
-                "the 30–80 BFL target band (still inside 25–95 slack). "
-                "Consider tightening.", words,
+                "the 150-300 target band (still inside 100-350 slack). "
+                "Consider tightening or expanding.", words,
             )
         return self
 

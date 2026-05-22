@@ -177,7 +177,7 @@ def test_illustrious_facet_dispatch(generator, loader):
     family = loader.get_family("illustrious")
     canned = (
         '{"booru_tags": "long_hair, soft_focus", '
-        '"scene_prose": "She stands on the balcony in golden hour light.", '
+        '"scene_prose": "She stands on the balcony in golden hour light. The room glows in warm honey tones, deep umber shadows in the corners, gilt-framed paintings on every wall and a single gas lamp catching her cheek. Her gaze drifts toward the distant horizon, contemplative and at ease in the silent room. She is fully nude, her natural curves rendered in soft chiaroscuro relief against the heavy oxblood leather chair behind her. A vinyl record turns slowly on a nearby phonograph, the only sound in the room. Shot in the Rembrandt lighting tradition with a single warm key light shaping every form.", '
         + _T2_REQUIRED_TAGS_JSON + '}'
     )
     with _patch_generate(canned):
@@ -195,7 +195,7 @@ def test_flux_facet_dispatch_uses_flux_natural_schema(generator, loader):
         '{"scene_prose": "She stands on a sunset balcony in an ivory '
         'silk dress, golden-hour rim light catching her hair. Soft '
         'shadows fall across her bare shoulders and the polished '
-        'marble floor behind her.", '
+        'marble floor behind her. The room glows in warm honey tones, deep umber shadows in the corners, gilt-framed paintings on every wall and a single gas lamp catching her cheek. Her gaze drifts toward the distant horizon, contemplative and at ease in the silent room. She is fully nude, her natural curves rendered in soft chiaroscuro relief against the heavy oxblood leather chair behind her. A vinyl record turns slowly on a nearby phonograph, the only sound in the room. Shot in the Rembrandt lighting tradition with a single warm key light shaping every form.", '
         + _T2_REQUIRED_TAGS_JSON + '}'
     )
     with _patch_generate(canned):
@@ -212,7 +212,7 @@ def test_chroma_facet_uses_same_schema_as_flux(generator, loader):
         '{"scene_prose": "She leans against the balcony rail in soft '
         'amber light, gaze drifting toward the distant rooftops. The '
         'wrought-iron pattern casts intricate shadows across her bare '
-        'arms.", '
+        'arms. The room glows in warm honey tones, deep umber shadows in the corners, gilt-framed paintings on every wall and a single gas lamp catching her cheek. Her gaze drifts toward the distant horizon, contemplative and at ease in the silent room. She is fully nude, her natural curves rendered in soft chiaroscuro relief against the heavy oxblood leather chair behind her. A vinyl record turns slowly on a nearby phonograph, the only sound in the room. Shot in the Rembrandt lighting tradition with a single warm key light shaping every form.", '
         + _T2_REQUIRED_TAGS_JSON + '}'
     )
     with _patch_generate(canned):
@@ -229,7 +229,7 @@ def test_flux2_facet_dispatch_with_qa_fields(generator, loader):
         'North-facing window light wraps gently around her face from the '
         'left, illuminating natural skin texture and casting a soft '
         'shadow on the wall behind. The atmosphere is quiet, intimate, '
-        'pensive late-afternoon.", '
+        'pensive late-afternoon. The room glows in warm honey tones, deep umber shadows in the corners, gilt-framed paintings on every wall and a single gas lamp catching her cheek. Her gaze drifts toward the distant horizon, contemplative and at ease in the silent room. She is fully nude, her natural curves rendered in soft chiaroscuro relief against the heavy oxblood leather chair behind her. A vinyl record turns slowly on a nearby phonograph, the only sound in the room. Shot in the Rembrandt lighting tradition with a single warm key light shaping every form.", '
         '"subject_focus": "Mira, 28, raven hair", '
         + _T2_REQUIRED_TAGS_JSON + '}'
     )
@@ -359,11 +359,19 @@ def test_system_prompt_includes_family_guide_for_flux2(generator, loader):
     valid_response = json.dumps({
         "scene_prose": (
             "She stands on the balcony at sunset, raven hair lifting in "
-            "the warm breeze. The horizon glows in shades of amber and "
-            "rose, with the city below softening into haze. Soft golden "
-            "rim light from the right traces her silhouette. The mood "
-            "is contemplative, tender, late-summer."
-        ),
+            "the warm breeze, body fully nude against the railing. The "
+            "horizon glows in shades of amber and rose, with the city "
+            "below softening into haze. Soft golden rim light from the "
+            "right traces her silhouette, the rest of her figure falling "
+            "into deep umber shadow. The mood is contemplative, tender, "
+            "late-summer warmth caught in unhurried moment. The room "
+            "behind her glows in pale neutral tones, deep umber shadows "
+            "gathering in the corners, polished marble floor catching "
+            "faint reflections. Her gaze drifts toward the floor, "
+            "contemplative and at ease. The mood is fine-art figure "
+            "study — sculptural, painterly, the body as quiet form "
+            "against minimal architecture. Soft natural light only."
+        ),  # ~140 words, dual-write band
         # Round-9 strict-schema requires the T2 tier-required fields.
         "lighting_directive": "LIGHT_WINDOW_SIDE",
         "mood_aesthetic": "MOOD_SERENE",
@@ -560,7 +568,7 @@ def test_system_prompt_carries_coherence_invariant(generator, loader):
             '{"scene_prose": "She stands alone in the parlour, soft '
             'golden afternoon light falling across her bare shoulders. '
             'Her gaze drifts toward the tall window, contemplative '
-            'and at ease in the quiet room.", '
+            'and at ease in the quiet room. The room glows in warm honey tones, deep umber shadows in the corners, gilt-framed paintings on every wall and a single gas lamp catching her cheek. Her gaze drifts toward the distant horizon, contemplative and at ease in the silent room. She is fully nude, her natural curves rendered in soft chiaroscuro relief against the heavy oxblood leather chair behind her. A vinyl record turns slowly on a nearby phonograph, the only sound in the room. Shot in the Rembrandt lighting tradition with a single warm key light shaping every form.", '
             + _required_tags_for("T3_artnude") + '}'
         )
 
@@ -588,11 +596,36 @@ def test_system_prompt_carries_coherence_invariant(generator, loader):
     )
 
 
+# Dual-write pivot (2026-05-23) — scene_prose now must be 100-350
+# words (150-300 target). This _LONG_PROSE is ~140 words and serves
+# as the standard test fixture across the generator tests.
 _LONG_PROSE = (
-    "She stands by the tall window in the quiet parlour, soft "
-    "golden morning light falling across her shoulders and tracing "
-    "the line of her arm. Her gaze drifts toward the distant horizon, "
-    "contemplative and at ease in the silent room."
+    "A mature woman in her late 30s with long dark hair stands by the "
+    "tall window in the quiet parlour, one hand resting lightly on the "
+    "antique velvet sill. Soft golden morning light falls across her "
+    "bare shoulders and traces the gentle line of her arm down to the "
+    "hip. The room glows in warm honey tones, soft shadows tracing the "
+    "curves of oxblood leather upholstery behind her, gilt-framed oil "
+    "paintings on every wall, gas-lamp amber glow from the side table. "
+    "Her gaze drifts toward the distant horizon beyond the glass, "
+    "contemplative and at ease in the silent room. The single warm "
+    "highlight catches her cheek, the rest of her figure falling into "
+    "deep umber shadow against the heavy parlour interior. A vinyl "
+    "record turns slowly on the nearby phonograph, the only sound in "
+    "the room."
+)
+# Compact ~110-word variant for tests that need shorter fixtures while
+# still clearing the 100-word floor.
+_MEDIUM_PROSE = (
+    "A mature woman in her late 30s stands by the tall parlour window, "
+    "one hand on the velvet sill. Golden morning light falls across her "
+    "bare shoulders and traces the line of her arm. The room glows in "
+    "warm honey tones, deep umber shadows in the corners, gilt-framed "
+    "paintings on every wall and a single gas lamp catching her cheek. "
+    "Her gaze drifts toward the distant horizon, contemplative and at "
+    "ease in the silent room. She is fully nude, her natural curves "
+    "rendered in soft chiaroscuro relief against the heavy upholstery "
+    "of an oxblood leather chair behind her."
 )
 
 
@@ -725,7 +758,7 @@ def test_system_prompt_t4_allows_explicit_anatomical_language(generator, loader)
             'parlour, soft golden light tracing the curves of her '
             'body and casting long shadows across the antique velvet. '
             'Her gaze meets the lens with quiet, contemplative '
-            'intimacy.", '
+            'intimacy. The room glows in warm honey tones, deep umber shadows in the corners, gilt-framed paintings on every wall and a single gas lamp catching her cheek. Her gaze drifts toward the distant horizon, contemplative and at ease in the silent room. She is fully nude, her natural curves rendered in soft chiaroscuro relief against the heavy oxblood leather chair behind her. A vinyl record turns slowly on a nearby phonograph, the only sound in the room. Shot in the Rembrandt lighting tradition with a single warm key light shaping every form.", '
             + _required_tags_for("T4_explicit") + '}'
         )
 
@@ -758,7 +791,7 @@ def test_system_prompt_t3_allows_tasteful_anatomical_language(generator, loader)
             '{"scene_prose": "She stands alone in the parlour, soft '
             'golden afternoon light falling across her bare shoulders. '
             'Her gaze drifts toward the tall window, contemplative '
-            'and at ease in the quiet room.", '
+            'and at ease in the quiet room. The room glows in warm honey tones, deep umber shadows in the corners, gilt-framed paintings on every wall and a single gas lamp catching her cheek. Her gaze drifts toward the distant horizon, contemplative and at ease in the silent room. She is fully nude, her natural curves rendered in soft chiaroscuro relief against the heavy oxblood leather chair behind her. A vinyl record turns slowly on a nearby phonograph, the only sound in the room. Shot in the Rembrandt lighting tradition with a single warm key light shaping every form.", '
             + _required_tags_for("T3_artnude") + '}'
         )
 
@@ -792,7 +825,7 @@ def test_system_prompt_t2_forbids_direct_anatomy(generator, loader):
         return (
             '{"scene_prose": "She stands in soft afternoon light, '
             'silk robe slipping from one shoulder as she gazes '
-            'thoughtfully toward the window in the warm parlour.", '
+            'thoughtfully toward the window in the warm parlour. The room glows in warm honey tones, deep umber shadows in the corners, gilt-framed paintings on every wall and a single gas lamp catching her cheek. Her gaze drifts toward the distant horizon, contemplative and at ease in the silent room. She is fully nude, her natural curves rendered in soft chiaroscuro relief against the heavy oxblood leather chair behind her. A vinyl record turns slowly on a nearby phonograph, the only sound in the room. Shot in the Rembrandt lighting tradition with a single warm key light shaping every form.", '
             + _required_tags_for("T2_implied") + '}'
         )
 
@@ -824,7 +857,7 @@ def test_system_prompt_t1_requires_clothed(generator, loader):
             '{"scene_prose": "She stands at the kitchen counter in a '
             'cotton dress, late morning light catching the steam from '
             'her coffee cup, peaceful and unhurried in the quiet '
-            'house.", '
+            'house. The room glows in warm honey tones, deep umber shadows in the corners, gilt-framed paintings on every wall and a single gas lamp catching her cheek. Her gaze drifts toward the distant horizon, contemplative and at ease in the silent room. She is fully nude, her natural curves rendered in soft chiaroscuro relief against the heavy oxblood leather chair behind her. A vinyl record turns slowly on a nearby phonograph, the only sound in the room. Shot in the Rembrandt lighting tradition with a single warm key light shaping every form.", '
             + _required_tags_for("T1_suggestive") + '}'
         )
 
@@ -926,7 +959,7 @@ def test_t4_directive_pushes_for_nsfw_act(generator, loader):
             '{"scene_prose": "She stands in a sunlit room with morning '
             'light pouring across the bare floor and a single window '
             'illuminating the side of her face in a quiet pensive '
-            'moment of solitude.", '
+            'moment of solitude. The room glows in warm honey tones, deep umber shadows in the corners, gilt-framed paintings on every wall and a single gas lamp catching her cheek. Her gaze drifts toward the distant horizon, contemplative and at ease in the silent room. She is fully nude, her natural curves rendered in soft chiaroscuro relief against the heavy oxblood leather chair behind her. A vinyl record turns slowly on a nearby phonograph, the only sound in the room. Shot in the Rembrandt lighting tradition with a single warm key light shaping every form.", '
             + _T4_REQUIRED_TAGS_JSON + '}'
         )
 
@@ -1242,9 +1275,13 @@ def test_schema_body_narrowing_replaces_environment_examples():
         ],
         compatible_narratives=None,
     )
+    # Dual-write pivot — scene_prose description now mentions
+    # "environment_setting" as part of its directive listing. Filter
+    # to the FIELD-DEFINITION line specifically (starts with quoted
+    # key followed by colon).
     env_line = next(
         line for line in narrowed.splitlines()
-        if "environment_setting" in line
+        if line.lstrip().startswith('"environment_setting":')
     )
     assert "ENV_RUINED_PALAZZO" in env_line
     assert "ENV_ABANDONED_BALLROOM" in env_line
@@ -1364,7 +1401,7 @@ def test_diversity_third_attempt_fires_hard_ban_nudge(generator, loader):
             '{"scene_prose": "She stands alone in the parlour, soft '
             'afternoon window light catching the curves of her bare '
             'shoulders. Her gaze drifts toward the distant horizon, '
-            'pensive and at ease.", '
+            'pensive and at ease. The room glows in warm honey tones, deep umber shadows in the corners, gilt-framed paintings on every wall and a single gas lamp catching her cheek. Her gaze drifts toward the distant horizon, contemplative and at ease in the silent room. She is fully nude, her natural curves rendered in soft chiaroscuro relief against the heavy oxblood leather chair behind her. A vinyl record turns slowly on a nearby phonograph, the only sound in the room. Shot in the Rembrandt lighting tradition with a single warm key light shaping every form.", '
             '"lighting_directive": "LIGHT_WINDOW_SIDE", '
             '"mood_aesthetic": "MOOD_SERENE", '
             '"narrative_moment": "NARR_COFFEE_MORNING_PAPER"'
@@ -1417,7 +1454,7 @@ def test_pose_act_coherence_triggers_retry_with_nudge(generator, loader):
                 '{"scene_prose": "She reclines on the velvet chaise, '
                 'soft golden light tracing the curve of her hip and '
                 'the long line of her bare back, her gaze drifting '
-                'languidly toward the open balcony door.", '
+                'languidly toward the open balcony door. The room glows in warm honey tones, deep umber shadows in the corners, gilt-framed paintings on every wall and a single gas lamp catching her cheek. Her gaze drifts toward the distant horizon, contemplative and at ease in the silent room. She is fully nude, her natural curves rendered in soft chiaroscuro relief against the heavy oxblood leather chair behind her. A vinyl record turns slowly on a nearby phonograph, the only sound in the room. Shot in the Rembrandt lighting tradition with a single warm key light shaping every form.", '
                 + _T4_REQUIRED_TAGS_JSON.replace(
                     "NSFW_T4_SOLO_TOUCH", "NSFW_T4_SOLO_DISPLAY",
                 )
@@ -1428,7 +1465,7 @@ def test_pose_act_coherence_triggers_retry_with_nudge(generator, loader):
             '{"scene_prose": "She reclines on the velvet chaise, '
             'soft golden light tracing the curve of her hip and the '
             'long line of her bare back, her gaze drifting languidly '
-            'toward the open balcony door.", '
+            'toward the open balcony door. The room glows in warm honey tones, deep umber shadows in the corners, gilt-framed paintings on every wall and a single gas lamp catching her cheek. Her gaze drifts toward the distant horizon, contemplative and at ease in the silent room. She is fully nude, her natural curves rendered in soft chiaroscuro relief against the heavy oxblood leather chair behind her. A vinyl record turns slowly on a nearby phonograph, the only sound in the room. Shot in the Rembrandt lighting tradition with a single warm key light shaping every form.", '
             + _T4_REQUIRED_TAGS_JSON.replace(
                 "NSFW_T4_SOLO_TOUCH", "NSFW_T4_SOLO_RECLINING",
             )
@@ -1477,7 +1514,7 @@ def test_t4_critical_missing_field_raises_instead_of_soft_ship(generator, loader
             '{"scene_prose": "She stands by the window in the quiet '
             'morning light, the soft glow catching her bare shoulder '
             'and tracing the gentle curve down to her hip and across '
-            'her thigh in tasteful framing.", '
+            'her thigh in tasteful framing. The room glows in warm honey tones, deep umber shadows in the corners, gilt-framed paintings on every wall and a single gas lamp catching her cheek. Her gaze drifts toward the distant horizon, contemplative and at ease in the silent room. She is fully nude, her natural curves rendered in soft chiaroscuro relief against the heavy oxblood leather chair behind her. A vinyl record turns slowly on a nearby phonograph, the only sound in the room. Shot in the Rembrandt lighting tradition with a single warm key light shaping every form.", '
             '"lighting_directive": "LIGHT_WINDOW_SIDE", '
             '"mood_aesthetic": "MOOD_SERENE", '
             '"narrative_moment": "NARR_COFFEE_MORNING_PAPER", '
@@ -1517,7 +1554,7 @@ def test_t3_critical_missing_field_soft_ships(generator, loader):
             '{"scene_prose": "She stands in the parlour with soft '
             'window light tracing her bare shoulder line, the room '
             'quiet around her in gentle morning calm and the tall '
-            'window catching the early sun in slow soft tones.", '
+            'window catching the early sun in slow soft tones. The room glows in warm honey tones, deep umber shadows in the corners, gilt-framed paintings on every wall and a single gas lamp catching her cheek. Her gaze drifts toward the distant horizon, contemplative and at ease in the silent room. She is fully nude, her natural curves rendered in soft chiaroscuro relief against the heavy oxblood leather chair behind her. A vinyl record turns slowly on a nearby phonograph, the only sound in the room. Shot in the Rembrandt lighting tradition with a single warm key light shaping every form.", '
             + _required_tags_for("T3_artnude") + '}'
         )
 
@@ -1546,7 +1583,7 @@ def test_pose_act_neutral_act_does_not_trigger_retry(generator, loader):
             '{"scene_prose": "She reclines on the velvet chaise, '
             'soft golden light tracing the curve of her hip and the '
             'long line of her bare back, her gaze drifting languidly '
-            'toward the open balcony door.", '
+            'toward the open balcony door. The room glows in warm honey tones, deep umber shadows in the corners, gilt-framed paintings on every wall and a single gas lamp catching her cheek. Her gaze drifts toward the distant horizon, contemplative and at ease in the silent room. She is fully nude, her natural curves rendered in soft chiaroscuro relief against the heavy oxblood leather chair behind her. A vinyl record turns slowly on a nearby phonograph, the only sound in the room. Shot in the Rembrandt lighting tradition with a single warm key light shaping every form.", '
             + _T4_REQUIRED_TAGS_JSON
             + '}'
         )

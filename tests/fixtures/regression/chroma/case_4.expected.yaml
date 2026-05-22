@@ -2,11 +2,9 @@ expected:
   prompt_text: A single adult woman alone in the scene. Mira, twenty-eight, raven-black hair, green eyes,
     slender. Mira stands confidently in the sun-warmed Tuscan villa courtyard, golden afternoon light
     catching her bare shoulders and tracing the curve of her collarbone. The faint scent of olive trees
-    drifts on the breeze, and her serene gaze rests on the distant hills beyond the stone wall. Shot on
-    Sony A7R V, full-frame mirrorless. 85mm f/1.4 lens, shallow DoF, smooth bokeh. Golden hour sun, warm
-    honey light, low angle, long shadows. Serene calm mood, balanced, peaceful expression. photographic,
+    drifts on the breeze, and her serene gaze rests on the distant hills beyond the stone wall. photographic,
     natural skin texture.
-  prompt_token_count: 157
+  prompt_token_count: 99
   negative_prompt: ''
   ratio: portrait_23
   resolution:

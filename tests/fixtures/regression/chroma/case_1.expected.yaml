@@ -1,9 +1,9 @@
 expected:
   prompt_text: A single adult woman alone in the scene. Elara, a thirty-two-year-old woman with wavy brunette
     hair, hazel eyes, athletic build. Elara stands on a sunset balcony in an ivory silk slip dress. The
-    warm rim light catches the texture of her hair while she gazes toward the horizon. Cinematic. natural
-    color grading. soft skin texture. f/1.8, 35mm, photographic, natural skin texture.
-  prompt_token_count: 100
+    warm rim light catches the texture of her hair while she gazes toward the horizon. f/1.8, 35mm, photographic,
+    natural skin texture.
+  prompt_token_count: 87
   negative_prompt: ''
   ratio: portrait_23
   resolution:

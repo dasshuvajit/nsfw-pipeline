@@ -2,8 +2,8 @@ expected:
   prompt_text: A single adult woman alone in the scene. Mira, twenty-eight, raven-black hair to her shoulders,
     green eyes, slender frame. Mira sits on a low bench in a minimalist loft, an open silk robe slipping
     from one shoulder. North-facing window light wraps softly around her face. Shot on a 50mm at f/1.8
-    with Kodak Portra 400 emulation. Editorial, film grain, muted palette.
-  prompt_token_count: 108
+    with Kodak Portra 400 emulation.
+  prompt_token_count: 98
   negative_prompt: ''
   ratio: square
   resolution:

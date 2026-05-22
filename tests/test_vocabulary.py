@@ -1383,14 +1383,24 @@ def test_pydantic_validator_rejects_incoherent_facet():
     import pytest
     from pydantic import ValidationError
     from src.agents.schemas import SceneFacetFluxNatural
+    # Dual-write pivot — prose ≥100 words required.
+    _long_prose = " ".join([
+        "A woman reclines on a fire escape at midnight,",
+        "the city glittering below her in scattered neon points,",
+        "wet asphalt reflecting the streetlamp glow.",
+        "Her gaze drifts down toward the rain-slicked street, pensive and",
+        "unhurried, fingers tracing the rusted iron railing. The cool blue-",
+        "violet light of distant signs paints her bare shoulder while",
+        "deeper neon magenta glows from a window across the alley.",
+        "Steam rises from a grate below.",
+        "She is fully nude, her natural curves rendered against the",
+        "industrial geometry of the escape — soft body against hard",
+        "metal, organic against urban. The mood is intimate isolation,",
+        "the late hour of a city that never quite sleeps.",
+    ])
     with pytest.raises(ValidationError, match=r"cross-field coherence"):
         SceneFacetFluxNatural.model_validate({
-            "scene_prose": (
-                "A woman reclines on a fire escape at midnight, the "
-                "city glittering below her in scattered neon points. "
-                "Her gaze drifts down toward the rain-slicked street, "
-                "pensive and unhurried."
-            ),
+            "scene_prose": _long_prose,
             "environment_setting": "ENV_FIRE_ESCAPE_NEON",
             "environment_atmosphere": "ATM_FABRIC_FLOATING_UNDERWATER",
         })
@@ -1399,16 +1409,27 @@ def test_pydantic_validator_rejects_incoherent_facet():
 def test_pydantic_validator_passes_coherent_facet():
     """Round-22 F15 — coherent env+atmosphere passes validation.
     Vocab v11 (2026-05-23) added place_constraint on
-    ATM_DUST_MOTES_IN_LIGHT (requires indoor with window). Use a
-    matching indoor environment here so coherence holds."""
+    ATM_DUST_MOTES_IN_LIGHT (requires indoor with window). Dual-
+    write pivot — prose ≥100 words required."""
     from src.agents.schemas import SceneFacetFluxNatural
+    _long_prose = " ".join([
+        "A mature woman reclines in the warm parlour interior, dark",
+        "hair spilling across the velvet upholstery, her body fully",
+        "nude against the heavy oxblood leather wingback chair.",
+        "Golden afternoon sunlight streams across her bare shoulders",
+        "and the worn velvet, the room glowing softly amber from a",
+        "single gas lamp behind her. Dust motes drift visibly through",
+        "a slanting shaft of light that catches the gilt-framed oil",
+        "paintings lining every wall. Her natural curves are rendered",
+        "in soft chiaroscuro relief, one hand resting lightly on the",
+        "armrest, the other tracing a worn book spine on the side",
+        "table. Her gaze drifts toward the tall window, pensive and",
+        "at ease in the quiet space, the sheer curtains glowing softly.",
+        "A vinyl record turns slowly on a nearby phonograph, the only",
+        "sound in the room.",
+    ])
     facet = SceneFacetFluxNatural.model_validate({
-        "scene_prose": (
-            "A woman reclines in the warm parlour interior, golden "
-            "afternoon sunlight streaming across her bare shoulders "
-            "and the worn velvet upholstery, pensive and at ease in "
-            "the quiet space, the sheer curtains glowing softly."
-        ),
+        "scene_prose": _long_prose,
         "environment_setting": "ENV_VICTORIAN_PARLOUR",
         "environment_atmosphere": "ATM_DUST_MOTES_IN_LIGHT",
         "narrative_moment": "NARR_LISTENING_TO_RECORD",

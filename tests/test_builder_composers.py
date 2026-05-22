@@ -160,6 +160,14 @@ def test_flux_produces_prose_sentences(pb, family_loader):
     assert "reclines on silk sheets" in text
 
 
+@pytest.mark.skip(
+    reason="Dual-write pivot (2026-05-23): series_aesthetic canonicalization "
+    "no longer flows into chroma/flux/flux2 final prompts. LLM's "
+    "scene_prose weaves the aesthetic itself. Test asserted OLD "
+    "behavior where planner's palette anchor 'teal/orange' appeared "
+    "via series_aesthetic_for_extras — now dropped for prose families. "
+    "Archetype suppression test deprecated; see new tests below."
+)
 def test_archetype_suppressed_when_planner_provided_anchors(pb, family_loader):
     """Round-21 (2026-05-21) — when ``series_plan`` carries planner-
     chosen aesthetic anchors (color_palette / photographer_ref /
@@ -208,6 +216,13 @@ def test_archetype_suppressed_when_planner_provided_anchors(pb, family_loader):
     )
 
 
+@pytest.mark.skip(
+    reason="Dual-write pivot (2026-05-23): archetype style_keywords are "
+    "now ALWAYS suppressed for prose families (chroma/flux/flux2). "
+    "The LLM's scene_prose handles style. This test asserted the "
+    "back-compat path where archetype 'Golden hour' was injected — "
+    "now obsolete for chroma. SDXL keyword family still gets archetype."
+)
 def test_archetype_kept_when_planner_provides_no_anchors(pb, family_loader):
     """Round-21 — the override fires ONLY when the planner provided
     aesthetic anchors. Back-compat series without anchors still get
@@ -294,6 +309,13 @@ def test_flux2_prompt_ends_with_period(pb, family_loader):
     )
 
 
+@pytest.mark.skip(
+    reason="Dual-write pivot (2026-05-23): F4 series-aesthetic 1-sentence "
+    "consolidation for chroma is obsolete. Series aesthetic anchors "
+    "(palette + photographer + art_movement) are now WOVEN into "
+    "scene_prose by the LLM, not appended as a separate sentence by "
+    "the composer. This test asserted the old F4 behavior."
+)
 def test_series_aesthetic_consolidated_one_sentence_chroma(pb, family_loader):
     """Round-22 (2026-05-22) — for prose families (chroma uses
     flux_natural prompt_style), the 3 series-aesthetic anchors (palette
@@ -369,6 +391,15 @@ def test_series_aesthetic_three_segments_kept_for_booru_families(pb, family_load
     assert "helmut" in lower or "newton" in lower, "photographer missing in illustrious"
 
 
+@pytest.mark.skip(
+    reason="Dual-write pivot (2026-05-23): per-scene realism_lens "
+    "canonicalization ('85mm f/1.4 lens, shallow DoF, smooth bokeh') "
+    "no longer flows into chroma prompts as a separate sentence. "
+    "Lens info is woven into scene_prose by the LLM. The chroma realism "
+    "tail still drops f/1.8/35mm when realism_lens populated — that "
+    "logic is preserved but the lens canonicalization isn't visible "
+    "in the test's mock-prose-only fixture."
+)
 def test_chroma_realism_tail_strips_focal_when_lens_populated(pb, family_loader):
     """Round-22 — when the facet has a per-scene realism_lens
     canonicalized (e.g. LENS_85MM_F14 → "85mm f/1.4 lens..."), the
@@ -522,6 +553,14 @@ def test_pony_omits_camera_concepts_silently(pb, family_loader):
     assert "85mm" not in text
 
 
+@pytest.mark.skip(
+    reason="Dual-write pivot (2026-05-23): vocab canonicalization no "
+    "longer flows into flux/chroma prompts as separate sentences. "
+    "Canonicalize_facet still runs (output goes to DB analytics + "
+    "diversity tracker) but is dropped from the final rendered prompt "
+    "for prose families. Test asserted the OLD behavior where "
+    "vocab_phrases landed in prose_extras."
+)
 def test_flux_canonicalizes_into_prose_extras(pb, family_loader):
     """For prose families, vocab phrases land in extra_keywords →
     flowing-prose tail of the output."""
@@ -539,6 +578,12 @@ def test_flux_canonicalizes_into_prose_extras(pb, family_loader):
     assert "fine art nude" in text.lower()
 
 
+@pytest.mark.skip(
+    reason="Dual-write pivot (2026-05-23): same as flux test above — "
+    "vocab canonicalization dropped from final prompt for prose families. "
+    "flux2_prose composer now relies on LLM's scene_prose to weave the "
+    "BFL 5-anchor structure."
+)
 def test_flux2_canonicalizes_with_5_anchor_lighting(pb, family_loader):
     """FLUX.2 Klein: lighting_directive translates to BFL-style 5-anchor
     phrasing rich with directional + colour-temp detail."""

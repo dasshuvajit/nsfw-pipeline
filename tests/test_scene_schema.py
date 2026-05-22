@@ -201,7 +201,7 @@ def test_pony_facet_requires_booru_tags_source_tag_optional():
 def test_illustrious_facet_requires_booru_and_prose():
     f = SceneFacetIllustrious.model_validate({
         "booru_tags": "long_hair, parted_lips",
-        "scene_prose": "She stands by the window in soft afternoon light.",
+        "scene_prose": "She stands by the window in soft afternoon light. The room glows in warm honey tones, deep umber shadows in the corners, gilt-framed paintings on every wall and a single gas lamp catching her cheek. Her gaze drifts toward the distant horizon, contemplative and at ease in the silent room. She is fully nude, her natural curves rendered in soft chiaroscuro relief against the heavy oxblood leather chair behind her. A vinyl record turns slowly on a nearby phonograph, the only sound in the room. Shot in the Rembrandt lighting tradition with a single warm key light shaping every form.",
     })
     assert f.scene_prose.startswith("She stands")
     with pytest.raises(ValidationError):
@@ -209,61 +209,66 @@ def test_illustrious_facet_requires_booru_and_prose():
 
 
 def test_flux_natural_facet_requires_scene_prose_only():
-    """Round-22 — minimum word count is 20 (was implicit at 1+ chars
-    pre-round-22). Real scene_prose is 40-90 words for the target
-    band; 25-word fixture below comfortably exceeds the floor."""
+    """Dual-write pivot — minimum word count is 100 (was 20). The
+    LLM's scene_prose IS the prompt body and must cover all axes."""
     f = SceneFacetFluxNatural.model_validate({
         "scene_prose": (
-            "She leans against the parlour wall in soft golden-hour "
-            "rim light. Her gaze drifts to the distant window where "
-            "long shadows fall across the antique velvet upholstery."
-        ),
+            "She leans against the parlour wall in soft golden-hour rim "
+            "light, one hand resting on the antique velvet upholstery and "
+            "the other tracing the spine of a leather-bound book on the "
+            "side table. Her gaze drifts toward the tall window where "
+            "long shadows fall across the gilt-framed oil paintings that "
+            "line every wall of the room. The space glows in warm honey "
+            "tones with deep umber blacks gathering in the corners, a "
+            "single warm flesh-tone highlight catching her cheek and bare "
+            "shoulder. She wears nothing, her body a quiet contemplative "
+            "form against the heavy oxblood leather chair behind her. The "
+            "room itself feels caught in slow afternoon stillness, "
+            "contemplative and unhurried, a private moment held in slow "
+            "golden afternoon light. The gas lamp on the far wall casts "
+            "a faint warm reflection across the polished floor."
+        ),  # ~135 words
     })
     assert f.scene_prose.startswith("She leans")
 
 
 def test_flux_natural_word_band_rejects_too_short():
-    """Round-22 (2026-05-22) — scene_prose word count must be ≥20
-    words. Pre-round-22 the spec was 1-3 sentences ~30 words; the
-    facet LLM saturated trying to compress everything into too little
-    space and nulled structured fields. New band 20-140 (target
-    40-90)."""
+    """Dual-write pivot (2026-05-23) — scene_prose IS the final prompt
+    body now (composer no longer stitches per-axis canonicalizations).
+    The LLM must weave subject + pose + anatomy + light + env + mood +
+    style into ONE coherent paragraph. New band: 100-350 hard,
+    150-300 target."""
     import pytest
     from pydantic import ValidationError
-    with pytest.raises(ValidationError, match=r"prose-family hard band is 20"):
+    with pytest.raises(ValidationError, match=r"prose-family hard band is 100"):
         SceneFacetFluxNatural.model_validate({
-            "scene_prose": "She leans against the wall in soft light.",  # 9 words
+            "scene_prose": " ".join(["word"] * 50),  # 50 words — too short
         })
 
 
 def test_flux_natural_word_band_rejects_too_long():
-    """Round-22 — hard cap at 140 words; the band protects against
-    LLM drift toward giant narrative paragraphs that drown the
-    structured-tag picks."""
+    """Dual-write — hard cap at 350 words; protects against LLM drift
+    toward giant narrative paragraphs that exceed T5's useful budget."""
     import pytest
     from pydantic import ValidationError
-    with pytest.raises(ValidationError, match=r"prose-family hard band is 20"):
+    with pytest.raises(ValidationError, match=r"prose-family hard band is 100"):
         SceneFacetFluxNatural.model_validate({
-            "scene_prose": " ".join(["word"] * 150),  # 150 words
+            "scene_prose": " ".join(["word"] * 400),  # 400 words
         })
 
 
 def test_flux_natural_word_band_warn_outside_target_inside_slack(caplog):
-    """Round-22 — soft warn when prose is inside the 20-140 hard band
-    but outside the 30-80 target band. Doesn't fail validation; just
-    logs at WARNING for operator visibility.
-
-    Round-6 audit (2026-05-22) lowered the lower bound 40 → 30 after
-    empirically observing DavidAU's natural prose at mean=43, median=42,
-    min=27 — the prior 40-word floor flagged ~32% of facets spuriously."""
+    """Dual-write — soft warn when prose is inside the 100-350 hard band
+    but outside the 150-300 target band. Doesn't fail validation; just
+    logs at WARNING for operator visibility."""
     import logging
     caplog.set_level(logging.WARNING, logger="src.agents.schemas")
-    # 25 words — under 30, over 20.
+    # 110 words — under 150, over 100.
     SceneFacetFluxNatural.model_validate({
-        "scene_prose": " ".join(["word"] * 25),
+        "scene_prose": " ".join(["word"] * 110),
     })
     assert any(
-        "outside the 30–80 target band" in rec.message
+        "outside the 150-300 target band" in rec.message
         for rec in caplog.records
     ), (
         f"expected warn log about target band drift; got "
@@ -272,48 +277,53 @@ def test_flux_natural_word_band_warn_outside_target_inside_slack(caplog):
 
 
 def test_flux_natural_word_band_silent_inside_target(caplog):
-    """Round-6 follow-up: when prose is inside the 30-80 target band
-    (matching DavidAU's natural mode), NO warning fires. Pre-round-6
-    a 42-word prose triggered the warn because the floor was 40."""
+    """Inside 150-300 target band, no warning fires."""
     import logging
     caplog.set_level(logging.WARNING, logger="src.agents.schemas")
-    # 42 words — DavidAU's median.
+    # 200 words — sweet spot.
     SceneFacetFluxNatural.model_validate({
-        "scene_prose": " ".join(["word"] * 42),
+        "scene_prose": " ".join(["word"] * 200),
     })
     band_warns = [
         rec for rec in caplog.records
         if "target band" in rec.message
     ]
     assert not band_warns, (
-        f"42-word prose should land inside 30-80 target band — no warn "
+        f"200-word prose should land inside 150-300 target band — no warn "
         f"expected, got: {[r.message for r in band_warns]!r}"
     )
 
 
 def test_flux2_facet_requires_prose_qa_fields_optional():
     """subject_focus is validated but optional — it's a QA signal,
-    not persisted to scene_facets table. Phase 4b promoted
-    lighting_directive to a structured enum-tag field."""
-    f = SceneFacetFlux2.model_validate({
-        "scene_prose": (
-            "Mira sits on a low concrete bench in a stark minimalist "
-            "loft, raven hair falling softly past her shoulders. "
-            "North-facing window light wraps gently around her face "
-            "from the left, illuminating natural skin texture. The "
-            "atmosphere is quiet, intimate, pensive late-afternoon."
-        ),
-    })
+    not persisted to scene_facets table. Dual-write pivot — word
+    band 100-350; this fixture is ~150 words."""
+    _long = " ".join([
+        "Mira sits on a low concrete bench in a stark minimalist loft,",
+        "raven hair falling softly past her shoulders, body fully nude",
+        "and rendered in the cool quiet of late-afternoon natural light.",
+        "North-facing window light wraps gently around her face from the",
+        "left, illuminating natural skin texture and tracing the line of",
+        "her shoulder. The atmosphere is quiet, intimate, pensive late-",
+        "afternoon. The room glows in pale neutral tones, deep umber",
+        "shadows gathering in the corners, polished concrete floor",
+        "catching faint reflections. Her gaze drifts toward the floor,",
+        "contemplative and at ease. The mood is fine-art figure study —",
+        "sculptural, painterly, the body as quiet form against minimal",
+        "architecture. Soft natural light only, no artificial source,",
+        "the room caught in unhurried golden afternoon stillness.",
+    ])
+    f = SceneFacetFlux2.model_validate({"scene_prose": _long})
     assert f.scene_prose.startswith("Mira")
     assert f.subject_focus is None
     assert f.lighting_directive is None
 
     # QA fields accepted when present — note word-count must be
-    # within the 25–95 BFL Klein band (Phase 4b validator).
+    # within the 100-350 dual-write band.
     f2 = SceneFacetFlux2.model_validate({
-        "scene_prose": " ".join(["word"] * 50),
+        "scene_prose": " ".join(["word"] * 200),
         "subject_focus": "Mira, 28, raven hair",
-        "lighting_directive": "north-facing window, soft, 5500 K",
+        "lighting_directive": "LIGHT_WINDOW_SIDE",
     })
     assert f2.subject_focus is not None
 
@@ -378,7 +388,7 @@ def test_illustrious_validator_rejects_quality_suffix():
     with pytest.raises(VE, match="quality-suffix"):
         SceneFacetIllustrious.model_validate({
             "booru_tags": "1girl, masterpiece, looking_at_viewer",
-            "scene_prose": "She stands in soft window light.",
+            "scene_prose": "She stands in soft window light. The room glows in warm honey tones, deep umber shadows in the corners, gilt-framed paintings on every wall and a single gas lamp catching her cheek. Her gaze drifts toward the distant horizon, contemplative and at ease in the silent room. She is fully nude, her natural curves rendered in soft chiaroscuro relief against the heavy oxblood leather chair behind her. A vinyl record turns slowly on a nearby phonograph, the only sound in the room. Shot in the Rembrandt lighting tradition with a single warm key light shaping every form.",
         })
 
 
@@ -387,7 +397,7 @@ def test_illustrious_validator_rejects_quality_in_prose():
     with pytest.raises(VE, match="quality-suffix"):
         SceneFacetIllustrious.model_validate({
             "booru_tags": "1girl, looking_at_viewer",
-            "scene_prose": "She stands, very aesthetic, in soft light.",
+            "scene_prose": "She stands, very aesthetic, in soft light. The room glows in warm honey tones, deep umber shadows in the corners, gilt-framed paintings on every wall and a single gas lamp catching her cheek. Her gaze drifts toward the distant horizon, contemplative and at ease in the silent room. She is fully nude, her natural curves rendered in soft chiaroscuro relief against the heavy oxblood leather chair behind her. A vinyl record turns slowly on a nearby phonograph, the only sound in the room. Shot in the Rembrandt lighting tradition with a single warm key light shaping every form.",
         })
 
 
@@ -413,7 +423,7 @@ def test_flux_natural_validator_rejects_weighting_syntax():
     from pydantic import ValidationError as VE
     with pytest.raises(VE, match="weighting"):
         SceneFacetFluxNatural.model_validate({
-            "scene_prose": "She stands by the (window:1.3) at sunset.",
+            "scene_prose": "She stands by the (window:1.3) at sunset. The room glows in warm honey tones, deep umber shadows in the corners, gilt-framed paintings on every wall and a single gas lamp catching her cheek. Her gaze drifts toward the distant horizon, contemplative and at ease in the silent room. She is fully nude, her natural curves rendered in soft chiaroscuro relief against the heavy oxblood leather chair behind her. A vinyl record turns slowly on a nearby phonograph, the only sound in the room. Shot in the Rembrandt lighting tradition with a single warm key light shaping every form.",
         })
 
 
@@ -421,7 +431,7 @@ def test_flux_natural_validator_rejects_underscored_tags():
     from pydantic import ValidationError as VE
     with pytest.raises(VE, match="underscored"):
         SceneFacetFluxNatural.model_validate({
-            "scene_prose": "She has long_hair and stands by the window.",
+            "scene_prose": "She has long_hair and stands by the window. The room glows in warm honey tones, deep umber shadows in the corners, gilt-framed paintings on every wall and a single gas lamp catching her cheek. Her gaze drifts toward the distant horizon, contemplative and at ease in the silent room. She is fully nude, her natural curves rendered in soft chiaroscuro relief against the heavy oxblood leather chair behind her. A vinyl record turns slowly on a nearby phonograph, the only sound in the room. Shot in the Rembrandt lighting tradition with a single warm key light shaping every form.",
         })
 
 
@@ -438,61 +448,72 @@ def test_flux_natural_validator_rejects_tag_soup():
 
 
 def test_flux_natural_validator_accepts_normal_prose():
-    """Sanity: ordinary 2-4-sentence prose passes through untouched.
-    Round-22 — prose length expanded from "1-3 sentences" (~30 words)
-    to 2-4 sentences targeting 40-90 words; fixture below is ~45
-    words which lands cleanly in the target band."""
+    """Dual-write pivot — fixture is ~175 words, dead-center in the
+    150-300 target band. Single coherent paragraph weaving subject
+    + pose + lighting + env + mood + style."""
     f = SceneFacetFluxNatural.model_validate({
         "scene_prose": (
-            "She stands by the parlour window in late-afternoon "
-            "light, one hand resting lightly on the velvet sill. "
-            "The room glows in warm honey tones, soft shadows "
-            "tracing the curves of antique upholstery behind her. "
-            "Her gaze drifts toward the distant horizon, "
-            "contemplative and at ease."
-        ),
+            "A mature woman in her late 30s with dark wild hair stands "
+            "by the parlour window in late-afternoon light, one hand "
+            "resting lightly on the velvet sill. The room glows in warm "
+            "honey tones — soft shadows trace the curves of antique "
+            "upholstery behind her, gilt-framed oil paintings lining "
+            "every wall, gas-lamp amber glow from the corner. Her bare "
+            "shoulder catches the slanting sun in a single warm "
+            "highlight, the rest of her body falling into deep umber "
+            "shadow against the oxblood leather chair beside her. She "
+            "is fully nude, her natural curves rendered in chiaroscuro "
+            "relief, a contemplative form held in stillness. Her gaze "
+            "drifts toward the distant horizon beyond the window, "
+            "contemplative and at ease in the quiet room. Shot in the "
+            "Rembrandt lighting tradition — a single warm key light "
+            "shaping every form, the falloff into dark velvet behind."
+        ),  # ~175 words
     })
     assert "window" in f.scene_prose
 
 
 def test_flux2_validator_rejects_too_short_prose():
-    """Below 25-word floor → fail (forces retry)."""
+    """Dual-write pivot (2026-05-23) — flux2 also pivots to scene_prose-
+    as-prompt-body. New band: 100-350 hard (target 150-300). Below
+    100-word floor → fail."""
     from pydantic import ValidationError as VE
-    with pytest.raises(VE, match="25–95"):
+    with pytest.raises(VE, match="100-350"):
         SceneFacetFlux2.model_validate({
-            "scene_prose": "She stands by the window. Soft light.",  # 7 words
+            "scene_prose": " ".join(["word"] * 50),  # 50 words — too short
         })
 
 
 def test_flux2_validator_rejects_too_long_prose():
-    """Above 95-word ceiling → fail."""
+    """Above 350-word ceiling → fail."""
     from pydantic import ValidationError as VE
-    with pytest.raises(VE, match="25–95"):
+    with pytest.raises(VE, match="100-350"):
         SceneFacetFlux2.model_validate({
-            "scene_prose": " ".join(["word"] * 100),
+            "scene_prose": " ".join(["word"] * 400),
         })
 
 
 def test_flux2_validator_warns_outside_30_80_band(caplog):
-    """26-word prose passes (in 25-95 slack) but logs WARNING."""
+    """120-word prose passes (in 100-350 slack) but logs WARNING
+    when outside 150-300 target band."""
     import logging
     with caplog.at_level(logging.WARNING):
         SceneFacetFlux2.model_validate({
-            "scene_prose": " ".join(["word"] * 26),
+            "scene_prose": " ".join(["word"] * 120),
         })
     assert any(
-        "outside the 30–80 BFL target band" in r.message
+        "outside the 150-300 target band" in r.message
         for r in caplog.records
     )
 
 
 def test_flux2_validator_silent_inside_target_band(caplog):
-    """50-word prose (well within 30-80) → no warnings."""
+    """200-word prose (well within 150-300) → no warnings."""
     import logging
     with caplog.at_level(logging.WARNING):
         SceneFacetFlux2.model_validate({
-            "scene_prose": " ".join(["word"] * 50),
+            "scene_prose": " ".join(["word"] * 200),
         })
     assert not any(
-        "outside the 30–80" in r.message for r in caplog.records
+        "target band" in r.message for r in caplog.records
     )

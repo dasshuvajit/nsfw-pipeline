@@ -804,14 +804,26 @@ class PromptBuilder:
         # vocabulary (e.g. ``golden_hour_natural``'s "Golden hour, natural
         # outdoor" inside a planner-chosen neon-noir series). See
         # :func:`archetype_overridden_by_planner` for the contract.
+        #
+        # 2026-05-23 dual-write pivot — for prose families, ALSO suppress
+        # archetype style_keywords unconditionally. The LLM's scene_prose
+        # weaves the style itself; archetype tag-soup like "low-key
+        # lighting, chiaroscuro, warm shadow, deep blacks, 85mm, f/1.4,
+        # film grain, editorial grade" would land AFTER scene_prose and
+        # re-introduce the tag-soup problem the pivot exists to fix.
         archetype_overridden = archetype_overridden_by_planner(series_plan)
-        if archetype_overridden:
+        is_prose_family = family.prompt_style in ("flux_natural", "flux2_prose")
+        if archetype_overridden or is_prose_family:
             style_keywords = ""
-            logger.debug(
-                "archetype keywords suppressed — planner provided aesthetic "
+            reason = (
+                "archetype keywords suppressed for prose family (dual-write "
+                "contract — scene_prose covers style)"
+                if is_prose_family
+                else "archetype keywords suppressed — planner provided aesthetic "
                 "anchors (color_palette/photographer_ref/art_movement) for "
                 "series, archetype style_keywords would contradict."
             )
+            logger.debug(reason)
         else:
             style_keywords = self._field(style_profile, "base_style_keywords")
             if style_keywords:
@@ -824,11 +836,39 @@ class PromptBuilder:
         # series_aesthetic_for_extras carries the consolidated form
         # for prose families (1 merged sentence) or the 2-3 individual
         # phrases otherwise; see the consolidation branch above.
-        merged_extras: list[str] = list(series_aesthetic_for_extras) + list(vocab_phrases)
-        for kw in extra_keywords or ():
-            if kw:
-                merged_extras.append(str(kw))
-                segments.append(str(kw))
+        #
+        # 2026-05-23 dual-write pivot — for prose families (flux_natural /
+        # flux2_prose), the LLM's scene_prose IS the prompt body and
+        # already weaves in all axes (subject + pose + anatomy + light
+        # + env + mood + style). The per-axis canonicalizations
+        # (vocab_phrases) and the consolidated series-aesthetic phrase
+        # would land as parallel sentences AFTER scene_prose,
+        # producing the tag-soup output Grok + Claude web independently
+        # flagged on series_753f4daae5f2 (0/24 scoring ≥8). Drop both
+        # for prose families. Keyword families (sdxl/pony/illustrious)
+        # are unaffected — CLIP rewards comma-tag stacking, and
+        # `_compose_natural` is only called for flux_natural here.
+        is_prose_family_drop = family.prompt_style in ("flux_natural", "flux2_prose")
+        if is_prose_family_drop:
+            # Reset segments to just base_prompt + scene_core fields
+            # (pose, lighting tag, etc.) for prose families. vocab_phrases
+            # already added to segments above (line 796) — strip them.
+            # Practically: rebuild segments without the vocab_phrases tail.
+            # Simpler: keep segments unchanged (sdxl_keywords still uses
+            # it), but pass an EMPTY merged_extras to the prose composer.
+            # _compose_natural ignores `segments` when scene_prose is
+            # populated — it builds from prose_segments using extra_keywords.
+            # So passing empty extra_keywords cleanly drops the tag soup.
+            merged_extras: list[str] = []
+            for kw in extra_keywords or ():
+                if kw:
+                    segments.append(str(kw))  # sdxl path
+        else:
+            merged_extras = list(series_aesthetic_for_extras) + list(vocab_phrases)
+            for kw in extra_keywords or ():
+                if kw:
+                    merged_extras.append(str(kw))
+                    segments.append(str(kw))
 
         prompt_text = self._dispatch(
             family=family,
