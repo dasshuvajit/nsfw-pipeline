@@ -1542,6 +1542,36 @@ class SceneFacetGenerator:
                 prompt_style=prompt_style, family_id=family.id,
             )
             if still_missing:
+                # 2026-05-23 (Verifier P0.E) — at T4_explicit, if any
+                # CRITICAL field is still missing after retry, raise
+                # instead of soft-shipping. Critical T4 fields produce
+                # scene-023-class degenerate output when missing: prose
+                # without anatomy/act has no NSFW content, prose
+                # without lighting_directive has no light recipe.
+                # Soft-ship at T4 was responsible for series_79ae3b962c8d
+                # scene 023's one-word-fragment output. T1-T3 still
+                # soft-ship (graceful degradation acceptable for non-
+                # explicit tiers).
+                _T4_CRITICAL = {
+                    "scene_prose",
+                    "nsfw_act",
+                    "lighting_directive",
+                }
+                critical_missing = [
+                    f for f in still_missing if f in _T4_CRITICAL
+                ]
+                if content_level == "T4_explicit" and critical_missing:
+                    logger.error(
+                        "Scene facet generator: family %s STILL missing "
+                        "T4-critical field(s) %s after retry — refusing "
+                        "to soft-ship at T4. Scene will be skipped; "
+                        "operator can re-prep with --regen-facets.",
+                        family.id, critical_missing,
+                    )
+                    raise SceneFacetGeneratorError(
+                        f"T4 facet missing critical fields {critical_missing} "
+                        f"after retry — refusing to ship degenerate output."
+                    )
                 logger.warning(
                     "Scene facet generator: family %s still missing "
                     "tier-required field(s) %s after retry; "

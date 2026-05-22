@@ -1460,6 +1460,77 @@ def test_pose_act_coherence_triggers_retry_with_nudge(generator, loader):
     assert result.get("nsfw_act") == "NSFW_T4_SOLO_RECLINING"
 
 
+def test_t4_critical_missing_field_raises_instead_of_soft_ship(generator, loader):
+    """Verifier P0.E (2026-05-23) — at T4_explicit, when nsfw_act is
+    set to a vocab-invalid tag (LLM drift), Pydantic strict accepts
+    the string but `_missing_required_fields` rejects it. Pre-fix:
+    soft-ship the degenerate facet (scene 023 of series_79ae3b962c8d
+    landed this way). Post-fix: raise SceneFacetGeneratorError so the
+    engine skips the scene cleanly."""
+    family = loader.get_family("chroma")
+
+    # Both attempts return a facet with INVALID nsfw_act (vocab drift).
+    # Pydantic strict schema accepts any string; _missing_required_fields
+    # rejects because the tag isn't in the chroma menu.
+    def capture(system_prompt, user_prompt, **kwargs):
+        return (
+            '{"scene_prose": "She stands by the window in the quiet '
+            'morning light, the soft glow catching her bare shoulder '
+            'and tracing the gentle curve down to her hip and across '
+            'her thigh in tasteful framing.", '
+            '"lighting_directive": "LIGHT_WINDOW_SIDE", '
+            '"mood_aesthetic": "MOOD_SERENE", '
+            '"narrative_moment": "NARR_COFFEE_MORNING_PAPER", '
+            '"environment_setting": "ENV_MORNING_BEDROOM", '
+            '"environment_atmosphere": "ATM_DUST_MOTES_IN_LIGHT", '
+            '"nsfw_anatomy": "NSFW_FULL_NUDE", '
+            '"nsfw_act": "NSFW_T4_INVENTED_TAG", '  # LLM drift
+            '"realism_camera": "CAMERA_SONY_A7RV", '
+            '"realism_lens": "LENS_85MM_F14", '
+            '"realism_angle": "ANGLE_EYE_LEVEL", '
+            '"art_style_reference": "ART_FINE_NUDE"'
+            '}'
+        )
+
+    from src.agents.scene_facet_generator import SceneFacetGeneratorError
+    with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
+        with pytest.raises(SceneFacetGeneratorError, match=r"critical fields"):
+            generator.generate(
+                scene=_scene(),
+                family=family,
+                content_level="T4_explicit",
+            )
+
+
+def test_t3_critical_missing_field_soft_ships(generator, loader):
+    """T1-T3 still soft-ship when fields are missing (graceful
+    degradation acceptable below T4). Only T4 hard-fails on critical
+    missing fields."""
+    family = loader.get_family("chroma")
+    # T3 doesn't require nsfw_act, so this passes the missing check
+    # naturally. But even at T3, if scene_prose were missing, we'd
+    # soft-ship rather than raise.
+    captured = []
+    def capture(system_prompt, user_prompt, **kwargs):
+        captured.append(user_prompt)
+        return (
+            '{"scene_prose": "She stands in the parlour with soft '
+            'window light tracing her bare shoulder line, the room '
+            'quiet around her in gentle morning calm and the tall '
+            'window catching the early sun in slow soft tones.", '
+            + _required_tags_for("T3_artnude") + '}'
+        )
+
+    with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
+        # Should not raise — T3 doesn't hard-fail.
+        result = generator.generate(
+            scene=_scene(),
+            family=family,
+            content_level="T3_artnude",
+        )
+    assert result is not None
+
+
 def test_pose_act_neutral_act_does_not_trigger_retry(generator, loader):
     """Sanity check — when the LLM picks an orientation-neutral act
     (SOLO_GAZE / SOLO_TOUCH) on a reclining scene, no retry fires.
