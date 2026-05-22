@@ -560,60 +560,142 @@ def _classify_pose_orientation(pose: str | None) -> str | None:
     return None
 
 
+# Anatomy ↔ act direction conflicts. Back-facing anatomy (glutes,
+# back view) cannot pair with front-presenting acts (SOLO_DISPLAY,
+# full-frontal). Same physical-impossibility class as the pose-act
+# checks above.
+_BACK_FACING_ANATOMY: frozenset[str] = frozenset({
+    "NSFW_GLUTES",
+    "NSFW_BACK_VIEW_NUDE",
+})
+
+# Acts that imply a front-facing body presentation. When the
+# nsfw_anatomy is back-facing, these acts are geometrically
+# impossible (the camera can't see glutes AND a frontal display
+# in one shot).
+_FRONT_FACING_ACTS: frozenset[str] = frozenset({
+    "NSFW_T4_SOLO_DISPLAY",
+    "NSFW_T4_SOLO_PERFORMER",
+})
+
+# Bath-class nsfw_act tags — require an env with water-context
+# keywords. ENV_FIRE_ESCAPE_NEON + SOLO_BATH = no bath. Same
+# fail-mode as F15's env coherence, but specifically for the act
+# field which isn't covered by place_constraint metadata.
+_BATH_ACTS: frozenset[str] = frozenset({
+    "NSFW_T4_SOLO_BATH",
+})
+
+_BATH_ENV_KEYWORDS: tuple[str, ...] = (
+    "bath", "shower", "tub", "water", "hammam", "spa", "pool",
+    "sauna", "steam",
+)
+
+
 def check_pose_act_coherence(
     *,
     pose: str | None,
     nsfw_act: str | None,
     nsfw_posture: str | None,
+    nsfw_anatomy: str | None = None,
+    environment_setting: str | None = None,
+    loader: VocabularyLoader | None = None,
 ) -> list[tuple[str, str, str]]:
-    """Validate that the LLM's ``nsfw_act`` + ``nsfw_posture`` picks
-    are geometrically compatible with the scene's ``pose`` field.
+    """Validate that the LLM's ``nsfw_act`` + ``nsfw_posture`` +
+    ``nsfw_anatomy`` picks are geometrically compatible with the
+    scene's ``pose`` field AND the environment's prose.
 
     Returns a list of ``(field, tag, reason)`` tuples for each
-    incoherent pair. Empty list = the facet's pose/act/posture form
-    a physically valid composition.
+    incoherent pair. Empty list = the facet's pose/act/posture/anatomy/
+    env form a physically valid composition.
 
     Used by SceneFacetGenerator's retry loop to reject facets that
     violate COHERENCE INVARIANT clause 3 — same retry-with-nudge
     mechanism as the dominance check + F15.
 
+    Five sub-checks:
+      1. pose orientation ↔ nsfw_act compatibility (RECLINING +
+         SOLO_DISPLAY = invalid).
+      2. pose orientation ↔ nsfw_posture exact match (RECLINING
+         pose requires NSFW_RECLINED_NUDE posture).
+      3. nsfw_anatomy direction ↔ nsfw_act direction (GLUTES /
+         BACK_VIEW + SOLO_DISPLAY = front+back contradiction).
+      4. nsfw_act is a bath act ↔ env contains bath/water keyword
+         (SOLO_BATH + courtyard env = no bath).
+      5. partial-reveal anatomy ↔ full-display act (mutually
+         exclusive coverage states).
+
     When ``pose`` doesn't match any known orientation keyword the
-    check is skipped (we don't know the body's orientation, so we
-    can't judge the act). Same fail-open principle as F15.
+    pose-related checks are skipped (we don't know the body's
+    orientation, so we can't judge the act). Same fail-open
+    principle as F15. Anatomy/bath checks still fire regardless.
     """
     orientation = _classify_pose_orientation(pose)
-    if orientation is None:
-        return []
     violations: list[tuple[str, str, str]] = []
-    # nsfw_act check — orientation-incompatible acts.
-    if nsfw_act:
-        incompatible = _POSE_INCOMPATIBLE_ACTS.get(orientation, frozenset())
-        if str(nsfw_act).strip() in incompatible:
+    # 1 + 2 — pose orientation checks.
+    if orientation is not None:
+        # nsfw_act check — orientation-incompatible acts.
+        if nsfw_act:
+            incompatible = _POSE_INCOMPATIBLE_ACTS.get(orientation, frozenset())
+            if str(nsfw_act).strip() in incompatible:
+                violations.append((
+                    "nsfw_act",
+                    str(nsfw_act),
+                    f"scene pose={pose!r} is {orientation}-oriented but "
+                    f"nsfw_act={nsfw_act} implies a different body "
+                    f"orientation — the camera physically cannot see this "
+                    f"combination as one coherent shot. Pick an act compatible "
+                    f"with {orientation} (e.g. NSFW_T4_SOLO_GAZE / "
+                    f"NSFW_T4_SOLO_TOUCH for any orientation; "
+                    f"NSFW_T4_SOLO_RECLINING for RECLINING; "
+                    f"NSFW_T4_SOLO_DISPLAY / NSFW_T4_SOLO_PERFORMER for "
+                    f"STANDING / KNEELING / SEATED)."
+                ))
+        # nsfw_posture check — exact-match enforcement.
+        if nsfw_posture:
+            expected = _POSE_MATCHING_POSTURE.get(orientation)
+            if expected and str(nsfw_posture).strip() != expected:
+                violations.append((
+                    "nsfw_posture",
+                    str(nsfw_posture),
+                    f"scene pose={pose!r} is {orientation}-oriented; "
+                    f"nsfw_posture must be {expected!r} to match. Got "
+                    f"{nsfw_posture!r} which describes a different "
+                    f"orientation entirely."
+                ))
+    # 3 — anatomy direction vs act direction.
+    if nsfw_anatomy and nsfw_act:
+        anatomy_tag = str(nsfw_anatomy).strip()
+        act_tag = str(nsfw_act).strip()
+        if anatomy_tag in _BACK_FACING_ANATOMY and act_tag in _FRONT_FACING_ACTS:
             violations.append((
-                "nsfw_act",
-                str(nsfw_act),
-                f"scene pose={pose!r} is {orientation}-oriented but "
-                f"nsfw_act={nsfw_act} implies a different body "
-                f"orientation — the camera physically cannot see this "
-                f"combination as one coherent shot. Pick an act compatible "
-                f"with {orientation} (e.g. NSFW_T4_SOLO_GAZE / "
-                f"NSFW_T4_SOLO_TOUCH for any orientation; "
-                f"NSFW_T4_SOLO_RECLINING for RECLINING; "
-                f"NSFW_T4_SOLO_DISPLAY / NSFW_T4_SOLO_PERFORMER for "
-                f"STANDING / KNEELING / SEATED)."
+                "nsfw_anatomy",
+                anatomy_tag,
+                f"nsfw_anatomy={anatomy_tag} is BACK-facing (glutes / "
+                f"dorsal view) but nsfw_act={act_tag} is FRONT-presenting "
+                f"(full-frontal display). The camera cannot see both back "
+                f"and front in one shot. Pick anatomy compatible with the "
+                f"act (e.g. NSFW_NIPPLES_VISIBLE / NSFW_FULL_FRONTAL / "
+                f"NSFW_VULVA_VISIBLE for front acts; keep glutes/back for "
+                f"SOLO_GAZE / SOLO_TOUCH / SOLO_RECLINING from behind)."
             ))
-    # nsfw_posture check — exact-match enforcement.
-    if nsfw_posture:
-        expected = _POSE_MATCHING_POSTURE.get(orientation)
-        if expected and str(nsfw_posture).strip() != expected:
-            violations.append((
-                "nsfw_posture",
-                str(nsfw_posture),
-                f"scene pose={pose!r} is {orientation}-oriented; "
-                f"nsfw_posture must be {expected!r} to match. Got "
-                f"{nsfw_posture!r} which describes a different "
-                f"orientation entirely."
-            ))
+    # 4 — bath act ↔ env water-context check.
+    if nsfw_act and environment_setting:
+        act_tag = str(nsfw_act).strip()
+        if act_tag in _BATH_ACTS:
+            resolved_loader = loader or _default_loader()
+            env_prose = resolved_loader.env_setting_prose(environment_setting).lower()
+            if env_prose and not any(kw in env_prose for kw in _BATH_ENV_KEYWORDS):
+                violations.append((
+                    "nsfw_act",
+                    act_tag,
+                    f"nsfw_act={act_tag} is a bath-class act (requires "
+                    f"water/tub/shower) but environment_setting={environment_setting!r} "
+                    f"prose contains none of {list(_BATH_ENV_KEYWORDS)}. Re-pick "
+                    f"a non-bath act (SOLO_GAZE / SOLO_TOUCH / SOLO_DISPLAY) "
+                    f"or change environment_setting to ENV_CLAWFOOT_BATHROOM "
+                    f"/ ENV_HAMMAM_STEAM / ENV_INDOOR_POOL_NIGHT."
+                ))
     return violations
 
 

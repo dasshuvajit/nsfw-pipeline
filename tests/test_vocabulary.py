@@ -1505,6 +1505,100 @@ def test_pose_act_coherence_skipped_when_no_act_or_posture():
     assert violations == []
 
 
+def test_pose_act_coherence_rejects_back_anatomy_with_front_act():
+    """Verifier audit (2026-05-23) — scene_011 had NSFW_GLUTES (back)
+    + NSFW_T4_SOLO_DISPLAY (front). Camera can't see both directions
+    in one shot. New anatomy-direction sub-check rejects."""
+    from src.prompt.vocabulary import check_pose_act_coherence
+    violations = check_pose_act_coherence(
+        pose="standing confident with dynamic leg extension",
+        nsfw_act="NSFW_T4_SOLO_DISPLAY",
+        nsfw_posture=None,
+        nsfw_anatomy="NSFW_GLUTES",
+    )
+    assert len(violations) == 1
+    field, tag, reason = violations[0]
+    assert field == "nsfw_anatomy"
+    assert tag == "NSFW_GLUTES"
+    assert "BACK-facing" in reason or "back" in reason.lower()
+
+
+def test_pose_act_coherence_rejects_back_view_with_display_act():
+    """NSFW_BACK_VIEW_NUDE (back view posture) + NSFW_T4_SOLO_DISPLAY
+    (front display act) — same direction conflict."""
+    from src.prompt.vocabulary import check_pose_act_coherence
+    violations = check_pose_act_coherence(
+        pose="arching back on the floor with arms behind head",
+        nsfw_act="NSFW_T4_SOLO_DISPLAY",
+        nsfw_posture=None,
+        nsfw_anatomy="NSFW_BACK_VIEW_NUDE",
+    )
+    assert len(violations) == 1
+    assert violations[0][0] == "nsfw_anatomy"
+
+
+def test_pose_act_coherence_passes_back_anatomy_with_neutral_act():
+    """Back anatomy + orientation-neutral act (SOLO_GAZE / SOLO_TOUCH)
+    is fine — gazing/touching can happen from behind."""
+    from src.prompt.vocabulary import check_pose_act_coherence
+    for act in ("NSFW_T4_SOLO_GAZE", "NSFW_T4_SOLO_TOUCH"):
+        violations = check_pose_act_coherence(
+            pose="standing confident",
+            nsfw_act=act,
+            nsfw_posture=None,
+            nsfw_anatomy="NSFW_GLUTES",
+        )
+        assert violations == [], (
+            f"back anatomy + {act} should pass (neutral act)"
+        )
+
+
+def test_pose_act_coherence_rejects_bath_act_on_non_bath_env(loader):
+    """Verifier audit (2026-05-23) — scene_008 had NSFW_T4_SOLO_BATH
+    paired with ENV_MEDITERRANEAN_COURTYARD (no bath). Scene_020
+    same with marble bathroom + outdoor fog atm. The bath-class
+    act requires the env prose to contain water/tub/bath keyword."""
+    from src.prompt.vocabulary import check_pose_act_coherence
+    violations = check_pose_act_coherence(
+        pose="lounging",
+        nsfw_act="NSFW_T4_SOLO_BATH",
+        nsfw_posture=None,
+        environment_setting="ENV_MEDITERRANEAN_COURTYARD",
+        loader=loader,
+    )
+    assert len(violations) == 1
+    field, tag, reason = violations[0]
+    assert field == "nsfw_act"
+    assert tag == "NSFW_T4_SOLO_BATH"
+    assert "bath-class" in reason or "water" in reason.lower()
+
+
+def test_pose_act_coherence_passes_bath_act_on_bath_env(loader):
+    """Bath act + actual bath environment is fine."""
+    from src.prompt.vocabulary import check_pose_act_coherence
+    violations = check_pose_act_coherence(
+        pose="reclining in tub",
+        nsfw_act="NSFW_T4_SOLO_BATH",
+        nsfw_posture=None,
+        environment_setting="ENV_CLAWFOOT_BATHROOM",
+        loader=loader,
+    )
+    assert violations == []
+
+
+def test_pose_act_coherence_passes_non_bath_act_on_any_env(loader):
+    """Non-bath acts shouldn't trigger the bath-env check."""
+    from src.prompt.vocabulary import check_pose_act_coherence
+    violations = check_pose_act_coherence(
+        pose="standing",
+        nsfw_act="NSFW_T4_SOLO_DISPLAY",
+        nsfw_posture=None,
+        environment_setting="ENV_MEDITERRANEAN_COURTYARD",
+        loader=loader,
+    )
+    assert violations == []
+
+
 # ── vocab orthogonality — palette/lighting/art_style must not duplicate phrases ──
 
 

@@ -1378,6 +1378,8 @@ class SceneFacetGenerator:
                 pose=scene.get("pose"),
                 nsfw_act=facet.get("nsfw_act") if facet else None,
                 nsfw_posture=facet.get("nsfw_posture") if facet else None,
+                nsfw_anatomy=facet.get("nsfw_anatomy") if facet else None,
+                environment_setting=facet.get("environment_setting") if facet else None,
             )
             if facet is not None
             else []
@@ -1620,6 +1622,46 @@ class SceneFacetGenerator:
                                 "attempt with HARD BAN cleared dominance.",
                                 family.id,
                             )
+            # 2026-05-23 — post-retry pose-act re-check (P0.B fix).
+            # System prompt instruction + first-attempt validator was
+            # silent in production: most first attempts failed on
+            # missing tier-required fields, the retry path only re-
+            # checks `missing` — so retry's facet could land an
+            # incompatible pose-act combination (lounging + SOLO_
+            # DISPLAY in scene_019/021 verification) and ship.
+            # Strategy: re-check pose-act-anatomy-bath here; on
+            # violation, null out the offending fields so the
+            # canonicalizer silently drops them rather than emitting
+            # contradictory prose. Cheaper than firing another LLM
+            # attempt (the system is already over-budget on retry
+            # rounds — 86% shipped-anyway in series_79ae3b962c8d).
+            from src.prompt.vocabulary import (
+                check_pose_act_coherence as _re_check_pose_act,
+            )
+            final_violations = _re_check_pose_act(
+                pose=scene.get("pose"),
+                nsfw_act=facet.get("nsfw_act"),
+                nsfw_posture=facet.get("nsfw_posture"),
+                nsfw_anatomy=facet.get("nsfw_anatomy"),
+                environment_setting=facet.get("environment_setting"),
+            )
+            if final_violations:
+                fields_nulled = []
+                for field, bad_tag, reason in final_violations:
+                    logger.error(
+                        "Scene facet generator: family %s POST-RETRY "
+                        "pose-act coherence violation persisted — "
+                        "nulling %s=%s. Reason: %s",
+                        family.id, field, bad_tag, reason,
+                    )
+                    facet[field] = None
+                    fields_nulled.append(field)
+                logger.warning(
+                    "Scene facet generator: family %s shipped with %d "
+                    "post-retry-nulled field(s) %s — operator can "
+                    "re-prep with --regen-facets to recover.",
+                    family.id, len(fields_nulled), fields_nulled,
+                )
             return _sanitize_facet_freetext(
                 _strip_none_values(facet),
                 scene_id=scene.get("id"),
