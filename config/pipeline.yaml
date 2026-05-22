@@ -133,21 +133,23 @@ llm:
   # different LLM.
   #
   # Examples (uncomment + customise if needed):
-  # 2026-05-23 — dual-write pivot routing. SceneFacetGenerator for
-  # prose families (flux/chroma/flux2) needs to emit BOTH structured
-  # tags AND a 40-350 word coherent scene_prose paragraph. DavidAU
-  # 12B at 4K context can't fit the dual-write system prompt (8K+
-  # tokens including schema body). Cydonia 24B at 32K handles it.
-  # 5-scene Cydonia T4 verification (series_010704977930): 5/5
-  # prompts scored 10/10 on audit_prompts.py vs baseline 0/24
-  # excellent on the pre-pivot DavidAU run.
-  routing:
-    scene_facet_generator:
-      flux_natural:     cydonia_heretic_24b   # chroma + flux dual-write
-      flux2_prose:      cydonia_heretic_24b   # flux2 dual-write
-    # SeriesPlanner + SceneGenerator are short-output roles that
-    # DavidAU 12B handles well + faster than Cydonia. Leave them
-    # falling through to default_llm.
+  # 2026-05-23 — dual-write A/B verdict. Both Cydonia 24B and
+  # DavidAU 12B :3 (32K context instance) produce excellent dual-
+  # write output. Empirical scores on the same 10-scene T4 themes:
+  #
+  #   DavidAU :3 (32K):  avg 9.40/10, 10/10 excellent, 627s wall-clock
+  #   Cydonia 24B    :  avg 9.35/10, 9/10 excellent,  1709s wall-clock
+  #
+  # DavidAU is 2.7x faster AND scores marginally higher. User
+  # preference: "I mainly want to use [DavidAU] if it works perfectly".
+  # Verdict: DavidAU is primary (falls through to default_llm).
+  # Cydonia stays available as fallback_llm in llm_models.yaml.
+  #
+  # IMPORTANT: DavidAU's lm_studio_id is pinned to ":3" suffix (the
+  # 32K-context instance). LM Studio has multiple loaded instances at
+  # different contexts; the bare base id routes to :1 (4K) which
+  # can't fit the dual-write system prompt.
+  routing: {}
     # series_planner:    cydonia_heretic_24b
     # scene_generator:   cydonia_heretic_24b
     # metadata_generator: cydonia_heretic_24b

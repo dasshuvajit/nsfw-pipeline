@@ -74,8 +74,9 @@ _COLOR_TOKENS = (
 
 
 _T4_ANATOMY_KEYWORDS = (
-    "nude", "bare body", "bare breasts", "nipples", "vulva",
+    "nude", "bare body", "bare breasts", "breasts", "nipples", "vulva",
     "labia", "bare chest", "fully nude", "complete nudity",
+    "naked", "bare skin", "bare hips", "bare thighs",
 )
 
 
