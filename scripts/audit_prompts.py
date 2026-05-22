@@ -97,6 +97,70 @@ _MIRROR_DANGLING_PATTERNS = (
 )
 
 
+# 2026-05-23 (verifier audit) — sad/crying tokens flagged. User
+# explicit ban: commercial adult-art markets sell confidence +
+# sensuality, NOT sorrow.
+_SAD_TOKENS = (
+    "tear", "tears", "tearful", "tear-streaked",
+    "crying", "weeping", "sobbing", "mournful",
+    "grieving", "grief", "sorrow", "sorrowful",
+    "wet eyes", "dried tears",
+    "numb detachment", "vacant stare", "blank stare",
+    "melancholic", "melancholy", "sad expression",
+)
+
+
+# Mirror references that produce warped-face Chroma artifacts.
+_MIRROR_PROSE_PATTERNS = (
+    r"\bher reflection\b",
+    r"\bher own reflection\b",
+    r"\breflecting her\b",
+    r"\bdistorted form\b",
+    r"\bwarped image\b",
+    r"\bher own form reflected\b",
+    r"\breflective surface\b",
+    r"\breflecting [a-z]+ back\b",
+    r"\bmirror[s]?\b",
+)
+
+
+# Fragmented prose detector — verifier found 4/10 scenes had per-axis
+# short clauses ("Kneeling. Upper body. Over the shoulder. Soft side
+# light.") instead of coherent paragraph prose. The dual-write
+# contract requires narrative paragraph form.
+def detect_fragmented_prose(text: str) -> bool:
+    """True if prose appears fragmented (per-axis clauses, not
+    narrative paragraph). Heuristic: >8 sentences AND average
+    sentence length < 8 words = fragmented."""
+    if not text:
+        return False
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
+    if len(sentences) <= 7:
+        return False
+    words_per_sentence = [len(s.split()) for s in sentences]
+    avg = sum(words_per_sentence) / len(words_per_sentence)
+    return avg < 8
+
+
+def detect_sad_tokens(text: str) -> list[str]:
+    """Return sad/crying tokens present in text."""
+    if not text:
+        return []
+    text_lower = text.lower()
+    return [t for t in _SAD_TOKENS if t in text_lower]
+
+
+def detect_mirror_prose(text: str) -> list[str]:
+    """Return mirror/reflection patterns matched in prose."""
+    if not text:
+        return []
+    hits = []
+    for pat in _MIRROR_PROSE_PATTERNS:
+        if re.search(pat, text, re.IGNORECASE):
+            hits.append(pat)
+    return hits
+
+
 def count_sentences(text: str) -> int:
     """Approximate sentence count (split on . ! ? followed by space)."""
     if not text:
@@ -237,6 +301,23 @@ def score_prompt(text: str, tier: str) -> tuple[float, list[str]]:
     if mirror_dang:
         score -= 2.0
         issues.append(f"MIRROR_DANGLING: {mirror_dang}")
+
+    # 2026-05-23 verifier audit — sad tokens (user explicit ban)
+    sad = detect_sad_tokens(text)
+    if sad:
+        score -= 2.5
+        issues.append(f"SAD_TOKENS: {sad}")
+
+    # Mirror references in prose (subject-mirror, not ambient)
+    mirror_prose = detect_mirror_prose(text)
+    if mirror_prose:
+        score -= 1.5
+        issues.append(f"MIRROR_PROSE: {mirror_prose}")
+
+    # Fragmented prose (per-axis clauses)
+    if detect_fragmented_prose(text):
+        score -= 1.5
+        issues.append("FRAGMENTED_PROSE: per-axis clauses not paragraph")
 
     # T4 anatomy
     if tier == "T4_explicit" and detect_t4_anatomy_missing(text):

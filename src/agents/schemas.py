@@ -761,6 +761,60 @@ class SceneFacetFluxNatural(BaseModel):
                 f"reference and remove the others from scene_prose."
             )
 
+        # 2026-05-23 (verifier audit) — sad/crying token ban at the
+        # SCHEMA layer. The system-prompt directive forbidding sorrow
+        # vocabulary was being violated by Cydonia ~20% of the time
+        # (scene_003 + scene_004 of series_6044b79d07fb shipped with
+        # "tear-streaked cheeks" + "numb detachment"). Move the ban
+        # from soft directive to hard validator → triggers retry.
+        # Commercial adult-art markets sell confidence + sensuality,
+        # not sorrow. User-explicit ban (2026-05-23 04:05 AM).
+        _SAD_TOKENS = (
+            "tear", "tears", "tearful", "tear-streaked", "tear streaked",
+            "crying", "weeping", "sobbing", "sob", "mournful",
+            "grieving", "grief", "sorrow", "sorrowful", "mourn",
+            "wet eyes", "wet-eyed", "dried tears",
+            "numb detachment", "vacant stare", "blank stare",
+            "regretful", "regret", "melancholy", "melancholic",
+            "sad expression", "sadness",
+        )
+        prose_lower_for_sad = prose.lower()
+        sad_hits = [t for t in _SAD_TOKENS if t in prose_lower_for_sad]
+        if sad_hits:
+            raise ValueError(
+                f"SceneFacetFluxNatural.scene_prose contains banned "
+                f"sad/sorrow tokens: {sorted(set(sad_hits))}. Commercial "
+                f"adult-art markets sell confidence + sensuality, NOT "
+                f"sorrow. Re-write with confident / sensual / playful / "
+                f"contemplative-at-ease / serene / defiant / ecstatic / "
+                f"languid / intimate emotional anchors. NEVER tears, "
+                f"crying, mournful, grieving, melancholy."
+            )
+
+        # 2026-05-23 (verifier audit) — mirror reference ban at SCHEMA
+        # layer. Vocab v7 stripped mirror vocab tags but free-form
+        # scene_prose can still mention "broken deco reflecting her
+        # distorted form" (scene_006 of series_6044b79d07fb). Chroma
+        # renders mirrors as warped-face artifacts. Hard-reject so
+        # retry fires. Ambient reflections (water, polished floor)
+        # spared by requiring "her" / "subject" / "form" proximity.
+        _MIRROR_TRIGGERS = (
+            "mirror", "her reflection", "her own reflection",
+            "reflecting her", "reflected her", "her distorted form",
+            "her warped image", "reflected back at her",
+            "her own form reflected", "reflective surface",
+        )
+        mirror_hits = [t for t in _MIRROR_TRIGGERS if t in prose_lower_for_sad]
+        if mirror_hits:
+            raise ValueError(
+                f"SceneFacetFluxNatural.scene_prose contains banned "
+                f"mirror / subject-reflection tokens: "
+                f"{sorted(set(mirror_hits))}. Chroma renders mirrors as "
+                f"warped-face artifacts. Re-write without subject-mirror "
+                f"language. Ambient reflections (water surface, polished "
+                f"floor) without 'her reflection' phrasing are fine."
+            )
+
         # Round-22 F15 (2026-05-22) — env / atmosphere / narrative
         # cross-field coherence check. Some ATM / NARR tags declare a
         # ``place_constraint`` requiring specific env keywords (e.g.
