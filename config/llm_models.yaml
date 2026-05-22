@@ -165,7 +165,13 @@ llms:
       improving discipline. Validator decides.
     quant: "Q4_K_M"
     size_gb: 7
-    context_tokens: 16384
+    # 2026-05-23 — bumped 16384 → 32768 to fit dual-write system
+    # prompt (~8K) + tier directives + sad/crying ban + schema body.
+    # Mistral Nemo native context is 128K so 32K is well within
+    # capability. LM Studio reloads at next ensure_loaded() call.
+    # User authorized: "you can also increase all the models context
+    # if necessary, do not stop on any block".
+    context_tokens: 32768
     refusal_rate: 1.4           # heretic abliteration (14/100 per card)
     strengths:
       - "heretic abliteration — refusal rate 14/100"
@@ -173,6 +179,7 @@ llms:
       - "thinking circuit — may self-correct toward vocab tags"
       - "Mistral Nemo base — Metal-friendly attention"
       - "iMatrix Q4_K_M — best perplexity at 4-bit"
+      - "fast — ~30-40s per facet vs Cydonia ~60-90s (preferred primary if quality holds)"
     risks:
       - "thinking-trace latency may eat the speed advantage"
       - "schema-constrained calls may not trigger thinking → output may revert to base"
