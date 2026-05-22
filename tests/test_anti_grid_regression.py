@@ -196,6 +196,133 @@ def test_clean_positive_passes_through_unchanged(family_loader):
     assert _positive_subject_count_scan(clean, chroma) == clean
 
 
+# ── Mirror sentence-drop (2026-05-23 verifier audit) ──────────────────
+
+
+@pytest.mark.parametrize(
+    "lossy_prose, must_not_contain",
+    [
+        # series_79ae3b962c8d scene_000 — bare-noun strip left
+        # "ornate gilded, her bare body reflected" dangling.
+        (
+            "She stands confidently nude before an ornate gilded mirror, "
+            "her bare body reflected back at her. Sunlight streams "
+            "through floor-to-ceiling windows.",
+            ["before an ornate gilded,", "reflected back at her"],
+        ),
+        # series_79ae3b962c8d scene_006 — bare-noun strip left
+        # "kneels before her, dramatic side lighting".
+        (
+            "A confident adult woman kneels before her mirror, dramatic "
+            "side lighting casting sharp shadows across her mature features.",
+            ["kneels before her,", "kneels before her mirror"],
+        ),
+        # scene_007 — "in a hand mirror" → "in a hand" dangling.
+        (
+            "She gazes at herself in a hand mirror with a content smile, "
+            "her natural beauty illuminated by the golden hour glow.",
+            ["in a hand,", "in a hand mirror"],
+        ),
+        # scene_012 — "smiles gently at in" dangling.
+        (
+            "She smiles gently at the mirror, one hand resting on her "
+            "full hip, the other playfully tucking a loose strand.",
+            ["smiles gently at,", "smiles gently at the mirror"],
+        ),
+        # scene_015 — "stands before, naked and unapologetic".
+        (
+            "She stands before the mirror, naked and unapologetic, her "
+            "muscular frame cast in harsh window light.",
+            ["stands before,", "stands before the mirror"],
+        ),
+        # scene_026 — multi-sentence + reflection-without-mirror tail.
+        (
+            "In the soft glow from a nearby window, she examines herself "
+            "in a handheld mirror, capturing an intimate moment of "
+            "self-appreciation. Her pose reveals natural curves, one arm "
+            "draped across her bare chest. The other hand holds the "
+            "mirror at eye level, reflecting her confident smile back at "
+            "her. The bathroom's warm lighting casts dramatic shadows.",
+            [
+                "in a handheld,",
+                "examines herself in",
+                "holds the at eye level",
+                "reflecting her confident smile back at her",
+            ],
+        ),
+    ],
+)
+def test_mirror_sentence_drop_removes_dangling_syntax(lossy_prose, must_not_contain):
+    """Verifier audit (series_79ae3b962c8d, 2026-05-23) — the bare-noun
+    mirror strip left 10+ prompts with visible dangling syntax. The
+    sentence-drop approach removes the WHOLE sentence containing
+    mirror/reflection language so no orphan prepositions / articles
+    survive."""
+    from src.prompt.builder import sanitize_grid_phrases
+    cleaned, changed = sanitize_grid_phrases(lossy_prose)
+    assert changed, f"sanitizer did not change input: {lossy_prose!r}"
+    for bad in must_not_contain:
+        assert bad.lower() not in cleaned.lower(), (
+            f"dangling-syntax artifact {bad!r} survived in cleaned: {cleaned!r}"
+        )
+    # Sanity — output should remain valid sentence prose (no orphan
+    # comma-comma sequences, no leading commas).
+    assert ", ," not in cleaned
+    assert not cleaned.startswith(",")
+
+
+def test_mirror_sentence_drop_preserves_non_mirror_content():
+    """Sentence-drop should keep all non-mirror sentences intact."""
+    from src.prompt.builder import sanitize_grid_phrases
+    prose = (
+        "She stands by the window, golden light tracing her shoulder. "
+        "She examines herself in a handheld mirror. "
+        "Her hair catches the afternoon sun."
+    )
+    cleaned, changed = sanitize_grid_phrases(prose)
+    assert changed
+    assert "stands by the window" in cleaned
+    assert "afternoon sun" in cleaned
+    assert "mirror" not in cleaned.lower()
+
+
+def test_mirror_sentence_drop_noop_when_clean():
+    """Mirror sentence drop must NOT touch prose with no mirror /
+    reflection language (regression guard for false positives).
+    Note: sanitize_grid_phrases strips trailing punctuation; compare
+    on content-only basis (strip trailing ` ,.` from both)."""
+    from src.prompt.builder import sanitize_grid_phrases
+    prose = (
+        "She kneels by the fireplace, soft amber light tracing the "
+        "curve of her bare shoulder. Her hands rest on her hips."
+    )
+    cleaned, _ = sanitize_grid_phrases(prose)
+    # Content-equivalent (modulo trailing period strip).
+    assert cleaned.rstrip(" ,.") == prose.rstrip(" ,.")
+    assert "kneels by the fireplace" in cleaned
+    assert "Her hands rest on her hips" in cleaned
+
+
+def test_mirror_sentence_drop_preserves_ambient_reflections():
+    """Verifier carve-out — `reflected light`, `rippling reflections`
+    in WATER / on FLOOR / on CEILING etc. are ambient photographic
+    terms, not subject-mirror. These should NOT trigger the sentence
+    drop."""
+    from src.prompt.builder import sanitize_grid_phrases
+    prose = (
+        "Warm reflected light fills the room from the polished floor. "
+        "Rippling reflections of the pool play across the ceiling."
+    )
+    cleaned, _ = sanitize_grid_phrases(prose)
+    # Both ambient-reflection sentences must survive intact.
+    assert "Warm reflected light" in cleaned, (
+        f"ambient reflection sentence dropped: {cleaned!r}"
+    )
+    assert "Rippling reflections" in cleaned, (
+        f"ambient reflection sentence dropped: {cleaned!r}"
+    )
+
+
 # ── Vocab v7 removal guards ───────────────────────────────────────────
 
 

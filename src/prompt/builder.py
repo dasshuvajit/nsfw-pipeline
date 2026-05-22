@@ -450,15 +450,69 @@ DANGLING_ARTICLE_AT_END = re.compile(
 )
 
 
+# Sentence-level mirror/reflection trigger. When a sentence contains
+# any of these markers, the WHOLE sentence is dropped — surgical noun
+# strip on mirror was leaving dangling syntax (`kneels before her`,
+# `in a hand`, `holds the at eye level`) which T5 / CLIP read as
+# broken English and rendered as gibberish. Sentence drop is cleaner
+# because the entire reflection content is gone with no orphan-
+# preposition / orphan-article artifacts.
+#
+# Production evidence (series_79ae3b962c8d, 2026-05-23 verifier audit):
+# 10 of 28 prompts had visible mirror-strip damage. The bare-noun
+# strip cannot fix this — it has to be a sentence-level drop.
+_MIRROR_SENTENCE_TRIGGER = re.compile(
+    r"\b(?:"
+    r"mirror[s]?"
+    r"|reflection\s+(?:of\s+her|catches|reveals|captures)"
+    r"|her\s+(?:own\s+)?reflection"
+    r"|reflected\s+back\s+at\s+(?:her|him)"
+    r"|reflecting\s+her\s+\w+\s+back"
+    r"|her\s+own\s+form\s+reflected"
+    r"|gazes?\s+(?:into|at)\s+her\s+(?:reflection|own\s+form)"
+    r"|examines?\s+herself\s+in\s+a\s+\w+"
+    r"|studying\s+(?:her\s+(?:own\s+)?reflection|herself)"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def _drop_mirror_sentences(text: str) -> tuple[str, bool]:
+    """Drop entire sentences containing mirror or subject-reflection
+    language. More conservative than surgical noun strip — avoids
+    the dangling-syntax artifacts that caused the 2026-05-23 audit
+    (orphan `before her`, `in a hand`, `holds the at eye level`).
+
+    Returns ``(cleaned, changed)``. If ``text`` has no mirror/reflection
+    trigger, returns unchanged. Sentence boundary = ``.`` / ``!`` /
+    ``?`` followed by whitespace or end-of-string.
+    """
+    if not text or not _MIRROR_SENTENCE_TRIGGER.search(text):
+        return text, False
+    # Split keeping sentence-ending punctuation on each sentence.
+    sentences = re.split(r"(?<=[.!?])\s+", text)
+    kept: list[str] = []
+    for s in sentences:
+        if _MIRROR_SENTENCE_TRIGGER.search(s):
+            continue
+        kept.append(s)
+    cleaned = " ".join(kept).strip()
+    return cleaned, (cleaned != text)
+
+
 def sanitize_grid_phrases(text: str) -> tuple[str, bool]:
     """Strip multi-subject / grid phrases and orphan-connector words
     that historically caused the scene_021-class 4-panel-collage
     failure mode.
 
-    Three-stage cleanup:
+    Four-stage cleanup:
+      0. ``_drop_mirror_sentences`` — drop entire sentences containing
+         mirror/reflection language BEFORE the bare-noun strip runs.
+         Avoids dangling-syntax artifacts (`kneels before her`).
       1. ``_MULTI_SUBJECT_PATTERN.sub`` removes whole grid phrases
          (``varying compositions``, ``across the series``,
-         ``in natural poses``, etc.).
+         ``in natural poses``, etc.) and any residual mirror tokens
+         that survived stage 0 (defense in depth).
       2. ``ORPHAN_CONNECTOR_PATTERN.sub`` removes dangling connector
          words left after stage 1 (``across`` / ``in`` / ``throughout``
          / ``with`` immediately followed by punctuation).
@@ -472,7 +526,10 @@ def sanitize_grid_phrases(text: str) -> tuple[str, bool]:
     """
     if not text:
         return text, False
-    cleaned = _MULTI_SUBJECT_PATTERN.sub("", text)
+    # Stage 0 — sentence-level mirror/reflection drop.
+    cleaned, _ = _drop_mirror_sentences(text)
+    # Stage 1 — bare-noun + multi-subject surgical strip.
+    cleaned = _MULTI_SUBJECT_PATTERN.sub("", cleaned)
     cleaned = ORPHAN_CONNECTOR_PATTERN.sub("", cleaned)
     # Round-5 — dangling article cleanup after bare-noun strip.
     # Run TWICE because the first pass can leave new dangling articles
