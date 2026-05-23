@@ -3,7 +3,29 @@
 > **Platform:** Mac M4 Pro, 48 GB unified RAM  
 > **Target:** DeviantArt, Patreon  
 > **Stack:** Python 3.11, SQLite, ComfyUI, Ollama 0.5+
-> **Last sync:** 2026-05-22 (Round-22 prompt-quality fixes — Grok
+> **Last sync:** 2026-05-23 (Dual-write architectural pivot —
+> external Grok + Claude-web audits converged on "tag soup" diagnosis
+> after three rounds of incremental patching held quality at 4.88/10.
+> Pivot: LLM emits BOTH structured tags AND a 40-350 word coherent
+> scene_prose paragraph; composer for chroma/flux/flux2 uses prose
+> as the body and drops per-axis canonicalizations + series_aesthetic
+> + archetype style_keywords from the final prompt. Structured tags
+> still drive F15 + pose-act + place_constraint + diversity + safety
+> + audit trail. Post-pivot 10-scene T4 verification: avg 9.40/10,
+> 5/5 to 8/10 excellent depending on run. A/B verdict: DavidAU 12B
+> `:3` (32K context instance) beats Cydonia 24B at both quality
+> (9.40 vs 9.35) and speed (2.7x). Sad/crying emotional content
+> hard-banned at schema + post-composer scan layers (user-explicit
+> commercial-art quality directive). T3/T4 required-field list
+> narrowed from 11 → 3-4 essential; demoted axes still emitted by
+> LLM and woven into prose. See CLAUDE.md § "Dual-write prose
+> contract" for the full contract. Supersedes Round-22 prompt-
+> quality fixes — most surgical fixes from that round (F1 chroma
+> tail, F2 ToD strip, F3 diversity HARD BAN, F5 subject threading,
+> F6 coherence invariant, F15 env coherence, P0.A-F1.C from later
+> rounds) still apply and were not invalidated.)
+>
+> **Pre-2026-05-23 sync:** 2026-05-22 (Round-22 prompt-quality fixes — Grok
 > feedback drove 11 surgical fixes (F1-F11) + 8 independent codebase
 > audit rounds + 4-tier verification (T1/T2/T3/T4) on the live LLM.
 > Highlights: F1 conditional chroma realism tail (drops `f/1.8, 35mm`
