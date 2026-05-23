@@ -334,7 +334,9 @@ def test_flux_natural_rejects_barely_conceals():
 def test_flux_natural_rejects_visible_against_bedding():
     """The 'breasts visible against bedding' pattern — auditor flagged
     this as a passive phrasing that produces coverage. The subject IS
-    the focus, not 'visible against' the prop."""
+    the focus, not 'visible against' the prop. Option B: rejection
+    requires NO assertive anchor within 60 chars of the soft pattern;
+    this test sentence keeps the hedge isolated from nudity vocabulary."""
     import pytest
     from pydantic import ValidationError
     with pytest.raises(ValidationError, match=r"hedge / partial-coverage"):
@@ -342,11 +344,11 @@ def test_flux_natural_rejects_visible_against_bedding():
             "scene_prose": (
                 "A confident woman reclines on rumpled white sheets. "
                 "One knee raised in a languid pose. Her natural medium "
-                "breasts visible against the crisp bedding. Wide hips "
-                "bare in the late afternoon glow. Lips parted in a "
-                "defiant expression at the camera. Warm window light "
-                "gilds her body in this intimate photographic "
-                "composition with natural skin texture."
+                "breasts visible against the crisp bedding. Lips parted "
+                "in a defiant expression at the camera. Warm window "
+                "light gilds her body in this intimate photographic "
+                "composition with subtle skin texture. The room glows "
+                "in honey tones with deep amber shadows in the corners."
             ),
         })
 
@@ -382,6 +384,64 @@ def test_flux_natural_accepts_sheer_curtains():
         ),
     })
     assert f.scene_prose.startswith("A confident")
+
+
+def test_flux_natural_soft_hedge_allowed_with_assertive_anchor():
+    """Option B (2026-05-23) — 'visible against' / 'visible through'
+    are SOFT hedge patterns: allowed when an assertive nudity token
+    ('bare' / 'naked' / 'nude' / 'exposed') appears within 60 chars.
+    The auditor's actual complaint was about coverage-implying
+    constructions, not the bare bigram. Pair the contrast with the
+    anatomy and it reads as composition, not coverage."""
+    f = SceneFacetFluxNatural.model_validate({
+        "scene_prose": (
+            "A confident woman lounges on rumpled white sheets. Her "
+            "bare breasts are visible against the crisp bedding in the "
+            "warm afternoon glow. Wide naked hips and exposed thighs "
+            "catch the late light. Defiant gaze direct to the camera. "
+            "Soft window light pours into the room from the left. "
+            "Intimate photographic composition with natural skin texture."
+        ),
+    })
+    assert f.scene_prose.startswith("A confident")
+
+
+def test_flux_natural_soft_hedge_rejected_without_anchor():
+    """Without an assertive anchor nearby, the soft pattern still
+    rejects — that's the hedge case the auditor flagged."""
+    import pytest
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError, match=r"hedge / partial-coverage"):
+        SceneFacetFluxNatural.model_validate({
+            "scene_prose": (
+                "A confident woman lounges on rumpled white sheets. "
+                "Her natural medium breasts visible against the crisp "
+                "bedding. Hips on display in the warm afternoon glow. "
+                "Defiant gaze direct to the camera. Soft window light "
+                "pours into the room from the left. Intimate "
+                "photographic composition with natural skin texture."
+            ),
+        })
+
+
+def test_flux_natural_hard_hedge_rejected_even_with_anchor():
+    """Hard patterns ('barely conceals' / 'draped to conceal' / etc.)
+    reject regardless of context — the pattern itself encodes
+    coverage. An adjacent 'naked' anchor cannot rescue it."""
+    import pytest
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError, match=r"hedge / partial-coverage"):
+        SceneFacetFluxNatural.model_validate({
+            "scene_prose": (
+                "She stands fully naked with sheer silk wrapped low. "
+                "It barely conceals her body in the morning sun. Bare "
+                "breasts catch the warm window glow. Wide naked hips "
+                "and thick thighs in soft late-afternoon light. "
+                "Confident direct gaze meets the camera lens. The room "
+                "glows in honey tones with deep shadows in this "
+                "intimate photographic composition."
+            ),
+        })
 
 
 def test_flux2_facet_requires_prose_qa_fields_optional():

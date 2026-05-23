@@ -836,12 +836,22 @@ class SceneFacetFluxNatural(BaseModel):
         # Chroma reads these as "subject is mostly covered" because the
         # hedge token sits closer to the anatomy noun than the nudity
         # cue. Force assertive phrasing via retry.
-        # Per-pattern matching (longer phrases) — single-word "sheer"
-        # alone is OK (sheer curtains, sheer cliff face); the ban
-        # targets coverage-implying compound phrases only.
-        _HEDGE_PATTERNS = (
-            "visible through",          # "breasts visible through fabric"
-            "visible against",          # "breasts visible against bedding"
+        #
+        # Two tiers of patterns:
+        #   * HARD — unconditionally reject. The pattern itself encodes
+        #     coverage ("barely conceals", "draped to conceal").
+        #   * SOFT — context-dependent. "visible through" / "visible
+        #     against" are passive constructions that often hedge
+        #     ("breasts visible through fabric") but sometimes carry a
+        #     contrast meaning when paired with an assertive anchor
+        #     ("her bare breasts, visible against the dark backdrop").
+        #     A soft hit is only rejected when no assertive nudity token
+        #     ("bare", "naked", "nude", "exposed", etc.) appears within
+        #     ~60 chars of the match — calibrated against DavidAU 12B's
+        #     output (Option B, 2026-05-23 22:45 — softer ban after the
+        #     strict-ban variant produced 41% fallback rate on
+        #     series_d47130028813).
+        _HARD_HEDGE_PATTERNS = (
             "barely conceals",
             "barely conceal",
             "barely covers",
@@ -852,29 +862,61 @@ class SceneFacetFluxNatural(BaseModel):
             "draped to conceal",
             "veiled by fabric",
             "veiled in",
-            "shadow hides her",         # body-shadow euphemism
+            "shadow hides her",       # body-shadow euphemism
             "shadow conceals her",
             "shadow hides the",
-            "sheer fabric drape",       # "sheer fabric draped/draping"
+            "sheer fabric drape",     # "sheer fabric draped/draping"
             "sheer silk drape",
             "thin fabric drape",
             "loose silk drape",
             "loose fabric drape",
         )
-        hedge_hits = [
-            p for p in _HEDGE_PATTERNS if p in prose_lower_for_sad
+        _SOFT_HEDGE_PATTERNS = (
+            "visible through",
+            "visible against",
+        )
+        _ASSERTIVE_NUDITY_TOKENS = (
+            "bare", "naked", "nude", "nudity", "exposed",
+            "fully nude", "fully naked", "completely nude",
+            "boldly nude",
+        )
+        _ASSERTIVE_WINDOW = 60  # chars on each side
+
+        def _has_assertive_anchor(text: str, match_idx: int) -> bool:
+            lo = max(0, match_idx - _ASSERTIVE_WINDOW)
+            hi = min(len(text), match_idx + _ASSERTIVE_WINDOW)
+            chunk = text[lo:hi]
+            return any(tok in chunk for tok in _ASSERTIVE_NUDITY_TOKENS)
+
+        hard_hits = [
+            p for p in _HARD_HEDGE_PATTERNS if p in prose_lower_for_sad
         ]
-        if hedge_hits:
+        soft_hits: list[str] = []
+        for pattern in _SOFT_HEDGE_PATTERNS:
+            cursor = 0
+            while True:
+                idx = prose_lower_for_sad.find(pattern, cursor)
+                if idx == -1:
+                    break
+                if not _has_assertive_anchor(prose_lower_for_sad, idx):
+                    soft_hits.append(pattern)
+                    break
+                cursor = idx + len(pattern)
+
+        all_hedge_hits = sorted(set(hard_hits + soft_hits))
+        if all_hedge_hits:
             raise ValueError(
                 f"SceneFacetFluxNatural.scene_prose contains banned "
-                f"hedge / partial-coverage tokens: "
-                f"{sorted(set(hedge_hits))}. At T4 the subject is FULLY "
-                f"NUDE — phrase nudity assertively. Replace 'breasts "
-                f"visible through fabric' → 'bare breasts'. Replace "
-                f"'sheer fabric draped around her hips' → 'her exposed "
-                f"hips' or 'naked hips'. Don't hedge with 'barely "
-                f"conceals' or 'hints at' — name the bare anatomy "
-                f"directly."
+                f"hedge / partial-coverage tokens: {all_hedge_hits}. At "
+                f"T4 the subject is FULLY NUDE — phrase nudity "
+                f"assertively. Replace 'breasts visible through fabric' "
+                f"→ 'bare breasts'. Replace 'sheer fabric draped around "
+                f"her hips' → 'her exposed hips' or 'naked hips'. Don't "
+                f"hedge with 'barely conceals' or 'hints at' — name the "
+                f"bare anatomy directly. (Soft patterns 'visible "
+                f"through/against' are allowed when an assertive token "
+                f"like 'bare' / 'naked' / 'exposed' appears within 60 "
+                f"chars — pair the contrast with the anatomy.)"
             )
 
         # Round-22 F15 (2026-05-22) — env / atmosphere / narrative
