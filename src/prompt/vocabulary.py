@@ -1019,7 +1019,65 @@ def llm_vocabulary_block(
     for ns, concepts in sorted(by_ns.items()):
         lines.append(f"  {ns}: {', '.join(concepts)}")
     lines.append(_tier_directive_line(content_level))
+
+    # 2026-05-24 — surface narrative→env place_constraints to the LLM
+    # BEFORE it picks (was only enforced post-hoc by the schema
+    # validator). DavidAU 12B routinely paired e.g.
+    # NARR_READING_LETTER_AT_DAWN with ENV_STUDIO_CYC_MINIMAL — the
+    # narrative implies a desk / study, the env is a minimalist
+    # backdrop. Cross-field coherence rejected → retry → fallback.
+    # By showing the constraint at decode time, the LLM can satisfy
+    # both fields on the first attempt and the fallback rate drops.
+    constraint_lines = _narrative_env_constraint_lines(
+        loader, by_ns.get("narrative.moment", ())
+    )
+    if constraint_lines:
+        lines.append("")
+        lines.append(
+            "NARRATIVE ↔ ENVIRONMENT COHERENCE RULES (cross-field "
+            "constraints — pick narrative_moment + environment_setting "
+            "that respect these):"
+        )
+        lines.extend(constraint_lines)
     return "\n".join(lines)
+
+
+def _narrative_env_constraint_lines(
+    loader: "VocabularyLoader | None",
+    active_narratives: Iterable[str],
+) -> list[str]:
+    """Build per-narrative env_keyword reminder lines for the system
+    prompt.
+
+    Only emits lines for narratives currently in the active menu
+    (after compatible_narratives narrowing) that ALSO declare a
+    ``place_constraint``. Drops the 7 of 29 narratives that have no
+    constraint (they fit any env). Output shape::
+
+        NARR_READING_LETTER_AT_DAWN → env must contain one of:
+            library / study / desk / parlour / bedroom / boudoir / ...
+    """
+    if not loader or not active_narratives:
+        return []
+    out: list[str] = []
+    for tag in active_narratives:
+        constraint = loader.get_place_constraint(
+            "narrative", "moment", str(tag),
+        )
+        if not isinstance(constraint, dict):
+            continue
+        required = constraint.get("requires_env_keyword") or []
+        if not required:
+            continue
+        # Trim verbose keyword lists at the system-prompt layer; the
+        # validator still checks the full list at decode time.
+        keyword_preview = " / ".join(str(k) for k in required[:10])
+        if len(required) > 10:
+            keyword_preview += f" / +{len(required) - 10} more"
+        out.append(
+            f"  {tag} → env must contain one of: {keyword_preview}"
+        )
+    return out
 
 
 def _tier_directive_line(content_level: str | None) -> str:

@@ -1860,3 +1860,60 @@ def test_art_old_hollywood_still_carries_vintage_marker(loader):
     assert "old hollywood" in out.lower() or "hollywood" in out.lower(), (
         f"ART_OLD_HOLLYWOOD should still anchor on Hollywood vocab: {out!r}"
     )
+
+
+# ── 2026-05-24 narrative ↔ env place_constraint surfacing ───────────
+
+
+def test_vocab_block_emits_narrative_env_constraints(loader):
+    """When the narrative menu contains tags with `place_constraint`,
+    the block must include explicit per-narrative env-keyword hints
+    so the LLM can satisfy cross-field coherence at decode time —
+    pre-hoc, not post-hoc retry."""
+    block = llm_vocabulary_block(
+        "chroma", content_level="T4_explicit", loader=loader,
+        compatible_narratives=[
+            "NARR_READING_LETTER_AT_DAWN",
+            "NARR_STEPPING_FROM_BATH",
+            "NARR_JUST_WOKEN_TANGLED_SHEETS",
+        ],
+    )
+    # The new constraint section heading must appear.
+    assert "NARRATIVE ↔ ENVIRONMENT COHERENCE RULES" in block
+    # And per-narrative lines with env keywords.
+    assert "NARR_READING_LETTER_AT_DAWN" in block
+    assert "library" in block or "study" in block or "desk" in block
+    assert "NARR_STEPPING_FROM_BATH" in block
+    assert "bath" in block
+    assert "NARR_JUST_WOKEN_TANGLED_SHEETS" in block
+    assert "bedroom" in block
+
+
+def test_vocab_block_skips_constraint_section_when_no_constraints(loader):
+    """If none of the active narratives declare a place_constraint,
+    the constraint section is omitted (don't pollute the prompt with
+    an empty header)."""
+    # NARR_LEANING_DOORWAY is one of the 7 narratives without
+    # place_constraint — pass it alone and expect no constraint section.
+    block = llm_vocabulary_block(
+        "chroma", content_level="T4_explicit", loader=loader,
+        compatible_narratives=["NARR_LEANING_DOORWAY"],
+    )
+    assert "NARRATIVE ↔ ENVIRONMENT COHERENCE RULES" not in block
+
+
+def test_vocab_block_constraint_section_after_directive_line(loader):
+    """The constraint block must appear AFTER the tier-directive line
+    so the LLM reads it as a hard rule (last instructions get the
+    most weight in many transformer decoders)."""
+    block = llm_vocabulary_block(
+        "chroma", content_level="T4_explicit", loader=loader,
+        compatible_narratives=["NARR_READING_LETTER_AT_DAWN"],
+    )
+    directive_idx = block.find("nsfw_act")  # T4 directive contains this
+    constraint_idx = block.find("NARRATIVE ↔ ENVIRONMENT COHERENCE RULES")
+    assert directive_idx != -1
+    assert constraint_idx != -1
+    assert constraint_idx > directive_idx, (
+        "constraint section must trail the tier-directive line"
+    )
