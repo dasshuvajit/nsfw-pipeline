@@ -1432,14 +1432,22 @@ _FALLBACK_PROSE_BY_TIER: dict[str, str] = {
         "A confident adult woman in a tasteful, photographic composition",
     "T2_implied":
         "A confident adult woman, implied undress, photographic composition "
-        "with suggestive framing",
+        "with suggestive framing, soft natural light, dark minimalist studio",
     "T3_artnude":
         "A confident adult woman, fully nude in a tasteful art-nude "
-        "photographic composition, natural anatomy visible",
+        "photographic composition, bare body in soft natural light, "
+        "dark minimalist studio with a single light source",
+    # 2026-05-23 audit follow-up — external review scored the prior
+    # one-line T4 fallback at 5.8-6.1/10 ("too vague, no pose, no
+    # lighting, no setting"). Enriched to include concrete anatomy +
+    # standing pose + studio lighting so chroma has actual visual
+    # direction when the LLM facet step fails. Still tier-gated; never
+    # fires below T3.
     "T4_explicit":
-        "A confident adult woman, fully nude with explicit anatomy on "
-        "display, intimate photographic composition, natural skin and "
-        "anatomical detail",
+        "A confident adult woman, fully nude with bare breasts and "
+        "exposed vulva, standing with strong posture in a clean dark "
+        "studio under dramatic side lighting, intimate photographic "
+        "composition, natural skin texture and anatomical detail",
 }
 _FALLBACK_PROSE_DEFAULT = _FALLBACK_PROSE_BY_TIER["T1_suggestive"]
 

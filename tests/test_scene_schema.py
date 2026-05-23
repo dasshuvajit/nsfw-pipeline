@@ -291,6 +291,99 @@ def test_flux_natural_word_band_silent_inside_target(caplog):
     )
 
 
+# ── Hedge-phrase ban (2026-05-23 audit follow-up) ──────────────────────
+
+
+def test_flux_natural_rejects_visible_through_fabric():
+    """External auditor flagged 'breasts visible through fabric' as a
+    partial-coverage producer at T4. Schema must reject so retry fires."""
+    import pytest
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError, match=r"hedge / partial-coverage"):
+        SceneFacetFluxNatural.model_validate({
+            "scene_prose": (
+                "A confident woman stands in the studio. Her natural "
+                "breasts visible through fabric. Wide hips beneath loose "
+                "silk hang low. Mature curves on display in soft side "
+                "lighting. The defiant gaze meets the camera directly. "
+                "Soft amber wash from the window catches the moment "
+                "with intimate photographic composition and natural "
+                "skin texture detail throughout the bare frame."
+            ),
+        })
+
+
+def test_flux_natural_rejects_barely_conceals():
+    """Coverage hedge: 'barely conceals' phrasing implies clothing."""
+    import pytest
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError, match=r"hedge / partial-coverage"):
+        SceneFacetFluxNatural.model_validate({
+            "scene_prose": (
+                "She stands by the window with sheer silk wrapped low. "
+                "It barely conceals her body. Natural medium breasts "
+                "bare against the cool morning light. Wide hips and "
+                "thick thighs catch the warm glow. Confident direct "
+                "gaze meets the camera lens. The room glows in honey "
+                "tones with deep shadows gathering in the corners of "
+                "this intimate photographic composition."
+            ),
+        })
+
+
+def test_flux_natural_rejects_visible_against_bedding():
+    """The 'breasts visible against bedding' pattern — auditor flagged
+    this as a passive phrasing that produces coverage. The subject IS
+    the focus, not 'visible against' the prop."""
+    import pytest
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError, match=r"hedge / partial-coverage"):
+        SceneFacetFluxNatural.model_validate({
+            "scene_prose": (
+                "A confident woman reclines on rumpled white sheets. "
+                "One knee raised in a languid pose. Her natural medium "
+                "breasts visible against the crisp bedding. Wide hips "
+                "bare in the late afternoon glow. Lips parted in a "
+                "defiant expression at the camera. Warm window light "
+                "gilds her body in this intimate photographic "
+                "composition with natural skin texture."
+            ),
+        })
+
+
+def test_flux_natural_accepts_assertive_nudity():
+    """Counter-example: 'bare breasts rest against the sheets' is the
+    auditor's recommended phrasing — schema must accept."""
+    f = SceneFacetFluxNatural.model_validate({
+        "scene_prose": (
+            "A confident woman reclines on rumpled white sheets, one knee "
+            "raised. Her bare breasts rest against the crisp bedding, "
+            "exposed vulva softly lit by late afternoon window light. Wide "
+            "hips and thick thighs naked against the linen, defiant gaze "
+            "direct to the camera in this intimate photographic composition "
+            "with natural skin texture."
+        ),
+    })
+    assert f.scene_prose.startswith("A confident")
+
+
+def test_flux_natural_accepts_sheer_curtains():
+    """Single-word 'sheer' is NOT banned — sheer curtains / sheer cliff
+    face / sheer drop are fine. The ban targets compound coverage
+    phrases only."""
+    f = SceneFacetFluxNatural.model_validate({
+        "scene_prose": (
+            "A confident woman stands fully nude in the bedroom, the "
+            "morning light filtering through sheer curtains and falling "
+            "across her exposed body. Bare breasts and naked hips lit by "
+            "soft window glow, mature curves on display, defiant gaze "
+            "direct to the camera lens in this intimate photographic "
+            "composition with natural skin texture."
+        ),
+    })
+    assert f.scene_prose.startswith("A confident")
+
+
 def test_flux2_facet_requires_prose_qa_fields_optional():
     """subject_focus is validated but optional — it's a QA signal,
     not persisted to scene_facets table. Dual-write pivot — word

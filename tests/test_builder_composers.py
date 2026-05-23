@@ -301,6 +301,32 @@ def test_chroma_fallback_prose_t4_demands_nudity(pb, family_loader, caplog):
     )
 
 
+def test_chroma_fallback_t4_includes_concrete_anatomy_and_lighting(
+    pb, family_loader,
+):
+    """2026-05-23 audit follow-up: T4 fallback must carry concrete
+    anatomy names ("bare breasts" / "exposed vulva") + a pose/lighting
+    cue so the LLM-free path still produces a visually-directed prompt.
+    Pre-fix the fallback was a single generic line that scored 5.8-6.1
+    on the Grok rubric ("too vague, no pose, no lighting, no setting").
+    """
+    family = family_loader.get_family("chroma")
+    scene = {**UNIVERSAL_SCENE, "scene_prose": ""}
+    out = pb.build_one(
+        CHARACTER, scene, STYLE, family=family,
+        content_level="T4_explicit",
+    )
+    text = out["prompt_text"].lower()
+    # Concrete anatomy beyond the abstract "explicit anatomy on display".
+    assert "bare breasts" in text or "exposed vulva" in text, (
+        f"T4 fallback missing concrete anatomy: {out['prompt_text']!r}"
+    )
+    # A pose or lighting anchor.
+    assert "standing" in text or "side lighting" in text, (
+        f"T4 fallback missing pose/lighting anchor: {out['prompt_text']!r}"
+    )
+
+
 def test_chroma_fallback_prose_t3_art_nude(pb, family_loader):
     """T3 fallback says 'fully nude … art-nude' — softer than T4."""
     family = family_loader.get_family("chroma")

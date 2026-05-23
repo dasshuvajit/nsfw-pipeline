@@ -828,6 +828,55 @@ class SceneFacetFluxNatural(BaseModel):
                 f"floor) without 'her reflection' phrasing are fine."
             )
 
+        # 2026-05-23 audit follow-up — hedge-phrase ban at T4. External
+        # reviewer (Grok / Claude-web) scored series_35b9a747fb87 prompts
+        # 7.4-8.4/10 with a recurring weakness: "natural medium breasts
+        # visible" / "sheer fabric draped to suggest" / "barely covers"
+        # produce partial-coverage renders instead of nude renders.
+        # Chroma reads these as "subject is mostly covered" because the
+        # hedge token sits closer to the anatomy noun than the nudity
+        # cue. Force assertive phrasing via retry.
+        # Per-pattern matching (longer phrases) — single-word "sheer"
+        # alone is OK (sheer curtains, sheer cliff face); the ban
+        # targets coverage-implying compound phrases only.
+        _HEDGE_PATTERNS = (
+            "visible through",          # "breasts visible through fabric"
+            "visible against",          # "breasts visible against bedding"
+            "barely conceals",
+            "barely conceal",
+            "barely covers",
+            "barely cover",
+            "hints at her",
+            "hint at her",
+            "draped to suggest",
+            "draped to conceal",
+            "veiled by fabric",
+            "veiled in",
+            "shadow hides her",         # body-shadow euphemism
+            "shadow conceals her",
+            "shadow hides the",
+            "sheer fabric drape",       # "sheer fabric draped/draping"
+            "sheer silk drape",
+            "thin fabric drape",
+            "loose silk drape",
+            "loose fabric drape",
+        )
+        hedge_hits = [
+            p for p in _HEDGE_PATTERNS if p in prose_lower_for_sad
+        ]
+        if hedge_hits:
+            raise ValueError(
+                f"SceneFacetFluxNatural.scene_prose contains banned "
+                f"hedge / partial-coverage tokens: "
+                f"{sorted(set(hedge_hits))}. At T4 the subject is FULLY "
+                f"NUDE — phrase nudity assertively. Replace 'breasts "
+                f"visible through fabric' → 'bare breasts'. Replace "
+                f"'sheer fabric draped around her hips' → 'her exposed "
+                f"hips' or 'naked hips'. Don't hedge with 'barely "
+                f"conceals' or 'hints at' — name the bare anatomy "
+                f"directly."
+            )
+
         # Round-22 F15 (2026-05-22) — env / atmosphere / narrative
         # cross-field coherence check. Some ATM / NARR tags declare a
         # ``place_constraint`` requiring specific env keywords (e.g.

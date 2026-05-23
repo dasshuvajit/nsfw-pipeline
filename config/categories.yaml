@@ -930,26 +930,38 @@ content_levels:
 
       DEFAULT STATE: the subject (always an adult woman, 18+, mature
       features) is FULLY NUDE — front-facing, with breasts and
-      nipples visible, vulva / labia visible, full body bare. This
-      is the dominant case, not the exception. Clothing or drapery
-      appears ONLY when the scene's locked core fields explicitly
-      call for it (e.g. lingerie scene, partial draping for a
-      classical pose) — and even then, partial nudity is preferred
-      over full coverage. Topless, bottomless, and partial-nude
-      framings are valid intermediate states; full-nude is the
-      default to aim for.
+      nipples BARE AND UNOBSTRUCTED, vulva / labia EXPOSED, full
+      body bare. This is the dominant case, not the exception.
+      Clothing or drapery appears ONLY when the scene's locked core
+      fields explicitly call for it (e.g. lingerie scene, partial
+      draping for a classical pose) — and even then, partial nudity
+      is preferred over full coverage. Topless, bottomless, and
+      partial-nude framings are valid intermediate states; full-nude
+      is the default to aim for.
 
-      ANATOMY MUST BE VISIBLE AND DESCRIBED: scene_prose names the
-      anatomy that's visible — bare breasts with natural nipples,
-      visible vulva / mons / labia, bare hips and thighs and glutes.
-      Use the vocabulary library's family-shaped phrasing — the
-      composer translates concept tags into the right wording for
-      each model family.
+      ANATOMY MUST BE NAMED ASSERTIVELY: scene_prose names the
+      anatomy with ACTIVE / EXPOSED verbs — "bare breasts with
+      natural nipples", "exposed vulva", "naked hips and thighs",
+      "her bare body", "completely nude". The composer translates
+      concept tags into family-shaped phrasing.
 
       DO NOT euphemise. Do NOT default to "draped" / "veiled" /
       "shadow hides her form" / "implied nude" — those belong to T2.
       At T4 the body is the composition. Tasteful framing means
       compositional craft (lighting, pose, mood), NOT covering up.
+
+      BANNED HEDGE PHRASES (2026-05-23 audit follow-up — external
+      reviewer flagged these as producing partial-coverage renders
+      instead of nude renders):
+        * "visible through fabric / sheer fabric / silk"
+        * "barely conceals" / "barely covers" / "hints at"
+        * "draped to suggest" / "veiled"
+        * "shadow hides" / "in soft shadow" used to imply coverage
+        * "natural medium breasts visible against bedding" — the
+          subject is BARE on the bedding, breasts ARE the subject,
+          not "visible against" something.
+      Use assertive language: "bare breasts rest against the
+      sheets", "her exposed vulva", "naked body lit by …".
 
       REQUIRED: pick exactly one `nsfw_anatomy` tag AND exactly one
       `nsfw_act` tag from the vocabulary menu. Strongly prefer
