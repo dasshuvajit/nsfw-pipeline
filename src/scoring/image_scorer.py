@@ -109,9 +109,42 @@ class CompositeWeights:
             aesthetic=0.40, face=0.25, blur=0.25, resolution=0.10,
         )
 
+    @classmethod
+    def nsfw_legacy(cls) -> "CompositeWeights":
+        """T3/T4 weighting when HPS v2 + ImageReward are disabled.
+
+        Drops face + blur weight versus :meth:`legacy` because the
+        SFW-trained scorers misjudge intentional NSFW composition:
+        close-up anatomy crops have no face (face → 0) and Chroma's
+        soft cinematic skin texture pushes Laplacian variance under
+        the SFW blur floor. Pushes the released share onto aesthetic +
+        resolution, which still correlate with finished quality at
+        higher tiers.
+        """
+        return cls(
+            hps_v2=0.0, image_reward=0.0,
+            aesthetic=0.55, face=0.15, blur=0.15, resolution=0.15,
+        )
+
+    @classmethod
+    def nsfw(cls) -> "CompositeWeights":
+        """T3/T4 weighting when HPS v2 + ImageReward are enabled.
+
+        Same rebalancing principle as :meth:`nsfw_legacy` but with the
+        Phase-G predictors absorbing most of the released face/blur
+        share — HPS v2 + ImageReward both handle nudity gracefully.
+        """
+        return cls(
+            hps_v2=0.35, image_reward=0.30,
+            aesthetic=0.20, face=0.05, blur=0.05, resolution=0.05,
+        )
+
 
 _LEGACY_WEIGHTS = CompositeWeights.legacy()
 _PHASE_G_WEIGHTS = CompositeWeights()
+_NSFW_LEGACY_WEIGHTS = CompositeWeights.nsfw_legacy()
+_NSFW_PHASE_G_WEIGHTS = CompositeWeights.nsfw()
+_NSFW_LEVELS = frozenset({"T3_artnude", "T4_explicit"})
 
 
 # Normalization / threshold constants — also from Section 15.
@@ -122,6 +155,15 @@ _HPS_V2_FLAG_THRESHOLD = 0.20      # below this → "low_hps_v2"
 _IMAGE_REWARD_FLAG_THRESHOLD = -1.5  # below this → "low_image_reward"
 _RES_MIN_H = 1024
 _RES_MIN_W = 768
+
+# T3/T4 thresholds — SFW-trained models (LAION CLIP aesthetic +
+# Laplacian-variance blur) systematically under-rate finished NSFW
+# work. Soft cinematic skin texture from Chroma sits at 30-60 var,
+# below the SFW floor of 80. LAION CLIP aesthetic for nude content
+# tends to land 0.5-1.0 points below equivalent clothed work because
+# LAION-2B is filtered. These two floors release the pressure.
+_NSFW_BLUR_FLAG_THRESHOLD = 30.0
+_NSFW_AESTHETIC_FLAG_THRESHOLD = 3.5
 
 # ImageReward typical range is [-2.4, +1.0]. Map to [0, 1] via a sigmoid
 # centered at 0 with a divisor of 2 so a score of 0.0 → 0.5, +2 → ~0.88,
@@ -514,10 +556,13 @@ class ImageScorer:
         )
         if weights is not None:
             self.weights = weights
+            self._weights_overridden = True
         elif use_hps_v2 or use_image_reward:
             self.weights = _PHASE_G_WEIGHTS
+            self._weights_overridden = False
         else:
             self.weights = _LEGACY_WEIGHTS
+            self._weights_overridden = False
         # Once a Phase-G predictor fails to load we stop trying it for
         # the rest of the run — log once, fall back to the legacy
         # composite for that signal. Reset by re-instantiating the scorer.
@@ -538,6 +583,7 @@ class ImageScorer:
         image_path: str | Path,
         *,
         prompt: str | None = None,
+        content_level: str | None = None,
     ) -> dict[str, Any]:
         """Score one image. Returns a dict; rounded numeric values.
 
@@ -549,7 +595,17 @@ class ImageScorer:
         image-vs-prompt alignment. When omitted those signals are skipped
         and the composite falls back to the legacy weighting for that
         image (no error; just degraded scoring).
+
+        ``content_level`` switches the scorer into NSFW-tolerant mode
+        when it is ``T3_artnude`` or ``T4_explicit``: blur + aesthetic
+        flag floors drop, the no-face penalty becomes neutral
+        (intentional close-up anatomy is valid composition, not a
+        defect), and an extra face is tolerated (bokeh ghosts). Weights
+        rebalance to :meth:`CompositeWeights.nsfw_legacy` (or
+        :meth:`CompositeWeights.nsfw` when Phase-G predictors are on)
+        unless the caller passed explicit weights at construction time.
         """
+        nsfw_mode = content_level in _NSFW_LEVELS
         path = Path(image_path).expanduser()
         if not path.exists():
             raise ScorerError(f"Image not found: {path}")
@@ -596,16 +652,29 @@ class ImageScorer:
             res_ok=res_ok,
             hps_v2=hps_v2,
             image_reward=image_reward,
+            nsfw_mode=nsfw_mode,
+            no_face=not faces,
         )
 
         flags: list[str] = []
-        if aesthetic < _AESTHETIC_FLAG_THRESHOLD:
+        aesthetic_floor = (
+            _NSFW_AESTHETIC_FLAG_THRESHOLD if nsfw_mode else _AESTHETIC_FLAG_THRESHOLD
+        )
+        blur_floor = (
+            _NSFW_BLUR_FLAG_THRESHOLD if nsfw_mode else _BLUR_FLAG_THRESHOLD
+        )
+        max_faces = 2 if nsfw_mode else 1
+        if aesthetic < aesthetic_floor:
             flags.append("low_aesthetic")
-        if blur < _BLUR_FLAG_THRESHOLD:
+        if blur < blur_floor:
             flags.append("blurry")
         if not faces:
-            flags.append("no_face")
-        elif len(faces) > 1:
+            # T3/T4: a close-up anatomy crop with no face is a valid
+            # composition. Skip the flag — _compose() also drops face
+            # from the composite when no_face=True in nsfw_mode.
+            if not nsfw_mode:
+                flags.append("no_face")
+        elif len(faces) > max_faces:
             flags.append("multiple_faces")
         if hps_v2 is not None and hps_v2 < _HPS_V2_FLAG_THRESHOLD:
             flags.append("low_hps_v2")
@@ -665,6 +734,8 @@ class ImageScorer:
         res_ok: bool,
         hps_v2: float | None,
         image_reward: float | None,
+        nsfw_mode: bool = False,
+        no_face: bool = False,
     ) -> float:
         """Apply ``self.weights`` to the per-signal normalized scores.
 
@@ -672,21 +743,48 @@ class ImageScorer:
         proportionally across the four legacy signals so the composite
         stays in roughly the same scale instead of dropping due to a
         zeroed slot.
+
+        In ``nsfw_mode`` the weight set switches to the NSFW preset
+        (unless the caller passed explicit weights at construction
+        time) and ``no_face`` causes the face slot to be excluded from
+        the composite entirely rather than scoring a hard zero — close-
+        up anatomy crops shouldn't be punished for the absent face.
         """
-        w = self.weights
-        # Per-signal normalized values in [0, 1].
-        a_norm = max(0.0, min(1.0, aesthetic / 10.0))
+        if nsfw_mode and not self._weights_overridden:
+            w = (
+                _NSFW_PHASE_G_WEIGHTS
+                if (hps_v2 is not None or image_reward is not None)
+                else _NSFW_LEGACY_WEIGHTS
+            )
+        else:
+            w = self.weights
+
+        # Per-signal normalized values in [0, 1]. In NSFW mode we
+        # recalibrate the aesthetic axis: LAION-2B trained the CLIP
+        # aesthetic predictor on SFW data, so finished nude work
+        # systematically lands ~5-6 on the [0, 10] scale where SFW
+        # equivalents score ~7-8. Mapping (aesthetic - 1.5) / 6.5
+        # widens the effective NSFW range so the LAION bias doesn't
+        # drag a commercially-strong T4 close-up below the cutoff.
+        if nsfw_mode:
+            a_norm = max(0.0, min(1.0, (aesthetic - 1.5) / 6.5))
+        else:
+            a_norm = max(0.0, min(1.0, aesthetic / 10.0))
         b_norm = min(blur, _BLUR_CLAMP) / _BLUR_CLAMP
         f_norm = max(0.0, min(1.0, face_conf))
         r_norm = 1.0 if res_ok else 0.0
 
-        active_weight = w.aesthetic + w.blur + w.face + w.resolution
+        skip_face = nsfw_mode and no_face
+
+        active_weight = w.aesthetic + w.blur + w.resolution
         used = (
             a_norm * w.aesthetic
             + b_norm * w.blur
-            + f_norm * w.face
             + r_norm * w.resolution
         )
+        if not skip_face:
+            used += f_norm * w.face
+            active_weight += w.face
         if hps_v2 is not None:
             used += _hps_v2_norm(hps_v2) * w.hps_v2
             active_weight += w.hps_v2
@@ -722,7 +820,10 @@ class ImageScorer:
                 )
             prompt = img.get("prompt_text")
             try:
-                scores = self.score(path, prompt=prompt)
+                scores = self.score(
+                    path, prompt=prompt,
+                    content_level=img.get("content_level"),
+                )
             except ScorerError as exc:
                 logger.warning("Skipping %s: %s", path, exc)
                 img["quality_score"] = 0.0

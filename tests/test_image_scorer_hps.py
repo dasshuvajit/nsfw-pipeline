@@ -316,6 +316,144 @@ class TestScoreWithMockedPredictors:
         assert "low_image_reward" in r["flags"]
 
 
+# ── NSFW-mode behavior ──────────────────────────────────────────────
+
+
+def _stub_face_none(_self, _bgr):
+    """No face detected — simulates an intentional close-up anatomy crop."""
+    return []
+
+
+def _stub_aesthetic_nsfw(_self, _pil):
+    """LAION-CLIP underrates nude work; 5.4 is typical for a clean T4 shot."""
+    return 5.4
+
+
+class TestNsfwMode:
+    """T3/T4 scoring path: blur/aesthetic floors relax, no-face is neutral."""
+
+    def test_no_face_drops_face_from_composite_at_t4(self, fake_image: Path):
+        """A close-up anatomy crop (no face) shouldn't be penalized at T4."""
+        with (
+            patch(
+                "src.scoring.image_scorer.AestheticPredictor.predict",
+                _stub_aesthetic_nsfw,
+            ),
+            patch(
+                "src.scoring.image_scorer._FaceAnalyzerWrapper.detect",
+                _stub_face_none,
+            ),
+        ):
+            s = ImageScorer()
+            sfw = s.score(fake_image)  # no content_level → SFW path
+            nsfw = s.score(fake_image, content_level="T4_explicit")
+        # SFW path: face_conf=0 drags composite down hard.
+        # NSFW path: face slot is skipped entirely; composite jumps.
+        assert nsfw["composite"] > sfw["composite"] + 0.15
+        assert "no_face" in sfw["flags"]
+        assert "no_face" not in nsfw["flags"]
+
+    def test_nsfw_blur_floor_relaxed(self, fake_image: Path):
+        """Chroma soft cinematic skin (blur var ~40) shouldn't flag at T4."""
+        # Real Laplacian variance from fake_image is computed inside score().
+        # The flat 200-fill image has var ~0, so we instead verify behavior
+        # via the threshold module constants.
+        from src.scoring.image_scorer import (
+            _BLUR_FLAG_THRESHOLD,
+            _NSFW_BLUR_FLAG_THRESHOLD,
+        )
+        assert _NSFW_BLUR_FLAG_THRESHOLD < _BLUR_FLAG_THRESHOLD
+        # 40 should pass the NSFW floor but fail the SFW one.
+        assert 40 > _NSFW_BLUR_FLAG_THRESHOLD and 40 < _BLUR_FLAG_THRESHOLD
+
+    def test_nsfw_aesthetic_remap_widens_top_end(self, fake_image: Path):
+        """LAION aesthetic 5.4 should map ~0.6 in NSFW mode, ~0.54 in SFW."""
+        with (
+            patch(
+                "src.scoring.image_scorer.AestheticPredictor.predict",
+                _stub_aesthetic_nsfw,
+            ),
+            patch(
+                "src.scoring.image_scorer._FaceAnalyzerWrapper.detect",
+                _stub_face,
+            ),
+        ):
+            s = ImageScorer()
+            sfw = s.score(fake_image)
+            nsfw = s.score(fake_image, content_level="T4_explicit")
+        # NSFW remap (aes - 1.5) / 6.5 widens the SFW [0, 10] range.
+        # Same aesthetic input → higher composite in NSFW mode.
+        assert nsfw["composite"] > sfw["composite"]
+
+    def test_t1_t2_use_sfw_path(self, fake_image: Path):
+        """Tiers below T3 must NOT trigger NSFW mode."""
+        with (
+            patch(
+                "src.scoring.image_scorer.AestheticPredictor.predict",
+                _stub_aesthetic_nsfw,
+            ),
+            patch(
+                "src.scoring.image_scorer._FaceAnalyzerWrapper.detect",
+                _stub_face_none,
+            ),
+        ):
+            s = ImageScorer()
+            t1 = s.score(fake_image, content_level="T1_suggestive")
+            t2 = s.score(fake_image, content_level="T2_implied")
+            sfw = s.score(fake_image)  # baseline
+        # T1/T2 keep the SFW no-face penalty.
+        assert "no_face" in t1["flags"]
+        assert "no_face" in t2["flags"]
+        assert t1["composite"] == sfw["composite"]
+        assert t2["composite"] == sfw["composite"]
+
+    def test_caller_supplied_weights_not_overridden_in_nsfw_mode(
+        self, fake_image: Path,
+    ):
+        """Explicit ``weights=`` at construction wins even in NSFW mode."""
+        custom = CompositeWeights(
+            hps_v2=0.0, image_reward=0.0,
+            aesthetic=1.0, face=0.0, blur=0.0, resolution=0.0,
+        )
+        with (
+            patch(
+                "src.scoring.image_scorer.AestheticPredictor.predict",
+                _stub_aesthetic_nsfw,
+            ),
+            patch(
+                "src.scoring.image_scorer._FaceAnalyzerWrapper.detect",
+                _stub_face,
+            ),
+        ):
+            s = ImageScorer(weights=custom)
+            r = s.score(fake_image, content_level="T4_explicit")
+        # With pure-aesthetic weights and NSFW remap: (5.4 - 1.5) / 6.5 ≈ 0.6
+        assert r["composite"] == pytest.approx(0.6, abs=0.01)
+
+    def test_multiple_faces_tolerates_bokeh_ghost(self, fake_image: Path):
+        """At T3/T4 a second face (bokeh element) shouldn't flag."""
+        def _two_faces(_self, _bgr):
+            class _F:
+                def __init__(self, score):
+                    self.det_score = score
+            return [_F(0.92), _F(0.55)]
+        with (
+            patch(
+                "src.scoring.image_scorer.AestheticPredictor.predict",
+                _stub_aesthetic_nsfw,
+            ),
+            patch(
+                "src.scoring.image_scorer._FaceAnalyzerWrapper.detect",
+                _two_faces,
+            ),
+        ):
+            s = ImageScorer()
+            sfw = s.score(fake_image)
+            nsfw = s.score(fake_image, content_level="T4_explicit")
+        assert "multiple_faces" in sfw["flags"]
+        assert "multiple_faces" not in nsfw["flags"]
+
+
 # ── Graceful degradation ────────────────────────────────────────────
 
 

@@ -1653,7 +1653,9 @@ class PipelineEngine:
         for img in rendered_images:
             try:
                 result = scorer.score(
-                    img["file_path"], prompt=img.get("prompt_text"),
+                    img["file_path"],
+                    prompt=img.get("prompt_text"),
+                    content_level=content_level,
                 )
                 img["quality_score"] = result.get("composite")
                 img["aesthetic_score"] = result.get("aesthetic")
