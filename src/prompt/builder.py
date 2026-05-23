@@ -1646,12 +1646,17 @@ def _strip_avoid_tokens(segment: str, avoid_set: set[str]) -> str:
 # catches LLM-emitted scene_prose; this catches the broader path.
 _SAD_TOKEN_PATTERN = re.compile(
     r"\b(?:"
-    r"tear[- ]?streaked|tearful|tears\b|crying|weeping|sobbing|sob|"
+    # Tear family — catches tear/tears/teardrop/tearful/tear-streaked.
+    # Bare \btear\b doesn't catch 'Teardrop' (no boundary between r+d)
+    # so use \btear(?:drop|drops|ful|s)?\b.
+    r"tear(?:drop|drops|ful|s)?|tear[- ]?streaked|"
+    r"crying|weeping|sobbing|sob|"
     r"mournful|grieving|grief|sorrow(?:ful)?|"
     r"melancholic|melancholy|wistful sadness|"
-    r"numb detachment|vacant stare|blank stare|"
+    r"numb detachment|vacant stare|blank stare|vacantly\b|"
     r"sad expression|sad gaze|"
-    # 2nd verifier round — uncertainty register adjacent to melancholy.
+    # Round 3 — additional leak patterns seen in series_58b10b9f9a8d.
+    r"lost in a memory|lost in her own skin|disconnected|"
     r"uncertainly|uncertain gaze|questioning gaze|tentatively|"
     r"hesitantly|lost expression|anxious|anxiety|fearful"
     r")\b",
@@ -1692,6 +1697,10 @@ _MIRROR_PROSE_PATTERN = re.compile(
     r"her (?:own )?form reflected|"
     r"her distorted form|"
     r"her warped image|"
+    r"warped image|"            # bare — catches "warped image of herself"
+    r"distorted reflection|"    # bare — verifier audit miss
+    r"distorted image|"
+    r"image of herself|"
     r"reflective surface|"
     r"mirror[s]?"
     r")\b",

@@ -771,19 +771,22 @@ class SceneFacetFluxNatural(BaseModel):
         # not sorrow. User-explicit ban (2026-05-23 04:05 AM).
         _SAD_TOKENS = (
             "tear", "tears", "tearful", "tear-streaked", "tear streaked",
+            "teardrop", "teardrops",
             "crying", "weeping", "sobbing", "sob", "mournful",
             "grieving", "grief", "sorrow", "sorrowful", "mourn",
             "wet eyes", "wet-eyed", "dried tears",
-            "numb detachment", "vacant stare", "blank stare",
+            "numb detachment", "vacant stare", "blank stare", "vacantly",
             "regretful", "regret", "melancholy", "melancholic",
             "sad expression", "sadness",
             # 2nd verifier round (2026-05-23 6:00 AM) — uncertainty
-            # register that's adjacent to melancholy. Scene_004 of
-            # series_078fe7f62ad1 squeaked past with "gazes uncertainly
-            # ... eyes questioning ... lips part tentatively".
+            # register that's adjacent to melancholy.
             "uncertainly", "uncertain gaze", "questioning gaze",
             "tentatively", "hesitantly", "lost expression",
             "unsure", "anxious", "anxiety", "fearful",
+            # 3rd round (2026-05-23 7:15 AM) — series_58b10b9f9a8d leak.
+            "lost in a memory", "lost in her own skin", "disconnected",
+            "lost in thought",  # Borderline but commercial NSFW wants
+            # active engagement not lost-in-thought
         )
         prose_lower_for_sad = prose.lower()
         sad_hits = [t for t in _SAD_TOKENS if t in prose_lower_for_sad]
@@ -810,6 +813,9 @@ class SceneFacetFluxNatural(BaseModel):
             "reflecting her", "reflected her", "her distorted form",
             "her warped image", "reflected back at her",
             "her own form reflected", "reflective surface",
+            # 3rd round leak (series_58b10b9f9a8d_scene_008):
+            "warped image", "distorted reflection", "distorted image",
+            "image of herself",
         )
         mirror_hits = [t for t in _MIRROR_TRIGGERS if t in prose_lower_for_sad]
         if mirror_hits:

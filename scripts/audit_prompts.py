@@ -101,15 +101,16 @@ _MIRROR_DANGLING_PATTERNS = (
 # explicit ban: commercial adult-art markets sell confidence +
 # sensuality, NOT sorrow.
 _SAD_TOKENS = (
-    "tear", "tears", "tearful", "tear-streaked",
+    "tear", "tears", "tearful", "tear-streaked", "teardrop", "teardrops",
     "crying", "weeping", "sobbing", "mournful",
     "grieving", "grief", "sorrow", "sorrowful",
     "wet eyes", "dried tears",
-    "numb detachment", "vacant stare", "blank stare",
+    "numb detachment", "vacant stare", "blank stare", "vacantly",
     "melancholic", "melancholy", "sad expression",
     "uncertainly", "uncertain gaze", "questioning gaze",
     "tentatively", "hesitantly", "lost expression",
     "anxious", "anxiety", "fearful",
+    "lost in a memory", "lost in her own skin", "disconnected",
 )
 
 
@@ -124,6 +125,8 @@ _MIRROR_PROSE_PATTERNS = (
     r"\breflective surface\b",
     r"\breflecting [a-z]+ back\b",
     r"\bmirror[s]?\b",
+    r"\bdistorted reflection\b",
+    r"\bimage of herself\b",
 )
 
 
