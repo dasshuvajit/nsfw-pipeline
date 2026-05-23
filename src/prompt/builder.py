@@ -1631,7 +1631,10 @@ _SAD_TOKEN_PATTERN = re.compile(
     r"mournful|grieving|grief|sorrow(?:ful)?|"
     r"melancholic|melancholy|wistful sadness|"
     r"numb detachment|vacant stare|blank stare|"
-    r"sad expression|sad gaze"
+    r"sad expression|sad gaze|"
+    # 2nd verifier round — uncertainty register adjacent to melancholy.
+    r"uncertainly|uncertain gaze|questioning gaze|tentatively|"
+    r"hesitantly|lost expression|anxious|anxiety|fearful"
     r")\b",
     re.IGNORECASE,
 )

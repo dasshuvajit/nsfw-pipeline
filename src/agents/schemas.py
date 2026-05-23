@@ -777,6 +777,13 @@ class SceneFacetFluxNatural(BaseModel):
             "numb detachment", "vacant stare", "blank stare",
             "regretful", "regret", "melancholy", "melancholic",
             "sad expression", "sadness",
+            # 2nd verifier round (2026-05-23 6:00 AM) — uncertainty
+            # register that's adjacent to melancholy. Scene_004 of
+            # series_078fe7f62ad1 squeaked past with "gazes uncertainly
+            # ... eyes questioning ... lips part tentatively".
+            "uncertainly", "uncertain gaze", "questioning gaze",
+            "tentatively", "hesitantly", "lost expression",
+            "unsure", "anxious", "anxiety", "fearful",
         )
         prose_lower_for_sad = prose.lower()
         sad_hits = [t for t in _SAD_TOKENS if t in prose_lower_for_sad]

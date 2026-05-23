@@ -107,6 +107,9 @@ _SAD_TOKENS = (
     "wet eyes", "dried tears",
     "numb detachment", "vacant stare", "blank stare",
     "melancholic", "melancholy", "sad expression",
+    "uncertainly", "uncertain gaze", "questioning gaze",
+    "tentatively", "hesitantly", "lost expression",
+    "anxious", "anxiety", "fearful",
 )
 
 
