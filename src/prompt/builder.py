@@ -895,6 +895,7 @@ class PromptBuilder:
             base_prompt=base_prompt,
             style_keywords=style_keywords,
             extra_keywords=merged_extras,
+            content_level=content_level,
         )
 
         # Positive-side age safety scan — every family. Strips any
@@ -1111,6 +1112,7 @@ class PromptBuilder:
         base_prompt: str = "",
         style_keywords: str = "",
         extra_keywords: Iterable[str] = (),
+        content_level: str | None = None,
     ) -> str:
         style = family.prompt_style
         trig = list(trigger_words or [])
@@ -1166,6 +1168,7 @@ class PromptBuilder:
                 extra_keywords=list(extra_keywords),
                 realism_tail_style=family.realism_tail_style,
                 facet_has_lens=bool(self._field(scene, "realism_lens")),
+                content_level=content_level,
             )
         if style == "flux2_prose":
             return _compose_flux2_prose(
@@ -1174,6 +1177,7 @@ class PromptBuilder:
                 base_prompt=base_prompt,
                 style_keywords=style_keywords,
                 extra_keywords=list(extra_keywords),
+                content_level=content_level,
             )
         raise PromptBuilderError(
             f"unknown prompt_style {style!r} on family {family.id!r}"
@@ -1413,6 +1417,40 @@ _CHROMA_REALISM_TAIL = (
 )
 
 
+# Tier-aware fallback prose for the chroma facet-failure path. Fires
+# only when the LLM facet generator produces no ``scene_prose`` (Pydantic
+# reject after all retries, refusal, etc.) AND the composer is on the
+# chroma `realism_tail_style="period"` branch. The previous single
+# string "A confident adult woman in a tasteful, photographic
+# composition" was tier-blind: at T4_explicit it produced clothed
+# headshots from prompts like "wearing boxing gloves" + that fallback
+# (audit on series_83453d626f45 found 4/25 SFW leaks). Per-tier prose
+# keeps the same compositional cue ("photographic, intentional") while
+# honouring the level the operator asked for.
+_FALLBACK_PROSE_BY_TIER: dict[str, str] = {
+    "T1_suggestive":
+        "A confident adult woman in a tasteful, photographic composition",
+    "T2_implied":
+        "A confident adult woman, implied undress, photographic composition "
+        "with suggestive framing",
+    "T3_artnude":
+        "A confident adult woman, fully nude in a tasteful art-nude "
+        "photographic composition, natural anatomy visible",
+    "T4_explicit":
+        "A confident adult woman, fully nude with explicit anatomy on "
+        "display, intimate photographic composition, natural skin and "
+        "anatomical detail",
+}
+_FALLBACK_PROSE_DEFAULT = _FALLBACK_PROSE_BY_TIER["T1_suggestive"]
+
+
+def _tier_fallback_prose(content_level: str | None) -> str:
+    """Return the tier-honouring fallback prose for chroma facet failure."""
+    if content_level and content_level in _FALLBACK_PROSE_BY_TIER:
+        return _FALLBACK_PROSE_BY_TIER[content_level]
+    return _FALLBACK_PROSE_DEFAULT
+
+
 def _compose_natural(
     segments: Iterable[str],
     *,
@@ -1424,6 +1462,7 @@ def _compose_natural(
     extra_keywords: Iterable[str] = (),
     realism_tail_style: str | None = None,
     facet_has_lens: bool = False,
+    content_level: str | None = None,
 ) -> str:
     """Join segments as flowing sentences for Flux / Chroma models.
 
@@ -1464,20 +1503,25 @@ def _compose_natural(
         # fallback) AND this is a prose-family composer (chroma —
         # only chroma uses realism_tail_style='period'), skip the
         # segments-based fragmented assembly. Use base_prompt only +
-        # the realism tail. The result is a sparse-but-clean prompt
-        # (subject anchor + camera/lens + photographic skin texture)
-        # vs the previous fragmented "pose. mood. angle. light. env."
+        # a tier-aware subject hint + the realism tail. The result is
+        # a sparse-but-clean prompt (subject anchor + tier-honouring
+        # nudity directive + photographic skin texture) vs the
+        # previous fragmented "pose. mood. angle. light. env."
         # scene-core dump that read as broken English. Operator can
         # re-roll the scene with --regen-facets to get a richer prompt.
+        # The tier-aware hint replaced the previous tier-blind
+        # "tasteful photographic composition" line that was causing
+        # 4/25 SFW leaks on T4_explicit series in chroma.
         prose_segments = []
         if base_prompt:
             prose_segments.append(base_prompt)
-        # Add a minimal subject-tier hint so the renderer has SOMETHING
-        # to anchor against (not just the safety anchor).
-        prose_segments.append(
-            "A confident adult woman in a tasteful, photographic composition"
-        )
+        prose_segments.append(_tier_fallback_prose(content_level))
         iter_segments = prose_segments
+        logger.warning(
+            "chroma fallback prose fired (scene_prose empty); content_level=%s. "
+            "Re-roll with --regen-facets for richer output.",
+            content_level or "<none>",
+        )
     else:
         iter_segments = segments
 
@@ -1545,6 +1589,7 @@ def _compose_flux2_prose(
     base_prompt: str = "",
     style_keywords: str = "",
     extra_keywords: Iterable[str] = (),
+    content_level: str | None = None,
 ) -> str:
     """FLUX.2 Klein 9B composer — BFL 5-anchor prose, no realism tail.
 
@@ -1567,6 +1612,7 @@ def _compose_flux2_prose(
         style_keywords=style_keywords,
         extra_keywords=extra_keywords,
         realism_tail_style=None,
+        content_level=content_level,
     )
     _log_flux2_word_count(text)
     return text

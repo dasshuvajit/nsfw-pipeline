@@ -277,6 +277,75 @@ def test_chroma_realism_tail_without_lens_keeps_focal_hint(pb, family_loader):
     )
 
 
+def test_chroma_fallback_prose_t4_demands_nudity(pb, family_loader, caplog):
+    """When the LLM facet fails (scene_prose empty), the chroma fallback
+    must honour content_level. Pre-fix the hardcoded "tasteful
+    photographic composition" line caused SFW leaks on T4_explicit
+    series. The tier-aware fallback explicitly requests nudity at T4.
+    """
+    family = family_loader.get_family("chroma")
+    scene = {**UNIVERSAL_SCENE, "scene_prose": ""}  # facet-failure case
+    out = pb.build_one(
+        CHARACTER, scene, STYLE, family=family,
+        content_level="T4_explicit",
+    )
+    text = out["prompt_text"].lower()
+    # The T4 fallback must reach for explicit nudity vocabulary.
+    assert any(token in text for token in ("nude", "explicit", "anatomy")), (
+        f"T4 fallback prose missing nudity directive: {out['prompt_text']!r}"
+    )
+    # And NOT degrade to the old tier-blind line.
+    assert "tasteful, photographic composition" not in text, (
+        f"T4 fallback still uses the tier-blind boilerplate: "
+        f"{out['prompt_text']!r}"
+    )
+
+
+def test_chroma_fallback_prose_t3_art_nude(pb, family_loader):
+    """T3 fallback says 'fully nude … art-nude' — softer than T4."""
+    family = family_loader.get_family("chroma")
+    scene = {**UNIVERSAL_SCENE, "scene_prose": ""}
+    out = pb.build_one(
+        CHARACTER, scene, STYLE, family=family,
+        content_level="T3_artnude",
+    )
+    text = out["prompt_text"].lower()
+    assert "nude" in text
+    assert "art-nude" in text or "art nude" in text
+
+
+def test_chroma_fallback_prose_t1_stays_safe(pb, family_loader):
+    """T1 fallback must not introduce nudity vocabulary."""
+    family = family_loader.get_family("chroma")
+    scene = {**UNIVERSAL_SCENE, "scene_prose": ""}
+    out = pb.build_one(
+        CHARACTER, scene, STYLE, family=family,
+        content_level="T1_suggestive",
+    )
+    text = out["prompt_text"].lower()
+    assert "nude" not in text
+    assert "explicit" not in text
+    # The standing T1 phrasing is preserved verbatim.
+    assert "tasteful, photographic composition" in text
+
+
+def test_chroma_fallback_warns_on_facet_failure(pb, family_loader, caplog):
+    """Operator visibility: every fallback fire logs at WARNING so a
+    series isn't silently degraded with sparse prompts."""
+    import logging
+    family = family_loader.get_family("chroma")
+    scene = {**UNIVERSAL_SCENE, "scene_prose": ""}
+    with caplog.at_level(logging.WARNING, logger="src.prompt.builder"):
+        pb.build_one(
+            CHARACTER, scene, STYLE, family=family,
+            content_level="T4_explicit",
+        )
+    assert any(
+        "chroma fallback prose fired" in rec.message
+        for rec in caplog.records
+    ), [rec.message for rec in caplog.records]
+
+
 def test_chroma_prompt_ends_with_period(pb, family_loader):
     """Verifier NC7 (2026-05-23) — every chroma/flux/flux2 prompt must
     end with a period. fit_to_budget's piece-pack occasionally drops
