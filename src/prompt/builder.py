@@ -1459,6 +1459,25 @@ def _compose_natural(
             if kw:
                 prose_segments.append(str(kw))
         iter_segments: Iterable[str] = prose_segments
+    elif realism_tail_style == "period":
+        # 2026-05-23 — when scene_prose is empty (facet-failure
+        # fallback) AND this is a prose-family composer (chroma —
+        # only chroma uses realism_tail_style='period'), skip the
+        # segments-based fragmented assembly. Use base_prompt only +
+        # the realism tail. The result is a sparse-but-clean prompt
+        # (subject anchor + camera/lens + photographic skin texture)
+        # vs the previous fragmented "pose. mood. angle. light. env."
+        # scene-core dump that read as broken English. Operator can
+        # re-roll the scene with --regen-facets to get a richer prompt.
+        prose_segments = []
+        if base_prompt:
+            prose_segments.append(base_prompt)
+        # Add a minimal subject-tier hint so the renderer has SOMETHING
+        # to anchor against (not just the safety anchor).
+        prose_segments.append(
+            "A confident adult woman in a tasteful, photographic composition"
+        )
+        iter_segments = prose_segments
     else:
         iter_segments = segments
 
