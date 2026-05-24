@@ -1359,6 +1359,75 @@ def test_env_coherence_silent_when_tags_compatible(loader):
     )
 
 
+# ── vocab v13 keyword expansion regressions ─────────────────────────
+
+
+def test_env_coherence_sunbathing_accepts_meadow(loader):
+    """vocab v13 — Gemma 4 26B verification found 30+ rejections of
+    NARR_SUNBATHING_TERRACE + ENV_GRASS_MEADOW_GOLDEN_HOUR. The env
+    is unambiguously outdoor/sunny but the keyword list lacked
+    'meadow / grass / wildflower'. After v13 expansion the pair must
+    pass the validator."""
+    from src.prompt.vocabulary import check_facet_env_coherence
+    violations = check_facet_env_coherence(
+        environment_setting="ENV_GRASS_MEADOW_GOLDEN_HOUR",
+        environment_atmosphere=None,
+        narrative_moment="NARR_SUNBATHING_TERRACE",
+        loader=loader,
+    )
+    assert violations == [], (
+        f"expected sunbathing+meadow to pass post-v13 expansion; "
+        f"got {violations}"
+    )
+
+
+def test_env_coherence_volumetric_golden_still_rejects_outdoor(loader):
+    """vocab v13 — the ATM_VOLUMETRIC_GOLDEN expansion stays
+    INDOOR-only. The 'high window' in its prose makes outdoor envs
+    semantically invalid even after the keyword list grew. Lock this
+    in so a future careless expansion doesn't relax it to outdoor."""
+    from src.prompt.vocabulary import check_facet_env_coherence
+    violations = check_facet_env_coherence(
+        environment_setting="ENV_GRASS_MEADOW_GOLDEN_HOUR",
+        environment_atmosphere="ATM_VOLUMETRIC_GOLDEN",
+        narrative_moment=None,
+        loader=loader,
+    )
+    assert len(violations) == 1
+    field, tag, _reason = violations[0]
+    assert field == "environment_atmosphere"
+    assert tag == "ATM_VOLUMETRIC_GOLDEN"
+
+
+def test_env_coherence_after_party_accepts_penthouse(loader):
+    """vocab v13 — penthouse is a legitimate after-party location."""
+    from src.prompt.vocabulary import check_facet_env_coherence
+    violations = check_facet_env_coherence(
+        environment_setting="ENV_PENTHOUSE_FLOOR_TO_CEILING",
+        environment_atmosphere=None,
+        narrative_moment="NARR_AFTER_THE_PARTY",
+        loader=loader,
+    )
+    assert violations == [], (
+        f"expected after-party+penthouse to pass; got {violations}"
+    )
+
+
+def test_env_coherence_fireplace_embers_accepts_cabin(loader):
+    """vocab v13 — cabins have fireplaces. Pre-v13 keyword list was
+    parlour/library/study/etc-only."""
+    from src.prompt.vocabulary import check_facet_env_coherence
+    violations = check_facet_env_coherence(
+        environment_setting="ENV_CABIN_FIREPLACE",
+        environment_atmosphere="ATM_FIREPLACE_EMBERS",
+        narrative_moment=None,
+        loader=loader,
+    )
+    assert violations == [], (
+        f"expected fireplace+cabin to pass; got {violations}"
+    )
+
+
 def test_env_coherence_skips_tags_without_place_constraint(loader):
     """Round-22 F15 — ATM / NARR tags with no place_constraint are
     flexible and pass the check unconditionally. Pick tags that

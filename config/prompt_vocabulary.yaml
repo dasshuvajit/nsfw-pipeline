@@ -27,7 +27,7 @@
 #   3. Bump ``version:`` at the top.
 #   4. Re-run regression suite — fixtures pin the byte-stable output.
 
-version: 12
+version: 13
 
 realism:
   # ── Lighting ─────────────────────────────────────────────────────────
@@ -1104,8 +1104,15 @@ environment:
       # require an INDOOR environment with a fireplace. Pre-F15 the
       # LLM occasionally paired this with outdoor settings (e.g.
       # ENV_FIRE_ESCAPE_NEON) producing physically incoherent scenes.
+      # 2026-05-24 (vocab v13) — added cabin / lodge / castle / villa /
+      # manor / mansion / hall / hearth as legitimate fireplace homes.
       place_constraint:
-        requires_env_keyword: ["fireplace", "parlour", "library", "drawing room", "study", "boudoir", "interior", "indoor"]
+        requires_env_keyword: [
+          "fireplace", "parlour", "library", "drawing room", "study",
+          "boudoir", "interior", "indoor", "hearth", "hearthside",
+          "cabin", "lodge", "manor", "villa", "castle", "palazzo",
+          "mansion", "great hall", "sitting room", "fireside",
+        ]
         reason: "fireplace embers require an indoor space with a hearth"
       sdxl:        "fireplace embers glowing low, soft warmth in the foreground"
       pony:        "fireplace_embers, glowing_embers, warm_foreground_light, fire"
@@ -1123,7 +1130,18 @@ environment:
     # ─── Weather / Water ───
     ATM_RAIN_ON_GLASS:
       place_constraint:
-        requires_env_keyword: ["window", "interior", "indoor", "parlour", "loft", "apartment", "bedroom", "suite", "studio", "library", "drawing room", "kitchen", "boudoir", "hotel"]
+        # 2026-05-24 (vocab v13) — added cafe / restaurant / conservatory /
+        # train and more residential synonyms. Rain-on-glass works
+        # anywhere there's a window between viewer and weather.
+        requires_env_keyword: [
+          "window", "interior", "indoor", "parlour", "loft", "apartment",
+          "bedroom", "suite", "studio", "library", "drawing room",
+          "kitchen", "boudoir", "hotel",
+          "cafe", "restaurant", "lounge", "bar",
+          "conservatory", "greenhouse", "atelier", "attic",
+          "manor", "villa", "castle", "palazzo", "mansion",
+          "train", "carriage", "compartment", "taxi", "car",
+        ]
         reason: "rain on glass requires an indoor space with a window"
       sdxl:        "rain streaming down the windowpane, refracted light beyond"
       pony:        "rain_on_window, rain_on_glass, refracted_light, water_streaming"
@@ -1133,7 +1151,16 @@ environment:
       flux2:       "Rain streaming down the windowpane in slow rivulets, refracted light from beyond softening into bokeh, the world outside reduced to abstract colour and shape"
     ATM_FOG_ROLLING_IN:
       place_constraint:
-        requires_env_keyword: ["outdoor", "field", "forest", "meadow", "valley", "moor", "coast", "garden", "courtyard", "terrace", "balcony", "rooftop", "beach", "pine", "fog"]
+        # 2026-05-24 (vocab v13) — added more outdoor synonyms.
+        requires_env_keyword: [
+          "outdoor", "field", "forest", "meadow", "valley", "moor",
+          "coast", "garden", "courtyard", "terrace", "balcony", "rooftop",
+          "beach", "pine", "fog",
+          "hill", "hillside", "mountain", "highland", "lake", "river",
+          "harbor", "harbour", "dock", "pier", "lighthouse",
+          "cliff", "cliffside", "shore", "marsh", "swamp",
+          "alley", "street", "graveyard", "cemetery",
+        ]
         reason: "fog rolling in across a field requires an outdoor space"
       sdxl:       "low fog rolling in across the field at dusk"
       pony:        "low_fog, fog_rolling, dusk_fog, atmospheric_fog"
@@ -1182,7 +1209,18 @@ environment:
       flux2:       "Crepuscular rays — god rays — breaking through a heavy cloud bank in distinct golden columns, each ray catching airborne moisture and rendering visible the path of the light"
     ATM_VOLUMETRIC_GOLDEN:
       place_constraint:
-        requires_env_keyword: ["window", "interior", "indoor", "parlour", "library", "study", "bedroom", "suite", "boudoir", "loft", "salon", "drawing room", "hotel", "manor", "villa", "castle", "studio", "attic", "apartment"]
+        # 2026-05-24 (vocab v13) — added more indoor synonyms.
+        # NOTE: stays INDOOR-only. "High window" is in the prose, so
+        # outdoor envs (meadow / beach / terrace) are correctly
+        # rejected — they have no window for the beam to come through.
+        requires_env_keyword: [
+          "window", "interior", "indoor", "parlour", "library", "study",
+          "bedroom", "suite", "boudoir", "loft", "salon", "drawing room",
+          "hotel", "manor", "villa", "castle", "studio", "attic", "apartment",
+          "chamber", "hall", "foyer", "atrium", "cathedral", "chapel",
+          "conservatory", "greenhouse", "gallery", "mansion", "palazzo",
+          "warehouse",
+        ]
         reason: "volumetric golden light streaming through a high window requires an indoor space with a window"
       sdxl:        "volumetric light through a high window, illuminating airborne dust"
       pony:        "volumetric_light, high_window_light, dust_in_beam, light_made_visible"
@@ -1520,7 +1558,14 @@ narrative:
       flux2:       "She has just woken, hair tangled across the pillow, the sheets wrapped loosely around her as she reaches for the water glass on the nightstand, the room slow and silent"
     NARR_DRESSING_FOR_EVENING:
       place_constraint:
-        requires_env_keyword: ["dressing room", "boudoir", "bedroom", "vanity", "closet", "wardrobe", "suite", "hotel"]
+        # 2026-05-24 (vocab v13) — added private indoor spaces where
+        # one realistically dresses for evening.
+        requires_env_keyword: [
+          "dressing room", "boudoir", "bedroom", "vanity", "closet",
+          "wardrobe", "suite", "hotel",
+          "apartment", "loft", "atelier", "penthouse",
+          "manor", "villa", "castle", "mansion", "palazzo",
+        ]
         reason: "mid-zip on an evening gown requires a dressing room / bedroom / boudoir"
       sdxl:        "mid-zip on a black evening gown, earrings still loose, dresser lamp glow"
       pony:        "dressing, evening_gown, mid_zip, getting_ready, earrings, dresser_lamp, preparing_for_evening"
@@ -1550,7 +1595,17 @@ narrative:
       flux2:       "The subject is stepping from a clawfoot porcelain bath, a thick linen towel half-wrapped around her body, steam still rising from the warm water behind her, water droplets catching the soft window light on her skin"
     NARR_LIGHTING_CIGARETTE_BALCONY:
       place_constraint:
-        requires_env_keyword: ["balcony", "terrace", "rooftop", "fire escape", "hotel", "outdoor", "patio", "veranda", "loggia"]
+        # 2026-05-24 (vocab v13) — added urban / window-side synonyms.
+        # Smoking happens at any outdoor or window-adjacent space, not
+        # only literal balconies. Don't expand to fully-indoor envs;
+        # the cigarette action itself wants air.
+        requires_env_keyword: [
+          "balcony", "terrace", "rooftop", "fire escape", "fire-escape",
+          "hotel", "outdoor", "patio", "veranda", "loggia",
+          "window", "ledge", "doorway", "stoop", "porch",
+          "alley", "street", "urban", "city", "night",
+          "lobby", "bar", "cafe",
+        ]
         reason: "lighting cigarette on balcony requires an outdoor / balcony space"
       sdxl:        "lighting a single cigarette on a hotel balcony at 2am, city lights below"
       pony:        "lighting_cigarette, balcony, night_city, hotel_balcony, smoking, late_night_moment"
@@ -1595,7 +1650,14 @@ narrative:
       flux2:       "She is lacing the back of a corset, the silk ribbon trailing down her spine, her back turned to the camera, each pull tightening the shape of her waist"
     NARR_AFTER_THE_PARTY:
       place_constraint:
-        requires_env_keyword: ["interior", "indoor", "bedroom", "parlour", "drawing room", "loft", "apartment", "hotel", "suite", "salon", "boudoir", "manor"]
+        # 2026-05-24 (vocab v13) — added penthouse / club / lounge /
+        # palazzo / villa / castle as legitimate after-party locales.
+        requires_env_keyword: [
+          "interior", "indoor", "bedroom", "parlour", "drawing room",
+          "loft", "apartment", "hotel", "suite", "salon", "boudoir",
+          "manor", "penthouse", "club", "lounge", "ballroom",
+          "villa", "castle", "palazzo", "mansion", "atrium", "foyer",
+        ]
         reason: "after-the-party with crumpled dress + champagne glass requires an indoor space"
       sdxl:        "after the party, single shoe off, dress crumpled, champagne glass tipped"
       pony:        "after_party, single_shoe_off, crumpled_dress, tipped_champagne_glass, late_night, exhausted_moment"
@@ -1642,7 +1704,28 @@ narrative:
       flux2:       "She is barefoot at the kitchen counter at 3am, a single under-cabinet light casting low warm illumination across the marble, the rest of the house asleep around her"
     NARR_SUNBATHING_TERRACE:
       place_constraint:
-        requires_env_keyword: ["terrace", "balcony", "rooftop", "courtyard", "patio", "deck", "garden", "outdoor", "villa", "poolside", "veranda", "mediterranean"]
+        # 2026-05-24 (vocab v13) — expanded after Gemma 4 26B verification
+        # showed 30+ rejections on legitimate-outdoor combos like
+        # ENV_GRASS_MEADOW_GOLDEN_HOUR (chroma prose: "wildflower
+        # meadow ... knee-high grass ... distant treeline backlit by
+        # warm slanting sun"). The original list required literal
+        # substring "terrace/balcony/rooftop/..." in the env prose but
+        # didn't include nature-outdoor synonyms (meadow, grass, beach,
+        # dune, lawn, hill, vineyard, etc.) — all valid sunbathing
+        # locations. Validator semantics unchanged; the constraint just
+        # accepts more correct env types.
+        requires_env_keyword: [
+          "terrace", "balcony", "rooftop", "courtyard", "patio", "deck",
+          "garden", "outdoor", "villa", "poolside", "pool", "veranda",
+          "loggia", "mediterranean",
+          # outdoor / natural settings (Gemma 4 verification fix)
+          "meadow", "field", "grass", "wildflower", "treeline",
+          "forest", "woodland", "lawn", "park", "picnic",
+          "beach", "shore", "sand", "dune", "coast", "coastal",
+          "lake", "lakeside", "river", "riverside", "pond",
+          "hill", "hillside", "hilltop", "ridge", "cliff", "cliffside",
+          "vineyard", "orchard", "oasis", "savanna", "island",
+        ]
         reason: "sunbathing requires an outdoor sunlit space"
       sdxl:        "sunbathing on a stone terrace, book face-down beside her"
       pony:        "sunbathing, stone_terrace, book_face_down, afternoon, lounging_moment"
