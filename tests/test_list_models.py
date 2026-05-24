@@ -46,10 +46,11 @@ class TestLlmsOnly:
     def test_includes_default_marker(self):
         result = _run("--llms-only")
         # default column shows 'Y' for the configured default_llm
-        # (2026-05-22 swap — DavidAU thinking-heretic replaced Cydonia
-        # as default; Cydonia is still listed as the fallback).
-        assert "davidau_nemo_thinking_heretic_claude_opus" in result.stdout
-        assert "default = 'davidau_nemo_thinking_heretic_claude_opus'" in result.stdout
+        # (2026-05-24 swap — Gemma 4 26B A4B Heretic replaced DavidAU
+        # thinking-heretic as default after the 5-LLM audit; Cydonia is
+        # still the registered fallback).
+        assert "gemma_4_26b_a4b_heretic" in result.stdout
+        assert "default = 'gemma_4_26b_a4b_heretic'" in result.stdout
 
 
 class TestModelsOnly:

@@ -288,17 +288,18 @@ class TestRealRegistry:
         default = loader.get_default_llm()
         assert default.active is True
 
-    def test_real_default_is_davidau_thinking_heretic(self):
-        """2026-05-22 default swap — DavidAU Mistral-Nemo 12B
-        thinking-heretic Claude-Opus replaced Cydonia 24B as the
-        project default after T3 + T4 verification runs showed 2× the
-        throughput at acceptable schema discipline (3-5% required-axis
-        hallucination rate, all of which the canonicalizer + retry-
-        nudge absorb). Cydonia stays as the registered fallback for
-        primary-side failures and as a different-backend quality
-        backstop."""
+    def test_real_default_is_gemma_4_26b_a4b_heretic(self):
+        """2026-05-24 default swap — Gemma 4 26B A4B Heretic replaced
+        DavidAU Mistral-Nemo 12B as the project default after the
+        5-LLM audit (Gemma 1B / DavidAU 12B / Cydonia 24B / Gemma 4
+        26B A4B / Supergemma4 26B). Gemma 4 placed first on the
+        audit_prompts.py rubric (9.84/10) and produced ZERO hedge-
+        phrase rejections vs DavidAU's structural hedge bias. The
+        MoE A4B arch (4B active per token) keeps wall-clock near
+        DavidAU 12B despite the 26B total. Cydonia stays as the
+        registered fallback."""
         loader = LLMRegistryLoader()
-        assert loader.default_llm_id == "davidau_nemo_thinking_heretic_claude_opus"
+        assert loader.default_llm_id == "gemma_4_26b_a4b_heretic"
 
     def test_real_fallback_is_cydonia_heretic(self):
         """2026-05-22 — Cydonia 24B is the fallback (was qwen3_abliterated_30b).

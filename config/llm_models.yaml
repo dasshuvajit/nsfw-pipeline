@@ -224,6 +224,77 @@ llms:
     families_recommended: ["all"]
     active: true
 
+  supergemma4_26b_v2:
+    backend: lm_studio
+    lm_studio_id: "supergemma4-26b-uncensored-v2"
+    display_name: "Jiunsong Supergemma4 26B Uncensored v2 Q4_K_M"
+    description: >-
+      Jiunsong / Supergemma4 26B Uncensored v2 Q4_K_M. Gemma 4 26B
+      dense base with v2 uncensored fine-tune. NOT MoE (dense 26B
+      params active per token, unlike gemma_4_26b_a4b's 4B-active
+      MoE), so expected to be 5-7× slower per token but with
+      consistently higher coherence per call.
+    quant: "Q4_K_M"
+    size_gb: 17
+    context_tokens: 32768
+    refusal_rate: 2.0           # uncensored fine-tune
+    strengths:
+      - "dense 26B — full capacity per token"
+      - "Gemma 4 lineage"
+      - "uncensored v2 fine-tune"
+    families_recommended: ["all"]
+    active: true
+
+  gemma_4_26b_a4b_heretic:
+    backend: lm_studio
+    lm_studio_id: "gemma-4-26b-a4b-it-ultra-uncensored-heretic"
+    display_name: "Gemma 4 26B A4B Ultra Uncensored Heretic"
+    description: >-
+      Gemma 4 26B MoE (4B active per token via A4B routing) Instruct
+      base, passed through ultra-uncensored heretic abliteration. The
+      MoE arch means it costs ~16 GB resident but only activates 4B
+      params per forward — should give larger-model quality at near-
+      smaller-model speed. Loaded at 32K context (native).
+    quant: "gguf"
+    size_gb: 17
+    context_tokens: 32768
+    refusal_rate: 1.5           # ultra-uncensored + heretic = lowest
+    strengths:
+      - "MoE A4B — 4B active, 26B total quality"
+      - "ultra-uncensored + heretic abliteration"
+      - "Gemma 4 lineage (different from Mistral/Cydonia)"
+    families_recommended: ["all"]
+    active: true
+
+  gemma_3_1b_glm_heretic:
+    backend: lm_studio
+    lm_studio_id: "gemma-3-1b-it-glm-4.7-flash-heretic-uncensored-thinking_gguf"
+    display_name: "Gemma 3 1B GLM-4.7-Flash Heretic Thinking (GGUF)"
+    description: >-
+      Gemma 3 1B Instruct base, distilled from GLM-4.7-Flash to inherit
+      a thinking-style chain of reasoning, passed through coder3101's
+      heretic abliteration. Tiny (~1 GB on disk, ~1 GB RAM at 32K
+      context). Intended as a low-cost A/B target — IF a 1B model can
+      hold the dual-write contract (T4 prose + structured tags +
+      cross-field coherence + hedge bans), the SceneFacetGenerator
+      pipeline is effectively LLM-agnostic. Expected risks: (1) thin
+      32-layer transformer may struggle with 6K+ token system prompt
+      retention, (2) JSON-schema constrained decoding less reliable
+      below 7B, (3) prose-band quality (40-350 words) likely lower
+      than Cydonia/DavidAU. Loaded at 32768 context (native max for
+      the GGUF) explicitly to fit the dual-write prompt.
+    quant: "gguf"
+    size_gb: 1
+    context_tokens: 32768
+    refusal_rate: 2.0           # heretic abliteration
+    strengths:
+      - "tiny — 1 GB RAM, sub-second per token"
+      - "thinking mode (GLM-4.7-Flash distillation)"
+      - "heretic abliteration — low refusal floor"
+      - "fast iteration target for prompt-engineering work"
+    families_recommended: ["all"]
+    active: true
+
   magnum_v4_12b:
     backend: lm_studio
     lm_studio_id: "magnum-v4-12b"
@@ -397,7 +468,17 @@ llms:
 # Default LLM used when --llm flag is omitted on the CLI and no per-role
 # routing entry in pipeline.yaml::llm.routing applies. Must be the registry
 # id (not the ollama_id) of an active entry above.
-default_llm: davidau_nemo_thinking_heretic_claude_opus
+#
+# 2026-05-24 — switched from davidau_nemo_thinking_heretic_claude_opus to
+# gemma_4_26b_a4b_heretic after a 5-LLM A/B audit (Gemma 1B, DavidAU 12B,
+# Cydonia 24B, Gemma 4 26B A4B, Supergemma4 26B v2). Gemma 4 26B MoE-A4B
+# placed first by audit_prompts.py rubric (9.84/10 vs DavidAU's 9.46 and
+# Supergemma4's 9.76) and produced ZERO hedge-phrase rejections across
+# the run, vs DavidAU's ~5 hedge rejects per series. The MoE arch
+# (4B active per token across 26B total) gives near-DavidAU wall-clock
+# despite the larger total footprint. Trade: 16 GB RAM resident vs
+# DavidAU's 7.5 GB — acceptable on the 48 GB Mac M4 Pro target.
+default_llm: gemma_4_26b_a4b_heretic
 
 # Fallback LLM — used by ``OllamaClient.generate_json(fallback_model=...)``
 # when the primary model fails twice in a row (constrained-decoding +

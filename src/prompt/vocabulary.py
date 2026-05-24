@@ -1020,64 +1020,92 @@ def llm_vocabulary_block(
         lines.append(f"  {ns}: {', '.join(concepts)}")
     lines.append(_tier_directive_line(content_level))
 
-    # 2026-05-24 — surface narrative→env place_constraints to the LLM
-    # BEFORE it picks (was only enforced post-hoc by the schema
+    # 2026-05-24 — surface narrative→env + atmosphere→env place_constraints
+    # to the LLM BEFORE it picks (was only enforced post-hoc by the schema
     # validator). DavidAU 12B routinely paired e.g.
     # NARR_READING_LETTER_AT_DAWN with ENV_STUDIO_CYC_MINIMAL — the
     # narrative implies a desk / study, the env is a minimalist
-    # backdrop. Cross-field coherence rejected → retry → fallback.
-    # By showing the constraint at decode time, the LLM can satisfy
-    # both fields on the first attempt and the fallback rate drops.
-    constraint_lines = _narrative_env_constraint_lines(
-        loader, by_ns.get("narrative.moment", ())
+    # backdrop. The 5-LLM audit showed Gemma 4 26B A4B (now the default)
+    # has the SAME problem with ATM tags — repeatedly pairing
+    # ATM_RAIN_ON_GLASS with ENV_FIRE_ESCAPE_NEON or ENV_ROOFTOP_CITY_NIGHT
+    # (8 of 25 scenes), and ATM_FOG_ROLLING_IN with ENV_TOKYO_LOVE_HOTEL.
+    # Surfacing both axes pre-hoc lets the LLM satisfy both on the first
+    # attempt and drops fallback rate from ~40% toward ~15%.
+    narr_lines = _place_constraint_lines(
+        loader, "narrative", "moment", by_ns.get("narrative.moment", ()),
+        field_label="env",
     )
-    if constraint_lines:
+    atm_lines = _place_constraint_lines(
+        loader, "environment", "atmosphere",
+        by_ns.get("environment.atmosphere", ()),
+        field_label="env",
+    )
+    if narr_lines or atm_lines:
         lines.append("")
         lines.append(
-            "NARRATIVE ↔ ENVIRONMENT COHERENCE RULES (cross-field "
-            "constraints — pick narrative_moment + environment_setting "
-            "that respect these):"
+            "CROSS-FIELD COHERENCE RULES (pick narrative_moment + "
+            "environment_atmosphere + environment_setting that respect "
+            "these — the schema validator will reject otherwise):"
         )
-        lines.extend(constraint_lines)
+        lines.extend(narr_lines)
+        lines.extend(atm_lines)
     return "\n".join(lines)
 
 
-def _narrative_env_constraint_lines(
+def _place_constraint_lines(
     loader: "VocabularyLoader | None",
-    active_narratives: Iterable[str],
+    top: str,
+    sub: str,
+    active_tags: Iterable[str],
+    *,
+    field_label: str = "env",
 ) -> list[str]:
-    """Build per-narrative env_keyword reminder lines for the system
-    prompt.
+    """Build per-tag env_keyword reminder lines for the system prompt.
 
-    Only emits lines for narratives currently in the active menu
-    (after compatible_narratives narrowing) that ALSO declare a
-    ``place_constraint``. Drops the 7 of 29 narratives that have no
-    constraint (they fit any env). Output shape::
+    Walks ``active_tags`` (already narrowed to the active menu after
+    compatible_* filtering), reads each tag's ``place_constraint`` via
+    :meth:`VocabularyLoader.get_place_constraint`, and emits a one-line
+    reminder when ``requires_env_keyword`` is set. Tags without a
+    place_constraint are silently skipped (they fit any env). Used for
+    both ``narrative.moment`` and ``environment.atmosphere`` namespaces —
+    both declare place_constraint in vocab v8+.
+
+    Output shape::
 
         NARR_READING_LETTER_AT_DAWN → env must contain one of:
             library / study / desk / parlour / bedroom / boudoir / ...
+        ATM_RAIN_ON_GLASS → env must contain one of:
+            window / interior / indoor / parlour / loft / ...
     """
-    if not loader or not active_narratives:
+    if not loader or not active_tags:
         return []
     out: list[str] = []
-    for tag in active_narratives:
-        constraint = loader.get_place_constraint(
-            "narrative", "moment", str(tag),
-        )
+    for tag in active_tags:
+        constraint = loader.get_place_constraint(top, sub, str(tag))
         if not isinstance(constraint, dict):
             continue
         required = constraint.get("requires_env_keyword") or []
         if not required:
             continue
-        # Trim verbose keyword lists at the system-prompt layer; the
-        # validator still checks the full list at decode time.
         keyword_preview = " / ".join(str(k) for k in required[:10])
         if len(required) > 10:
             keyword_preview += f" / +{len(required) - 10} more"
         out.append(
-            f"  {tag} → env must contain one of: {keyword_preview}"
+            f"  {tag} → {field_label} must contain one of: {keyword_preview}"
         )
     return out
+
+
+# Backwards-compat shim — the prior helper name. Now delegates to the
+# generalised ``_place_constraint_lines``. Kept so any external callers
+# (currently none in-tree) don't break.
+def _narrative_env_constraint_lines(
+    loader: "VocabularyLoader | None",
+    active_narratives: Iterable[str],
+) -> list[str]:
+    return _place_constraint_lines(
+        loader, "narrative", "moment", active_narratives, field_label="env",
+    )
 
 
 def _tier_directive_line(content_level: str | None) -> str:
