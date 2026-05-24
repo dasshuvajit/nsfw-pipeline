@@ -404,7 +404,7 @@ def main() -> int:
 
         # Get all prompts
         cur = conn.execute(
-            "SELECT scene_id, prompt_text FROM prompts "
+            "SELECT scene_id, prompt_text, generation_kind FROM prompts "
             "WHERE scene_id LIKE ? AND model_id = ? ORDER BY scene_id",
             (f"{args.series_id}%", args.model),
         )
@@ -426,14 +426,29 @@ def main() -> int:
     print()
 
     scores: list[float] = []
-    for scene_id, text in prompts:
+    fallback_count = 0
+    llm_success_count = 0
+    for scene_id, text, gen_kind in prompts:
         short_id = scene_id[-3:] if scene_id else "?"
         score, issues = score_prompt(text or "", tier)
         scores.append(score)
         rating = "✓" if score >= 7.5 else ("△" if score >= 5 else "✗")
         wc = word_count(text or "")
         ns = count_sentences(text or "")
-        print(f"[{rating}] scene_{short_id} — score {score:.1f}/10 ({ns}s, {wc}w)")
+        # 2026-05-24 — generation_kind tag shows whether the LLM
+        # produced the body or the composer used the tier-aware fallback.
+        if gen_kind == "llm_success":
+            kind_tag = "LLM"
+            llm_success_count += 1
+        elif gen_kind and gen_kind.startswith("fallback_"):
+            kind_tag = "FB"
+            fallback_count += 1
+        else:
+            kind_tag = "?? "
+        print(
+            f"[{rating}] [{kind_tag}] scene_{short_id} — "
+            f"score {score:.1f}/10 ({ns}s, {wc}w)"
+        )
         for issue in issues:
             print(f"    {issue}")
         if args.verbose:
@@ -463,6 +478,11 @@ def main() -> int:
     print(f"  Excellent (≥8): {n_excellent}/{len(scores)}")
     print(f"  Acceptable (5-8): {n_acceptable}/{len(scores)}")
     print(f"  Poor (<5): {n_poor}/{len(scores)}")
+    print()
+    n = llm_success_count + fallback_count
+    if n > 0:
+        print(f"  LLM-success:  {llm_success_count}/{n} ({100*llm_success_count/n:.0f}%)")
+        print(f"  Fallback:     {fallback_count}/{n} ({100*fallback_count/n:.0f}%)")
     print("=" * 72)
 
     return 0

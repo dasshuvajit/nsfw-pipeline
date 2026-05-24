@@ -176,6 +176,52 @@ def _model_subfolder(family: str) -> str:
     return "checkpoints"
 
 
+# 2026-05-24 — generation_kind classification. Surfaced on prompts
+# rows so downstream queries can filter / count fallback prompts
+# without joining against scene_facets. Per-family primary fields:
+#   * prose families (chroma / flux / flux2) → scene_prose
+#   * booru families (pony / illustrious)    → booru_tags
+#   * sdxl                                   → camera_spec
+# When the LLM facet generator fails all retries (or soft-ships a
+# facet with the primary field empty), the composer takes the
+# tier-aware fallback path and the kind is recorded as
+# ``fallback_t<n>`` matching the active content_level.
+_GENERATION_KIND_PRIMARY_FIELD_BY_FAMILY: dict[str, str] = {
+    "chroma": "scene_prose",
+    "flux": "scene_prose",
+    "flux2": "scene_prose",
+    "pony": "booru_tags",
+    "illustrious": "booru_tags",
+    "sdxl": "camera_spec",
+}
+
+
+def _classify_generation_kind(
+    *,
+    facet: Mapping[str, Any] | None,
+    family_id: str,
+    content_level: str | None,
+) -> str:
+    """Decide whether the prompt is an LLM-success or a fallback.
+
+    Used at engine.run_phase_a's per-scene prompt-build site to stamp
+    each ``prompt_dict`` with ``generation_kind`` before INSERT. Tier
+    suffix matches the active content_level (so fallback_t4 etc.).
+    """
+    primary_field = _GENERATION_KIND_PRIMARY_FIELD_BY_FAMILY.get(family_id)
+    if facet and primary_field:
+        value = facet.get(primary_field)
+        if isinstance(value, str) and value.strip():
+            return "llm_success"
+    # Map T<n>_xxx → fallback_t<n>; unknown content_level → 'unknown'
+    # (matches the schema CHECK constraint's allowed set).
+    if content_level and content_level.startswith("T"):
+        tier_num = content_level.split("_", 1)[0][1:]  # 'T4_explicit' → '4'
+        if tier_num in ("1", "2", "3", "4"):
+            return f"fallback_t{tier_num}"
+    return "unknown"
+
+
 def _synthetic_subject_anchor(content_level: str) -> str:
     """Round-22 (2026-05-22) — synthesize a generic subject anchor for
     modes that don't emit one in their series_plan.
@@ -1147,6 +1193,23 @@ class PipelineEngine:
                     # `model_id` column carries the target_id —
                     # model-id for model-kind, family-id for family-kind.
                     prompt_dict["model_id"] = target_id
+                    # 2026-05-24 — record whether the prompt came out
+                    # of the LLM-success path or the tier-aware
+                    # composer fallback. "LLM success" = the family's
+                    # primary content field (scene_prose for prose
+                    # families; booru_tags for pony/illustrious;
+                    # camera_spec for sdxl) is non-empty on the facet
+                    # dict. Empty / missing facet → fallback path was
+                    # taken at compose time → tag the kind by tier so
+                    # downstream queries can `WHERE generation_kind
+                    # LIKE 'fallback_%'` to find degraded outputs.
+                    prompt_dict["generation_kind"] = (
+                        _classify_generation_kind(
+                            facet=facet,
+                            family_id=family.id,
+                            content_level=model_ctx.content_level,
+                        )
+                    )
                     prompts_for_target.append(prompt_dict)
                 except Exception as exc:
                     logger.warning(
@@ -2396,8 +2459,8 @@ class PipelineEngine:
                         id, series_id, scene_id, target_kind, model_id,
                         llm_id, prompt_text, negative_prompt,
                         prompt_hash, content_level, vocab_version,
-                        status
-                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                        status, generation_kind
+                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
                     """,
                     (
                         prompt["id"],
@@ -2412,6 +2475,7 @@ class PipelineEngine:
                         ctx.content_level,
                         vocab_version,
                         "pending",
+                        prompt.get("generation_kind", "unknown"),
                     ),
                 )
             conn.commit()

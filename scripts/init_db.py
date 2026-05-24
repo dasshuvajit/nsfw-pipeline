@@ -160,6 +160,19 @@ CREATE TABLE prompts (
         'pending','rendered','failed','rejected'
     )),
     render_attempts INTEGER DEFAULT 0,
+    -- 2026-05-24 — records which path produced this prompt:
+    --   'llm_success'   the LLM facet generator emitted the family's
+    --                   primary field (scene_prose / booru_tags /
+    --                   camera_spec) and the composer used it.
+    --   'fallback_t1'..'fallback_t4'  the LLM failed all retries (or
+    --                   the soft-ship shipped a facet with empty
+    --                   primary field) and the composer fell back to
+    --                   the tier-aware boilerplate.
+    --   'unknown'       backfill rows or older series predating this
+    --                   column. Default for safety.
+    generation_kind TEXT NOT NULL DEFAULT 'unknown' CHECK (generation_kind IN (
+        'llm_success','fallback_t1','fallback_t2','fallback_t3','fallback_t4','unknown'
+    )),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (scene_id, target_kind, model_id, llm_id)
 );
