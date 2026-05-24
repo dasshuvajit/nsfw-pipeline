@@ -365,11 +365,17 @@ def score_prompt(text: str, tier: str) -> tuple[float, list[str]]:
     return max(0.0, min(10.0, score)), issues
 
 
-def find_repeated_props_across_series(prompts: list[tuple[str, str]]) -> dict[str, int]:
-    """Count which props/bigrams appear in multiple prompts."""
+def find_repeated_props_across_series(prompts: list[tuple]) -> dict[str, int]:
+    """Count which props/bigrams appear in multiple prompts.
+
+    Accepts either 2-tuples ``(scene_id, text)`` or 3-tuples
+    ``(scene_id, text, generation_kind)`` — only reads the first two
+    elements so callers that include extra columns don't break.
+    """
     counts: Counter[str] = Counter()
-    for scene_id, text in prompts:
-        text_lower = text.lower()
+    for row in prompts:
+        text = row[1]
+        text_lower = (text or "").lower()
         for prop in _PROPS_FOR_BIGRAM_LOCK:
             if prop in text_lower:
                 counts[prop] += 1
