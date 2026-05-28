@@ -332,6 +332,7 @@ def _load_style_profile(db_path: Path, style_profile_id: str) -> dict[str, Any]:
         "compatible_art_movements": list(p.compatible_art_movements),
         "compatible_environments": list(p.compatible_environments),
         "compatible_art_styles": list(p.compatible_art_styles),
+        "realism_tail": p.realism_tail,
     }
 
 
@@ -1063,6 +1064,14 @@ class PipelineEngine:
                             #      single highest-risk gap from F5.
                             subject_description=resolve_subject_anchor(
                                 series_plan, ctx.content_level,
+                            ),
+                            # 2026-05-29 — surface the style profile's
+                            # lighting_hint so the facet LLM honours the
+                            # series' locked lighting register (prior to
+                            # this it never saw it; a faded/low-contrast
+                            # profile still drifted to dark chiaroscuro).
+                            lighting_hint=(style_profile or {}).get(
+                                "lighting_hint", ""
                             ),
                         )
                         # Persist (Flux2 QA fields auto-dropped by repo).

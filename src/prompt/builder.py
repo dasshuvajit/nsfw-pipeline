@@ -896,6 +896,7 @@ class PromptBuilder:
             style_keywords=style_keywords,
             extra_keywords=merged_extras,
             content_level=content_level,
+            realism_tail=self._field(style_profile, "realism_tail"),
         )
 
         # Positive-side age safety scan — every family. Strips any
@@ -1113,6 +1114,7 @@ class PromptBuilder:
         style_keywords: str = "",
         extra_keywords: Iterable[str] = (),
         content_level: str | None = None,
+        realism_tail: str = "",
     ) -> str:
         style = family.prompt_style
         trig = list(trigger_words or [])
@@ -1167,6 +1169,7 @@ class PromptBuilder:
                 style_keywords=style_keywords,
                 extra_keywords=list(extra_keywords),
                 realism_tail_style=family.realism_tail_style,
+                realism_tail_flavor=realism_tail,
                 facet_has_lens=bool(self._field(scene, "realism_lens")),
                 content_level=content_level,
             )
@@ -1416,6 +1419,33 @@ _CHROMA_REALISM_TAIL = (
     "natural skin texture",
 )
 
+# 2026-05-29 — profile-selectable realism tails. Prose families drop the
+# style profile's base_style_keywords from the body (dual-write
+# contract), so the realism tail is the ONLY surviving style signal. The
+# default digital-clean tail fights film-look profiles, so a profile may
+# declare ``realism_tail: <flavor>`` to swap it. The "film_grain" tail
+# drops the digital-clean "photographic, natural skin texture" tokens
+# (and the sharp focal spec) in favour of faded-analog descriptors —
+# the analog_film_intimate look (Goldin / Collins faded snapshot). An
+# unknown / empty flavor falls back to the default chroma tail.
+_REALISM_TAIL_BY_FLAVOR: dict[str, tuple[str, ...]] = {
+    "film_grain": (
+        "35mm film",
+        "visible film grain",
+        "faded analog color",
+        "soft natural light",
+    ),
+}
+
+
+def _realism_tail_for_flavor(flavor: str | None) -> tuple[str, ...]:
+    """Return the realism-tail fragments for a style-profile flavor.
+
+    Empty / unknown flavor → the default digital-clean chroma tail."""
+    if flavor and flavor in _REALISM_TAIL_BY_FLAVOR:
+        return _REALISM_TAIL_BY_FLAVOR[flavor]
+    return _CHROMA_REALISM_TAIL
+
 
 # Tier-aware fallback prose for the chroma facet-failure path. Fires
 # only when the LLM facet generator produces no ``scene_prose`` (Pydantic
@@ -1469,6 +1499,7 @@ def _compose_natural(
     style_keywords: str = "",
     extra_keywords: Iterable[str] = (),
     realism_tail_style: str | None = None,
+    realism_tail_flavor: str | None = None,
     facet_has_lens: bool = False,
     content_level: str | None = None,
 ) -> str:
@@ -1554,13 +1585,14 @@ def _compose_natural(
         # same prompt). When the facet has NO lens populated, the tail
         # still supplies the focal hint — preserves backwards-compat
         # for the optional-lens path.
+        base_tail = _realism_tail_for_flavor(realism_tail_flavor)
         if facet_has_lens:
             candidate_tail = tuple(
-                frag for frag in _CHROMA_REALISM_TAIL
+                frag for frag in base_tail
                 if frag not in ("f/1.8", "35mm")
             )
         else:
-            candidate_tail = _CHROMA_REALISM_TAIL
+            candidate_tail = base_tail
         tail_fragments = [
             frag for frag in candidate_tail
             if frag.lower() not in avoid_set

@@ -596,6 +596,53 @@ def test_system_prompt_carries_coherence_invariant(generator, loader):
     )
 
 
+def test_system_prompt_carries_lighting_lock_when_hint_given(generator, loader):
+    """2026-05-29 — the style profile's lighting_hint must reach the
+    system prompt as a SERIES AESTHETIC LOCK so the LLM honours the
+    locked lighting register. Prior to this, lighting_hint never reached
+    the LLM and a faded/low-contrast profile drifted to dark
+    chiaroscuro."""
+    family = loader.get_family("chroma")
+    captured = {"system_prompt": ""}
+
+    def capture(system_prompt, user_prompt, **kwargs):
+        captured["system_prompt"] = system_prompt
+        return ('{"scene_prose": "' + _MEDIUM_PROSE + '", '
+                + _required_tags_for("T3_artnude") + '}')
+
+    with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
+        generator.generate(
+            scene=_scene(),
+            family=family,
+            content_level="T3_artnude",
+            lighting_hint="soft window daylight, low-contrast faded",
+        )
+    sys_prompt = captured["system_prompt"]
+    assert "SERIES AESTHETIC LOCK" in sys_prompt
+    assert "soft window daylight, low-contrast faded" in sys_prompt
+    assert "OUTWEIGHS" in sys_prompt
+
+
+def test_system_prompt_omits_lighting_lock_without_hint(generator, loader):
+    """No lighting_hint (the common case) → no LOCK section, so the
+    system prompt stays unchanged for profiles that don't set it."""
+    family = loader.get_family("chroma")
+    captured = {"system_prompt": ""}
+
+    def capture(system_prompt, user_prompt, **kwargs):
+        captured["system_prompt"] = system_prompt
+        return ('{"scene_prose": "' + _MEDIUM_PROSE + '", '
+                + _required_tags_for("T3_artnude") + '}')
+
+    with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
+        generator.generate(
+            scene=_scene(),
+            family=family,
+            content_level="T3_artnude",
+        )
+    assert "SERIES AESTHETIC LOCK" not in captured["system_prompt"]
+
+
 # Dual-write pivot (2026-05-23) — scene_prose now must be 100-350
 # words (150-300 target). This _LONG_PROSE is ~140 words and serves
 # as the standard test fixture across the generator tests.

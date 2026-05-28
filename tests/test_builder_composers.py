@@ -524,6 +524,49 @@ def test_chroma_realism_tail_strips_focal_when_lens_populated(pb, family_loader)
     assert "natural skin texture" in text
 
 
+def test_chroma_film_grain_profile_swaps_realism_tail(pb, family_loader):
+    """2026-05-29 — a style profile may declare realism_tail: film_grain.
+    Prose families drop base_style_keywords from the body, so the
+    realism tail is the only surviving style signal; the default
+    digital-clean tail ('photographic, natural skin texture') fights the
+    faded-film analog_film_intimate look. The film_grain flavor swaps in
+    analog descriptors and drops the digital-clean tokens."""
+    family = family_loader.get_family("chroma")
+    scene = {
+        **UNIVERSAL_SCENE,
+        "scene_prose": "She reclines on rumpled sheets in soft window light.",
+    }
+    film_style = {
+        "base_style_keywords": "analog film, grain",
+        "realism_tail": "film_grain",
+    }
+    out = pb.build_one(CHARACTER, scene, film_style, family=family)
+    text = out["prompt_text"]
+    # Film-grain tail present.
+    assert "visible film grain" in text
+    assert "faded analog color" in text
+    # Digital-clean tokens MUST be gone (they fight the faded-film look).
+    assert "photographic" not in text, (
+        f"film_grain profile still emitted digital-clean tail. text={text!r}"
+    )
+    assert "natural skin texture" not in text
+
+
+def test_chroma_default_profile_keeps_digital_tail(pb, family_loader):
+    """Back-compat: a profile WITHOUT realism_tail (or empty) keeps the
+    default digital-clean chroma tail — the film_grain swap is opt-in."""
+    family = family_loader.get_family("chroma")
+    scene = {
+        **UNIVERSAL_SCENE,
+        "scene_prose": "She reclines on silk sheets at golden hour.",
+    }
+    out = pb.build_one(CHARACTER, scene, STYLE, family=family)  # STYLE has no realism_tail
+    text = out["prompt_text"]
+    assert "photographic" in text
+    assert "natural skin texture" in text
+    assert "visible film grain" not in text
+
+
 def test_flux2_uses_scene_prose_and_omits_realism_tail(pb, family_loader):
     family = family_loader.get_family("flux2")
     scene = {

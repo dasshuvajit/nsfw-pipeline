@@ -1439,6 +1439,7 @@ class SceneFacetGenerator:
         compatible_art_styles: list[str] | None = None,
         diversity_tracker: "_DiversityTracker | None" = None,
         subject_description: str = "",
+        lighting_hint: str = "",
     ) -> dict[str, Any]:
         """Generate the family-shaped facet for one scene.
 
@@ -1528,6 +1529,7 @@ class SceneFacetGenerator:
             family, prompt_guide,
             content_level=content_level,
             llm_directive=llm_directive,
+            lighting_hint=lighting_hint,
             compatible_environments=compatible_environments,
             compatible_narratives=compatible_narratives,
             compatible_art_styles=compatible_art_styles,
@@ -2051,6 +2053,7 @@ class SceneFacetGenerator:
         *,
         content_level: str = "",
         llm_directive: str = "",
+        lighting_hint: str = "",
         compatible_environments: list[str] | None = None,
         compatible_narratives: list[str] | None = None,
         compatible_art_styles: list[str] | None = None,
@@ -2085,6 +2088,28 @@ class SceneFacetGenerator:
         # directive declared on the YAML row.
         if llm_directive:
             parts.append(f"\n{llm_directive.strip()}\n")
+        # SERIES AESTHETIC LOCK — the style profile's lighting_hint.
+        # 2026-05-29 — prior to this, lighting_hint never reached the
+        # LLM at all, so the profile's intended lighting register had
+        # zero grip: a faded/low-contrast profile (analog_film_intimate)
+        # still produced dark dramatic chiaroscuro because the model's
+        # "T4 boudoir" prior dominated. Injected high (right after the
+        # tier directive) so it outweighs that default. Phrased
+        # generically so it works for BOTH soft profiles (keep bright)
+        # and hard profiles (boudoir_noir → lean dark) — the lock wins
+        # over the model's generic instinct either way.
+        if lighting_hint:
+            parts.append(
+                "\n## SERIES AESTHETIC LOCK — lighting\n"
+                f"This series has a LOCKED lighting + finish look: "
+                f"**{lighting_hint.strip()}**.\n"
+                "Your scene_prose lighting on EVERY scene MUST match this "
+                "register. Do NOT substitute your own default lighting — if "
+                "the lock describes soft / low-contrast / faded / daylight, "
+                "keep the scene gentle and evenly lit; if it describes hard / "
+                "low-key / dramatic, lean into that. This lock OUTWEIGHS any "
+                "generic 'moody dark boudoir' instinct.\n"
+            )
         # COHERENCE INVARIANT block. Placed right after the base
         # preamble + tier directive so it has the next-highest
         # attention weight after the most-critical tier framing.

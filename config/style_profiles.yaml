@@ -609,6 +609,13 @@ profiles:
       skin, over-saturated, modern glossy, beauty-dish key
     palette_hint: faded warm amber, dusty rose, cream highlight, muted teal shadow
     lighting_hint: soft window daylight or direct on-camera flash, low-contrast faded
+    # Prose families (chroma/flux/flux2) drop base_style_keywords from the
+    # body (dual-write contract), so the realism tail is the ONLY surviving
+    # style signal. The default chroma tail is digital-clean
+    # ("photographic, natural skin texture") which fights the faded-film
+    # look — so this profile swaps in the film-grain tail. See
+    # builder.py::_REALISM_TAIL_BY_FLAVOR.
+    realism_tail: film_grain
     suited_tiers: [T2_implied, T3_artnude, T4_explicit]
     suited_families: [sdxl, chroma, flux, flux2]
     # Analog film intimate pairs with faded/warm desaturated palettes,

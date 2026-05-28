@@ -67,6 +67,12 @@ class StyleProfile:
     # creating visible style contradiction (Lindbergh natural B&W vs
     # Newton high-fashion provocative hard light). Verifier audit C3.
     compatible_art_styles: list[str] = field(default_factory=list)
+    # 2026-05-29 — optional realism-tail flavor for prose families.
+    # Prose families drop base_style_keywords from the body, so the
+    # composer's realism tail is the only surviving style signal. ""
+    # (default) → the digital-clean chroma tail; "film_grain" → faded
+    # analog tail. See builder.py::_REALISM_TAIL_BY_FLAVOR.
+    realism_tail: str = ""
 
     @classmethod
     def from_dict(cls, profile_id: str, d: dict) -> "StyleProfile":
@@ -99,6 +105,7 @@ class StyleProfile:
             compatible_art_styles=list(
                 d.get("compatible_art_styles") or []
             ),
+            realism_tail=(d.get("realism_tail") or "").strip(),
         )
 
 
