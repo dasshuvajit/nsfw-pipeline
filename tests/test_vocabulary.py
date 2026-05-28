@@ -1381,22 +1381,31 @@ def test_env_coherence_sunbathing_accepts_meadow(loader):
     )
 
 
-def test_env_coherence_volumetric_golden_still_rejects_outdoor(loader):
-    """vocab v13 — the ATM_VOLUMETRIC_GOLDEN expansion stays
-    INDOOR-only. The 'high window' in its prose makes outdoor envs
-    semantically invalid even after the keyword list grew. Lock this
-    in so a future careless expansion doesn't relax it to outdoor."""
+def test_env_coherence_volumetric_golden_accepts_outdoor(loader):
+    """vocab v15 (2026-05-25) — ATM_VOLUMETRIC_GOLDEN broadened from
+    indoor-only to [indoor, outdoor]. Volumetric golden light forms
+    outdoors as god-rays / crepuscular shafts through trees & haze,
+    not just through a window. The prose was generalised to "cutting
+    through the air" so keyword families don't render a literal
+    window outdoors. An outdoor golden-hour series should NO LONGER
+    soft-warn on this pairing (was ~8 spurious warns/series)."""
     from src.prompt.vocabulary import check_facet_env_coherence
-    violations = check_facet_env_coherence(
-        environment_setting="ENV_GRASS_MEADOW_GOLDEN_HOUR",
-        environment_atmosphere="ATM_VOLUMETRIC_GOLDEN",
-        narrative_moment=None,
-        loader=loader,
-    )
-    assert len(violations) == 1
-    field, tag, _reason = violations[0]
-    assert field == "environment_atmosphere"
-    assert tag == "ATM_VOLUMETRIC_GOLDEN"
+    for env in (
+        "ENV_GRASS_MEADOW_GOLDEN_HOUR",
+        "ENV_MEDITERRANEAN_COURTYARD",
+        "ENV_GREEK_ISLAND_TERRACE",
+        "ENV_VICTORIAN_PARLOUR",  # indoor still works
+    ):
+        violations = check_facet_env_coherence(
+            environment_setting=env,
+            environment_atmosphere="ATM_VOLUMETRIC_GOLDEN",
+            narrative_moment=None,
+            loader=loader,
+        )
+        assert violations == [], (
+            f"ATM_VOLUMETRIC_GOLDEN + {env} should be coherent post-v15; "
+            f"got {violations}"
+        )
 
 
 def test_env_coherence_after_party_accepts_penthouse(loader):

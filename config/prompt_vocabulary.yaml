@@ -27,7 +27,7 @@
 #   3. Bump ``version:`` at the top.
 #   4. Re-run regression suite — fixtures pin the byte-stable output.
 
-version: 14
+version: 15
 
 realism:
   # ── Lighting ─────────────────────────────────────────────────────────
@@ -1255,26 +1255,36 @@ environment:
       flux2:       "Crepuscular rays — god rays — breaking through a heavy cloud bank in distinct golden columns, each ray catching airborne moisture and rendering visible the path of the light"
     ATM_VOLUMETRIC_GOLDEN:
       place_constraint:
-        requires_env_class: ["indoor"]
-        # 2026-05-24 (vocab v13) — added more indoor synonyms.
-        # NOTE: stays INDOOR-only. "High window" is in the prose, so
-        # outdoor envs (meadow / beach / terrace) are correctly
-        # rejected — they have no window for the beam to come through.
+        # 2026-05-25 (vocab v15) — broadened from indoor-only to
+        # [indoor, outdoor]. Volumetric golden light is NOT exclusively
+        # a window phenomenon: outdoors it forms as god-rays /
+        # crepuscular shafts through trees, haze, or low golden-hour
+        # sun. The prior indoor-only class produced ~8 spurious
+        # soft-warns per outdoor golden-hour series (the LLM correctly
+        # wanted volumetric light in a meadow). Prose generalised below
+        # to "cutting through the air" so keyword families
+        # (sdxl/pony) no longer render a literal "high window" in an
+        # outdoor scene. Still excludes nothing but water-only / flat
+        # sourceless contexts in practice.
+        requires_env_class: ["indoor", "outdoor"]
         requires_env_keyword: [
+          # legacy fallback list (env_class is the primary check now);
+          # kept for any un-migrated env without env_class.
           "window", "interior", "indoor", "parlour", "library", "study",
           "bedroom", "suite", "boudoir", "loft", "salon", "drawing room",
           "hotel", "manor", "villa", "castle", "studio", "attic", "apartment",
           "chamber", "hall", "foyer", "atrium", "cathedral", "chapel",
           "conservatory", "greenhouse", "gallery", "mansion", "palazzo",
-          "warehouse",
+          "warehouse", "meadow", "field", "forest", "garden", "terrace",
+          "courtyard", "outdoor", "grove", "canopy",
         ]
-        reason: "volumetric golden light streaming through a high window requires an indoor space with a window"
-      sdxl:        "volumetric light through a high window, illuminating airborne dust"
-      pony:        "volumetric_light, high_window_light, dust_in_beam, light_made_visible"
+        reason: "volumetric golden light needs a directional source — a window indoors or low sun through trees / haze outdoors"
+      sdxl:        "volumetric golden light cutting through the air, illuminating airborne dust"
+      pony:        "volumetric_light, golden_light_shaft, dust_in_beam, light_made_visible"
       illustrious: "volumetric_golden_light, dust_in_light_shaft"
-      flux:        "Volumetric golden light streaming through a high window, illuminating airborne dust and rendering the very shape of the light visible"
-      chroma:      "volumetric golden light streaming through a high window, illuminating airborne dust and rendering the shape of the light visible"
-      flux2:       "Volumetric golden light streaming through a high window, illuminating airborne dust and rendering the very shape of the light visible, the beam falling diagonally across the floor"
+      flux:        "Volumetric golden light cutting through the air, illuminating airborne dust and rendering the very shape of the light visible"
+      chroma:      "volumetric golden light cutting through the air, illuminating airborne dust and rendering the shape of the light visible"
+      flux2:       "Volumetric golden light cutting through the air in a low diagonal shaft, illuminating airborne dust and rendering the very shape of the light visible"
     ATM_OVERCAST_DIFFUSE:
       sdxl:        "flat overcast diffuse light, no hard shadows, even tonality"
       pony:        "overcast_light, diffuse_lighting, no_hard_shadows, flat_lighting, even_tonality"
