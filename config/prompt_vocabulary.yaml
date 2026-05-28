@@ -27,7 +27,7 @@
 #   3. Bump ``version:`` at the top.
 #   4. Re-run regression suite — fixtures pin the byte-stable output.
 
-version: 15
+version: 16
 
 realism:
   # ── Lighting ─────────────────────────────────────────────────────────
@@ -116,6 +116,13 @@ realism:
       flux:        "Twilight blue-hour ambient light, cool cyan and indigo tones suffusing the scene with no hard key source"
       chroma:      "blue hour twilight, cool ambient cyan-indigo light"
       flux2:       "Blue-hour twilight ambient light at roughly 8000 K, cool cyan and indigo tones, no hard key, a soft directionless glow from the open sky"
+    LIGHT_VENETIAN_BLINDS:
+      sdxl:        "venetian blind lighting, hard horizontal light bars across the body, slatted shadow, high contrast"
+      pony:        "venetian_blinds, slatted_light, shadow_stripes, hard_light, high_contrast"
+      illustrious: "venetian_blinds, slatted_shadow, light_stripes, hard_light"
+      flux:        "Hard directional light cut into bright horizontal bars by a venetian blind, crisp slatted shadows striping across the skin, high contrast between the lit and shadowed bands"
+      chroma:      "venetian blind light, hard horizontal bars striping the body, crisp slatted shadow, high contrast"
+      flux2:       "Hard sunlight raked through a venetian blind at camera-left, bright horizontal light bars and crisp parallel shadow slats striping across the body, high contrast between lit and shadowed bands"
 
   # ── Camera bodies ────────────────────────────────────────────────────
   # Pony omits camera/lens/film_stock — booru tagging carries them as

@@ -69,6 +69,19 @@ def test_lighting_rembrandt_canonicalizes_for_every_family(loader, family):
 
 
 @pytest.mark.parametrize("family", [
+    "sdxl", "pony", "illustrious", "flux", "chroma", "flux2",
+])
+def test_lighting_venetian_blinds_canonicalizes_for_every_family(loader, family):
+    """vocab v16 (2026-05-29) — the hard slatted blind-shadow look from
+    the glampixelsai / nymphcirilla reference set. Pony participates in
+    lighting (unlike camera/lens), so all six families must resolve."""
+    out = loader.canonicalize("LIGHT_VENETIAN_BLINDS", family)
+    assert out is not None
+    # Each family must mention the blind / slat motif.
+    assert "blind" in out.lower() or "slat" in out.lower()
+
+
+@pytest.mark.parametrize("family", [
     "sdxl", "illustrious", "flux", "chroma", "flux2",
 ])
 def test_camera_canonicalizes_for_every_camera_family(loader, family):

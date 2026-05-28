@@ -1,4 +1,4 @@
-"""StyleProfileLoader — all 10 archetypes load; render-tuning absent."""
+"""StyleProfileLoader — all 11 archetypes load; render-tuning absent."""
 
 from __future__ import annotations
 
@@ -22,6 +22,7 @@ EXPECTED_ARCHETYPES = {
     "moody_bw",
     "fantasy_castlecore",
     "neo_noir_neon",
+    "analog_film_intimate",
 }
 
 VALID_TIERS = {"T1_suggestive", "T2_implied", "T3_artnude", "T4_explicit"}
@@ -36,6 +37,7 @@ FLUX2_ELIGIBLE = {
     "editorial_fashion_nude",
     "moody_bw",
     "fantasy_castlecore",
+    "analog_film_intimate",
 }
 FLUX2_INELIGIBLE = {"vintage_pinup_kodachrome", "neo_noir_neon"}
 
@@ -117,13 +119,14 @@ def test_flux2_suited_families_routing(loader):
 # ── Verifier round-3 BLOCKER regression: aesthetic-compat fields ────
 
 
-# All 10 profiles now declare full aesthetic-compat lists. Original 5
-# came from Phase 3 vocab v6; the additional 5 (old_hollywood_glamour,
+# All 11 profiles now declare full aesthetic-compat lists. Original 5
+# came from Phase 3 vocab v6; the next 5 (old_hollywood_glamour,
 # vintage_pinup_kodachrome, editorial_fashion_nude, moody_bw,
 # fantasy_castlecore) were added in vocab v10 (2026-05-22) to close
 # the env+photographer cross-axis incoherence — without compat lists
 # these profiles let the LLM pick any env+photog combination, which
 # produced clashes like fantasy_castlecore + Newton + ruined palazzo.
+# analog_film_intimate joined in vocab v16 (2026-05-29).
 PROFILES_WITH_COMPAT = {
     "boudoir_noir",
     "old_hollywood_glamour",
@@ -135,6 +138,7 @@ PROFILES_WITH_COMPAT = {
     "moody_bw",
     "fantasy_castlecore",
     "neo_noir_neon",
+    "analog_film_intimate",
 }
 
 

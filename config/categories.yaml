@@ -32,7 +32,7 @@ themes:
     weight: 1.0
     description: Intimate boudoir spanning bedroom / dressing room / hotel suite / period parlour.
     variations: [silk robe, lace bodysuit, vintage stockings, sheer kimono, satin chemise]
-    aesthetic_affinity: [boudoir_noir, old_hollywood_glamour]
+    aesthetic_affinity: [boudoir_noir, old_hollywood_glamour, analog_film_intimate]
     suited_tiers: [T1_suggestive, T2_implied, T3_artnude, T4_explicit]
     # Phase 3 — narrow the SeriesPlanner aesthetic menu to coherent
     # combinations for this theme. Intersect with style_profile.compatible_*.
@@ -452,7 +452,7 @@ styles:
     description: Dreamy, gentle lighting, pastel tones
     lighting_bias: soft diffused
     color_bias: warm pastels
-    aesthetic_affinity: [golden_hour_natural, vintage_pinup_kodachrome]
+    aesthetic_affinity: [golden_hour_natural, vintage_pinup_kodachrome, analog_film_intimate]
     compatible_environments:
       - ENV_GRASS_MEADOW_GOLDEN_HOUR
       - ENV_MEDITERRANEAN_COURTYARD

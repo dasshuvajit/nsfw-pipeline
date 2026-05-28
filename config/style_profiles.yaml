@@ -588,3 +588,57 @@ profiles:
       - ART_BOUDOIR_NOIR
       - ART_EDITORIAL_FASHION
       - ART_FINE_NUDE
+
+  analog_film_intimate:
+    name: Analog Film Intimate
+    description: >-
+      Faded analog-film / instant-camera snapshot nude. Warm grainy
+      bedroom intimacy — expired-film colour shift, soft window daylight
+      or direct on-camera flash, rumpled sheets, candid lived-in framing.
+      The anti-studio look: nostalgic, imperfect, intimate. Distinct
+      from Vintage Pin-Up Kodachrome (saturated, playful, T1-T2 studio
+      cheesecake) — this is desaturated/faded and runs through artnude
+      and explicit tiers.
+    base_style_keywords: >-
+      analog film photograph, visible film grain, expired film colour
+      shift, faded warm highlights, instant-camera snapshot, soft
+      on-camera flash, rumpled bedsheets, candid intimacy, 35mm film,
+      Portra / CineStill tones
+    base_negative_prompt: >-
+      digital clean, HDR, studio polish, clinical sharpness, plastic
+      skin, over-saturated, modern glossy, beauty-dish key
+    palette_hint: faded warm amber, dusty rose, cream highlight, muted teal shadow
+    lighting_hint: soft window daylight or direct on-camera flash, low-contrast faded
+    suited_tiers: [T2_implied, T3_artnude, T4_explicit]
+    suited_families: [sdxl, chroma, flux, flux2]
+    # Analog film intimate pairs with faded/warm desaturated palettes,
+    # the intimate-snapshot photographer lineage (Goldin's flash
+    # bedroom diaries, Collins's dreamy faded film, Moon's grainy
+    # soft-focus), Hopper's quiet domestic intimacy, and lived-in
+    # bedroom / attic environments. Excludes studio-polish, neon,
+    # high-key editorial, classical Renaissance.
+    compatible_palettes:
+      - PALETTE_MUTED_EARTH_WARM
+      - PALETTE_SEPIA_PLATINUM
+      - PALETTE_PINK_AND_GOLD
+      - PALETTE_NORDIC_DESATURATED
+    compatible_photographers:
+      - PHOTOG_NAN_GOLDIN
+      - PHOTOG_PETRA_COLLINS
+      - PHOTOG_SARAH_MOON
+    compatible_art_movements:
+      - ART_MOVE_HOPPER
+      - ART_MOVE_IMPRESSIONIST_RENOIR
+    compatible_environments:
+      - ENV_MORNING_BEDROOM
+      - ENV_PARIS_ATTIC_APARTMENT
+      - ENV_LOG_CABIN_FIRELIT
+      - ENV_OLD_HOLLYWOOD_BOUDOIR
+    # Analog film intimate — pairs with intimate bedroom art styles
+    # (boudoir, fine-nude, nude-photography). Excludes Newton (hard
+    # fashion), Old Hollywood (studio glam), editorial (high-key),
+    # classical (gallery figure-study).
+    compatible_art_styles:
+      - ART_NUDE_PHOTOGRAPHY
+      - ART_FINE_NUDE
+      - ART_BOUDOIR_NOIR
