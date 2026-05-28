@@ -1232,6 +1232,108 @@ def test_diversity_tracker_records_each_axis_independently():
         assert mood not in nudge
 
 
+# ── 2026-05-29: prose-derived set-level diversity ──────────────────
+
+
+def test_classify_prose_composition_basic_buckets():
+    """The prose classifier buckets pose / emotion / angle from the
+    scene_prose body. This is the signal the structured enum fields
+    miss under dual-write (LLM weaves pose into prose, leaves
+    nsfw_posture / realism_angle NULL)."""
+    from src.agents.scene_facet_generator import _classify_prose_composition
+    out = _classify_prose_composition(
+        "She reclines on the velvet chaise, a sultry half-smile on her "
+        "lips, shot from a low angle that exaggerates her presence."
+    )
+    assert out["prose_pose"] == "reclining"
+    assert out["prose_emotion"] == "sultry"
+    assert out["prose_angle"] == "low_angle"
+
+
+def test_classify_prose_composition_empty_and_none():
+    """Empty / None prose → empty classification (no axes asserted)."""
+    from src.agents.scene_facet_generator import _classify_prose_composition
+    assert _classify_prose_composition(None) == {}
+    assert _classify_prose_composition("") == {}
+    # Prose with no recognised pose/emotion/angle keyword → empty.
+    assert _classify_prose_composition("A quiet room with bare walls.") == {}
+
+
+def test_classify_prose_composition_priority_ordering():
+    """Most-specific bucket wins per axis: 'stands and arches her back'
+    classifies as 'arching' (dynamic), not 'standing'; a line with both
+    'runs' and 'sits' resolves to 'motion' (listed first)."""
+    from src.agents.scene_facet_generator import _classify_prose_composition
+    assert _classify_prose_composition(
+        "She stands tall, then arches her back toward the light."
+    )["prose_pose"] == "arching"
+    assert _classify_prose_composition(
+        "She runs across the meadow before she sits to rest."
+    )["prose_pose"] == "motion"
+
+
+def test_diversity_tracker_prose_pose_dominance_fires_nudge():
+    """8/8 reclining scene_prose → the prose-pose axis trips the nudge
+    even though every structured enum field is NULL. This is the
+    monotony that the tag tracker silently missed on
+    series_41599430bd89 (8/26 reclining, nsfw_posture 0/26 populated)."""
+    from src.agents.scene_facet_generator import _DiversityTracker
+    t = _DiversityTracker()
+    for _ in range(8):
+        t.record({
+            "scene_prose": "She reclines on the chaise, bathed in light.",
+            # All structured enum axes deliberately NULL — the dual-write
+            # reality for prose families.
+            "lighting_directive": None,
+            "nsfw_posture": None,
+        })
+    nudge = t.overused_summary()
+    assert "COMPOSITION VARIETY" in nudge
+    assert "body position" in nudge
+    assert "reclining" in nudge
+    assert "8/8" in nudge
+
+
+def test_diversity_tracker_prose_emotion_serene_echo_fires_nudge():
+    """The 'serene'/'calm' subject_description echo dominates many
+    series — prose-emotion tracking surfaces it so the LLM is nudged
+    toward a different emotional register."""
+    from src.agents.scene_facet_generator import _DiversityTracker
+    t = _DiversityTracker()
+    for _ in range(7):
+        t.record({"scene_prose": "Her serene, calm expression is timeless."})
+    nudge = t.overused_summary()
+    assert "emotional register" in nudge
+    assert "serene" in nudge
+
+
+def test_diversity_prose_axes_are_advisory_only():
+    """Prose-derived dominance must NOT reach the hard-reject path
+    (overused_tags / overused_picks_in) — only the soft nudge. This
+    keeps prose monotony from spiking the fallback rate, consistent
+    with the soft-warn coherence philosophy."""
+    from src.agents.scene_facet_generator import _DiversityTracker
+    t = _DiversityTracker()
+    for _ in range(8):
+        t.record({"scene_prose": "She reclines on the chaise, serene."})
+    # Soft nudge sees it.
+    assert "COMPOSITION VARIETY" in t.overused_summary()
+    # Hard-reject surfaces do NOT — prose axes are advisory.
+    assert t.overused_tags() == {}
+    assert t.overused_picks_in({
+        "scene_prose": "She reclines on the chaise, serene.",
+    }) == {}
+
+
+def test_diversity_prose_silent_before_min_facets():
+    """Prose axes honour the same 6-facet floor as the tag axes."""
+    from src.agents.scene_facet_generator import _DiversityTracker
+    t = _DiversityTracker()
+    for _ in range(5):
+        t.record({"scene_prose": "She reclines on the chaise, serene."})
+    assert t.overused_summary() == ""
+
+
 # ── Round-13: schema-body + retry-nudge example narrowing ───────────
 
 

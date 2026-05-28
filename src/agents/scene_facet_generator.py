@@ -946,6 +946,122 @@ _DIVERSITY_DOMINANCE_THRESHOLD: float = 0.30
 _DIVERSITY_MIN_FACETS_BEFORE_NUDGE: int = 6
 
 
+# 2026-05-29 — PROSE-derived diversity axes. The structured-tag axes
+# above (lighting_directive / mood_aesthetic / realism_angle / etc.)
+# are near-useless for prose families: under the dual-write contract
+# the LLM weaves pose/emotion/angle into scene_prose and leaves the
+# enum fields NULL (audit of series_41599430bd89: nsfw_posture 0/26,
+# realism_angle 0/26, lighting_directive 5/26 populated). So the tag
+# tracker never trips, yet the SET is monotone (8/26 reclining,
+# "serene" in ~20/26). These axes classify the actual scene_prose
+# text into coarse buckets so the diversity nudge sees the real
+# composition signal.
+#
+# Deliberately ADVISORY-ONLY: prose axes feed the soft nudge
+# (overused_summary) but NOT the hard-reject path (overused_picks_in /
+# overused_tags), so a monotone series gets a "vary this" hint without
+# spiking the fallback rate — consistent with the 2026-05-25 soft-warn
+# coherence philosophy.
+#
+# Axes chosen are THEME-INDEPENDENT (pose / emotion / camera angle): a
+# golden-hour-meadow series can vary all three freely. Time-of-day /
+# lighting is intentionally NOT tracked — it's theme-bound (a
+# "Golden Hour" series SHOULD be golden hour; nudging away fights the
+# brief).
+_DIVERSITY_PROSE_AXES: tuple[str, ...] = (
+    "prose_pose",
+    "prose_emotion",
+    "prose_angle",
+)
+
+# Keyword → bucket maps for the prose classifier. First matching bucket
+# wins, so ordering is most-specific/dynamic first (a "stands and
+# arches her back" line classifies as 'arching', not 'standing').
+_PROSE_POSE_BUCKETS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("motion",    ("runs", "running", "run through", "leap", "lunge",
+                   "walking", "strides", "stride", "dancing", "mid-motion",
+                   "mid-stride", "jump", "twirl", "spinning", "in motion")),
+    ("arching",   ("arch",)),                       # arches her back
+    ("kneeling",  ("kneel",)),
+    ("crouching", ("crouch", "squat")),
+    ("sitting",   ("sits", "seated", "perch")),
+    ("reclining", ("reclin", "lying", "lies back", "lie back", "lies low",
+                   "lounge", "lounging", "lounges", "sprawl", "supine",
+                   "rests against", "lying back", "rests her", "lies in")),
+    ("standing",  ("stands", "standing", "upright", "on her feet")),
+)
+_PROSE_EMOTION_BUCKETS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    # non-serene emotions first so the boilerplate subject_description
+    # echo ("serene expression") doesn't dominate every classification.
+    ("ecstatic",      ("ecstas", "euphoric", "rapture", "unbridled",
+                       "primal", "breathless", "visceral")),
+    ("joyful",        ("joyful", "laughter", "laughing", "playful",
+                       "joy", "delight", "grin")),
+    ("defiant",       ("defiant", "fierce", "commanding", "unyielding",
+                       "bold", "triumphant", "powerful stance", "heroic")),
+    ("sultry",        ("sultry", "seductive", "erotic", "smolder",
+                       "sensual")),
+    ("contemplative", ("contemplat", "pensive", "wistful", "dreamy",
+                       "lost in", "unfocused")),
+    ("serene",        ("serene", "calm", "tranquil", "peaceful",
+                       "quiet composure", "stillness")),
+)
+_PROSE_ANGLE_BUCKETS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("low_angle",  ("low angle", "low-angle", "from below", "heroic")),
+    ("high_angle", ("high angle", "high-angle", "looking down",
+                    "from above", "overhead", "bird's eye")),
+    ("close_up",   ("close-up", "close up", "intimate portrait",
+                    "extreme close")),
+    ("wide",       ("wide shot", "wide angle", "vast expanse",
+                    "environmental")),
+    ("eye_level",  ("eye level", "eye-level")),
+)
+
+# Friendly axis label + suggested alternatives shown in the nudge.
+_PROSE_AXIS_HINT: dict[str, tuple[str, str]] = {
+    "prose_pose": (
+        "body position",
+        "use a different pose (standing / kneeling / walking / sitting / "
+        "crouching / arching)",
+    ),
+    "prose_emotion": (
+        "emotional register",
+        "try a different mood (playful / defiant / joyful / sultry / "
+        "contemplative)",
+    ),
+    "prose_angle": (
+        "camera angle",
+        "vary the angle (low / high / eye-level / close-up / wide)",
+    ),
+}
+
+
+def _classify_prose_composition(scene_prose: str | None) -> dict[str, str]:
+    """Bucket a scene_prose paragraph into coarse pose / emotion /
+    angle classes for prose-level diversity tracking.
+
+    Returns ``{axis: bucket}`` for whichever axes matched (omits an axis
+    when no keyword hit). First matching bucket per axis wins. Used by
+    :class:`_DiversityTracker` so the set-level nudge can see the
+    composition signal that lives in free prose rather than in the
+    (often NULL) structured enum fields.
+    """
+    if not scene_prose:
+        return {}
+    text = scene_prose.lower()
+    out: dict[str, str] = {}
+    for axis, buckets in (
+        ("prose_pose", _PROSE_POSE_BUCKETS),
+        ("prose_emotion", _PROSE_EMOTION_BUCKETS),
+        ("prose_angle", _PROSE_ANGLE_BUCKETS),
+    ):
+        for bucket, keywords in buckets:
+            if any(kw in text for kw in keywords):
+                out[axis] = bucket
+                break
+    return out
+
+
 class _DiversityTracker:
     """Per-series running tag-frequency tracker for the structured-tag
     axes the LLM picks at facet time.
@@ -959,9 +1075,12 @@ class _DiversityTracker:
     __slots__ = ("_counts", "_total")
 
     def __init__(self) -> None:
-        # Per-axis Counter — {axis_name: {tag: count}}
+        # Per-axis Counter — {axis_name: {tag: count}}. Holds BOTH the
+        # structured-tag axes and the prose-derived axes; the hard-
+        # reject path (overused_tags) only ever reads the tag axes.
         self._counts: dict[str, dict[str, int]] = {
-            axis: {} for axis in _DIVERSITY_TRACKED_AXES
+            axis: {}
+            for axis in (*_DIVERSITY_TRACKED_AXES, *_DIVERSITY_PROSE_AXES)
         }
         # Total facets recorded so far (denominator for the ratio check).
         self._total: int = 0
@@ -969,7 +1088,12 @@ class _DiversityTracker:
     def record(self, facet: dict[str, Any]) -> None:
         """Increment counters for whatever tags this facet picked. Tags
         not on the tracked-axes list are ignored. ``None`` / empty
-        values are ignored so they don't dominate the count."""
+        values are ignored so they don't dominate the count.
+
+        Also classifies the facet's ``scene_prose`` into prose-derived
+        pose / emotion / angle buckets (2026-05-29) so the diversity
+        nudge sees the composition signal even when the structured enum
+        fields are NULL (the common case for prose families)."""
         self._total += 1
         for axis in _DIVERSITY_TRACKED_AXES:
             val = facet.get(axis)
@@ -979,6 +1103,10 @@ class _DiversityTracker:
             if not tag:
                 continue
             self._counts[axis][tag] = self._counts[axis].get(tag, 0) + 1
+        # Prose-derived axes — classify the scene_prose body.
+        prose_buckets = _classify_prose_composition(facet.get("scene_prose"))
+        for axis, bucket in prose_buckets.items():
+            self._counts[axis][bucket] = self._counts[axis].get(bucket, 0) + 1
 
     def overused_summary(self) -> str:
         """Return a multi-line nudge string for the LLM, or ``""``
@@ -1042,7 +1170,8 @@ class _DiversityTracker:
     def _overused_summary_text(self) -> str:
         if self._total < _DIVERSITY_MIN_FACETS_BEFORE_NUDGE:
             return ""
-        lines: list[str] = []
+        # Structured-tag axes (existing) — "pick a different tag".
+        tag_lines: list[str] = []
         for axis in _DIVERSITY_TRACKED_AXES:
             counts = self._counts[axis]
             if not counts:
@@ -1050,17 +1179,43 @@ class _DiversityTracker:
             top_tag, top_count = max(counts.items(), key=lambda kv: kv[1])
             ratio = top_count / self._total
             if ratio >= _DIVERSITY_DOMINANCE_THRESHOLD:
-                lines.append(
+                tag_lines.append(
                     f"  - {axis}: {top_tag} used "
                     f"{top_count}/{self._total} scenes ({int(ratio * 100)}%)"
                 )
-        if not lines:
+        # Prose-derived axes (2026-05-29) — "vary this in your prose".
+        prose_lines: list[str] = []
+        for axis in _DIVERSITY_PROSE_AXES:
+            counts = self._counts[axis]
+            if not counts:
+                continue
+            top_bucket, top_count = max(counts.items(), key=lambda kv: kv[1])
+            ratio = top_count / self._total
+            if ratio >= _DIVERSITY_DOMINANCE_THRESHOLD:
+                label, suggestion = _PROSE_AXIS_HINT.get(
+                    axis, (axis, "vary it")
+                )
+                prose_lines.append(
+                    f"  - {label}: '{top_bucket}' in {top_count}/"
+                    f"{self._total} scenes ({int(ratio * 100)}%) — "
+                    f"{suggestion}"
+                )
+        if not tag_lines and not prose_lines:
             return ""
-        header = (
-            "\nDiversity nudge — pick something DIFFERENT this scene; "
-            "these tags are already over-represented across the series:"
-        )
-        return header + "\n" + "\n".join(lines) + "\n"
+        parts: list[str] = []
+        if tag_lines:
+            parts.append(
+                "\nDiversity nudge — pick something DIFFERENT this scene; "
+                "these tags are already over-represented across the series:\n"
+                + "\n".join(tag_lines)
+            )
+        if prose_lines:
+            parts.append(
+                "\nCOMPOSITION VARIETY — your scene_prose keeps repeating "
+                "these across the series. Make THIS scene visibly "
+                "different:\n" + "\n".join(prose_lines)
+            )
+        return "\n".join(parts) + "\n"
 
 
 # Phase 1+2+3+4 (vocab v6) — structured enum-tag fields shown to the
