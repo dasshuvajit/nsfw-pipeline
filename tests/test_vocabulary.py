@@ -1444,13 +1444,14 @@ def test_env_coherence_skips_tags_without_place_constraint(loader):
     assert violations == []
 
 
-def test_pydantic_validator_rejects_incoherent_facet():
-    """Round-22 F15 integration — SceneFacetFluxNatural.model_validate
-    raises ValidationError when env_setting + atmosphere are
-    physically incoherent, triggering the existing retry-nudge in
-    scene_facet_generator.py."""
-    import pytest
-    from pydantic import ValidationError
+def test_pydantic_validator_soft_warns_incoherent_facet(caplog):
+    """2026-05-25 — cross-field coherence DOWNGRADED to soft-warn.
+    SceneFacetFluxNatural.model_validate must NO LONGER raise on an
+    env/atmosphere mismatch — it logs a warning and ships the prose
+    (for prose families the tags don't reach the final prompt). This
+    replaces the old hard-reject that drove an 88% fallback rate on
+    series_88e9d16afc23."""
+    import logging
     from src.agents.schemas import SceneFacetFluxNatural
     # Dual-write pivot — prose ≥100 words required.
     _long_prose = " ".join([
@@ -1467,12 +1468,56 @@ def test_pydantic_validator_rejects_incoherent_facet():
         "metal, organic against urban. The mood is intimate isolation,",
         "the late hour of a city that never quite sleeps.",
     ])
-    with pytest.raises(ValidationError, match=r"cross-field coherence"):
-        SceneFacetFluxNatural.model_validate({
+    with caplog.at_level(logging.WARNING, logger="src.agents.schemas"):
+        facet = SceneFacetFluxNatural.model_validate({
             "scene_prose": _long_prose,
             "environment_setting": "ENV_FIRE_ESCAPE_NEON",
             "environment_atmosphere": "ATM_FABRIC_FLOATING_UNDERWATER",
         })
+    # Validates successfully (no raise) …
+    assert facet.environment_setting == "ENV_FIRE_ESCAPE_NEON"
+    # … but logs the coherence warning for observability.
+    assert any(
+        "cross-field coherence (soft)" in rec.message
+        for rec in caplog.records
+    ), [r.message for r in caplog.records]
+
+
+def test_env_class_coherence_uses_class_not_prose_keywords():
+    """vocab v14 — coherence now compares env_class intersection, not
+    prose substring. ENV_CABARET_STAGE_DARK is [indoor]; NARR_AFTER_
+    THE_PARTY requires [indoor] → coherent, even though 'cabaret' was
+    never in the keyword list (the v13 false-positive that caused
+    fallbacks)."""
+    from src.prompt.vocabulary import check_facet_env_coherence, VocabularyLoader
+    loader = VocabularyLoader()
+    violations = check_facet_env_coherence(
+        environment_setting="ENV_CABARET_STAGE_DARK",
+        environment_atmosphere=None,
+        narrative_moment="NARR_AFTER_THE_PARTY",
+        loader=loader,
+    )
+    assert violations == [], (
+        f"cabaret+after-party should be coherent via env_class; "
+        f"got {violations}"
+    )
+
+
+def test_env_class_coherence_still_flags_real_mismatch():
+    """vocab v14 — the class system still catches genuinely-impossible
+    pairs. Underwater fabric ([water]) in a fire escape ([outdoor,
+    urban]) has no class intersection → flagged (as a soft warning at
+    the schema layer, but check_facet_env_coherence still returns it)."""
+    from src.prompt.vocabulary import check_facet_env_coherence, VocabularyLoader
+    loader = VocabularyLoader()
+    violations = check_facet_env_coherence(
+        environment_setting="ENV_FIRE_ESCAPE_NEON",
+        environment_atmosphere="ATM_FABRIC_FLOATING_UNDERWATER",
+        narrative_moment=None,
+        loader=loader,
+    )
+    assert len(violations) == 1
+    assert violations[0][0] == "environment_atmosphere"
 
 
 def test_pydantic_validator_passes_coherent_facet():

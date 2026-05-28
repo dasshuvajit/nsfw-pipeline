@@ -919,16 +919,21 @@ class SceneFacetFluxNatural(BaseModel):
                 f"chars — pair the contrast with the anatomy.)"
             )
 
-        # Round-22 F15 (2026-05-22) — env / atmosphere / narrative
-        # cross-field coherence check. Some ATM / NARR tags declare a
-        # ``place_constraint`` requiring specific env keywords (e.g.
-        # ATM_FABRIC_FLOATING_UNDERWATER requires the
-        # environment_setting prose to mention water / pool / bath).
-        # If the LLM picked an incompatible combination (env: fire
-        # escape, atm: underwater fabric), reject the facet here so
-        # the existing retry-with-nudge mechanism in scene_facet_
-        # generator.py fires. Grok's audit on series_bf84fa88de1c
-        # caught exactly this pattern.
+        # Cross-field env / atmosphere / narrative coherence check.
+        #
+        # 2026-05-25 — DOWNGRADED from hard-reject to soft-warn. For
+        # prose families the structured tags (env / atm / narr) do NOT
+        # reach the final prompt — only ``scene_prose`` is rendered;
+        # the tags drive validators + analytics + diversity only. So a
+        # tag-level coherence "violation" doesn't change the image,
+        # while hard-rejecting threw away the LLM's perfectly-coherent
+        # scene_prose and forced a generic fallback. (Audit:
+        # series_88e9d16afc23 hit 88% fallback, the vast majority from
+        # this check false-positive-rejecting valid combos like
+        # "after the party in a cabaret".) The vocab v14 env_class
+        # rewrite (check_facet_env_coherence) also makes the remaining
+        # warnings accurate rather than keyword-gap noise. We log for
+        # observability + keep generating; the prose ships.
         from src.prompt.vocabulary import check_facet_env_coherence
         violations = check_facet_env_coherence(
             environment_setting=self.environment_setting,
@@ -940,11 +945,10 @@ class SceneFacetFluxNatural(BaseModel):
                 f"{field}={tag!r}: {reason}"
                 for field, tag, reason in violations
             )
-            raise ValueError(
-                f"SceneFacetFluxNatural cross-field coherence failed: "
-                f"{joined}. Re-pick atm / narrative or change "
-                f"environment_setting so they imply ONE physically "
-                f"plausible scene."
+            logger.warning(
+                "SceneFacetFluxNatural cross-field coherence (soft): %s. "
+                "Shipping the LLM's scene_prose anyway — tags don't reach "
+                "the prose-family prompt.", joined,
             )
         return self
 

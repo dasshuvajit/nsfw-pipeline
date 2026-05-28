@@ -27,7 +27,7 @@
 #   3. Bump ``version:`` at the top.
 #   4. Re-run regression suite — fixtures pin the byte-stable output.
 
-version: 13
+version: 14
 
 realism:
   # ── Lighting ─────────────────────────────────────────────────────────
@@ -769,6 +769,7 @@ environment:
   setting:
     # ─── Decay / Patina ───
     ENV_VICTORIAN_CONSERVATORY:
+      env_class: ["indoor"]
       sdxl:        "abandoned Victorian conservatory, broken glass panels, ivy creeping through iron frame, dappled green light"
       pony:        "abandoned_building, conservatory, broken_glass, ivy, dappled_light, victorian_architecture, overgrown"
       illustrious: "victorian_conservatory, broken_glass, ivy_overgrown, dappled_light, ruined_elegance"
@@ -776,6 +777,7 @@ environment:
       chroma:      "abandoned Victorian conservatory, broken glass panels, ivy through iron frame, dappled green light through remaining panes"
       flux2:       "Set inside an abandoned Victorian conservatory, broken glass panels above, ivy creeping through the wrought-iron frame at chest height, dappled green light filtering through the surviving panes, humid still air"
     ENV_ABANDONED_BALLROOM:
+      env_class: ["indoor"]
       sdxl:        "abandoned ballroom, peeling silk wallpaper, dust-covered chandelier, parquet floor scattered with leaves"
       pony:        "abandoned_ballroom, peeling_wallpaper, dusty_chandelier, parquet_floor, leaves_on_floor, decay"
       illustrious: "abandoned_ballroom, peeling_wallpaper, chandelier_dust, parquet_floor, fallen_leaves"
@@ -783,6 +785,7 @@ environment:
       chroma:      "abandoned ballroom, peeling silk wallpaper, dust-covered crystal chandelier, parquet floor scattered with fallen leaves"
       flux2:       "Set inside an abandoned ballroom, peeling silk wallpaper of faded gold and rose, a dust-covered crystal chandelier hanging crookedly at half-height, parquet floor scattered with fallen leaves and chips of plaster"
     ENV_DERELICT_THEATRE:
+      env_class: ["indoor"]
       sdxl:        "derelict 1920s theatre, threadbare velvet seats, water-stained proscenium, sodium streetlight through high windows"
       pony:        "derelict_theatre, velvet_seats, water_stained_walls, sodium_light_through_window, ruined_grandeur"
       illustrious: "derelict_theatre, threadbare_velvet, water_stained_proscenium, sodium_light"
@@ -790,6 +793,7 @@ environment:
       chroma:      "derelict 1920s theatre, threadbare velvet seats, water-stained proscenium, single sodium streetlight through broken high windows"
       flux2:       "Set inside a derelict 1920s theatre, threadbare crimson velvet seats in collapsed rows, a water-stained proscenium arch overhead, a single shaft of sodium streetlight cutting through the high broken windows onto the stage"
     ENV_OVERGROWN_GREENHOUSE:
+      env_class: ["indoor"]
       sdxl:        "overgrown greenhouse, broken glass panels, ferns reclaiming the floor, sunbeams cutting through humid air"
       pony:        "overgrown_greenhouse, broken_glass, ferns, sunbeam, humid_air, plant_reclaiming"
       illustrious: "overgrown_greenhouse, broken_glass, fern_floor, sunbeam_humid_air"
@@ -797,6 +801,7 @@ environment:
       chroma:      "overgrown greenhouse, broken glass panels, ferns reclaiming the tiled floor, golden sunbeams cutting through humid air"
       flux2:       "Set inside an overgrown greenhouse, broken glass panels above, ferns and tropical leaves reclaiming the tiled floor, golden sunbeams cutting through the humid still air at sharp angles, the air thick with the smell of damp earth"
     ENV_RUINED_PALAZZO:
+      env_class: ["indoor", "outdoor"]
       sdxl:        "ruined Italian palazzo, frescoed ceiling half-collapsed, marble dust on the floor, broken statuary"
       pony:        "ruined_palazzo, frescoed_ceiling, collapsed_ceiling, marble_dust, broken_statue, italian_ruin"
       illustrious: "ruined_palazzo, frescoed_ceiling, marble_dust, broken_statuary"
@@ -805,6 +810,7 @@ environment:
       flux2:       "Set inside a ruined Italian palazzo, frescoed ceiling half-collapsed overhead with sky visible through the gap, marble dust on the polished floor, fragments of broken classical statuary leaning against the moss-streaked walls"
     # ─── Period Luxury ───
     ENV_TUSCAN_VILLA_RENAISSANCE:
+      env_class: ["indoor", "outdoor"]
       sdxl:        "16th-century Tuscan villa, frescoed walls, terracotta floors, ancient marble statuary"
       pony:        "tuscan_villa, frescoed_walls, terracotta_floor, marble_statue, renaissance_interior"
       illustrious: "tuscan_villa, frescoed_walls, terracotta_floors, marble_statuary, renaissance_setting"
@@ -812,6 +818,7 @@ environment:
       chroma:      "16th-century Tuscan villa, frescoed walls, terracotta tile floor, ancient marble statuary in alcoves"
       flux2:       "Set inside a 16th-century Tuscan villa, frescoed walls catching afternoon light in muted ochre and umber, terracotta floor tiles worn smooth, ancient marble statuary placed in alcoves, cool stone interior atmosphere"
     ENV_OLD_HOLLYWOOD_BOUDOIR:
+      env_class: ["indoor"]
       sdxl:        "1930s Hollywood dressing room, satin chaise lounge, vanity with vintage perfume bottles, ostrich-feather lamp"
       pony:        "1930s_hollywood, dressing_room, satin_chaise, vintage_vanity, perfume_bottles, ostrich_feather_lamp, glamour_interior"
       illustrious: "1930s_hollywood_dressing_room, satin_chaise, vintage_vanity, perfume_bottles, ostrich_feather_lamp"
@@ -819,6 +826,7 @@ environment:
       chroma:      "1930s Hollywood dressing room, satin chaise lounge, vanity with vintage perfume bottles, ostrich-feather lamp casting amber light"
       flux2:       "Set inside a 1930s Hollywood dressing room, a satin chaise lounge against the wall, a vanity scattered with vintage crystal perfume bottles, an ostrich-feather table lamp casting soft amber light across the polished surface"
     ENV_ART_DECO_HOTEL_SUITE:
+      env_class: ["indoor", "urban"]
       sdxl:        "art-deco hotel suite, lacquered ebony walls, geometric brass inlay, champagne coupe on a polished walnut side table"
       pony:        "art_deco_suite, lacquered_ebony, brass_inlay, geometric_pattern, champagne_coupe, walnut_side_table, 1920s_interior"
       illustrious: "art_deco_hotel_suite, lacquered_ebony, geometric_brass_inlay, polished_walnut_surfaces"
@@ -826,6 +834,7 @@ environment:
       chroma:      "art-deco hotel suite, lacquered ebony walls, geometric brass inlay, champagne coupe on a polished walnut side-table"
       flux2:       "Set inside an art-deco hotel suite, lacquered ebony walls catching the warm sconce light, geometric brass inlay running along the trim, a champagne coupe resting on a polished walnut side-table beside a black satin chaise"
     ENV_VICTORIAN_PARLOUR:
+      env_class: ["indoor"]
       sdxl:        "Victorian parlour, oxblood wingback chair, gilt-framed oil paintings, gas-lamp glow"
       pony:        "victorian_parlour, wingback_chair, oxblood_leather, oil_paintings, gas_lamp, victorian_interior"
       illustrious: "victorian_parlour, oxblood_wingback, gilt_framed_paintings, gas_lamp_glow"
@@ -833,6 +842,7 @@ environment:
       chroma:      "Victorian parlour, oxblood leather wingback chair, gilt-framed oil paintings on every wall, gas-lamp amber glow"
       flux2:       "Set inside a Victorian parlour, an oxblood leather wingback chair turned slightly toward the fireplace, gilt-framed oil paintings crowding every wall, a single gas-lamp casting amber glow across the heavy patterned carpet"
     ENV_GEORGIAN_LIBRARY:
+      env_class: ["indoor"]
       sdxl:        "Georgian library, floor-to-ceiling oak shelves, brass library lamp, leather chesterfield"
       pony:        "georgian_library, oak_bookshelves, brass_lamp, leather_chesterfield, library_interior, books_everywhere"
       illustrious: "georgian_library, floor_to_ceiling_books, brass_library_lamp, leather_chesterfield"
@@ -841,6 +851,7 @@ environment:
       flux2:       "Set inside a Georgian library, floor-to-ceiling oak shelves packed with leather-bound books, a brass library lamp with green glass shade illuminating an open reading desk, a worn leather chesterfield against the far wall"
     # ─── Industrial / Brutal ───
     ENV_BRUTALIST_CONCRETE_LOFT:
+      env_class: ["indoor", "urban"]
       sdxl:        "brutalist concrete loft, exposed rebar, single shaft of light from clerestory window"
       pony:        "brutalist_concrete, exposed_rebar, concrete_loft, clerestory_window, single_shaft_of_light, industrial_minimal"
       illustrious: "brutalist_concrete_loft, exposed_rebar, clerestory_window, single_shaft_light"
@@ -848,6 +859,7 @@ environment:
       chroma:      "brutalist concrete loft, raw exposed concrete walls, exposed rebar, single hard shaft of light from a high clerestory window"
       flux2:       "Set inside a brutalist concrete loft, raw exposed concrete walls bearing the imprint of their wooden formwork, exposed rebar at the ceiling junction, a single hard shaft of light from a high clerestory window cutting diagonally across the empty floor"
     ENV_WAREHOUSE_CONVERSION:
+      env_class: ["indoor", "urban"]
       sdxl:        "converted ironworks warehouse, wooden beams overhead, chipped paint, industrial steel windows"
       pony:        "warehouse_conversion, wooden_beams, chipped_paint, industrial_steel_windows, brick_walls, converted_industrial"
       illustrious: "warehouse_conversion, wooden_beams, chipped_paint, industrial_windows"
@@ -855,6 +867,7 @@ environment:
       chroma:      "converted ironworks warehouse, heavy wooden beams overhead, chipped industrial paint walls, tall steel-frame industrial windows"
       flux2:       "Set inside a converted ironworks warehouse, heavy wooden beams overhead spanning the long ceiling, chipped industrial paint flaking from the brick walls, tall steel-frame industrial windows running the full length of one wall and admitting flat daylight"
     ENV_PRINT_WORKSHOP:
+      env_class: ["indoor"]
       sdxl:        "abandoned print workshop, ink-stained workbenches, hanging proof sheets, single tungsten bulb"
       pony:        "print_workshop, ink_stained_bench, hanging_papers, tungsten_bulb, abandoned_industrial, workshop_interior"
       illustrious: "print_workshop, ink_stained_workbenches, hanging_proof_sheets, tungsten_bulb"
@@ -863,6 +876,7 @@ environment:
       flux2:       "Set inside an abandoned letterpress print workshop, ink-stained wooden workbenches scarred by decades of use, proof sheets hanging from string strung overhead, a single bare tungsten bulb casting a warm pool of light over one bench"
     # ─── Domestic / Intimate ───
     ENV_MORNING_BEDROOM:
+      env_class: ["indoor"]
       sdxl:        "rumpled white Belgian linen bedroom, sheer curtains glowing with morning sun, terracotta tiled floor"
       pony:        "morning_bedroom, rumpled_white_sheets, belgian_linen, sheer_curtains, morning_sun, terracotta_floor, intimate_interior"
       illustrious: "morning_bedroom, rumpled_white_linen, sheer_curtains, morning_sun, terracotta_floor"
@@ -870,6 +884,7 @@ environment:
       chroma:      "morning bedroom, rumpled white Belgian linen sheets, sheer curtains glowing with morning sun, terracotta tiled floor catching warm reflected light"
       flux2:       "Set inside a morning bedroom, rumpled white Belgian linen sheets across the unmade bed, sheer linen curtains glowing with the soft early sun, a terracotta tiled floor catching warm reflected light, the room feeling slow and recently inhabited"
     ENV_CLAWFOOT_BATHROOM:
+      env_class: ["indoor", "water"]
       sdxl:        "marble bathroom with clawfoot tub, marble vanity counter, single candle on the rim"
       pony:        "clawfoot_bathtub, marble_bathroom, marble_vanity, candle_on_tub_rim, intimate_bathroom"
       illustrious: "clawfoot_bathroom, marble_floor, marble_vanity_counter, candle_on_tub"
@@ -877,6 +892,7 @@ environment:
       chroma:      "marble bathroom with a clawfoot porcelain tub, marble vanity counter, single lit candle on the tub rim"
       flux2:       "Set inside a marble bathroom, a clawfoot porcelain tub holding warm water, a marble vanity counter along the wall, a single lit candle resting on the polished tub rim, the air thick with humid steam"
     ENV_VANITY_DRESSING_ROOM:
+      env_class: ["indoor"]
       sdxl:        "rococo dressing room, gilded vanity, perfume bottles catching low afternoon light, ostrich-feather robe over the chair"
       pony:        "rococo_dressing_room, gilded_vanity, perfume_bottles, ostrich_feather_robe, dressing_room_interior, decorative"
       illustrious: "rococo_dressing_room, gilded_vanity, perfume_bottles, ostrich_feather_robe"
@@ -884,6 +900,7 @@ environment:
       chroma:      "rococo dressing room, gilded vanity, crystal perfume bottles catching low afternoon light, ostrich-feather robe draped across the chair"
       flux2:       "Set inside a rococo dressing room, a gilded vanity with curved cabriole legs, crystal perfume bottles catching the low afternoon light in coloured refractions, an ostrich-feather robe draped casually across the back of the upholstered chair"
     ENV_READING_NOOK:
+      env_class: ["indoor"]
       sdxl:        "window-seat reading nook, stack of vintage books, knit throw, rain on the window"
       pony:        "reading_nook, window_seat, stack_of_books, knit_throw, rain_on_window, cozy_interior"
       illustrious: "reading_nook, window_seat, stack_of_books, knit_throw, rain_on_window"
@@ -892,6 +909,7 @@ environment:
       flux2:       "Set inside a window-seat reading nook, a stack of vintage hardcover books leaning against the cushioned wall, a knit throw blanket folded loosely, rain streaming down the leaded-glass window beyond"
     # ─── Outdoor / Natural ───
     ENV_MEDITERRANEAN_COURTYARD:
+      env_class: ["outdoor"]
       sdxl:        "Mediterranean courtyard, blue tilework, bougainvillea spilling over the wall, midday white-stone glare"
       pony:        "mediterranean_courtyard, blue_tilework, bougainvillea, white_stone_wall, midday_sun, sun_glare"
       illustrious: "mediterranean_courtyard, blue_tilework, bougainvillea, midday_sun"
@@ -899,6 +917,7 @@ environment:
       chroma:      "Mediterranean courtyard, cobalt-blue tilework, bougainvillea spilling magenta blooms over the whitewashed wall, midday white-stone glare"
       flux2:       "Set inside a Mediterranean courtyard, cobalt-blue tilework on a low fountain in the centre, bougainvillea spilling magenta blooms over the whitewashed stone wall, midday white-stone glare bouncing brightness off every surface"
     ENV_BALINESE_VILLA:
+      env_class: ["indoor", "outdoor"]
       sdxl:        "Balinese open-air villa, teak deck, rice-paddy view, late-afternoon honey-gold light"
       pony:        "balinese_villa, teak_deck, rice_paddy_view, late_afternoon_sun, honey_gold_light, tropical_setting"
       illustrious: "balinese_villa, teak_deck, rice_paddy_view, honey_gold_late_afternoon"
@@ -906,6 +925,7 @@ environment:
       chroma:      "Balinese open-air villa, polished teak deck, terraced rice paddies stretching to the horizon, late-afternoon honey-gold light slanting in"
       flux2:       "Set on the teak deck of a Balinese open-air villa, terraced rice paddies stretching to the horizon beyond a low wooden balustrade, late-afternoon honey-gold light slanting in horizontally across the deck and warming every surface"
     ENV_FOG_PINE_FOREST:
+      env_class: ["outdoor"]
       sdxl:        "Pacific Northwest pine forest, low fog between trunks, moss-covered fallen log"
       pony:        "pine_forest, low_fog, moss_covered_log, pacific_northwest, foggy_outdoor"
       illustrious: "pine_forest, low_fog_between_trunks, moss_covered_log"
@@ -913,6 +933,7 @@ environment:
       chroma:      "Pacific Northwest pine forest, low ground fog drifting between dark trunks, moss-covered fallen log, cool diffused light"
       flux2:       "Set inside a Pacific Northwest pine forest, low ground fog drifting between dark moss-furred trunks, a moss-covered fallen log spanning the foreground, cool diffused light from an overcast canopy filtering down"
     ENV_DESERT_DUNE:
+      env_class: ["outdoor"]
       sdxl:        "Sahara dune at golden hour, wind-rippled sand, single set of footprints"
       pony:        "desert_dune, sahara, golden_hour, wind_rippled_sand, footprints, outdoor_landscape"
       illustrious: "sahara_dune, golden_hour_sand, wind_rippled, footprints"
@@ -920,6 +941,7 @@ environment:
       chroma:      "Sahara dune at golden hour, wind-rippled sand catching warm sidelight, single set of footprints winding across the slope"
       flux2:       "Set on a Sahara sand dune at golden hour, wind-rippled sand catching warm sidelight in thousands of tiny crests, a single set of footprints winding across the slope and disappearing over the ridge"
     ENV_GRASS_MEADOW_GOLDEN_HOUR:
+      env_class: ["outdoor"]
       sdxl:        "wildflower meadow at golden hour, knee-high grass, distant treeline backlit"
       pony:        "wildflower_meadow, knee_high_grass, golden_hour, backlit_treeline, outdoor_natural"
       illustrious: "wildflower_meadow, knee_high_grass, golden_hour_backlight"
@@ -927,6 +949,7 @@ environment:
       chroma:      "wildflower meadow at golden hour, knee-high grass and wildflower stems, distant treeline backlit by warm slanting sun"
       flux2:       "Set in a wildflower meadow at golden hour, knee-high grass and tall wildflower stems bending in the breeze, the distant treeline backlit by warm slanting sun, every blade of grass haloed by rim light"
     ENV_BLACK_SAND_BEACH:
+      env_class: ["outdoor", "water"]
       sdxl:        "Icelandic black-sand beach, basalt columns, low overcast sky, sea mist"
       pony:        "black_sand_beach, iceland, basalt_columns, overcast_sky, sea_mist, dramatic_landscape"
       illustrious: "icelandic_black_sand_beach, basalt_columns, overcast_sky, sea_mist"
@@ -935,6 +958,7 @@ environment:
       flux2:       "Set on an Icelandic black-sand beach, hexagonal basalt columns rising from the shore in geometric clusters, a low overcast sky merging into the horizon, sea mist rolling in from the cold surf, every surface damp and reflective"
     # ─── Urban Cinematic ───
     ENV_ROOFTOP_CITY_NIGHT:
+      env_class: ["outdoor", "urban"]
       sdxl:        "rooftop terrace, neon city skyline behind, wet concrete, single string of bulbs"
       pony:        "rooftop_terrace, city_skyline_night, neon_lights, wet_concrete, string_lights, urban_night"
       illustrious: "rooftop_terrace, neon_skyline_night, wet_concrete, string_of_bulbs"
@@ -942,6 +966,7 @@ environment:
       chroma:      "rooftop terrace overlooking a neon-lit city skyline at night, wet concrete underfoot, single string of warm bulbs strung overhead"
       flux2:       "Set on a rooftop terrace overlooking a neon-lit city skyline at night, wet concrete underfoot reflecting magenta and cyan signage, a single string of warm tungsten bulbs strung overhead, the city's distant hum filling the air"
     ENV_FIRE_ESCAPE_NEON:
+      env_class: ["outdoor", "urban"]
       sdxl:        "Manhattan fire escape, magenta neon sign across the street, rain on the iron grate"
       pony:        "fire_escape, manhattan, magenta_neon_sign, rain_on_grate, iron_fire_escape, urban_night"
       illustrious: "manhattan_fire_escape, magenta_neon_sign, rain_on_grate"
@@ -949,6 +974,7 @@ environment:
       chroma:      "Manhattan fire escape at night, magenta neon sign blazing across the street, rain streaming through the iron grate of the landing"
       flux2:       "Set on a Manhattan fire escape at night, a magenta neon sign blazing across the street and washing the brick wall behind it in saturated colour, rain streaming through the iron grate of the landing, the city pulsing with sound below"
     ENV_PARIS_ATTIC_APARTMENT:
+      env_class: ["indoor", "urban"]
       sdxl:        "Parisian sixth-floor attic apartment, mansard window, rooftops and chimney pots in the distance"
       pony:        "parisian_attic_apartment, mansard_window, paris_rooftops, chimney_pots, european_interior"
       illustrious: "parisian_attic_apartment, mansard_window, paris_rooftops_visible"
@@ -956,6 +982,7 @@ environment:
       chroma:      "Parisian sixth-floor attic apartment, mansard window framing distant rooftops and clay chimney pots, soft afternoon light slanting in"
       flux2:       "Set inside a Parisian sixth-floor attic apartment, a mansard window framing the rooftops and clay chimney pots stretching to the horizon, soft afternoon light slanting in across worn wooden floorboards and a low daybed"
     ENV_TOKYO_LOVE_HOTEL:
+      env_class: ["indoor", "urban"]
       sdxl:        "Tokyo love-hotel room, magenta and cyan neon, low lacquered ceiling, lacquered surfaces"
       pony:        "tokyo_love_hotel, neon_room, magenta_cyan_lighting, lacquered_ceiling, lacquered_surfaces, japanese_interior"
       illustrious: "tokyo_love_hotel, neon_room, magenta_and_cyan, lacquered_ceiling"
@@ -963,6 +990,7 @@ environment:
       chroma:      "Tokyo love-hotel room, magenta and cyan neon saturating the space, low lacquered ceiling above, lacquered black surfaces catching coloured light"
       flux2:       "Set inside a Tokyo love-hotel room, the space saturated in magenta and cyan neon, a low lacquered ceiling above, lacquered black surfaces catching the coloured neon in a deep wet sheen"
     ENV_BERLIN_KREUZBERG_LOFT:
+      env_class: ["indoor", "urban"]
       sdxl:        "Berlin Kreuzberg loft, exposed brick, single industrial pendant lamp"
       pony:        "berlin_loft, kreuzberg, exposed_brick, industrial_pendant_lamp, minimal_interior, european_loft"
       illustrious: "berlin_kreuzberg_loft, exposed_brick, industrial_pendant"
@@ -971,6 +999,7 @@ environment:
       flux2:       "Set inside a Berlin Kreuzberg loft, raw exposed brick walls in warm terracotta tones, a single industrial pendant lamp hanging low over a worn dining table, weathered hardwood floorboards bearing the marks of decades"
     # ─── Cinematic / Theatrical ───
     ENV_HOTEL_LOBBY_NOIR:
+      env_class: ["indoor", "urban"]
       sdxl:        "deserted hotel lobby at 3am, brass elevator doors, single bellhop's lamp glow"
       pony:        "deserted_hotel_lobby, brass_elevator_doors, single_lamp_glow, 3am_atmosphere, noir_interior"
       illustrious: "hotel_lobby_noir, brass_elevator_doors, single_lamp_glow_3am"
@@ -978,6 +1007,7 @@ environment:
       chroma:      "deserted grand hotel lobby at 3am, polished brass elevator doors reflecting low light, single bellhop's lamp casting warm pooled glow across the marble"
       flux2:       "Set inside a deserted grand hotel lobby at 3am, polished brass elevator doors reflecting the low light, a single bellhop's lamp casting a warm pooled glow across the marble floor, the air heavy with quiet luxury"
     ENV_BACKSTAGE_DRESSING_ROOM:
+      env_class: ["indoor"]
       sdxl:        "backstage cabaret dressing room, vanity counter ringed in warm bulbs, costume rack of feathered gowns"
       pony:        "backstage_dressing_room, vanity_counter, vanity_bulbs, costume_rack, feathered_gown, theatrical_interior"
       illustrious: "backstage_dressing_room, vanity_counter_bulbs, costume_rack"
@@ -985,6 +1015,7 @@ environment:
       chroma:      "backstage cabaret dressing room, vanity counter ringed in warm bulbs, costume rack hung with feathered gowns, scattered cosmetics"
       flux2:       "Set inside a backstage cabaret dressing room, a vanity counter ringed in warm bulbs throwing soft light across the surface, a costume rack hung with feathered gowns and beaded fabric, scattered cosmetics and a single half-empty glass"
     ENV_CABARET_STAGE_DARK:
+      env_class: ["indoor"]
       sdxl:        "darkened cabaret stage after closing, gold curtain, single follow-spot on a velvet stool"
       pony:        "cabaret_stage_dark, gold_curtain, follow_spot, velvet_stool, after_closing, theatrical_setting"
       illustrious: "darkened_cabaret_stage, gold_curtain, follow_spot, velvet_stool"
@@ -993,6 +1024,7 @@ environment:
       flux2:       "Set on a darkened cabaret stage after closing, a heavy gold velvet curtain drawn back at the sides, a single follow-spot illuminating a black velvet stool centre-stage, the auditorium beyond fading into pure black"
     # ─── Aquatic ───
     ENV_INDOOR_POOL_NIGHT:
+      env_class: ["indoor", "water"]
       sdxl:        "private indoor pool at night, underwater turquoise light, rippling reflections on tiled ceiling"
       pony:        "indoor_pool_night, underwater_turquoise_light, rippling_reflections, tiled_ceiling, night_pool"
       illustrious: "indoor_pool_night, underwater_turquoise_light, rippling_reflections"
@@ -1000,6 +1032,7 @@ environment:
       chroma:      "private indoor pool at night, underwater turquoise lighting glowing from below the surface, rippling water-reflections playing across the tiled ceiling"
       flux2:       "Set beside a private indoor pool at night, underwater turquoise lighting glowing from below the still surface, rippling water-reflections playing across the tiled ceiling above, the only sound the slow lap of water at the tile edge"
     ENV_HAMMAM_STEAM:
+      env_class: ["indoor", "water"]
       sdxl:        "Ottoman hammam, marble basin, steam catching shafts of light from domed skylight"
       pony:        "ottoman_hammam, marble_basin, steam, shafts_of_light, domed_skylight, bathhouse_interior"
       illustrious: "ottoman_hammam, marble_basin, steam_shafts_of_light, domed_skylight"
@@ -1008,6 +1041,7 @@ environment:
       flux2:       "Set inside an Ottoman hammam, a central marble basin holding warm water, dense steam catching shafts of light streaming from a domed skylight overhead, every marble surface glowing damp and reflective"
     # ─── Additional premium-tier archetypes ───
     ENV_STUDIO_CYC_MINIMAL:
+      env_class: ["indoor"]
       sdxl:        "minimalist studio cyc, seamless cream paper, single softbox, architectural emptiness"
       pony:        "studio_cyc, seamless_paper, cream_background, single_softbox, minimalist_studio"
       illustrious: "studio_cyc, seamless_cream_paper, single_softbox"
@@ -1015,6 +1049,7 @@ environment:
       chroma:      "minimalist studio cyc, seamless cream paper backdrop, single large softbox, architectural emptiness"
       flux2:       "Set inside a minimalist studio cyc, a seamless cream paper backdrop curving from floor to wall, a single large softbox positioned at camera-left, architectural emptiness everywhere else, every surface neutral and quiet"
     ENV_LOG_CABIN_FIRELIT:
+      env_class: ["indoor"]
       sdxl:        "log cabin interior, firelit, rough-sawn beams, sheepskin on the floorboards"
       pony:        "log_cabin_interior, firelit, rough_sawn_beams, sheepskin_rug, rustic_interior"
       illustrious: "log_cabin_interior, firelit_glow, rough_sawn_beams, sheepskin_rug"
@@ -1022,6 +1057,7 @@ environment:
       chroma:      "log cabin interior lit by a roaring fireplace, rough-sawn ceiling beams overhead, thick sheepskin rug on worn floorboards"
       flux2:       "Set inside a log cabin lit by a roaring fireplace, warm firelight casting flickering shadows across rough-sawn ceiling beams overhead, a thick sheepskin rug on the worn floorboards, every surface in warm umber and ember-orange"
     ENV_GREEK_ISLAND_TERRACE:
+      env_class: ["outdoor"]
       sdxl:        "Greek island terrace, whitewashed stone, deep blue Aegean sea beyond, midday brightness"
       pony:        "greek_island_terrace, whitewashed_stone, aegean_sea_view, midday_sun, mediterranean_terrace"
       illustrious: "greek_island_terrace, whitewashed_stone, aegean_blue, midday_sun"
@@ -1029,6 +1065,7 @@ environment:
       chroma:      "Greek island terrace, whitewashed stone walls and floor, deep blue Aegean sea stretching beyond, midday brightness bouncing off every surface"
       flux2:       "Set on a Greek island terrace, whitewashed stone walls and floor in brilliant midday light, the deep blue Aegean sea stretching beyond the low wall, sun bouncing off every surface, the air thick with salt and bougainvillea"
     ENV_SCANDINAVIAN_SAUNA:
+      env_class: ["indoor", "water"]
       sdxl:        "Scandinavian sauna, blond wood walls, low warm light, steam rising from heated stones"
       pony:        "scandinavian_sauna, blond_wood_walls, low_warm_light, steam_from_stones, nordic_interior"
       illustrious: "scandinavian_sauna, blond_wood, low_warm_light, steam_rising"
@@ -1036,6 +1073,7 @@ environment:
       chroma:      "Scandinavian sauna, blond pine wood walls, low warm light, soft steam rising from heated stones in the corner"
       flux2:       "Set inside a Scandinavian sauna, blond pine wood walls and benches glowing in low warm light, soft steam rising from heated stones in the corner, every surface warm to the touch, the air dry and aromatic"
     ENV_ARTIST_STUDIO_NORTH_LIGHT:
+      env_class: ["indoor"]
       sdxl:        "artist's studio, tall north-facing windows, easels and stacked canvases, paint-spattered floor"
       pony:        "artist_studio, north_facing_windows, easels, stacked_canvases, paint_spattered_floor, atelier"
       illustrious: "artist_studio, north_light_window, easel, paint_spattered_floor"
@@ -1043,6 +1081,7 @@ environment:
       chroma:      "artist's studio, tall north-facing windows admitting cool flat light, easels and stacked canvases against the walls, paint-spattered hardwood floor"
       flux2:       "Set inside an artist's studio, tall north-facing windows admitting cool flat light at a perfect 4500 K, easels and stacked canvases against the walls, a paint-spattered hardwood floor bearing decades of cadmium and ultramarine"
     ENV_JAPANESE_RYOKAN:
+      env_class: ["indoor"]
       sdxl:        "traditional Japanese ryokan room, tatami floor, shoji screens, low futon, lacquered tray of tea"
       pony:        "japanese_ryokan, tatami_floor, shoji_screen, futon, lacquered_tray, tea_set, japanese_interior"
       illustrious: "japanese_ryokan, tatami_floor, shoji_screens, low_futon"
@@ -1050,6 +1089,7 @@ environment:
       chroma:      "traditional Japanese ryokan room, tatami floor, paper shoji screens admitting soft diffused light, low futon, lacquered tray of tea on the floor"
       flux2:       "Set inside a traditional Japanese ryokan room, tatami floor mats arranged with quiet geometry, paper shoji screens admitting soft diffused light, a low futon along one wall, a lacquered tray with a small tea set placed on the floor"
     ENV_DESERT_OASIS_PALMS:
+      env_class: ["outdoor", "water"]
       sdxl:        "desert oasis at dusk, palm tree silhouettes, still water reflecting the sky"
       pony:        "desert_oasis, palm_trees, silhouettes, still_water, reflection, dusk, outdoor_landscape"
       illustrious: "desert_oasis_dusk, palm_silhouettes, still_water_reflection"
@@ -1057,6 +1097,7 @@ environment:
       chroma:      "desert oasis at dusk, palm-tree silhouettes against the orange sky, still water reflecting the colours of the sky"
       flux2:       "Set at a desert oasis at dusk, palm-tree silhouettes against a sky of orange and indigo, still water of a small spring reflecting the colours of the sky perfectly, the air cooling from the day's heat"
     ENV_VICTORIAN_OBSERVATORY:
+      env_class: ["indoor"]
       sdxl:        "Victorian observatory at night, brass telescope, dome open to the stars, single oil lamp"
       pony:        "victorian_observatory, brass_telescope, dome_open, night_sky_visible, oil_lamp_glow"
       illustrious: "victorian_observatory, brass_telescope, open_dome_night_sky, oil_lamp"
@@ -1069,6 +1110,7 @@ environment:
     # ─── Particulate / suspended ───
     ATM_DUST_MOTES_IN_LIGHT:
       place_constraint:
+        requires_env_class: ["indoor"]
         requires_env_keyword: ["window", "interior", "indoor", "parlour", "library", "study", "bedroom", "boudoir", "loft", "drawing room", "hotel", "manor", "villa", "castle", "studio", "attic", "apartment", "salon", "atelier"]
         reason: "dust motes in a shaft of light requires an indoor space with a directional light source"
       # Round-22 (2026-05-22) — stripped "afternoon" ToD token.
@@ -1107,6 +1149,7 @@ environment:
       # 2026-05-24 (vocab v13) — added cabin / lodge / castle / villa /
       # manor / mansion / hall / hearth as legitimate fireplace homes.
       place_constraint:
+        requires_env_class: ["indoor"]
         requires_env_keyword: [
           "fireplace", "parlour", "library", "drawing room", "study",
           "boudoir", "interior", "indoor", "hearth", "hearthside",
@@ -1130,6 +1173,7 @@ environment:
     # ─── Weather / Water ───
     ATM_RAIN_ON_GLASS:
       place_constraint:
+        requires_env_class: ["indoor"]
         # 2026-05-24 (vocab v13) — added cafe / restaurant / conservatory /
         # train and more residential synonyms. Rain-on-glass works
         # anywhere there's a window between viewer and weather.
@@ -1151,6 +1195,7 @@ environment:
       flux2:       "Rain streaming down the windowpane in slow rivulets, refracted light from beyond softening into bokeh, the world outside reduced to abstract colour and shape"
     ATM_FOG_ROLLING_IN:
       place_constraint:
+        requires_env_class: ["outdoor"]
         # 2026-05-24 (vocab v13) — added more outdoor synonyms.
         requires_env_keyword: [
           "outdoor", "field", "forest", "meadow", "valley", "moor",
@@ -1170,6 +1215,7 @@ environment:
       flux2:       "Low fog rolling in across the field at dusk, softening every distant element into silhouette, the cool damp air settling and slowing the entire scene"
     ATM_STEAM_FROM_BATH:
       place_constraint:
+        requires_env_class: ["water"]
         requires_env_keyword: ["bath", "bathhouse", "shower", "hammam", "spa", "tub"]
         reason: "bath steam requires a bath / spa environment"
       sdxl:        "steam rising from a hot bath, thick at the surface"
@@ -1209,6 +1255,7 @@ environment:
       flux2:       "Crepuscular rays — god rays — breaking through a heavy cloud bank in distinct golden columns, each ray catching airborne moisture and rendering visible the path of the light"
     ATM_VOLUMETRIC_GOLDEN:
       place_constraint:
+        requires_env_class: ["indoor"]
         # 2026-05-24 (vocab v13) — added more indoor synonyms.
         # NOTE: stays INDOOR-only. "High window" is in the prose, so
         # outdoor envs (meadow / beach / terrace) are correctly
@@ -1259,6 +1306,7 @@ environment:
       flux2:       "Loose hair caught by a soft breeze, gentle motion lifting individual strands across the face and shoulder, the movement caught at the exact moment the hair is suspended"
     ATM_FABRIC_FLOATING_UNDERWATER:
       place_constraint:
+        requires_env_class: ["water"]
         requires_env_keyword: ["pool", "underwater", "submerged", "bath", "ocean", "lagoon", "lake", "water", "aquatic"]
         reason: "underwater fabric requires a water environment"
       sdxl:        "fabric drifting weightlessly underwater, slow ripples"
@@ -1270,6 +1318,7 @@ environment:
     # ─── Halation / Optical ───
     ATM_CINESTILL_HALATION:
       place_constraint:
+        requires_env_class: ["urban"]
         requires_env_keyword: ["streetlamp", "street", "neon", "urban", "night", "balcony", "rooftop", "tokyo", "berlin", "fire escape", "hotel lobby", "city"]
         reason: "Cinestill halation glow around streetlamps requires a night/urban environment with light sources"
       sdxl:        "Cinestill 800T halation glow around streetlamps and bright lights"
@@ -1538,6 +1587,7 @@ narrative:
   moment:
     NARR_READING_LETTER_AT_DAWN:
       place_constraint:
+        requires_env_class: ["indoor"]
         requires_env_keyword: ["library", "study", "desk", "parlour", "drawing room", "bedroom", "boudoir", "salon", "den", "office", "loft", "apartment", "morning", "side table"]
         reason: "reading letter at dawn with fountain pen requires an indoor reading / desk space"
       sdxl:        "reading a handwritten letter by morning light, fountain pen on the side table"
@@ -1548,6 +1598,7 @@ narrative:
       flux2:       "The subject is reading a handwritten letter in the soft morning light, a fountain pen lying on the polished side table beside her, a contemplative pause caught mid-thought"
     NARR_JUST_WOKEN_TANGLED_SHEETS:
       place_constraint:
+        requires_env_class: ["indoor"]
         requires_env_keyword: ["bedroom", "bed", "boudoir", "suite", "loft", "apartment", "hotel"]
         reason: "just woken with tangled sheets requires a bedroom / bed environment"
       sdxl:        "just woken, hair tangled, sheets wrapped, reaching for a water glass"
@@ -1558,6 +1609,7 @@ narrative:
       flux2:       "She has just woken, hair tangled across the pillow, the sheets wrapped loosely around her as she reaches for the water glass on the nightstand, the room slow and silent"
     NARR_DRESSING_FOR_EVENING:
       place_constraint:
+        requires_env_class: ["indoor"]
         # 2026-05-24 (vocab v13) — added private indoor spaces where
         # one realistically dresses for evening.
         requires_env_keyword: [
@@ -1575,6 +1627,7 @@ narrative:
       flux2:       "She is mid-zip on a black silk evening gown, earrings still loose between her fingers, a single dresser lamp casting warm light behind her, a moment of unfinished elegance"
     NARR_UNDRESSING_AT_NIGHT:
       place_constraint:
+        requires_env_class: ["indoor"]
         requires_env_keyword: ["bedroom", "boudoir", "dressing room", "suite", "hotel", "loft", "apartment", "manor"]
         reason: "stepping out of a dress to the floor requires an indoor undressing space"
       sdxl:        "stepping out of a dress that has slipped to the floor"
@@ -1585,6 +1638,7 @@ narrative:
       flux2:       "She is stepping out of a dress that has slipped down to puddle around her ankles on the floor, the moment caught between dressed and undressed"
     NARR_STEPPING_FROM_BATH:
       place_constraint:
+        requires_env_class: ["water"]
         requires_env_keyword: ["bath", "bathhouse", "shower", "hammam", "spa", "tub", "wet room"]
         reason: "stepping from a bath requires a bath / spa environment"
       sdxl:        "stepping from a clawfoot bath, towel half-wrapped, steam rising"
@@ -1595,6 +1649,7 @@ narrative:
       flux2:       "The subject is stepping from a clawfoot porcelain bath, a thick linen towel half-wrapped around her body, steam still rising from the warm water behind her, water droplets catching the soft window light on her skin"
     NARR_LIGHTING_CIGARETTE_BALCONY:
       place_constraint:
+        requires_env_class: ["outdoor", "urban"]
         # 2026-05-24 (vocab v13) — added urban / window-side synonyms.
         # Smoking happens at any outdoor or window-adjacent space, not
         # only literal balconies. Don't expand to fully-indoor envs;
@@ -1630,6 +1685,7 @@ narrative:
     # without the mirror.
     NARR_REACHING_FOR_BOOK_SHELF:
       place_constraint:
+        requires_env_class: ["indoor"]
         requires_env_keyword: ["library", "study", "shelf", "bookshelf", "parlour", "drawing room", "office", "salon", "den"]
         reason: "reaching for shelf book requires a library / study with bookshelves"
       sdxl:        "reaching up for a book on a high shelf, light from the high window"
@@ -1640,6 +1696,7 @@ narrative:
       flux2:       "She is reaching up for a leather-bound book on a high oak shelf, soft light from the high library window catching her extended arm and ribcage, the rest of the library falling into warm shadow"
     NARR_LACING_CORSET_BACK:
       place_constraint:
+        requires_env_class: ["indoor"]
         requires_env_keyword: ["dressing room", "boudoir", "bedroom", "vanity", "wardrobe", "closet", "hotel", "suite", "victorian", "manor"]
         reason: "lacing a corset back requires a dressing room / boudoir / bedroom"
       sdxl:        "lacing a corset, ribbon trailing, back to camera"
@@ -1650,6 +1707,7 @@ narrative:
       flux2:       "She is lacing the back of a corset, the silk ribbon trailing down her spine, her back turned to the camera, each pull tightening the shape of her waist"
     NARR_AFTER_THE_PARTY:
       place_constraint:
+        requires_env_class: ["indoor"]
         # 2026-05-24 (vocab v13) — added penthouse / club / lounge /
         # palazzo / villa / castle as legitimate after-party locales.
         requires_env_keyword: [
@@ -1667,6 +1725,7 @@ narrative:
       flux2:       "After the party — a single shoe off and discarded, the silk dress crumpled around her, a champagne glass tipped on the floor, the room holding the quiet of an evening just ended"
     NARR_LISTENING_TO_RECORD:
       place_constraint:
+        requires_env_class: ["indoor"]
         requires_env_keyword: ["parlour", "library", "study", "drawing room", "salon", "den", "loft", "apartment", "bedroom", "boudoir", "rug", "phonograph", "manor"]
         reason: "lying on a Persian rug listening to a vinyl phonograph requires an indoor parlour / library / drawing room space"
       sdxl:        "lying on a Persian rug, listening to a vinyl record, eyes closed"
@@ -1677,6 +1736,7 @@ narrative:
       flux2:       "She is lying on a worn Persian rug, eyes closed in concentration, listening to a vinyl record spinning on a nearby phonograph, the music almost tangible in the air"
     NARR_LETTER_BURNING_FIRE:
       place_constraint:
+        requires_env_class: ["indoor"]
         requires_env_keyword: ["fireplace", "parlour", "library", "drawing room", "study", "boudoir", "hearth", "salon", "interior", "indoor", "victorian", "manor", "castle"]
         reason: "burning letter in fireplace requires an indoor space with a hearth"
       sdxl:        "watching a handwritten letter curl in the fireplace"
@@ -1694,6 +1754,7 @@ narrative:
       flux2:       "She is drying her long hair with a linen towel at an open window, the breeze lifting damp strands across her face, the morning light brightening every droplet"
     NARR_BAREFOOT_AT_3AM_KITCHEN:
       place_constraint:
+        requires_env_class: ["indoor"]
         requires_env_keyword: ["kitchen", "pantry", "scullery"]
         reason: "barefoot at 3am in kitchen requires a kitchen environment"
       sdxl:        "barefoot at the kitchen counter at 3am, single under-cabinet light"
@@ -1704,6 +1765,7 @@ narrative:
       flux2:       "She is barefoot at the kitchen counter at 3am, a single under-cabinet light casting low warm illumination across the marble, the rest of the house asleep around her"
     NARR_SUNBATHING_TERRACE:
       place_constraint:
+        requires_env_class: ["outdoor"]
         # 2026-05-24 (vocab v13) — expanded after Gemma 4 26B verification
         # showed 30+ rejections on legitimate-outdoor combos like
         # ENV_GRASS_MEADOW_GOLDEN_HOUR (chroma prose: "wildflower
@@ -1735,6 +1797,7 @@ narrative:
       flux2:       "She is sunbathing on a sun-warmed stone terrace, a book face-down beside her on the cool tile, the afternoon spread out unhurried, the heat of the sun on her skin"
     NARR_TYPEWRITER_LATE_NIGHT:
       place_constraint:
+        requires_env_class: ["indoor"]
         requires_env_keyword: ["study", "office", "desk", "library", "parlour", "loft", "attic", "writer", "den", "salon"]
         reason: "typewriter at a desk requires an indoor study / office space"
       sdxl:        "at a typewriter under a single desk lamp, draft pages piled"
@@ -1745,6 +1808,7 @@ narrative:
       flux2:       "She is at a vintage typewriter under a single desk lamp, draft pages piled to her left and floor scattered with discarded sheets, fingers paused mid-thought above the keys"
     NARR_PUTTING_ON_STOCKINGS:
       place_constraint:
+        requires_env_class: ["indoor"]
         requires_env_keyword: ["bedroom", "boudoir", "dressing room", "bed", "vanity", "suite", "hotel"]
         reason: "seated on edge of bed sliding on a stocking requires a bedroom / dressing room"
       sdxl:        "seated on the edge of bed, sliding on a single sheer stocking"
@@ -1762,6 +1826,7 @@ narrative:
       flux2:       "She is leaning against the window, palm pressed to the cool glass, watching rain stream down the other side, the city beyond softened into refracted abstract colour"
     NARR_FLOWERS_ARRANGING:
       place_constraint:
+        requires_env_class: ["indoor"]
         requires_env_keyword: ["kitchen", "counter", "vase", "parlour", "salon", "conservatory", "greenhouse", "drawing room", "atelier", "studio", "loft"]
         reason: "arranging flowers in a vase requires a counter / table / parlour with the vase visible"
       sdxl:        "arranging peonies in a vase, scissors and trimmings on the counter"
@@ -1772,6 +1837,7 @@ narrative:
       flux2:       "She is arranging peonies in a tall crystal vase, scissors and stem trimmings scattered across the marble counter, the room filling with the heavy scent of the open blooms"
     NARR_COFFEE_MORNING_PAPER:
       place_constraint:
+        requires_env_class: ["indoor"]
         requires_env_keyword: ["kitchen", "breakfast", "morning", "counter", "loft", "apartment", "scullery", "pantry"]
         reason: "morning coffee with newspaper at counter requires a kitchen / breakfast space"
       sdxl:        "morning coffee and folded newspaper, soft kitchen light"
@@ -1782,6 +1848,7 @@ narrative:
       flux2:       "She is at the kitchen counter with a cup of morning coffee and a folded newspaper, soft early light filling the room, the day not yet begun in earnest"
     NARR_BRUSHING_HAIR_VANITY:
       place_constraint:
+        requires_env_class: ["indoor"]
         requires_env_keyword: ["vanity", "dressing room", "boudoir", "bedroom", "vintage", "hotel", "suite"]
         reason: "brushing hair at a vanity requires a vanity / dressing room / boudoir"
       sdxl:        "brushing long hair at a vintage vanity, slow strokes"
@@ -1792,6 +1859,7 @@ narrative:
       flux2:       "She is brushing her long hair at a vintage vanity with slow careful strokes, perfume bottles arranged behind her on the polished surface, the morning ritual unhurried"
     NARR_TYING_ROBE_SASH:
       place_constraint:
+        requires_env_class: ["indoor", "water"]
         requires_env_keyword: ["bedroom", "boudoir", "bathroom", "bath", "dressing room", "vanity", "suite", "hotel", "ryokan", "spa"]
         reason: "tying a robe sash at the waist requires a bathroom / bedroom / dressing room"
       sdxl:        "tying the sash of a silk robe at her waist"
@@ -1809,6 +1877,7 @@ narrative:
       flux2:       "She is leaning in the doorway with her weight balanced on one hip, considering whether to enter the room beyond, the threshold itself becoming the subject of the moment"
     NARR_LIGHTING_CANDLES_DUSK:
       place_constraint:
+        requires_env_class: ["indoor"]
         requires_env_keyword: ["interior", "indoor", "parlour", "library", "drawing room", "salon", "boudoir", "bedroom", "manor", "villa", "castle", "victorian", "cabin", "candles"]
         reason: "lighting candles at dusk requires an indoor space where candles belong"
       sdxl:        "lighting tall ivory candles at dusk, single match flame"
@@ -1819,6 +1888,7 @@ narrative:
       flux2:       "She is lighting tall ivory candles at dusk, the single match flame briefly illuminating her face from below before passing to the wick, the room slowly filling with warm intimate glow"
     NARR_REACHING_CLOSET_DRESS:
       place_constraint:
+        requires_env_class: ["indoor"]
         requires_env_keyword: ["closet", "wardrobe", "dressing room", "bedroom", "boudoir", "vanity", "hotel", "suite"]
         reason: "reaching into a closet for a dress requires a closet / dressing room / bedroom"
       sdxl:        "reaching into the closet, choosing between two dresses on hangers"
@@ -1829,6 +1899,7 @@ narrative:
       flux2:       "She is reaching into the closet, choosing between two dresses on hangers — one silk and dark, one cotton and pale — a moment of small but considered decision"
     NARR_OPENING_LETTER_KNIFE:
       place_constraint:
+        requires_env_class: ["indoor"]
         requires_env_keyword: ["desk", "study", "library", "office", "parlour", "salon", "drawing room", "loft", "apartment", "side table"]
         reason: "slitting open an envelope at a desk requires a desk / study / library"
       sdxl:        "slitting open an envelope with a brass letter-opener"

@@ -299,6 +299,30 @@ class VocabularyLoader:
                 return v
         return ""
 
+    def get_env_class(self, env_tag: str) -> list[str]:
+        """vocab v14 (2026-05-25) — return the ``env_class`` list
+        declared on an ``environment_setting`` tag, or ``[]`` if none.
+
+        Classes form a small controlled vocabulary —
+        ``indoor`` / ``outdoor`` / ``water`` / ``urban`` — and an env
+        may carry several (a fire escape is ``[outdoor, urban]``; an
+        indoor pool is ``[indoor, water]``). The cross-field coherence
+        check compares these against a paired tag's
+        ``requires_env_class`` instead of substring-matching the env's
+        prose, which eliminated the keyword-list false-positives that
+        drove the high fallback rate (e.g. "cabaret" / "boudoir" not
+        literally appearing in an env's prose despite the env clearly
+        being indoor).
+        """
+        env_block = (self._data.get("environment") or {}).get("setting") or {}
+        row = env_block.get(env_tag)
+        if not isinstance(row, dict):
+            return []
+        classes = row.get("env_class")
+        if isinstance(classes, list):
+            return [str(c) for c in classes]
+        return []
+
     def tag_exists(self, top: str, sub: str, tag: str) -> bool:
         """Round-22 F14 (2026-05-22) — check whether a concept tag
         exists in the specified vocabulary namespace.
@@ -821,11 +845,19 @@ def check_facet_env_coherence(
     if not environment_setting:
         return []
     loader = loader or _default_loader()
+
+    # vocab v14 (2026-05-25) — primary check is env_class intersection.
+    # Each ENV tag carries an ``env_class`` list (indoor/outdoor/water/
+    # urban); each place_constraint carries a ``requires_env_class``
+    # list. The pair is coherent when the two intersect. This replaced
+    # the prose-substring keyword match, which produced false-positive
+    # rejections whenever a perfectly-valid env's prose didn't happen
+    # to contain the literal keyword (e.g. "cabaret" / "boudoir" /
+    # "meadow"). The legacy ``requires_env_keyword`` path remains as a
+    # fallback ONLY for tags that don't yet declare requires_env_class.
+    env_classes = set(loader.get_env_class(environment_setting))
     env_prose = loader.env_setting_prose(environment_setting).lower()
-    if not env_prose:
-        # Unknown environment_setting — the canonicalizer will catch
-        # it elsewhere; nothing to validate against.
-        return []
+
     violations: list[tuple[str, str, str]] = []
     for field, top, sub, tag in (
         ("environment_atmosphere", "environment", "atmosphere", environment_atmosphere),
@@ -836,21 +868,41 @@ def check_facet_env_coherence(
         constraint = loader.get_place_constraint(top, sub, str(tag))
         if not constraint:
             continue
-        required = constraint.get("requires_env_keyword") or []
-        if not required:
+
+        required_classes = constraint.get("requires_env_class") or []
+        if required_classes and env_classes:
+            # Primary path — class intersection.
+            if env_classes & set(required_classes):
+                continue
+            reason = (
+                constraint.get("reason")
+                or f"requires env_class one of {required_classes}"
+            )
+            violations.append((
+                field,
+                str(tag),
+                f"{reason} — env_class of {environment_setting!r} is "
+                f"{sorted(env_classes)}, needs one of {required_classes}",
+            ))
             continue
-        if any(kw.lower() in env_prose for kw in required):
+
+        # Fallback path — legacy keyword match (only when env_class or
+        # requires_env_class is missing; keeps back-compat for any
+        # un-migrated tag).
+        required_kw = constraint.get("requires_env_keyword") or []
+        if not required_kw or not env_prose:
             continue
-        # No required keyword present in env's prose → incoherent pair.
+        if any(kw.lower() in env_prose for kw in required_kw):
+            continue
         reason = (
             constraint.get("reason")
-            or f"requires env containing one of {required}"
+            or f"requires env containing one of {required_kw}"
         )
         violations.append((
             field,
             str(tag),
             f"{reason} — but environment_setting={environment_setting!r} "
-            f"has none of {required}",
+            f"has none of {required_kw}",
         ))
     return violations
 
