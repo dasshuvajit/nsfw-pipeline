@@ -43,6 +43,19 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _humanize_env_tags(tags: list[str]) -> str:
+    """Turn ENV_* tags into a readable hint for the planner's free-text
+    environment field. ``["ENV_MORNING_BEDROOM", "ENV_PARIS_ATTIC_APARTMENT"]``
+    → ``"morning bedroom, paris attic apartment"``. Empty → a permissive
+    fallback so the planner isn't blocked."""
+    out: list[str] = []
+    for t in tags or []:
+        if not t:
+            continue
+        out.append(str(t).removeprefix("ENV_").replace("_", " ").lower())
+    return ", ".join(out) or "(any setting consistent with the lighting lock)"
+
+
 _PLAN_SYSTEM_PROMPT = """\
 You are a creative director for a professional adult photography studio.
 You plan cohesive image sets around a specific theme category.
@@ -87,6 +100,21 @@ Style profile: {style_name}
 
 ══════════ CONTENT TIER ({content_level}) — READ CAREFULLY ══════════
 {llm_directive}
+═════════════════════════════════════════════════════════════════════
+
+══════════ LIGHTING & SETTING LOCK ══════════════════════════════════
+Locked lighting + finish look: {lighting_hint}
+Palette feel: {palette_hint}
+Preferred settings (choose one consistent with the lock): {preferred_environments}
+
+The "theme", "mood", and "environment" you generate MUST be consistent
+with this lighting lock. If the lock reads soft / faded / low-contrast /
+daylight / window-light, do NOT pick night, midnight, candlelit, dim,
+moonlit, or low-key settings — choose a time of day and place that
+produce that soft, bright register (e.g. morning, late afternoon, a
+sunlit room). If the lock reads hard / low-key / dramatic, lean into
+shadow instead. This lock OUTWEIGHS the category's default ambience —
+do not default to "moody dark boudoir" unless the lock calls for it.
 ═════════════════════════════════════════════════════════════════════
 
 Allowed pose types: {allowed_pose_types}
@@ -277,11 +305,27 @@ class ThemeMode(BaseMode):
             style_profile_compat=style_profile_compat,
         )
 
+        # 2026-05-29 — surface the style profile's lighting_hint +
+        # palette_hint + compatible_environments to the PLANNER. Prior to
+        # this the planner only saw base_style_keywords and routinely set
+        # a dark theme/environment ("Midnight in the Velvet Parlour") for
+        # a soft-faded profile, which the downstream facet-level lighting
+        # lock couldn't override. The lock has to start at the planner,
+        # where theme + mood + environment are chosen.
+        lighting_hint = ctx.style_profile.get("lighting_hint", "") or "(none specified)"
+        palette_hint = ctx.style_profile.get("palette_hint", "") or "(none specified)"
+        preferred_environments = _humanize_env_tags(
+            ctx.style_profile.get("compatible_environments", [])
+        )
+
         user_prompt = _PLAN_USER_TEMPLATE.format(
             category_name=category["name"],
             category_description=category.get("description", ""),
             style_name=ctx.style_profile["name"],
             style_keywords=ctx.style_profile["base_style_keywords"],
+            lighting_hint=lighting_hint,
+            palette_hint=palette_hint,
+            preferred_environments=preferred_environments,
             content_level=ctx.content_level,
             llm_directive=tier_directive,
             allowed_pose_types=json.dumps(allowed_poses),

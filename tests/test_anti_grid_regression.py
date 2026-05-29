@@ -743,6 +743,37 @@ def test_theme_mode_plan_template_forbids_variety_words():
         )
 
 
+def test_theme_mode_plan_template_carries_lighting_lock():
+    """2026-05-29 — the planner template must carry the LIGHTING & SETTING
+    LOCK so the style profile's lighting_hint constrains the theme / mood /
+    environment. Prior to this the planner only saw base_style_keywords and
+    set a dark 'Midnight in the Velvet Parlour' theme for a soft-faded
+    profile, which the downstream facet lighting lock couldn't override."""
+    import src.modes.theme_mode as tm
+    template = tm._PLAN_USER_TEMPLATE
+    assert "LIGHTING & SETTING LOCK" in template
+    # The three profile-sourced fields must be wired as placeholders.
+    for placeholder in ("{lighting_hint}", "{palette_hint}",
+                        "{preferred_environments}"):
+        assert placeholder in template, (
+            f"planner template missing {placeholder} — the profile's "
+            f"lighting intent won't reach the planner LLM."
+        )
+    # The directive must tell the LLM the lock beats the category default.
+    assert "OUTWEIGHS" in template
+
+
+def test_humanize_env_tags():
+    """ENV_* tags become a readable hint; empty list → permissive
+    fallback (never blocks the planner)."""
+    from src.modes.theme_mode import _humanize_env_tags
+    assert _humanize_env_tags(
+        ["ENV_MORNING_BEDROOM", "ENV_OLD_HOLLYWOOD_BOUDOIR"]
+    ) == "morning bedroom, old hollywood boudoir"
+    assert "any setting" in _humanize_env_tags([])
+    assert "any setting" in _humanize_env_tags(None)
+
+
 def test_theme_mode_system_prompt_has_single_scene_invariant():
     """Verifier F8 — theme_mode system prompt must carry the
     SINGLE-SCENE INVARIANT clause explaining WHY subject_description
