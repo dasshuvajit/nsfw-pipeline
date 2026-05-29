@@ -608,7 +608,16 @@ profiles:
       digital clean, HDR, studio polish, clinical sharpness, plastic
       skin, over-saturated, modern glossy, beauty-dish key
     palette_hint: faded warm amber, dusty rose, cream highlight, muted teal shadow
-    lighting_hint: soft window daylight or direct on-camera flash, low-contrast faded
+    # 2026-05-29 — render audit showed "golden hour / morning sun" being
+    # rendered as dramatic chiaroscuro (deep shadows, hard spotlight).
+    # The lighting_hint feeds BOTH the planner lock and the facet lock,
+    # so spelling out the LOW-CONTRAST negatives here propagates to both
+    # and counters the model's "fine-art nude = chiaroscuro" prior.
+    lighting_hint: >-
+      soft, evenly diffused daylight or gentle on-camera flash — LOW
+      CONTRAST and faded; soft open shadows only. NO chiaroscuro, NO deep
+      black shadows, NO hard dramatic spotlight, NO backlit silhouette,
+      NO Rembrandt/low-key. Flat, gentle, bright film exposure.
     # Prose families (chroma/flux/flux2) drop base_style_keywords from the
     # body (dual-write contract), so the realism tail is the ONLY surviving
     # style signal. The default chroma tail is digital-clean
@@ -636,11 +645,22 @@ profiles:
     compatible_art_movements:
       - ART_MOVE_HOPPER
       - ART_MOVE_IMPRESSIONIST_RENOIR
+    # 2026-05-29 — expanded from 4 to 7 soft/intimate indoor envs. With
+    # only 4, the overlap with boudoir_lingerie's env list was 2 (< the
+    # widen_compat_intersection min_size of 3), so the planner fell back
+    # to the CATEGORY list and re-admitted dark envs (Victorian parlour,
+    # Georgian library) that contradict the soft-faded look — 3/8 scenes
+    # drifted to "dim Victorian parlour" in the render audit. These 7 all
+    # overlap boudoir_lingerie (6 do) so the intersection now survives and
+    # stays soft. Dropped LOG_CABIN_FIRELIT (firelit = dim, off-register).
     compatible_environments:
       - ENV_MORNING_BEDROOM
       - ENV_PARIS_ATTIC_APARTMENT
-      - ENV_LOG_CABIN_FIRELIT
       - ENV_OLD_HOLLYWOOD_BOUDOIR
+      - ENV_READING_NOOK
+      - ENV_VANITY_DRESSING_ROOM
+      - ENV_CLAWFOOT_BATHROOM
+      - ENV_ART_DECO_HOTEL_SUITE
     # Analog film intimate — pairs with intimate bedroom art styles
     # (boudoir, fine-nude, nude-photography). Excludes Newton (hard
     # fashion), Old Hollywood (studio glam), editorial (high-key),
