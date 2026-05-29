@@ -333,6 +333,7 @@ def _load_style_profile(db_path: Path, style_profile_id: str) -> dict[str, Any]:
         "compatible_environments": list(p.compatible_environments),
         "compatible_art_styles": list(p.compatible_art_styles),
         "realism_tail": p.realism_tail,
+        "lighting_register": p.lighting_register,
     }
 
 
@@ -1072,6 +1073,12 @@ class PipelineEngine:
                             # profile still drifted to dark chiaroscuro).
                             lighting_hint=(style_profile or {}).get(
                                 "lighting_hint", ""
+                            ),
+                            # 2026-05-29 — soft profiles turn on the
+                            # lighting-coherence retry (reject dark/dramatic
+                            # scene_prose, re-roll). Empty for other profiles.
+                            lighting_register=(style_profile or {}).get(
+                                "lighting_register", ""
                             ),
                         )
                         # Persist (Flux2 QA fields auto-dropped by repo).

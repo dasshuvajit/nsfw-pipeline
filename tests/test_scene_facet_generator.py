@@ -1651,6 +1651,120 @@ def test_pose_act_coherence_triggers_retry_with_nudge(generator, loader):
     assert result.get("nsfw_act") == "NSFW_T4_SOLO_RECLINING"
 
 
+# ── 2026-05-29: lighting-coherence retry (soft profiles) ───────────
+
+_DARK_PROSE = (
+    "In a dimly lit boudoir, a mature adult woman reclines on dark velvet, "
+    "dramatic Rembrandt lighting carving deep shadows across her bare skin "
+    "while a single candlelit flame flickers nearby, leaving the room in "
+    "near darkness. She is fully nude, her natural breasts and hips emerging "
+    "from profound darkness in high-contrast chiaroscuro. Her expression is "
+    "intense and smoldering, eyes half-closed in the gloom. Every curve is "
+    "sculpted by the stark, dramatic shadow of the low-key scene, an "
+    "editorial moment of cinematic noir intimacy rendered in heavy, moody "
+    "tones across the dark interior of the opulent room beyond."
+)
+_SOFT_PROSE = (
+    "A mature adult woman reclines on rumpled white linen in a sun-filled "
+    "attic, soft morning daylight pouring evenly through a tall window and "
+    "washing across her bare skin in a gentle, low-contrast glow. She is "
+    "fully nude, her natural breasts and soft abdomen lit by the diffused "
+    "light, her hips resting against the pale sheets. Her expression is calm "
+    "and unhurried, eyes drifting toward the bright window with quiet "
+    "composure. The room is airy and pale, dust drifting in the soft light, "
+    "faded film tones across every surface. Every detail of her skin is "
+    "rendered with gentle, even illumination in this intimate, fine-art "
+    "nude study of light and form."
+)
+
+
+def test_dark_lighting_detector_is_negation_aware():
+    """2026-05-29 — the detector must NOT flag a dark token when it's
+    negated ("gentle fill WITHOUT harsh shadows", "no deep shadow") —
+    that's the LLM COMPLYING by describing soft light. Real render-prep
+    hit this: a sun-drenched scene said "without harsh shadows" and was
+    wrongly flagged, wasting a retry. Non-negated dark language still
+    flags."""
+    from src.agents.scene_facet_generator import _scene_prose_dark_lighting_hits as H
+    # Negated → not a violation.
+    assert H("a gentle fill that illuminates her skin without harsh shadows") == []
+    assert H("soft even daylight, no deep shadows anywhere") == []
+    assert H("diffused light, free of dramatic shadow") == []
+    # Non-negated → still flagged.
+    assert "deep shadow" in H("dramatic Rembrandt lighting carving deep shadows")
+    assert "candlelight" in H("lit only by flickering candlelight in the gloom")
+
+
+def test_lighting_retry_fires_for_soft_profile(generator, loader):
+    """2026-05-29 — when the style profile declares lighting_register=soft,
+    scene_prose with dark/dramatic lighting language (Rembrandt, deep
+    shadow, candlelit, chiaroscuro, low-key) is rejected and retried with
+    a LIGHTING-RETRY nudge. Closes the render-audit gap where 3/8 scenes
+    went chiaroscuro despite the system-prompt lighting lock."""
+    family = loader.get_family("chroma")
+    attempts: list[str] = []
+    captured_prompts: list[str] = []
+
+    def capture(system_prompt, user_prompt, **kwargs):
+        captured_prompts.append(user_prompt)
+        prose = _DARK_PROSE if len(attempts) == 0 else _SOFT_PROSE
+        attempts.append("x")
+        return ('{"scene_prose": "' + prose + '", '
+                + _T4_REQUIRED_TAGS_JSON + '}')
+
+    with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
+        result = generator.generate(
+            scene=_scene(),
+            family=family,
+            content_level="T4_explicit",
+            lighting_register="soft",
+        )
+
+    assert len(captured_prompts) >= 2, (
+        f"expected a retry, got {len(captured_prompts)} attempt(s)"
+    )
+    assert "LIGHTING-RETRY" in captured_prompts[1], (
+        f"retry prompt missing LIGHTING-RETRY nudge. "
+        f"got tail: {captured_prompts[1][-400:]!r}"
+    )
+    # The nudge should cite the specific dark tokens it found.
+    assert "rembrandt" in captured_prompts[1].lower()
+    # Final facet ships the SOFT prose (no dark-lighting tokens).
+    assert result is not None
+    from src.agents.scene_facet_generator import _scene_prose_dark_lighting_hits
+    assert _scene_prose_dark_lighting_hits(result.get("scene_prose")) == [], (
+        "final facet still contains dark-lighting language after retry"
+    )
+
+
+def test_lighting_no_retry_without_soft_register(generator, loader):
+    """Back-compat — profiles that do NOT set lighting_register (the
+    default for all but analog_film_intimate) get NO lighting enforcement:
+    dark scene_prose ships on the first attempt, unchanged."""
+    family = loader.get_family("chroma")
+    captured_prompts: list[str] = []
+
+    def capture(system_prompt, user_prompt, **kwargs):
+        captured_prompts.append(user_prompt)
+        return ('{"scene_prose": "' + _DARK_PROSE + '", '
+                + _T4_REQUIRED_TAGS_JSON + '}')
+
+    with patch.object(OllamaClient, "_generate_chat", side_effect=capture):
+        result = generator.generate(
+            scene=_scene(),
+            family=family,
+            content_level="T4_explicit",
+            # no lighting_register -> default "" -> no enforcement
+        )
+
+    assert len(captured_prompts) == 1, (
+        f"expected NO retry without soft register, got "
+        f"{len(captured_prompts)} attempts"
+    )
+    assert "LIGHTING-RETRY" not in captured_prompts[0]
+    assert result is not None  # dark prose shipped as-is
+
+
 def test_t4_critical_missing_field_raises_instead_of_soft_ship(generator, loader):
     """Verifier P0.E (2026-05-23) — at T4_explicit, when nsfw_act is
     set to a vocab-invalid tag (LLM drift), Pydantic strict accepts

@@ -625,6 +625,12 @@ profiles:
     # look — so this profile swaps in the film-grain tail. See
     # builder.py::_REALISM_TAIL_BY_FLAVOR.
     realism_tail: film_grain
+    # 2026-05-29 — soft lighting register. The system-prompt lighting
+    # lock alone didn't fully hold (LLM's chiaroscuro prior); this turns
+    # on the generate()-loop LIGHTING-RETRY that rejects scene_prose with
+    # dark/dramatic lighting language and re-rolls. See
+    # scene_facet_generator.py::_DARK_LIGHTING_TOKENS.
+    lighting_register: soft
     suited_tiers: [T2_implied, T3_artnude, T4_explicit]
     suited_families: [sdxl, chroma, flux, flux2]
     # Analog film intimate pairs with faded/warm desaturated palettes,

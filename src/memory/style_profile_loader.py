@@ -73,6 +73,9 @@ class StyleProfile:
     # (default) → the digital-clean chroma tail; "film_grain" → faded
     # analog tail. See builder.py::_REALISM_TAIL_BY_FLAVOR.
     realism_tail: str = ""
+    # 2026-05-29 — "soft" turns on the generate()-loop lighting-coherence
+    # retry (rejects dark/dramatic scene_prose). "" = no enforcement.
+    lighting_register: str = ""
 
     @classmethod
     def from_dict(cls, profile_id: str, d: dict) -> "StyleProfile":
@@ -106,6 +109,7 @@ class StyleProfile:
                 d.get("compatible_art_styles") or []
             ),
             realism_tail=(d.get("realism_tail") or "").strip(),
+            lighting_register=(d.get("lighting_register") or "").strip(),
         )
 
 

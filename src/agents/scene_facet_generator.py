@@ -1062,6 +1062,88 @@ def _classify_prose_composition(scene_prose: str | None) -> dict[str, str]:
     return out
 
 
+# 2026-05-29 — lighting-coherence enforcement for "soft" style profiles.
+# A profile may declare ``lighting_register: soft`` (e.g.
+# analog_film_intimate). When it does, scene_prose must NOT use
+# dark / dramatic / high-contrast lighting language — the facet LLM's
+# "fine-art nude = chiaroscuro" prior overrides even an explicit
+# "NO Rembrandt/low-key" instruction in the system-prompt lock (render
+# audit: 3/8 scenes still went dramatic). This is the defence-in-depth
+# retry layer, mirroring the mirror-ban + pose-act geometric retries:
+# detect the dark tokens, reject the facet, retry with a LIGHTING-RETRY
+# nudge. Soft enforcement — one retry then soft-ship, so it nudges the
+# register without spiking the fallback rate.
+#
+# Tokens are curated for PRECISION (avoid false positives that would
+# over-fire): plain "shadow" / "dim glow" are NOT banned (soft shadows
+# are fine); only unambiguously dark/dramatic/high-contrast phrasings.
+_DARK_LIGHTING_TOKENS: tuple[str, ...] = (
+    "rembrandt",
+    "chiaroscuro",
+    "low-key", "low key",
+    "deep shadow",          # deep shadow(s)
+    "dramatic shadow",
+    "hard shadow", "harsh shadow",
+    "dramatic contrast", "high-contrast", "high contrast", "stark contrast",
+    "candlelit", "candlelight", "flickering candle", "single candle",
+    "by candlelight",
+    "dimly lit", "dimly-lit", "dim, ",     # "dim, opulent ..." constructions
+    "spotlight",
+    "backlit silhouette", "silhouette against", "in silhouette",
+    "film noir", "noir lighting", "cinematic noir",
+    "profound darkness", "plunged into darkness", "shrouded in darkness",
+    "near darkness", "engulfed in shadow",
+)
+
+
+# Negators that flip a dark-lighting token's meaning when they appear
+# just before it ("gentle fill WITHOUT harsh shadows", "NO deep shadow").
+# A token preceded by one of these within a short window is the LLM
+# COMPLYING (describing soft light by negating the dark form), so it must
+# not count as a violation.
+_DARK_LIGHTING_NEGATORS: tuple[str, ...] = (
+    "without", "no ", "not ", "free of", "free from", "never", "avoid",
+    "rather than", "instead of", "absent ", "devoid of", "none of",
+    "minimal", "lacking",
+)
+# Window (chars) before a token to scan for a negator.
+_NEGATION_WINDOW: int = 18
+
+
+def _scene_prose_dark_lighting_hits(scene_prose: str | None) -> list[str]:
+    """Return the dark/dramatic lighting tokens present in ``scene_prose``.
+
+    Used by :meth:`SceneFacetGenerator.generate` only when the active
+    style profile declares ``lighting_register == "soft"``. Empty list =
+    coherent (no dark-lighting language). Substring match on lowercased
+    prose; deduped, order-preserving.
+
+    Negation-aware: a token preceded by a negator within
+    :data:`_NEGATION_WINDOW` chars (e.g. "without harsh shadows", "no
+    deep shadow") is the LLM describing SOFT light by negating the dark
+    form — it does NOT count as a violation. A token counts only if it
+    has at least one NON-negated occurrence."""
+    if not scene_prose:
+        return []
+    text = scene_prose.lower()
+    hits: list[str] = []
+    for tok in _DARK_LIGHTING_TOKENS:
+        start = 0
+        token_is_violation = False
+        while True:
+            i = text.find(tok, start)
+            if i == -1:
+                break
+            window = text[max(0, i - _NEGATION_WINDOW):i]
+            if not any(neg in window for neg in _DARK_LIGHTING_NEGATORS):
+                token_is_violation = True
+                break
+            start = i + len(tok)
+        if token_is_violation and tok not in hits:
+            hits.append(tok)
+    return hits
+
+
 class _DiversityTracker:
     """Per-series running tag-frequency tracker for the structured-tag
     axes the LLM picks at facet time.
@@ -1440,6 +1522,7 @@ class SceneFacetGenerator:
         diversity_tracker: "_DiversityTracker | None" = None,
         subject_description: str = "",
         lighting_hint: str = "",
+        lighting_register: str = "",
     ) -> dict[str, Any]:
         """Generate the family-shaped facet for one scene.
 
@@ -1612,11 +1695,24 @@ class SceneFacetGenerator:
             if facet is not None
             else []
         )
+        # Lighting-coherence (2026-05-29) — when the active style profile
+        # declares lighting_register == "soft", scene_prose must avoid
+        # dark / dramatic / high-contrast lighting language. The
+        # system-prompt SERIES AESTHETIC LOCK alone proved unreliable
+        # (render audit: 3/8 scenes still went chiaroscuro despite an
+        # explicit "NO Rembrandt/low-key" instruction). Reject + retry,
+        # same shape as the pose-act geometric retry.
+        lighting_violations: list[str] = (
+            _scene_prose_dark_lighting_hits(facet.get("scene_prose"))
+            if (facet is not None and lighting_register == "soft")
+            else []
+        )
         if (
             facet is not None
             and not missing
             and not dominance_hits
             and not pose_act_violations
+            and not lighting_violations
         ):
             return _sanitize_facet_freetext(
                 _strip_none_values(facet),
@@ -1667,6 +1763,24 @@ class SceneFacetGenerator:
                     f"  - {field}: NOT {bad_tag}. Why: {reason}"
                 )
 
+        # Lighting-coherence nudge (2026-05-29) — assembled separately,
+        # appended to whichever retry branch fires. Names the offending
+        # tokens so the LLM knows exactly what to remove.
+        lighting_nudge_lines: list[str] = []
+        if lighting_violations:
+            lighting_nudge_lines.append(
+                "LIGHTING-RETRY: this series is LOCKED to a SOFT, "
+                "LOW-CONTRAST, evenly-lit register. Your scene_prose used "
+                f"dark / dramatic lighting language: {lighting_violations}. "
+                "Rewrite the lighting so it is soft, diffused, bright and "
+                "low-contrast (soft window daylight, gentle fill, open "
+                "shadows). REMOVE all of: Rembrandt, low-key, chiaroscuro, "
+                "deep/dramatic/hard shadow, high-contrast, candlelit, dimly "
+                "lit, spotlight, backlit silhouette, noir, darkness. Keep "
+                "the same pose, subject, environment and mood — change ONLY "
+                "the lighting."
+            )
+
         if missing:
             logger.warning(
                 "Scene facet generator: first attempt for family %s "
@@ -1708,28 +1822,31 @@ class SceneFacetGenerator:
                     )
             nudge_lines.extend(dominance_nudge_lines)
             nudge_lines.extend(pose_act_nudge_lines)
+            nudge_lines.extend(lighting_nudge_lines)
             nudge_lines.append(
                 "Return ONLY a single JSON object with these fields "
                 "populated."
             )
             retry_prompt = user_prompt + "\n".join(nudge_lines)
-        elif dominance_hits or pose_act_violations:
+        elif dominance_hits or pose_act_violations or lighting_violations:
             # Round-13: facet is structurally valid (no missing fields)
             # but landed on an already-over-represented tag (diversity)
             # OR a geometrically incoherent pose-act combination
             # (added 2026-05-23). Retry with the matching nudge(s).
-            if dominance_hits and pose_act_violations:
-                reason_msg = (
-                    f"over-represented tag(s) {dominance_hits} AND "
-                    f"pose-act coherence violation(s) {[(f, t) for f, t, _ in pose_act_violations]}"
-                )
-            elif dominance_hits:
-                reason_msg = f"over-represented tag(s) {dominance_hits}"
-            else:
-                reason_msg = (
+            reason_parts: list[str] = []
+            if dominance_hits:
+                reason_parts.append(f"over-represented tag(s) {dominance_hits}")
+            if pose_act_violations:
+                reason_parts.append(
                     f"pose-act coherence violation(s) "
                     f"{[(f, t) for f, t, _ in pose_act_violations]}"
                 )
+            if lighting_violations:
+                reason_parts.append(
+                    f"dark-lighting language {lighting_violations} "
+                    f"(profile lighting_register=soft)"
+                )
+            reason_msg = " AND ".join(reason_parts)
             logger.warning(
                 "Scene facet generator: first attempt for family %s "
                 "rejected — %s; retrying with explicit nudge.",
@@ -1738,6 +1855,7 @@ class SceneFacetGenerator:
             nudge_lines = ["", ""]
             nudge_lines.extend(dominance_nudge_lines)
             nudge_lines.extend(pose_act_nudge_lines)
+            nudge_lines.extend(lighting_nudge_lines)
             nudge_lines.append(
                 "Return ONLY a single JSON object."
             )
