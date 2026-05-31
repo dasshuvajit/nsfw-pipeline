@@ -125,7 +125,6 @@ def main() -> int:
     # ── Phase 2: render ────────────────────────────────────────────────
     print(f"\n=== Phase 2: rendering {len(rows)} prompts × {args.seeds} "
           f"seed(s) via {Path(args.template).name} ===", flush=True)
-    builder = WorkflowBuilder(workflow_dir)
     client = ComfyUIClient(base_url=cu["base_url"], output_dir=cu["output_dir"])
 
     manifest: list[dict] = []
@@ -136,6 +135,14 @@ def main() -> int:
         for k in range(args.seeds):
             seed = args.base_seed + k
             try:
+                # 2026-05-30 — fresh WorkflowBuilder per render to defeat a
+                # template-cache mutation leak: WorkflowBuilder._load caches
+                # the loaded template dict, and build_external mutates it in
+                # place. Reusing the same builder across renders caused
+                # ComfyUI to occasionally see byte-identical inputs and skip
+                # execution ("every node was served from the execution cache"),
+                # losing renders. A fresh builder = fresh cache = clean state.
+                builder = WorkflowBuilder(workflow_dir)
                 wf = builder.build_external(
                     external_template=args.template,
                     prompt_text=r["prompt"],
