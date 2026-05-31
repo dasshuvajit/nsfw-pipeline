@@ -22,6 +22,7 @@ ENV/
 # Generated outputs (do not commit images/sets)
 output/soft/*
 output/full/*
+output/art_series/
 !output/soft/.gitkeep
 !output/full/.gitkeep
 
@@ -33,6 +34,10 @@ models/*
 # Character reference images / generated identities
 characters/*
 !characters/.gitkeep
+
+# External reference images (third-party art — do not commit)
+reference_images/*
+!reference_images/.gitkeep
 
 # IDE / OS
 .idea/

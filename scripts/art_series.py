@@ -39,6 +39,12 @@ from src.render.comfyui_client import ComfyUIClient  # noqa: E402
 
 DEFAULT_TEMPLATE = "templates/chroma/gonzaLomo_Chroma_Refiner_v11.json"
 
+# Persistent seed counter — guarantees every render across runs gets a
+# never-before-used seed, defeating ComfyUI's per-node cache collisions
+# (which hit us on the seed-9 retry: cache key matched a prior submission).
+SEED_COUNTER_FILE = ROOT / "output/art_series/.last_seed"
+LEGACY_DEFAULT_SEED = 7
+
 # gonzalomo_chroma_v30 resolution presets.
 ORIENTATIONS = {
     "portrait": (896, 1152),
@@ -59,6 +65,33 @@ DEFAULT_NEGATIVE = (
     "lowres, blurry, jpeg artifacts, watermark, text, signature, "
     "cartoon, anime, illustration, 3d render, cgi, plastic skin, airbrushed"
 )
+
+
+def _read_seed_counter() -> int | None:
+    """Return the highest seed used by any prior art_series run, or None."""
+    try:
+        return int(SEED_COUNTER_FILE.read_text().strip())
+    except (FileNotFoundError, ValueError):
+        return None
+
+
+def _next_base_seed(explicit: int | None) -> int:
+    """Pick the base seed for this run. Explicit --base-seed overrides; else
+    advance one past the persisted counter; else fall back to the legacy
+    default."""
+    if explicit is not None:
+        return explicit
+    prior = _read_seed_counter()
+    if prior is None:
+        return LEGACY_DEFAULT_SEED
+    return prior + 1
+
+
+def _record_max_seed(seed: int) -> None:
+    """Write back the highest seed used so the next run advances past it."""
+    SEED_COUNTER_FILE.parent.mkdir(parents=True, exist_ok=True)
+    prior = _read_seed_counter() or -1
+    SEED_COUNTER_FILE.write_text(str(max(prior, seed)))
 
 
 def _unload_llm(model_tag: str) -> None:
@@ -87,7 +120,9 @@ def main() -> int:
     ap.add_argument("--model-tag", default=art_director.CYDONIA_TAG,
                     help="Ollama LLM tag for prompt generation")
     ap.add_argument("--temperature", type=float, default=0.85)
-    ap.add_argument("--base-seed", type=int, default=7)
+    ap.add_argument("--base-seed", type=int, default=None,
+                    help="explicit base seed; default = auto-advance past the "
+                    "highest seed any prior run used (output/art_series/.last_seed)")
     ap.add_argument("--out-dir", default="",
                     help="output dir (default: output/art_series/<timestamp>)")
     args = ap.parse_args()
@@ -96,6 +131,9 @@ def main() -> int:
     cu = cfg["comfyui"]
     workflow_dir = ROOT / cu.get("workflow_dir", "config/comfyui_workflows")
     resolution = ORIENTATIONS[args.orientation]
+    base_seed = _next_base_seed(args.base_seed)
+    print(f"=== base_seed for this run: {base_seed} "
+          f"(seeds {base_seed}..{base_seed + args.seeds - 1}) ===", flush=True)
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     out_dir = Path(args.out_dir) if args.out_dir else (
@@ -134,7 +172,7 @@ def main() -> int:
         entry = {"index": idx, "look": r["look"], "prompt": r["prompt"],
                  "images": []}
         for k in range(args.seeds):
-            seed = args.base_seed + k
+            seed = base_seed + k
             try:
                 wf = builder.build_external(
                     external_template=args.template,
@@ -160,8 +198,12 @@ def main() -> int:
         "brief": args.brief, "tier": args.tier, "template": args.template,
         "model_tag": args.model_tag, "orientation": args.orientation,
         "resolution": resolution, "seeds_per_prompt": args.seeds,
+        "base_seed": base_seed,
+        "seeds": list(range(base_seed, base_seed + args.seeds)),
         "prompts": manifest,
     }, indent=2))
+
+    _record_max_seed(base_seed + args.seeds - 1)
 
     n_img = sum(len(e["images"]) for e in manifest)
     print(f"\nDONE — {len(rows)} prompts, {n_img} images -> {out_dir}", flush=True)
