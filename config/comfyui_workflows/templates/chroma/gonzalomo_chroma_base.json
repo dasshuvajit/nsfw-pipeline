@@ -1,10 +1,11 @@
 {
   "loader": {
     "inputs": {
-      "unet_name": "gonzalomoChroma_v30.gguf"
+      "unet_name": "gonzalomoChroma_v30.safetensors",
+      "weight_dtype": "default"
     },
-    "class_type": "UnetLoaderGGUF",
-    "_meta": { "title": "Unet Loader (GGUF) — gonzaLomo Chroma v3.0" }
+    "class_type": "UNETLoader",
+    "_meta": { "title": "Load Diffusion Model — gonzaLomo Chroma v3.0 (safetensors)" }
   },
   "clip_loader": {
     "inputs": {

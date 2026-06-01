@@ -1,6 +1,6 @@
 id: gonzalomo_chroma_v30
 display_name: GonzaLomo Chroma v3.0
-filename: gonzalomoChroma_v30.gguf
+filename: gonzalomoChroma_v30.safetensors
 architecture: chroma
 family: chroma
 resolution_portrait: [896, 1152]
