@@ -61,8 +61,8 @@
       "seed": 1,
       "steps": 16,
       "cfg": 1.0,
-      "sampler_name": "res_2m",
-      "scheduler": "bong_tangent",
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "beta",
       "denoise": 1,
       "model": ["loader", 0],
       "positive": ["positive_prompt", 0],
@@ -70,7 +70,7 @@
       "latent_image": ["empty_latent", 0]
     },
     "class_type": "KSampler",
-    "_meta": { "title": "KSampler — UnCanny flash (res_2m/bong_tangent/16/cfg1)" }
+    "_meta": { "title": "KSampler — UnCanny flash (dpmpp_2m/beta/16/cfg1; res_2m=RES4LYF-float64 dead on MPS)" }
   },
   "vae_decode": {
     "inputs": { "samples": ["ksampler", 0], "vae": ["vae_loader", 0] },

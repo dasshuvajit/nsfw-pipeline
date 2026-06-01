@@ -39,13 +39,12 @@ import art_series as A             # noqa: E402
 from src.niche.selector import NicheLibrary, build_selection, build_brief  # noqa: E402
 
 # Each arm at its native contract (template); per-model negative text.
-# gonzaLomo + flash zero the negative internally (cfg 1) → pass "".
-# UnCanny base is cfg 3.5 → negatives ACTIVE → pass the real stack.
+# Both are CFG-1 (distilled/baked) → negative zeroed internally → pass "".
+# UnCanny BASE (non-distilled, 35 steps) was dropped 2026-06-02: ~13 min/image
+# on this M4 Pro (MPS) makes it impractical vs the two fast CFG-1 models.
 MODELS = [
     {"name": "gonzalomo",
      "template": "templates/chroma/gonzalomo_chroma_base.json", "negative": ""},
-    {"name": "uncanny_base",
-     "template": "templates/chroma/uncanny_base.json", "negative": A.DEFAULT_NEGATIVE},
     {"name": "uncanny_flash",
      "template": "templates/chroma/uncanny_flash.json", "negative": ""},
 ]
@@ -112,7 +111,7 @@ def main() -> int:
                         external_template=m["template"], prompt_text=prompt,
                         negative_prompt=m["negative"], resolution=(w, h), seed=seed)
                     t0 = time.perf_counter()
-                    imgs = client.render_single_with_retry(wf, timeout=600)
+                    imgs = client.render_single_with_retry(wf, timeout=1200)
                     secs = time.perf_counter() - t0
                     outs = [im for im in imgs if im.type == "output"] or imgs
                     name = f"p{pi:02d}_s{seed}.png"
