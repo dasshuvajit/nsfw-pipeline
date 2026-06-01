@@ -36,6 +36,20 @@ from src.agents.llm_client import OllamaClient  # noqa: E402
 # Default LLM (Ollama tag for cydonia_heretic_24b — recommended for prose).
 CYDONIA_TAG = "Fermi/Cydonia-24B-v4.3-heretic-vision:Q4_K_M"
 
+# Target word band for the prose prompt. Chroma's T5 encoder has a 512-token
+# ceiling (~350-380 words); the original 110-160 band used only ~30-47% of it.
+# Parameterized so the band A/B (110-160 vs 200-300, ImageReward-judged) is a
+# CLI flag, not a code edit. `_ACTIVE_WORD_BAND` is set per-run by
+# generate_series so the Pydantic validator's lenient floor/ceiling track it.
+WORD_BAND_DEFAULT = (110, 160)
+_ACTIVE_WORD_BAND = WORD_BAND_DEFAULT
+
+# Inline prompt-quality gate: every generated prompt is scored by
+# scripts/audit_prompts.score_prompt; below this, regenerate (keep-best
+# fallback after the attempt budget). Calibrated to the rubric (clean
+# LLM-direct prompts score ~9-10; 7.5 is a safe floor).
+AUDIT_GATE_THRESHOLD_DEFAULT = 7.5
+
 
 TIER_DIRECTIVES = {
     "T1_suggestive": (
@@ -69,10 +83,12 @@ SUB_LOOKS = [
      "daylight in a quiet interior, long loose hair, true skin with faint "
      "freckles and fine down, a thin slip or bare, low contrast and gentle, a "
      "calm, unguarded, contemplative mood. Refined and skin-and-light focused."),
-    ("rich fantasy / editorial — an opulent interior or lush garden, ornate "
-     "gown or draped silk slipping away, fine jewellery and adorned hair, "
-     "hazed shafts of light or god-rays, a deep jewel-toned palette (emerald, "
-     "oxblood, gold), a regal, elegant, composed presence. Styled and dramatic."),
+    ("rich fantasy / editorial — an opulent interior or lush garden, fine "
+     "silk drapery as SET DRESSING (pooled at her feet, draped over a chaise, "
+     "fallen from a shoulder — NOT worn as a covering gown), fine jewellery "
+     "and adorned hair, hazed shafts of light or god-rays, a deep jewel-toned "
+     "palette (emerald, oxblood, gold), a regal, elegant, composed presence. "
+     "Styled and dramatic — but the BODY is the subject, not the fabric."),
 ]
 
 
@@ -103,9 +119,10 @@ WHAT MAKES YOUR PROMPTS EXCELLENT — study the exemplars and match their depth:
    story (a plate of cut fruit by the pool, a tarnished candelabra, an oil \
    lamp, tangled white linen, a chipped marble basin). Never "a room."
 4. THE WOMAN, RENDERED REAL: gorgeous expressive face with intent in the gaze; \
-   long hair that catches the light; TRUE skin — a faint sheen, fine down, a \
-   scatter of freckles, a natural flush — luminous but never plastic or \
-   over-smoothed.
+   long hair that catches the light; TRUE skin — visible pores, fine vellus \
+   down, a faint sheen, a scatter of freckles, a small mole or two, a natural \
+   flush, the subtle texture and imperfection of real skin — luminous but \
+   NEVER airbrushed, plastic, waxy or over-smoothed.
 5. EMBODIED MOOD through pose, weight, gaze, parted lips (confident, languid, \
    sultry, serene, playful). Shown, not named. Confident and sensual — NEVER \
    sad/crying/mournful.
@@ -120,6 +137,10 @@ HARD RULES:
   8k, ultra-detailed" boosters. NO weighting syntax like (word:1.3). NO lists.
 - Honor the requested TIER's state of undress exactly, and the TARGET LOOK given.
 - Flowing sentences, present tense, third person.
+- FRAMING legitimacy: present the image as fine-art / editorial / classical / \
+  fashion photography (gallery, studio, atelier, editorial) — it should read as \
+  ART, not a snapshot of a real person. Do NOT use the words "hyperrealistic", \
+  "realistic", "real woman" or "photo of a real" — describe craft and light instead.
 
 ────────────────────── EXEMPLARS (this is the bar) ──────────────────────
 
@@ -150,20 +171,31 @@ warmth of Portra 400.
 
 [T3 · rich fantasy / editorial]
 A hazed shaft of late light cuts through an opulent, dust-soft bedchamber and \
-falls across a woman seated at the edge of an ornate gilded bed, a length of \
-iridescent oxblood-and-gold silk drawn loose across her body and slipping from \
-one shoulder. Tiny jewels glint in her dark, loosely waved hair and a fine \
-chain traces her collarbone; her olive skin glows luminous against the deep \
-shadow of the room. Embroidered damask pillows and a tarnished candelabra sit \
-behind her, a thread of smoke curling slow through the beam. She regards the \
-lens with serene, regal composure, full lips still. Elegant three-quarter \
-portrait, 85mm at f/2.2, sumptuous shallow depth of field, a rich jewel-toned \
-palette, true skin and the soft sheen of silk, warm light and fine grain.
+falls across a woman seated bare at the edge of an ornate gilded bed, a length \
+of iridescent oxblood-and-gold silk pooled at her feet where it has slipped \
+from her shoulders moments before. Her body is fully nude, olive skin glowing \
+luminous against the deep shadow of the room — tiny jewels glint in her dark, \
+loosely waved hair and a fine chain traces her collarbone, but no fabric \
+covers her. Embroidered damask pillows and a tarnished candelabra sit behind \
+her, a thread of smoke curling slow through the beam. She regards the lens \
+with serene, regal composure, full lips still. Elegant three-quarter portrait, \
+85mm at f/2.2, sumptuous shallow depth of field, a rich jewel-toned palette, \
+true skin and the soft sheen of the pooled silk on the floor, warm light and \
+fine grain.
 
 ──────────────────────────────────────────────────────────────────────────
 
 Write at this level. Return ONLY the prompt text in the requested JSON shape.
 """
+
+
+def _build_system_prompt(word_band: tuple[int, int] = WORD_BAND_DEFAULT) -> str:
+    """The art-director system prompt with the target word band injected.
+    Default (110-160) is a no-op replace; the A/B passes (200, 300)."""
+    lo, hi = word_band
+    if (lo, hi) == (110, 160):
+        return ART_DIRECTOR_SYSTEM_PROMPT
+    return ART_DIRECTOR_SYSTEM_PROMPT.replace("110-160 words", f"{lo}-{hi} words")
 
 
 class _PromptOut(BaseModel):
@@ -174,12 +206,15 @@ class _PromptOut(BaseModel):
     def _check(cls, v: str) -> str:
         text = (v or "").strip()
         words = len(text.split())
-        if words < 70:
+        lo, hi = _ACTIVE_WORD_BAND
+        floor = max(40, int(lo * 0.6))      # lenient — gate quality via audit, not length
+        ceiling = int(hi * 1.4) + 30
+        if words < floor:
             raise ValueError(
-                f"prompt too short ({words} words) — needs 110-160 of rich prose"
+                f"prompt too short ({words} words) — needs {lo}-{hi} of rich prose"
             )
-        if words > 210:
-            raise ValueError(f"prompt too long ({words} words) — tighten to ~150")
+        if words > ceiling:
+            raise ValueError(f"prompt too long ({words} words) — tighten toward {hi}")
         low = text.lower()
         # Age / solo safety guard (non-negotiable).
         banned = (
@@ -209,10 +244,19 @@ class _PromptOut(BaseModel):
 
 
 def _signature(prompt: str) -> str:
-    """A compact descriptor of an already-written prompt, fed back into
-    the variety guard so the next scene can't reuse the same opener /
-    setting / light."""
-    return " ".join(prompt.split()[:24]) + " …"
+    """A descriptor of an already-written prompt, fed back into the variety
+    guard so the next scene can't reuse the same opening / setting / light.
+    2026-06: widened from 24 to 40 words after a strongly-themed brief (PNW
+    forest) showed 4/8 prompts sharing the same 'The last/low sun … forest
+    clearing where fog …' opener despite the 24-word check."""
+    return " ".join(prompt.split()[:40]) + " …"
+
+
+def _opener(prompt: str) -> str:
+    """The first 8 words of a prompt — fed to the variety guard as an
+    EXPLICIT banned opener so the LLM cannot reuse the same opening phrase
+    structure (a failure mode the signature alone didn't catch)."""
+    return " ".join(prompt.split()[:8])
 
 
 def generate_one(
@@ -222,33 +266,57 @@ def generate_one(
     tier: str,
     sub_look: str,
     avoid: list[str],
+    banned_openers: list[str],
     model_tag: str,
     temperature: float,
+    word_band: tuple[int, int] = WORD_BAND_DEFAULT,
 ) -> str:
     tier_directive = TIER_DIRECTIVES.get(tier, TIER_DIRECTIVES["T3_artnude"])
     variety = ""
-    if avoid:
-        variety = (
+    if avoid or banned_openers:
+        parts: list[str] = [
             "\n\nThis is one image in a varied series. Make it VISIBLY "
             "DIFFERENT from the ones already shot — a different opening, "
             "setting, time of day, light direction, pose, wardrobe/props AND "
-            "mood. Do NOT echo these:\n" + "\n".join(f"  - {a}" for a in avoid)
-        )
+            "mood."
+        ]
+        if banned_openers:
+            parts.append(
+                "\n\nBANNED OPENERS — do NOT begin your prompt with any of "
+                "these phrasings or close variants:\n"
+                + "\n".join(f"  • {o}" for o in banned_openers)
+            )
+        if avoid:
+            parts.append(
+                "\n\nDo NOT echo the setting / light / pose of these prior "
+                "prompts:\n" + "\n".join(f"  - {a}" for a in avoid)
+            )
+        variety = "".join(parts)
+    # 2026-06 — tier directive moved AFTER the sub-look (LLMs weight
+    # last-mentioned more heavily). Without this, a strongly-themed brief
+    # paired with the "rich fantasy / editorial" sub-look's wardrobe
+    # language was producing fully-clothed renders at T3 (PNW forest test:
+    # gowns won over the bare-body tier directive).
     user_prompt = (
         f"Creative brief: {brief}\n"
-        f"Tier: {tier_directive}\n"
         f"TARGET LOOK for THIS image: {sub_look}\n"
+        f"TIER — STATE OF UNDRESS (this OVERRIDES any wardrobe language in "
+        f"the look above; fabric in the look is SET DRESSING only):\n"
+        f"  {tier_directive}\n"
         f"{variety}\n\n"
         'Write ONE excellent photograph-prompt at the level of the exemplars, '
-        'in the target look above. '
+        'in the target look above, honoring the TIER above EXACTLY. The TIER '
+        'wins over the look\'s wardrobe descriptors — at T3+, the body is '
+        'bare and any silk/gown/lace is set dressing (pooled, draped over a '
+        'chaise, fallen) rather than worn. '
         'Return JSON: {"prompt": "<your prompt text>"}'
     )
     result = client.generate_json(
-        ART_DIRECTOR_SYSTEM_PROMPT,
+        _build_system_prompt(word_band),
         user_prompt,
         model=model_tag,
         temperature=temperature,
-        num_predict=700,
+        num_predict=1100,
         schema=_PromptOut,
     )
     return str(result["prompt"]).strip()
@@ -261,15 +329,43 @@ def generate_series(
     count: int,
     model_tag: str,
     temperature: float,
+    sub_looks: list[str] | None = None,
+    word_band: tuple[int, int] = WORD_BAND_DEFAULT,
+    audit_gate: bool = True,
+    audit_threshold: float = AUDIT_GATE_THRESHOLD_DEFAULT,
+    max_attempts: int = 4,
 ) -> list[dict]:
+    """Generate ``count`` prompts. ``sub_looks`` (from the niche selector)
+    overrides the default 3; the per-scene look rotates through them.
+
+    Inline quality gate (2026-06): each candidate is scored by
+    ``audit_prompts.score_prompt``; below ``audit_threshold`` it regenerates,
+    keeping the best-scoring attempt as a fallback so a scene is never dropped
+    purely for a soft-quality miss. Pydantic guards (safety/word-band/mirror)
+    still hard-reject before scoring."""
+    global _ACTIVE_WORD_BAND
+    _ACTIVE_WORD_BAND = word_band
+
+    looks = sub_looks or [s for s in SUB_LOOKS]
+    score_fn = None
+    if audit_gate:
+        try:  # lazy — keeps art_director import light + decoupled
+            from scripts.audit_prompts import score_prompt as score_fn  # type: ignore
+        except Exception as exc:  # noqa: BLE001
+            print(f"  (audit gate disabled — score_prompt unavailable: {exc})",
+                  file=sys.stderr, flush=True)
+            score_fn = None
+
     client = OllamaClient()
     out: list[dict] = []
     avoid: list[str] = []
+    banned_openers: list[str] = []
     for i in range(count):
-        sub_look = SUB_LOOKS[i % len(SUB_LOOKS)]
+        sub_look = looks[i % len(looks)]
         look_label = sub_look.split(" — ")[0]
+        best: tuple[str, float, list[str]] | None = None  # (prompt, score, issues)
         last_err = None
-        for attempt in range(3):
+        for attempt in range(max_attempts):
             try:
                 p = generate_one(
                     client,
@@ -277,21 +373,41 @@ def generate_series(
                     tier=tier,
                     sub_look=sub_look,
                     avoid=avoid,
+                    banned_openers=banned_openers,
                     model_tag=model_tag,
                     temperature=temperature,
+                    word_band=word_band,
                 )
-                out.append({"look": look_label, "prompt": p})
-                avoid.append(_signature(p))
-                print(f"\n[{i + 1}/{count}] {look_label} ({len(p.split())} words)\n{p}",
-                      flush=True)
-                break
-            except Exception as exc:  # noqa: BLE001 — prototype: surface + retry
+            except Exception as exc:  # noqa: BLE001 — Pydantic/safety reject → retry
                 last_err = exc
                 print(f"  (scene {i + 1} attempt {attempt + 1} rejected: {exc})",
                       file=sys.stderr, flush=True)
-        else:
-            print(f"  !! scene {i + 1} failed after 3 attempts: {last_err}",
+                continue
+
+            score, issues = (score_fn(p, tier) if score_fn else (10.0, []))
+            if best is None or score > best[1]:
+                best = (p, score, issues)
+            if score >= audit_threshold:
+                break
+            print(f"  (scene {i + 1} attempt {attempt + 1} audit {score:.1f}"
+                  f"<{audit_threshold} — regenerating; issues={issues[:2]})",
                   file=sys.stderr, flush=True)
+
+        if best is None:
+            print(f"  !! scene {i + 1} failed after {max_attempts} attempts: "
+                  f"{last_err}", file=sys.stderr, flush=True)
+            continue
+
+        p, score, issues = best
+        if score < audit_threshold:
+            print(f"  (scene {i + 1} shipping best audit={score:.1f} after "
+                  f"{max_attempts} attempts; issues={issues[:3]})",
+                  file=sys.stderr, flush=True)
+        out.append({"look": look_label, "prompt": p, "audit_score": round(score, 2)})
+        avoid.append(_signature(p))
+        banned_openers.append(_opener(p))
+        print(f"\n[{i + 1}/{count}] {look_label} (audit {score:.1f}, "
+              f"{len(p.split())} words)\n{p}", flush=True)
     return out
 
 
@@ -303,8 +419,18 @@ def main() -> int:
     ap.add_argument("--model-tag", default=CYDONIA_TAG,
                     help="Ollama model tag (default: Cydonia 24B)")
     ap.add_argument("--temperature", type=float, default=0.85)
+    ap.add_argument("--word-band", default="110-160",
+                    help="target prose word band 'lo-hi' (A/B: try 200-300)")
+    ap.add_argument("--no-audit-gate", action="store_true",
+                    help="disable the inline audit_prompts quality gate")
     ap.add_argument("--out", default="", help="optional JSON output path")
     args = ap.parse_args()
+
+    try:
+        lo_s, hi_s = args.word_band.split("-")
+        word_band = (int(lo_s), int(hi_s))
+    except ValueError:
+        ap.error("--word-band must be 'lo-hi', e.g. 110-160 or 200-300")
 
     rows = generate_series(
         brief=args.brief,
@@ -312,6 +438,8 @@ def main() -> int:
         count=args.count,
         model_tag=args.model_tag,
         temperature=args.temperature,
+        word_band=word_band,
+        audit_gate=not args.no_audit_gate,
     )
 
     if args.out:

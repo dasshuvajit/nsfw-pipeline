@@ -1,0 +1,287 @@
+# Niche library — the "what to make" intelligence for the LLM-direct pipeline.
+#
+# Drives scripts/art_director.py (via scripts/art_series.py --auto). Each
+# niche is a SELF-CONTAINED creative brief: the LLM-direct path does NOT
+# touch the deprecated vocab canonicalizer — everything the prompt engine
+# needs is readable prose here.
+#
+# Sourced from the 2026-05-31 market research (workflow w9m6qmriy): the
+# proven, lowest-compliance-risk lanes for sellable artistic-nude/boudoir/
+# glamour content on DeviantArt. CORE = evergreen, weighted, picked most
+# runs; TREND = rotating pool, injected periodically for freshness.
+#
+# Per niche:
+#   id            — stable key (also the --niche selector value)
+#   class         — core | trend
+#   weight        — relative selection weight within its class
+#   tier_band     — tiers this niche supports (run --tier must be one)
+#   da_folder     — DeviantArt gallery / Premium-Gallery folder name
+#   source        — config/categories.yaml id this lane corresponds to (breadcrumb only)
+#   tags          — 5-axis DA tag seed (genre / era / subject / mood / discovery); 12-15
+#   sub_looks     — 2-4 niche-tuned "label — description" target looks (replace the
+#                   global 3 for this niche; the prompt engine rotates them)
+#   aesthetics    — palettes / lighting / photographers (plain prose); the selector
+#                   locks ONE of each per series ("aesthetic-lock") for a signature look
+#   brief_seed    — one-line creative seed handed to the LLM
+#
+# Compliance note (research-verified): public DeviantArt posts + ALL
+# covers/thumbnails must be SFW (T1/T2). Explicit (T3/T4) goes to gated
+# Subscriptions / Premium Galleries only. Lean fine-art / fantasy / editorial
+# FRAMING (not "hyperrealistic/real woman") to dodge DA's hyperrealism clause.
+
+version: 1
+
+niches:
+  # ───────────────────────── EVERGREEN CORE ─────────────────────────
+  - id: fine_art_figure_study
+    class: core
+    weight: 1.2
+    tier_band: [T2_implied, T3_artnude, T4_explicit]
+    da_folder: "Fine-Art Figure Study"
+    source: fine_art_figurative
+    tags: [fineartnude, figurestudy, figure, artnude, chiaroscuro, blackandwhite,
+           monochrome, classical, form, sculptural, aiart, digitalart, portrait]
+    sub_looks:
+      - "studio chiaroscuro figure study — single hard key against a black seamless backdrop, the body sculpted by light and deep shadow, gallery figure-study framing, B&W or near-monochrome"
+      - "north-light atelier — soft directional daylight from a tall studio window across a plinth or stool, classical sculptural pose, muted neutral tones, fine-art nude tradition"
+      - "low-key rim study — a single rim light tracing the edge of the form out of darkness, the silhouette and contour as the subject, restrained and reverent"
+    aesthetics:
+      palettes: ["high-contrast black-and-white", "warm sepia monochrome", "muted charcoal-and-ivory neutrals"]
+      lighting: ["single hard key, Caravaggio chiaroscuro", "soft north-window daylight", "split lighting, half the face in shadow"]
+      photographers: ["Edward Weston figure-study tradition", "Robert Mapplethorpe sculptural B&W", "Ruth Bernhard luminous nude"]
+    brief_seed: "A fine-art figure study — one nude woman rendered as sculptural form in light, gallery framing, the body as subject, not spectacle."
+
+  - id: old_hollywood_glamour
+    class: core
+    weight: 1.1
+    tier_band: [T1_suggestive, T2_implied, T3_artnude]
+    da_folder: "Old Hollywood Glamour"
+    source: old_hollywood
+    tags: [oldhollywood, glamour, boudoir, satin, vintageglamour, goldenage,
+           elegant, noir, blackandwhite, sensual, aiart, digitalart, portrait]
+    sub_looks:
+      - "1940s studio glamour — butterfly/paramount key + a soft fill, lacquered marcel waves, satin and fur, silver-grey tonal range, classic Hollywood-portrait elegance"
+      - "boudoir vanity — warm practical lamplight at a mirrored Art-Deco vanity (no mirror in frame), silk robe slipping, dressing-room intimacy"
+      - "noir-tinged glamour — a single hard key and deep studio shadow tail, smoke and satin, dramatic but elegant, half-light on the face"
+    aesthetics:
+      palettes: ["silver-grey monochrome", "champagne-and-ivory with soft sepia", "deep oxblood and gold"]
+      lighting: ["butterfly/paramount glamour key + fill", "single hard key with a long shadow tail", "warm low practical lamplight"]
+      photographers: ["George Hurrell Hollywood glamour", "Clarence Sinclair Bull studio portrait", "early Helmut Newton elegance"]
+    brief_seed: "Old-Hollywood glamour — one woman in vintage studio elegance, satin and marcel waves, the lighting and styling of a 1940s star portrait."
+
+  - id: pinup_1950s
+    class: core
+    weight: 1.0
+    tier_band: [T1_suggestive, T2_implied]
+    da_folder: "1950s Pin-Up"
+    source: vintage_pinup
+    tags: [pinup, 1950s, retro, vintage, glamour, victoryrolls, redlips, corset,
+           garter, classicpinup, cheesecake, aiart, digitalart]
+    sub_looks:
+      - "studio cheesecake pin-up — warm saturated key with strong catchlight-heavy fill, polka-dot or retro swimwear, victory rolls and red lips, playful hand-on-hip confidence"
+      - "retro domestic pin-up — a sunlit 1950s kitchen/bedroom set, gingham and garters, mid-action playful pose, kodachrome warmth"
+      - "vintage poolside pin-up — bright sunny day, retro one-piece, beach ball or parasol, jet-set cheesecake glamour"
+    aesthetics:
+      palettes: ["kodachrome red-teal-cream", "warm jewel tones", "pink-and-gold pastel"]
+      lighting: ["warm studio key + strong fill, heavy catchlights", "bright sunny daylight", "soft glamour key"]
+      photographers: ["Gil Elvgren pin-up palette", "Bunny Yeager sunny cheesecake", "Slim Aarons jet-set warmth"]
+    brief_seed: "A 1950s pin-up — one woman in playful retro cheesecake glamour, saturated kodachrome warmth, confident and charming."
+
+  - id: fantasy_glamour
+    class: core
+    weight: 1.1
+    tier_band: [T2_implied, T3_artnude]
+    da_folder: "Fantasy Glamour"
+    source: fantasy_castlecore
+    tags: [fantasy, fantasygirl, elf, fae, sorceress, fantasyart, glamour, sensual,
+           characterart, ethereal, aiart, digitalart, conceptart]
+    sub_looks:
+      - "ethereal elf in an enchanted forest — dappled god-rays through a mossy canopy, delicate adornments and sheer drapery as set dressing, luminous skin, dreamy and otherworldly"
+      - "candlelit sorceress chamber — warm practical candlelight and a hazed shaft of light in a stone-and-velvet interior, jewelled adornments, regal composed presence"
+      - "fae by moonlit water — cool blue-hour ambient light at a forest pool, wet luminous skin, flowers and vines, mythic stillness"
+    aesthetics:
+      palettes: ["deep emerald and gold", "jewel-toned twilight", "cool moonlit cyan-and-indigo"]
+      lighting: ["dappled god-rays through canopy", "warm practical candlelight", "cool blue-hour ambient glow"]
+      photographers: ["pre-Raphaelite painterly light", "Brooke Shaden conceptual fine-art", "Bella Kotak ethereal fantasy"]
+    brief_seed: "Fantasy glamour — one ethereal woman (elf/fae/sorceress) in an enchanted setting, adornments and drapery as styling, mythic and luminous; reads as fantasy art."
+
+  - id: modern_boudoir
+    class: core
+    weight: 1.0
+    tier_band: [T1_suggestive, T2_implied, T3_artnude]
+    da_folder: "Modern Boudoir"
+    source: boudoir_lingerie
+    tags: [boudoir, lingerie, sensual, intimate, bedroom, softlight, feminine,
+           elegant, mature, lace, aiart, digitalart, portrait]
+    sub_looks:
+      - "soft window-light boudoir — diffuse overcast daylight through a sheer curtain across rumpled white linen, delicate lace or a thin slip slipping, true skin with faint freckles, low-contrast and tender"
+      - "warm intimate bedroom — a single warm bedside lamp, silk and lace, a quiet unguarded moment, soft golden glow"
+      - "morning-after intimacy — bright soft morning light, tangled sheets, bare shoulders and a loose camisole, candid and natural"
+    aesthetics:
+      palettes: ["soft faded warm neutrals", "cream and dusty rose", "muted cool morning tones"]
+      lighting: ["soft diffuse window daylight", "single warm bedside lamp", "bright overcast morning"]
+      photographers: ["natural-light boudoir editorial", "Sarah Moon soft grain", "Petra Collins dreamy film"]
+    brief_seed: "Modern boudoir — one woman in an intimate bedroom in soft natural light, lace and linen, tender and sensual."
+
+  - id: film_noir_boudoir
+    class: core
+    weight: 0.9
+    tier_band: [T2_implied, T3_artnude]
+    da_folder: "Film-Noir Boudoir"
+    source: dark_boudoir_neonoir
+    tags: [filmnoir, noir, blackandwhite, moody, shadow, vintage, boudoir,
+           cinematic, dramatic, sensual, aiart, digitalart]
+    sub_looks:
+      - "venetian-blind noir — hard slatted light striping across the body in a dim hotel room, deep black shadow, smoke and a glint of light, high-contrast B&W mystery"
+      - "single-lamp noir boudoir — one hard practical light carving the form out of darkness, satin and shadow, cinematic 1940s mood"
+      - "rain-window noir — cool light through a rain-streaked window at night, wet glass caustics, brooding cinematic stillness"
+    aesthetics:
+      palettes: ["high-contrast black-and-white", "cool desaturated night", "amber-tungsten in deep shadow"]
+      lighting: ["hard venetian-blind slats", "single hard key, low-key noir", "cool rain-window night light"]
+      photographers: ["film-noir cinematography tradition", "Helmut Newton hard flash", "Bill Henson twilight"]
+    brief_seed: "Film-noir boudoir — one woman in high-contrast cinematic shadow, venetian blinds or a single hard lamp, brooding 1940s mystery."
+
+  - id: art_deco_boudoir
+    class: core
+    weight: 0.9
+    tier_band: [T1_suggestive, T2_implied, T3_artnude]
+    da_folder: "Art Deco Boudoir"
+    source: luxury_editorial
+    tags: [artdeco, 1920s, flapper, gatsby, pearls, vintage, elegant, glamour,
+           boudoir, luxury, aiart, digitalart, portrait]
+    sub_looks:
+      - "1920s flapper boudoir — warm lamplight in an opulent Art-Deco suite, pearls and beaded drapery as set dressing, marcel waves, Gatsby-era luxury"
+      - "deco hotel glamour — geometric gilt interiors, champagne and satin, a hazed shaft of warm light, elegant reclining poise"
+      - "jazz-age vanity — warm practical light at a lacquered deco dressing table, feathers and pearls, refined intimacy"
+    aesthetics:
+      palettes: ["champagne, gold and black", "jewel-toned Gatsby palette", "warm sepia-and-gold"]
+      lighting: ["warm opulent lamplight", "hazed warm shaft through tall windows", "soft glamour key"]
+      photographers: ["Art-Deco era studio glamour", "Edward Steichen Vogue elegance", "George Hurrell deco portrait"]
+    brief_seed: "Art-Deco boudoir — one woman in 1920s Gatsby-era luxury, pearls and gilt, opulent warm light, jazz-age elegance."
+
+  # ───────────────────────── ROTATING TREND ─────────────────────────
+  - id: goth_romantic
+    class: trend
+    weight: 1.0
+    tier_band: [T2_implied, T3_artnude]
+    da_folder: "Dark Romantic"
+    source: dark_moody
+    tags: [goth, gothic, darkart, sensual, moody, candlelight, romantic, glamour,
+           alternative, dramatic, aiart, digitalart]
+    sub_looks:
+      - "candlelit gothic chamber — warm flickering candlelight in a dark velvet-and-stone interior, dark lace and silver jewellery, pale luminous skin, romantic and brooding"
+      - "moonlit gothic window — cool moonlight through a leaded window in a shadowed room, dark drapery, melancholy-free composed intensity"
+    aesthetics:
+      palettes: ["deep black, oxblood and silver", "cool moonlit monochrome", "candlelit amber in deep shadow"]
+      lighting: ["warm flickering candlelight", "cool moonlight through a window", "single low key in darkness"]
+      photographers: ["Bill Henson dark twilight", "Eugenio Recuenco baroque editorial", "gothic-romantic painterly light"]
+    brief_seed: "Dark-romantic gothic glamour — one woman in candlelit shadow, dark lace and pale skin, brooding but confident (never sad)."
+
+  - id: bohemian_naturallight
+    class: trend
+    weight: 1.0
+    tier_band: [T1_suggestive, T2_implied, T3_artnude]
+    da_folder: "Bohemian Natural Light"
+    source: soft_aesthetic
+    tags: [boho, bohemian, naturallight, sunlit, sensual, earthy, dreamy,
+           softfocus, freespirit, aiart, digitalart, portrait]
+    sub_looks:
+      - "sun-drenched boho loft — warm afternoon sun through gauze curtains across woven textures and trailing plants, loose natural hair, earthy and free-spirited"
+      - "golden meadow at dusk — low warm sun in tall grass and wildflowers, sheer flowing fabric, dreamy soft-focus, natural and serene"
+    aesthetics:
+      palettes: ["warm earthy ochres and cream", "golden honey light", "sun-faded pastel"]
+      lighting: ["warm afternoon sun through gauze", "low golden-hour backlight", "soft diffuse daylight"]
+      photographers: ["free-spirit lifestyle editorial", "Ryan McGinley natural light", "boho film photography"]
+    brief_seed: "Bohemian natural-light sensual — one woman in warm sunlit, earthy, free-spirited intimacy, soft and dreamy."
+
+  - id: poolside_goldenhour
+    class: trend
+    weight: 1.0
+    tier_band: [T1_suggestive, T2_implied]
+    da_folder: "Poolside Golden Hour"
+    source: poolside_golden_hour
+    tags: [beach, poolside, summer, swimsuit, glamour, sunkissed, sensual,
+           goldenhour, riviera, aiart, digitalart, portrait]
+    sub_looks:
+      - "Mediterranean villa pool at golden hour — low warm sun raking across wet sun-bronzed skin, a villa dissolving into warm bokeh, delicate swimwear, confident sultry calm"
+      - "cliffside terrace sunset — windswept sun-streaked hair, the sea below, sheer wrap, honeyed backlight, jet-set glamour"
+    aesthetics:
+      palettes: ["honey, peach and sky-blue", "warm golden-hour saturation", "sun-bleached Riviera tones"]
+      lighting: ["low warm golden-hour sun", "bright backlit sunset", "warm rim-light + sky-bounce fill"]
+      photographers: ["Slim Aarons poolside glamour", "Guy Bourdin saturated editorial", "summer Riviera fashion"]
+    brief_seed: "Poolside golden-hour glamour — one woman at a Mediterranean villa pool in warm sunset light, sun-kissed and confident."
+
+  - id: burlesque_cabaret
+    class: trend
+    weight: 0.8
+    tier_band: [T1_suggestive, T2_implied]
+    da_folder: "Burlesque & Cabaret"
+    source: vintage_pinup
+    tags: [burlesque, cabaret, showgirl, feathers, glamour, vintage, sensual,
+           performance, rhinestones, aiart, digitalart]
+    sub_looks:
+      - "vintage cabaret stage — warm theatrical spotlight in a dim velvet-curtained club, feather fans and rhinestones, performer's confident charisma"
+      - "backstage dressing room — warm bulb-lit vanity (no mirror in frame), corset and stockings, feathers, intimate pre-show glamour"
+    aesthetics:
+      palettes: ["deep red velvet and gold", "warm theatrical amber", "black-and-rhinestone sparkle"]
+      lighting: ["warm theatrical spotlight", "warm vanity-bulb light", "single dramatic stage key"]
+      photographers: ["vintage burlesque photography", "Helmut Newton showgirl glamour", "cabaret editorial"]
+    brief_seed: "Burlesque cabaret glamour — one performer in feathers and rhinestones under warm theatrical light, confident showgirl charisma."
+
+  - id: cyberpunk_pinup
+    class: trend
+    weight: 0.8
+    tier_band: [T1_suggestive, T2_implied, T3_artnude]
+    da_folder: "Cyberpunk Pin-Up"
+    source: wet_set_cinematic
+    tags: [cyberpunk, scifi, neon, futuristic, pinup, glamour, sensual,
+           conceptart, neonnoir, aiart, digitalart]
+    sub_looks:
+      - "neon-noir alley — magenta-and-cyan neon rim light on wet skin in a rain-slick futuristic street, sleek styling, cinematic and moody"
+      - "neon loft window — saturated neon spill through a high window over a dim apartment, futuristic adornments, urban-night glamour"
+    aesthetics:
+      palettes: ["magenta-and-cyan neon", "teal-and-orange blockbuster", "blade-runner neon-noir"]
+      lighting: ["magenta key + cyan rim, neon night", "saturated neon window spill", "wet-specular neon reflections"]
+      photographers: ["Blade Runner cinematography", "neon-noir editorial", "Liam Wong neon photography"]
+    brief_seed: "Cyberpunk pin-up — one woman in magenta-and-cyan neon-noir, wet futuristic city night, sleek and cinematic."
+
+  - id: cottagecore_pastoral
+    class: trend
+    weight: 0.8
+    tier_band: [T1_suggestive, T2_implied]
+    da_folder: "Cottagecore Pastoral"
+    source: soft_aesthetic
+    tags: [cottagecore, pastoral, rustic, dreamy, soft, feminine, naturallight,
+           sensual, countryside, aiart, digitalart, portrait]
+    sub_looks:
+      - "rustic cottage morning — soft window daylight in a wood-and-linen cottage interior, wildflowers and a soft cotton slip, gentle and pastoral"
+      - "sunlit orchard — dappled warm light under blossoming trees, flowing natural fabric, a woven basket, dreamy countryside serenity"
+    aesthetics:
+      palettes: ["soft sage, cream and wildflower", "warm pastoral daylight", "faded pastel countryside"]
+      lighting: ["soft window daylight", "dappled orchard sunlight", "warm overcast morning"]
+      photographers: ["pastoral lifestyle film", "Tim Walker whimsical editorial", "natural-light countryside"]
+    brief_seed: "Cottagecore pastoral — one woman in soft rustic countryside light, wildflowers and linen, gentle and dreamy."
+
+# Optional recurring personas (Q5: persona-brief now, visual face-lock deferred).
+# When bound, the persona's traits are held constant across a series as a stable
+# subject prefix; the scene/light/wardrobe/mood vary per image. Face will still
+# vary per image until the Phase-2 face-lock (IPAdapter/LoRA) ships.
+persona_pool:
+  - name: Clara
+    hair: "long dark wavy chestnut hair"
+    build: "slender, mid-twenties, mature delicate features"
+    age_anchor: "an adult woman in her mid-twenties"
+    wardrobe_vibe: "vintage silk, lace and pearls"
+    arc: "a recurring muse drifting through European interiors and golden landscapes"
+  - name: Sable
+    hair: "long jet-black straight hair"
+    build: "statuesque, late-twenties, striking strong features"
+    age_anchor: "an adult woman in her late twenties"
+    wardrobe_vibe: "dark lace, leather and silver"
+    arc: "a dark-romantic figure at home in candlelit shadow and gothic interiors"
+  - name: Margot
+    hair: "shoulder-length honey-blonde waves"
+    build: "soft hourglass, early-thirties, warm radiant features"
+    age_anchor: "an adult woman in her early thirties"
+    wardrobe_vibe: "satin, fur and old-Hollywood glamour"
+    arc: "a 1940s starlet across studio sets and deco suites"

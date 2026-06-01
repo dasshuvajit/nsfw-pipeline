@@ -36,6 +36,9 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import art_director  # noqa: E402
 from src.render.workflow_builder import WorkflowBuilder  # noqa: E402
 from src.render.comfyui_client import ComfyUIClient  # noqa: E402
+from src.niche.selector import (  # noqa: E402
+    NicheLibrary, NicheLibraryError, build_selection, build_brief,
+)
 
 DEFAULT_TEMPLATE = "templates/chroma/gonzaLomo_Chroma_Refiner_v11.json"
 
@@ -44,6 +47,11 @@ DEFAULT_TEMPLATE = "templates/chroma/gonzaLomo_Chroma_Refiner_v11.json"
 # (which hit us on the seed-9 retry: cache key matched a prior submission).
 SEED_COUNTER_FILE = ROOT / "output/art_series/.last_seed"
 LEGACY_DEFAULT_SEED = 7
+
+# Persistent niche cursor — advances each --auto run so successive runs
+# rotate through evergreen-core niches and periodically inject a trend
+# niche (deterministic, no randomness; mirrors the seed counter pattern).
+NICHE_CURSOR_FILE = ROOT / "output/art_series/.niche_cursor"
 
 # gonzalomo_chroma_v30 resolution presets.
 ORIENTATIONS = {
@@ -94,6 +102,18 @@ def _record_max_seed(seed: int) -> None:
     SEED_COUNTER_FILE.write_text(str(max(prior, seed)))
 
 
+def _read_niche_cursor() -> int:
+    try:
+        return int(NICHE_CURSOR_FILE.read_text().strip())
+    except (FileNotFoundError, ValueError):
+        return 0
+
+
+def _advance_niche_cursor(cursor: int) -> None:
+    NICHE_CURSOR_FILE.parent.mkdir(parents=True, exist_ok=True)
+    NICHE_CURSOR_FILE.write_text(str(cursor + 1))
+
+
 def _unload_llm(model_tag: str) -> None:
     """Free the Ollama model before the render phase (never co-resident
     with ComfyUI). Best-effort: `ollama stop`, then a short grace period."""
@@ -107,7 +127,18 @@ def _unload_llm(model_tag: str) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="LLM-direct art series (gen→render)")
-    ap.add_argument("--brief", required=True, help="creative brief / theme")
+    # Niche selection (one of --auto / --niche / --brief is required):
+    ap.add_argument("--auto", action="store_true",
+                    help="auto-pick a niche from config/niche_library.yaml "
+                    "(evergreen-core + periodic trend, via the niche cursor)")
+    ap.add_argument("--niche", default=None,
+                    help="force a specific niche id from the library")
+    ap.add_argument("--persona", action="store_true",
+                    help="bind a recurring persona (rotated from the pool)")
+    ap.add_argument("--persona-name", default=None,
+                    help="bind a specific persona by name (e.g. Clara)")
+    ap.add_argument("--brief", default=None,
+                    help="manual creative brief/theme (overrides niche selection)")
     ap.add_argument("--tier", default="T3_artnude",
                     choices=list(art_director.TIER_DIRECTIVES))
     ap.add_argument("--count", type=int, default=6, help="number of prompts")
@@ -120,6 +151,10 @@ def main() -> int:
     ap.add_argument("--model-tag", default=art_director.CYDONIA_TAG,
                     help="Ollama LLM tag for prompt generation")
     ap.add_argument("--temperature", type=float, default=0.85)
+    ap.add_argument("--word-band", default="110-160",
+                    help="prose word band 'lo-hi' (A/B: try 200-300)")
+    ap.add_argument("--no-audit-gate", action="store_true",
+                    help="disable the inline audit_prompts quality gate")
     ap.add_argument("--base-seed", type=int, default=None,
                     help="explicit base seed; default = auto-advance past the "
                     "highest seed any prior run used (output/art_series/.last_seed)")
@@ -127,10 +162,43 @@ def main() -> int:
                     help="output dir (default: output/art_series/<timestamp>)")
     args = ap.parse_args()
 
+    if not (args.auto or args.niche or args.brief):
+        ap.error("provide one of --auto, --niche <id>, or --brief <text>")
+
+    try:
+        lo_s, hi_s = args.word_band.split("-")
+        word_band = (int(lo_s), int(hi_s))
+    except ValueError:
+        ap.error("--word-band must be 'lo-hi', e.g. 110-160 or 200-300")
+
     cfg = yaml.safe_load((ROOT / "config/pipeline.yaml").read_text())
     cu = cfg["comfyui"]
     workflow_dir = ROOT / cu.get("workflow_dir", "config/comfyui_workflows")
     resolution = ORIENTATIONS[args.orientation]
+
+    # ── Resolve brief + sub-looks via the niche selector (unless --brief) ──
+    selection = None
+    sub_looks = None
+    brief = args.brief
+    if not args.brief:
+        try:
+            library = NicheLibrary.from_yaml()
+            niche_cursor = _read_niche_cursor()
+            selection = build_selection(
+                library, niche_cursor, tier=args.tier,
+                force_niche=args.niche,
+                persona=args.persona or bool(args.persona_name),
+                persona_name=args.persona_name,
+            )
+        except NicheLibraryError as exc:
+            ap.error(f"niche selection failed: {exc}")
+        brief = build_brief(selection)
+        sub_looks = selection.sub_looks
+        _advance_niche_cursor(niche_cursor)
+        print(f"=== niche: {selection.niche.id} ({selection.niche.niche_class}) "
+              f"| folder={selection.niche.da_folder!r} "
+              f"| persona={selection.persona.name if selection.persona else 'none'} "
+              f"| tier={args.tier} ===", flush=True)
     base_seed = _next_base_seed(args.base_seed)
     print(f"=== base_seed for this run: {base_seed} "
           f"(seeds {base_seed}..{base_seed + args.seeds - 1}) ===", flush=True)
@@ -146,11 +214,14 @@ def main() -> int:
     print(f"\n=== Phase 1: generating {args.count} prompts via "
           f"{args.model_tag} ===", flush=True)
     rows = art_director.generate_series(
-        brief=args.brief,
+        brief=brief,
         tier=args.tier,
         count=args.count,
         model_tag=args.model_tag,
         temperature=args.temperature,
+        sub_looks=sub_looks,
+        word_band=word_band,
+        audit_gate=not args.no_audit_gate,
     )
     if not rows:
         print("No prompts generated — aborting.", file=sys.stderr)
@@ -194,12 +265,27 @@ def main() -> int:
                       file=sys.stderr, flush=True)
         manifest.append(entry)
 
+    niche_meta = None
+    if selection is not None:
+        niche_meta = {
+            "id": selection.niche.id,
+            "class": selection.niche.niche_class,
+            "da_folder": selection.niche.da_folder,
+            "tags": selection.niche.tags,
+            "aesthetic_lock": {
+                "palette": selection.aesthetic_lock.palette,
+                "lighting": selection.aesthetic_lock.lighting,
+                "photographer": selection.aesthetic_lock.photographer,
+            },
+            "persona": selection.persona.name if selection.persona else None,
+        }
     (out_dir / "manifest.json").write_text(json.dumps({
-        "brief": args.brief, "tier": args.tier, "template": args.template,
+        "brief": brief, "tier": args.tier, "template": args.template,
         "model_tag": args.model_tag, "orientation": args.orientation,
         "resolution": resolution, "seeds_per_prompt": args.seeds,
-        "base_seed": base_seed,
+        "base_seed": base_seed, "word_band": list(word_band),
         "seeds": list(range(base_seed, base_seed + args.seeds)),
+        "niche": niche_meta,
         "prompts": manifest,
     }, indent=2))
 
