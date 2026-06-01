@@ -12,7 +12,7 @@ active: true
 notes: >-
   Civitai model 2182526 — Chroma1-HD checkpoint merge with multiple
   baked-in LoRAs by GonzaLomo. Author-recommended generation contract
-  (bake into the template): steps 8-14 (sweet spot 12), CFG 1.0-1.3
+(bake into the template): steps 8-14 (sweet spot 12), CFG 1.0-1.3
   (Chroma was retrained with CFG but stays in a narrow low-CFG band),
   sampler euler or dpmpp_2m, scheduler simple or beta. Natural-language
   prose with art direction up front works best (the chroma family

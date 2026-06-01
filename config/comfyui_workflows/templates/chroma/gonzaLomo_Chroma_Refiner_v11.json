@@ -15,7 +15,7 @@
   "ksampler": {
     "inputs": {
       "seed": 107,
-      "steps": 10,
+      "steps": 12,
       "cfg": 1,
       "sampler_name": "euler",
       "scheduler": "beta",
@@ -437,12 +437,11 @@
   },
   "195": {
     "inputs": {
-      "unet_name": "gonzalomoChroma_v30.safetensors",
-      "weight_dtype": "default"
+      "unet_name": "gonzalomoChroma_v30.gguf"
     },
-    "class_type": "UNETLoader",
+    "class_type": "UnetLoaderGGUF",
     "_meta": {
-      "title": "Load Diffusion Model"
+      "title": "Unet Loader (GGUF)"
     }
   }
 }
