@@ -175,6 +175,26 @@ def test_audit_gate_regenerates_below_threshold(monkeypatch):
     assert rows[0]["audit_score"] == 9.0
 
 
+def test_sfw_cover_gate_rejects_nudity(monkeypatch):
+    """require_sfw=True must hard-reject any nudity in a cover prompt
+    (DA SFW-shopfront ToS) so the LLM re-rolls clothed. The verification
+    e2e caught a T1 cover drifting to a topless art-nude silhouette."""
+    nude = ("She stands bare and topless against black, her exposed breasts "
+            "catching the rim light, nude form sculpted in shadow. " * 4)
+    clothed = ("She stands in an elegant floor-length silk gown that drapes "
+               "her fully, a confident hand on one hip, warm light across the "
+               "fabric and her serene face, fine-art editorial framing, 85mm. " * 3)
+    # validator runs under the active SFW flag
+    monkeypatch.setattr(AD, "_ACTIVE_REQUIRE_SFW", True)
+    with pytest.raises(Exception):
+        AD._PromptOut(prompt=nude)
+    # a fully-clothed prompt passes
+    assert AD._PromptOut(prompt=clothed).prompt
+    # and with the flag off, nudity is allowed (normal T3/T4 path)
+    monkeypatch.setattr(AD, "_ACTIVE_REQUIRE_SFW", False)
+    assert AD._PromptOut(prompt=nude).prompt
+
+
 def test_audit_gate_keeps_best_when_all_below(monkeypatch):
     """If no attempt clears the threshold, ship the best-scoring one
     (never drop the scene over a soft-quality miss)."""

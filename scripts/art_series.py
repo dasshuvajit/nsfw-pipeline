@@ -535,6 +535,8 @@ def main() -> int:
             model_tag=args.model_tag, temperature=args.temperature,
             sub_looks=sub_looks, word_band=word_band,
             audit_gate=not args.no_audit_gate,
+            require_sfw=True,
+            extra_directive=art_director.SFW_COVER_DIRECTIVE,
         )
 
     gated_meta = public_meta = None

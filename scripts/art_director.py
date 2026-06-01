@@ -44,6 +44,30 @@ CYDONIA_TAG = "Fermi/Cydonia-24B-v4.3-heretic-vision:Q4_K_M"
 WORD_BAND_DEFAULT = (110, 160)
 _ACTIVE_WORD_BAND = WORD_BAND_DEFAULT
 
+# When True, the validator hard-rejects any nudity in a generated prompt.
+# Used for PUBLIC SFW covers/thumbnails (DA shopfront ToS: covers must carry
+# NO mature content — even a tasteful art-nude silhouette is non-compliant).
+# Set per-run by generate_series(require_sfw=True).
+_ACTIVE_REQUIRE_SFW = False
+
+# Nudity tokens that disqualify a cover/thumbnail prompt (checked only when
+# _ACTIVE_REQUIRE_SFW). Tier directives alone proved insufficient — the LLM
+# wrote "wears only stockings" (topless) for a T1 cover.
+_NUDITY_TOKENS = (
+    "nude", "naked", "topless", "bare breast", "bare chest", "bare-chested",
+    "exposed breast", "exposed chest", "areola", "nipple", "bare body",
+    "fully bare", "undressed", "unclothed", "bare-skinned",
+)
+
+# Hard SFW instruction appended to PUBLIC cover/teaser prompts.
+SFW_COVER_DIRECTIVE = (
+    "PUBLIC SHOPFRONT COVER — she must be FULLY CLOTHED in elegant attire that "
+    "completely covers the breasts and groin (a dress, gown, robe, blouse, or a "
+    "full lingerie set). ABSOLUTELY NO nudity, NO topless, NO bare breasts, NO "
+    "implied nude, NO sheer see-through over bare skin. This is a safe-for-work "
+    "thumbnail; sensuality comes from pose, wardrobe and gaze only."
+)
+
 # Inline prompt-quality gate: every generated prompt is scored by
 # scripts/audit_prompts.score_prompt; below this, regenerate (keep-best
 # fallback after the attempt budget). Calibrated to the rubric (clean
@@ -240,6 +264,15 @@ class _PromptOut(BaseModel):
                 "render-risk: 'mirror' present — chroma warps mirror "
                 "reflections into double faces. Re-write without a mirror."
             )
+        # SFW-cover gate: covers/thumbnails must be fully clothed (DA
+        # shopfront ToS). Reject any nudity so the LLM re-rolls clothed.
+        if _ACTIVE_REQUIRE_SFW:
+            nudity = [t for t in _NUDITY_TOKENS if t in low]
+            if nudity:
+                raise ValueError(
+                    f"SFW-cover: nudity token(s) {nudity} — covers must be "
+                    f"FULLY CLOTHED. Re-write with covering attire."
+                )
         return text
 
 
@@ -270,8 +303,11 @@ def generate_one(
     model_tag: str,
     temperature: float,
     word_band: tuple[int, int] = WORD_BAND_DEFAULT,
+    extra_directive: str = "",
 ) -> str:
     tier_directive = TIER_DIRECTIVES.get(tier, TIER_DIRECTIVES["T3_artnude"])
+    if extra_directive:
+        tier_directive = f"{tier_directive}\n{extra_directive}"
     variety = ""
     if avoid or banned_openers:
         parts: list[str] = [
@@ -334,6 +370,8 @@ def generate_series(
     audit_gate: bool = True,
     audit_threshold: float = AUDIT_GATE_THRESHOLD_DEFAULT,
     max_attempts: int = 4,
+    require_sfw: bool = False,
+    extra_directive: str = "",
 ) -> list[dict]:
     """Generate ``count`` prompts. ``sub_looks`` (from the niche selector)
     overrides the default 3; the per-scene look rotates through them.
@@ -343,8 +381,9 @@ def generate_series(
     keeping the best-scoring attempt as a fallback so a scene is never dropped
     purely for a soft-quality miss. Pydantic guards (safety/word-band/mirror)
     still hard-reject before scoring."""
-    global _ACTIVE_WORD_BAND
+    global _ACTIVE_WORD_BAND, _ACTIVE_REQUIRE_SFW
     _ACTIVE_WORD_BAND = word_band
+    _ACTIVE_REQUIRE_SFW = require_sfw
 
     looks = sub_looks or [s for s in SUB_LOOKS]
     score_fn = None
@@ -377,6 +416,7 @@ def generate_series(
                     model_tag=model_tag,
                     temperature=temperature,
                     word_band=word_band,
+                    extra_directive=extra_directive,
                 )
             except Exception as exc:  # noqa: BLE001 — Pydantic/safety reject → retry
                 last_err = exc
