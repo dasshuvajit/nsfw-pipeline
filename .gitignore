@@ -23,6 +23,7 @@ ENV/
 output/soft/*
 output/full/*
 output/art_series/
+output/wordband_ab/
 !output/soft/.gitkeep
 !output/full/.gitkeep
 
