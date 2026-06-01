@@ -53,8 +53,8 @@ def main() -> int:
         description="Word-band A/B (LAION-aesthetic + eyeball judged)")
     ap.add_argument("--niches",
                     default="fine_art_figure_study,old_hollywood_glamour,"
-                            "modern_boudoir,poolside_goldenhour",
-                    help="comma-separated niche ids")
+                            "modern_boudoir,fantasy_glamour",
+                    help="comma-separated niche ids (tier-incompatible ones skipped)")
     ap.add_argument("--tier", default="T3_artnude")
     ap.add_argument("--bands", default="110-160,200-300",
                     help="two 'lo-hi' bands to compare")
@@ -82,6 +82,18 @@ def main() -> int:
     print(f"=== Phase 1 (LLM): {len(niche_ids)} niches × {len(bands)} bands ===",
           flush=True)
     plan: list[dict] = []  # {niche, band, prompt, words, look}
+    from src.niche.selector import NicheLibraryError
+    usable = []
+    for nid in niche_ids:
+        try:
+            build_selection(lib, 0, tier=args.tier, force_niche=nid)
+            usable.append(nid)
+        except NicheLibraryError as exc:
+            print(f"  (skip {nid}: {exc})", file=sys.stderr, flush=True)
+    niche_ids = usable
+    if not niche_ids:
+        print("No tier-compatible niches — aborting.", file=sys.stderr)
+        return 1
     for ni, nid in enumerate(niche_ids):
         sel = build_selection(lib, ni, tier=args.tier, force_niche=nid)
         brief = build_brief(sel)
