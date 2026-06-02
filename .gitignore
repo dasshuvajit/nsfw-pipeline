@@ -25,6 +25,13 @@ output/full/*
 output/art_series/
 output/wordband_ab/
 output/chroma_model_ab/
+# tier-split packaged series
+output/T1_suggestive/
+output/T2_implied/
+output/T3_artnude/
+output/T4_explicit/
+# smoke/scratch renders + A/B dirs (_staged_*, _v12_*, _ab_*, _gonzalomo_*)
+output/_*
 !output/soft/.gitkeep
 !output/full/.gitkeep
 

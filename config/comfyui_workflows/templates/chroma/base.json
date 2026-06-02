@@ -1,0 +1,174 @@
+{
+  "195": {
+    "inputs": {
+      "unet_name": "gonzalomoChroma_v30.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model \u2014 gonzaLomo Chroma v3.0"
+    }
+  },
+  "186": {
+    "inputs": {
+      "clip_name": "t5xxl_fp16.safetensors",
+      "type": "chroma",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP (T5 chroma)"
+    }
+  },
+  "188": {
+    "inputs": {
+      "min_padding": 1,
+      "min_length": 0,
+      "clip": [
+        "186",
+        0
+      ]
+    },
+    "class_type": "T5TokenizerOptions",
+    "_meta": {
+      "title": "T5TokenizerOptions"
+    }
+  },
+  "183": {
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE (Flux ae \u2014 Chroma 16ch)"
+    }
+  },
+  "153": {
+    "inputs": {
+      "PowerLoraLoaderHeaderWidget": {
+        "type": "PowerLoraLoaderHeaderWidget"
+      },
+      "\u2795 Add Lora": "",
+      "model": [
+        "195",
+        0
+      ],
+      "clip": [
+        "188",
+        0
+      ]
+    },
+    "class_type": "Power Lora Loader (rgthree)",
+    "_meta": {
+      "title": "Power Lora Loader (rgthree) \u2014 no LoRA"
+    }
+  },
+  "positive_prompt": {
+    "inputs": {
+      "text": "a photograph of one adult woman, soft natural light",
+      "clip": [
+        "153",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Positive (base Chroma prose \u2014 PATCHED, full T5)"
+    }
+  },
+  "negative_prompt": {
+    "inputs": {
+      "text": "",
+      "clip": [
+        "153",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Negative (PATCHED \u2192 zeroed at cfg 1)"
+    }
+  },
+  "130": {
+    "inputs": {
+      "conditioning": [
+        "negative_prompt",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "ConditioningZeroOut (cfg=1 \u2192 negative inert)"
+    }
+  },
+  "empty_latent": {
+    "inputs": {
+      "width": 896,
+      "height": 1152,
+      "batch_size": 1
+    },
+    "class_type": "EmptySD3LatentImage",
+    "_meta": {
+      "title": "EmptySD3LatentImage (W/H PATCHED)"
+    }
+  },
+  "ksampler": {
+    "inputs": {
+      "seed": 0,
+      "steps": 12,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "beta",
+      "denoise": 1,
+      "model": [
+        "153",
+        0
+      ],
+      "positive": [
+        "positive_prompt",
+        0
+      ],
+      "negative": [
+        "130",
+        0
+      ],
+      "latent_image": [
+        "empty_latent",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler \u2014 base Chroma (euler/beta/12/cfg1, seed PATCHED)"
+    }
+  },
+  "13": {
+    "inputs": {
+      "samples": [
+        "ksampler",
+        0
+      ],
+      "vae": [
+        "183",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode \u2014 base (ae 16ch)"
+    }
+  },
+  "save": {
+    "inputs": {
+      "filename_prefix": "stage1_base",
+      "images": [
+        "13",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image \u2014 stage 1 base"
+    }
+  }
+}

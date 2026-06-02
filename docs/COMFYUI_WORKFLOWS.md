@@ -107,6 +107,64 @@ T3-and-below stay on the base v12 template (their detectors would not
 fire and NSFW-region inpainting is unwanted there). Pin `--template` to
 override.
 
+## Staged pipeline (default for `art_series`, 2026-06-02)
+
+`art_series` now renders in **separate per-model-domain stages** instead of
+the v12 monolith. The monolith co-resided Chroma (17G) + T5 (9G) + SDXL DMD
+(6.5G) every render → ~21 GB swap on the 48 GB M4 Pro, and spent the 4K
+UltimateSDUpscale (≈66 % of render time) on every image including culls.
+Staged execution splits at the only real model boundary — **Chroma (base) ↔
+SDXL (everything after)** — and gates 4K behind manual selection.
+
+| Stage | Template | Model | Run by | Output |
+|-------|----------|-------|--------|--------|
+| 1 Base | `templates/chroma/base.json` | Chroma + T5 + ae | `art_series` (all prompts) | ~896×1152 |
+| 2 Refine | `templates/chroma/refine.json` | SDXL DMD | `art_series` (all base outputs) | review ~1120×1440 |
+| 3 4K-finish | `templates/sdxl/upscale_4k.json` (+`_T4`) | SDXL DMD | **`scripts/upscale_folder.py` (manual, keepers)** | true 4K ≥3840 |
+
+`art_series` runs stage 1 for the whole series (Chroma resident once), then
+stage 2 for every base output (SDXL resident once) — the two domains never
+co-reside, so each batch stays well under 48 GB. It produces **review**
+images and curates/packages those. **4K is never auto-run.** Detailers +
+USDU live in stage 3 (the proven detail-after-upscale ordering), so the
+series render is tier-neutral.
+
+### Stage-3 manual 4K — `scripts/upscale_folder.py`
+Eyeball the review images, copy favourites into a folder, then:
+```bash
+python scripts/upscale_folder.py output/art_series/<ts>/keepers
+python scripts/upscale_folder.py my_picks --tier T4_explicit   # NSFW detailers
+```
+It reads each image's dims, computes `upscale_by = ceil((target/long_edge)*100)/100`
+(clamped ≥1.0, default target 3840), and runs the stage-3 template. **Stateless
++ base-model-agnostic** — it upscales output from any source, not just this
+pipeline.
+
+### Image-stage contract (`build_image_stage`)
+Stages 2 and 3 consume an INPUT IMAGE (no `empty_latent`), so they use
+`WorkflowBuilder.build_image_stage`, not `build_external`. Semantic IDs:
+
+| ID | Patched? | Class |
+|----|----------|-------|
+| `load_image` | yes — `inputs.image` ← absolute path | `VHS_LoadImagePath` |
+| `save` | no — presence-checked sink | `SaveImage` |
+| `stage_ksampler` | optional — `inputs.seed` | the stage's KSampler (refine) |
+| `upscale` | optional — `inputs.upscale_by` + `seed` | `UltimateSDUpscale` |
+| `prelift` | optional — `inputs.largest_size` | `ImageScaleToMaxDimension` |
+
+### Config — `pipeline.yaml::render_pipeline`
+`base_template` / `refine_template` / `upscale_template` / `upscale_template_t4`,
+`enable_refine` (false → review = raw base), `target_4k_long_edge`, and
+`base_resolution` per orientation (portrait reverted to native **896×1152**
+— 4K is reached in stage 3 so the base no longer needs 1024×1536). Per-model
+override + CLI (`--base-template` / `--refine-template` / `--no-refine`) layer
+over it. `--template <monolith>` is the back-compat escape hatch to the old
+single-pass v12 render.
+
+### Value fixes vs the monolith
+The refine sampler is **`lcm/karras/6/denoise 0.20`** (the monolith's 4/0.15 was
+≈0.6 effective steps — near-noop); the hands detailer is **0.35** (was 0.40).
+
 ## Per-family default
 
 `config/families.yaml::<family>::default_template` is the path

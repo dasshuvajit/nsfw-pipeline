@@ -36,6 +36,9 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import art_director  # noqa: E402
 from src.render.workflow_builder import WorkflowBuilder  # noqa: E402
 from src.render.comfyui_client import ComfyUIClient  # noqa: E402
+from src.render.render_pipeline import (  # noqa: E402
+    resolve_render_pipeline, base_resolution_for,
+)
 from src.niche.selector import (  # noqa: E402
     NicheLibrary, NicheLibraryError, build_selection, build_brief,
 )
@@ -264,6 +267,84 @@ def _render_rows(
     return manifest
 
 
+def _render_stage_base(
+    rows: list[dict], *, builder, client, base_template: str, negative: str,
+    resolution: tuple[int, int], base_seed: int, seeds: int,
+    dest_dir: Path, out_dir: Path, prefix: str,
+) -> list[dict]:
+    """Stage 1 (Chroma): base gen for every (prompt × seed) into dest_dir.
+
+    Manifest images carry ``{base_path, seed}``; ``path`` (what curation +
+    packaging read) is set later by the refine stage. Chroma is loaded ONCE
+    by ComfyUI and stays resident across all base submissions — SDXL is not
+    touched here, so this whole batch runs without the monolith's Chroma+SDXL
+    co-residence (and its swap)."""
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    manifest: list[dict] = []
+    for idx, r in enumerate(rows):
+        look = r["look"].split()[0]
+        entry = {"index": idx, "look": r["look"], "prompt": r["prompt"],
+                 "audit_score": r.get("audit_score"), "images": []}
+        for k in range(seeds):
+            seed = base_seed + k
+            try:
+                wf = builder.build_external(
+                    external_template=base_template, prompt_text=r["prompt"],
+                    negative_prompt=negative, resolution=resolution, seed=seed)
+                images = client.render_single_with_retry(wf, timeout=1800)
+                outs = [im for im in images if im.type == "output"] or images
+                name = f"{prefix}{idx + 1:02d}_{look}_s{seed}.png"
+                dst = dest_dir / name
+                shutil.copy(outs[-1].file_path, dst)
+                entry["images"].append(
+                    {"base_path": str(dst.relative_to(out_dir)), "seed": seed})
+                print(f"  [base {idx + 1}/{len(rows)}] seed {seed} -> {name}",
+                      flush=True)
+            except Exception as exc:  # noqa: BLE001 — surface, continue
+                print(f"  [base {idx + 1}/{len(rows)}] seed {seed} FAILED: {exc}",
+                      file=sys.stderr, flush=True)
+        manifest.append(entry)
+    return manifest
+
+
+def _render_stage_refine(
+    manifest: list[dict], *, builder, client, refine_template: str,
+    dest_dir: Path, out_dir: Path,
+) -> None:
+    """Stage 2 (SDXL): refine each stage-1 base image into a review image.
+
+    Sets ``images[].path`` (== ``review_path``) to the review image so
+    curation + packaging operate on the finished non-4K images the human
+    picks from. SDXL DMD is loaded ONCE on the first refine submit and stays
+    resident for the rest of the batch (Chroma is no longer referenced) — the
+    swap win. On refine failure the base image is used as the review path so
+    a usable image is never silently dropped."""
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    for entry in manifest:
+        for im in entry["images"]:
+            base_rel = im.get("base_path")
+            if not base_rel:
+                continue
+            base_abs = (out_dir / base_rel).resolve()
+            try:
+                wf = builder.build_image_stage(
+                    external_template=refine_template,
+                    image_path=str(base_abs), seed=im["seed"])
+                images = client.render_single_with_retry(wf, timeout=1800)
+                outs = [i for i in images if i.type == "output"] or images
+                name = Path(base_rel).name  # mirror base filename under images/
+                dst = dest_dir / name
+                shutil.copy(outs[-1].file_path, dst)
+                im["path"] = str(dst.relative_to(out_dir))
+                im["review_path"] = im["path"]
+                print(f"  [refine] {name}", flush=True)
+            except Exception as exc:  # noqa: BLE001 — surface, fall back to base
+                im["path"] = base_rel  # base image is still a usable review image
+                im["review_path"] = base_rel
+                print(f"  [refine] {base_rel} FAILED ({exc}); using base as review",
+                      file=sys.stderr, flush=True)
+
+
 def _gen_metadata(selection, brief: str, tier: str, image_count: int,
                   model_tag: str) -> dict:
     """Set-level DA metadata (title/description/tags) via MetadataGenerator,
@@ -441,8 +522,18 @@ def main() -> int:
                     help="renders per prompt (>1 = candidates to pick from)")
     ap.add_argument("--orientation", default="portrait",
                     choices=list(ORIENTATIONS))
-    ap.add_argument("--template", default=DEFAULT_TEMPLATE,
-                    help="external ComfyUI template (relative to workflow_dir)")
+    ap.add_argument("--template", default=None,
+                    help="MONOLITH escape hatch: run a single-pass v12-style "
+                    "template (e.g. gonzaLomo_Chroma_4K_v12.json) instead of the "
+                    "default staged base+refine pipeline")
+    ap.add_argument("--base-template", default=None,
+                    help="staged stage-1 base template (default: pipeline.yaml "
+                    "render_pipeline.base_template)")
+    ap.add_argument("--refine-template", default=None,
+                    help="staged stage-2 refine template (default: pipeline.yaml "
+                    "render_pipeline.refine_template)")
+    ap.add_argument("--no-refine", action="store_true",
+                    help="skip stage-2 refine; review images = raw base render")
     ap.add_argument("--model-tag", default=art_director.CYDONIA_TAG,
                     help="Ollama LLM tag for prompt generation")
     ap.add_argument("--temperature", type=float, default=0.85)
@@ -478,7 +569,19 @@ def main() -> int:
     cfg = yaml.safe_load((ROOT / "config/pipeline.yaml").read_text())
     cu = cfg["comfyui"]
     workflow_dir = ROOT / cu.get("workflow_dir", "config/comfyui_workflows")
-    resolution = ORIENTATIONS[args.orientation]
+
+    # Staged pipeline is the default; --template pins the monolith escape hatch.
+    staged = args.template is None
+    rp_cli = {"base_template": args.base_template,
+              "refine_template": args.refine_template}
+    if args.no_refine:
+        rp_cli["enable_refine"] = False
+    rp = resolve_render_pipeline(cfg.get("render_pipeline"), None, rp_cli)
+    # Monolith expects its 4K-tuned ORIENTATIONS (portrait 1024×1536); staged
+    # uses render_pipeline.base_resolution (portrait reverted to native 896×1152,
+    # 4K reached in the separate manual upscale stage).
+    resolution = (ORIENTATIONS[args.orientation] if not staged
+                  else base_resolution_for(rp, args.orientation))
 
     # ── Resolve brief + sub-looks via the niche selector (unless --brief) ──
     selection = None
@@ -566,27 +669,71 @@ def main() -> int:
     print("\n=== Unloading LLM before render phase ===", flush=True)
     _unload_llm(args.model_tag)
 
-    # ── Phase 2: render (main + SFW covers) ────────────────────────────
-    # T4 main images get the NSFW-region detailer variant unless the user
-    # pinned --template explicitly. Covers always use the base template.
-    main_template = args.template
-    if args.tier == "T4_explicit" and args.template == DEFAULT_TEMPLATE:
-        main_template = T4_TEMPLATE
-    print(f"\n=== Phase 2: rendering via {Path(main_template).name} "
-          f"(covers via {Path(args.template).name}) ===", flush=True)
+    # ── Phase 2: render ────────────────────────────────────────────────
+    # Default = STAGED: base (Chroma) for ALL prompts, then refine (SDXL) for
+    # ALL base outputs → review images. The two model domains never co-reside
+    # (no swap). 4K is NEVER auto-run here — it is a manual keepers-only step
+    # via scripts/upscale_folder.py. Detailers + 4K live in the upscale stage
+    # (proven detail-after-upscale ordering), so the series render is
+    # tier-NEUTRAL. --template pins the old monolith single-pass escape hatch.
     builder = WorkflowBuilder(workflow_dir)
     client = ComfyUIClient(base_url=cu["base_url"], output_dir=cu["output_dir"])
-    manifest = _render_rows(
-        rows, builder=builder, client=client, template=main_template,
-        negative=DEFAULT_NEGATIVE, resolution=resolution, base_seed=base_seed,
-        seeds=args.seeds, dest_dir=img_dir, out_dir=out_dir, prefix="ad")
+    base_dir = out_dir / "base"
+    cover_dir = out_dir / "covers"
     cover_manifest: list[dict] = []
-    if cover_rows:
-        cover_manifest = _render_rows(
-            cover_rows, builder=builder, client=client, template=args.template,
-            negative=DEFAULT_NEGATIVE, resolution=resolution,
-            base_seed=cover_base, seeds=cover_seeds,
-            dest_dir=out_dir / "covers", out_dir=out_dir, prefix="cover")
+    run_template = args.template  # for the manifest record
+
+    if staged:
+        base_tmpl = rp["base_template"]
+        refine_tmpl = rp["refine_template"]
+        enable_refine = rp.get("enable_refine", True)
+        run_template = {"base": base_tmpl, "refine": refine_tmpl,
+                        "upscale": rp["upscale_template"]}
+        print(f"\n=== Phase 2a (base, Chroma): {Path(base_tmpl).name} ===",
+              flush=True)
+        manifest = _render_stage_base(
+            rows, builder=builder, client=client, base_template=base_tmpl,
+            negative=DEFAULT_NEGATIVE, resolution=resolution, base_seed=base_seed,
+            seeds=args.seeds, dest_dir=base_dir, out_dir=out_dir, prefix="ad")
+        if cover_rows:
+            cover_manifest = _render_stage_base(
+                cover_rows, builder=builder, client=client, base_template=base_tmpl,
+                negative=DEFAULT_NEGATIVE, resolution=resolution,
+                base_seed=cover_base, seeds=cover_seeds,
+                dest_dir=base_dir, out_dir=out_dir, prefix="cover")
+        if enable_refine:
+            print(f"\n=== Phase 2b (refine, SDXL): {Path(refine_tmpl).name} "
+                  f"→ review images ===", flush=True)
+            _render_stage_refine(manifest, builder=builder, client=client,
+                                 refine_template=refine_tmpl, dest_dir=img_dir,
+                                 out_dir=out_dir)
+            if cover_manifest:
+                _render_stage_refine(cover_manifest, builder=builder, client=client,
+                                     refine_template=refine_tmpl, dest_dir=cover_dir,
+                                     out_dir=out_dir)
+        else:
+            print("\n=== Phase 2b skipped (--no-refine): review = raw base ===",
+                  flush=True)
+            for m in (manifest, cover_manifest):
+                for e in m:
+                    for im in e["images"]:
+                        im["path"] = im.get("base_path")
+                        im["review_path"] = im["path"]
+    else:
+        # Monolith escape hatch — old single-pass via _render_rows.
+        mono_res = ORIENTATIONS[args.orientation]
+        print(f"\n=== Phase 2 (monolith): {Path(args.template).name} ===",
+              flush=True)
+        manifest = _render_rows(
+            rows, builder=builder, client=client, template=args.template,
+            negative=DEFAULT_NEGATIVE, resolution=mono_res, base_seed=base_seed,
+            seeds=args.seeds, dest_dir=img_dir, out_dir=out_dir, prefix="ad")
+        if cover_rows:
+            cover_manifest = _render_rows(
+                cover_rows, builder=builder, client=client, template=args.template,
+                negative=DEFAULT_NEGATIVE, resolution=mono_res,
+                base_seed=cover_base, seeds=cover_seeds,
+                dest_dir=cover_dir, out_dir=out_dir, prefix="cover")
 
     # ── Phase 3: curation (ImageScorer triage) ─────────────────────────
     scoring_cfg = cfg.get("scoring", {})
@@ -626,7 +773,7 @@ def main() -> int:
             "persona": selection.persona.name if selection.persona else None,
         }
     (out_dir / "manifest.json").write_text(json.dumps({
-        "brief": brief, "tier": args.tier, "template": main_template,
+        "brief": brief, "tier": args.tier, "template": run_template,
         "model_tag": args.model_tag, "orientation": args.orientation,
         "resolution": resolution, "seeds_per_prompt": args.seeds,
         "base_seed": base_seed, "word_band": list(word_band),

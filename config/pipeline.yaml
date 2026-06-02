@@ -229,6 +229,31 @@ comfyui:
   max_retry_per_image: 3
   workflow_dir: "config/comfyui_workflows"
 
+# Staged render pipeline (2026-06-02). art_series runs the base stage for
+# ALL prompts (Chroma resident), then the refine stage for ALL base outputs
+# (SDXL DMD resident) — the two model domains are never co-resident, which
+# avoids the ~21GB swap the monolith hit on the 48GB M4 Pro. 4K is a SEPARATE
+# manual step (scripts/upscale_folder.py) run only on hand-picked keepers —
+# never auto-run in a series (4K USDU is ~66% of render cost; don't spend it
+# on culls). See docs/COMFYUI_WORKFLOWS.md § Staged pipeline.
+render_pipeline:
+  base_template:       "templates/chroma/base.json"      # stage 1 (Chroma)
+  refine_template:     "templates/chroma/refine.json"    # stage 2 (SDXL refine)
+  upscale_template:    "templates/sdxl/upscale_4k.json"  # stage 3 (manual; SFW)
+  upscale_template_t4: "templates/sdxl/upscale_4k_T4.json"  # stage 3 T4 variant
+  # false -> skip stage 2; review images are the raw base (the 4K stage's USDU
+  # tiled diffusion then serves as the refine). true matches base+refine review.
+  enable_refine: true
+  target_4k_long_edge: 3840
+  # Base resolution per orientation (overrides art_series ORIENTATIONS when the
+  # staged pipeline is active). Reverted to the model's native 896x1152 portrait:
+  # 4K is reached in the separate upscale stage now, so the base no longer needs
+  # the 1024x1536 that made the monolith's x1.25x2.0 math land on 3840.
+  base_resolution:
+    portrait:  [896, 1152]
+    square:    [1024, 1024]
+    landscape: [1152, 896]
+
 # NOTE: the old model_lanes: block was removed on 2026-04-08 when the
 # model_registry SQLite table landed. The registry is now the single
 # source of truth for "which checkpoints exist + their capabilities".

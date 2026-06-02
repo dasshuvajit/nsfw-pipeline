@@ -1,0 +1,137 @@
+{
+  "load_image": {
+    "inputs": {
+      "image": "",
+      "custom_width": 0,
+      "custom_height": 0
+    },
+    "class_type": "VHS_LoadImagePath",
+    "_meta": {
+      "title": "Load base image (stage 1 output)"
+    }
+  },
+  "refiner_checkpoint_loader": {
+    "inputs": {
+      "ckpt_name": "gonzalomoXLFluxPony_v60PhotoXLDMD.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load SDXL DMD refiner (model+CLIP+VAE)"
+    }
+  },
+  "det_pos": {
+    "inputs": {
+      "text": "raw photo, photographic, highly detailed skin, natural skin texture, skin pores, sharp focus, detailed eyes, natural color, fine detail",
+      "clip": [
+        "refiner_checkpoint_loader",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Detail prompt (generic, content-neutral) \u2014 refine + USDU + detailers"
+    }
+  },
+  "det_neg": {
+    "inputs": {
+      "text": "blurry, out of focus, plastic skin, waxy skin, oversharpened, jpeg artifacts, deformed, extra fingers, extra limbs, watermark, text, lowres, oversmoothed, airbrushed",
+      "clip": [
+        "refiner_checkpoint_loader",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Detail negative (generic)"
+    }
+  },
+  "143": {
+    "inputs": {
+      "upscale_method": "lanczos",
+      "scale_by": 1.25,
+      "image": [
+        "load_image",
+        0
+      ]
+    },
+    "class_type": "ImageScaleBy",
+    "_meta": {
+      "title": "Upscale 1.25x (detail headroom into SDXL)"
+    }
+  },
+  "132": {
+    "inputs": {
+      "pixels": [
+        "143",
+        0
+      ],
+      "vae": [
+        "refiner_checkpoint_loader",
+        2
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE Encode \u2192 SDXL latent (sdxl vae)"
+    }
+  },
+  "stage_ksampler": {
+    "inputs": {
+      "seed": 12345,
+      "steps": 6,
+      "cfg": 1,
+      "sampler_name": "lcm",
+      "scheduler": "karras",
+      "denoise": 0.2,
+      "model": [
+        "refiner_checkpoint_loader",
+        0
+      ],
+      "positive": [
+        "det_pos",
+        0
+      ],
+      "negative": [
+        "det_neg",
+        0
+      ],
+      "latent_image": [
+        "132",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "SDXL DMD refine (lcm/karras/6/cfg1/denoise0.20)"
+    }
+  },
+  "133": {
+    "inputs": {
+      "samples": [
+        "stage_ksampler",
+        0
+      ],
+      "vae": [
+        "refiner_checkpoint_loader",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode \u2014 refined (sdxl vae)"
+    }
+  },
+  "save": {
+    "inputs": {
+      "filename_prefix": "stage2_review",
+      "images": [
+        "133",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image \u2014 stage 2 review"
+    }
+  }
+}
