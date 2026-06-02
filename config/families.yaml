@@ -728,7 +728,7 @@ families:
     # Default render model + template for the chroma family (D6 + D7).
     # render_prompts.py uses these when --models / --templates are omitted.
     default_render_model: gonzalomo_chroma_v30
-    default_template: templates/chroma/gonzaLomo_Chroma_Refiner_v11.json
+    default_template: templates/chroma/gonzaLomo_Chroma_4K_v12.json
     quality_prefix: []
     quality_suffix: []
     # Negative-axis vocabulary aligned with the official ChromaPipeline

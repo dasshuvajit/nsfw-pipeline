@@ -22,7 +22,7 @@ def test_gonzalomo_chroma_v30_registers():
     loader = ModelRegistryLoader()
     entry = loader.get_model("gonzalomo_chroma_v30")
     assert entry.family == "chroma"
-    assert entry.filename == "gonzalomoChroma_v30.gguf"
+    assert entry.filename == "gonzalomoChroma_v30.safetensors"
     assert entry.commercial_use is True
     # default_sampler / scheduler / steps / cfg / VAE / text_encoder
     # moved into external template JSONs on 2026-05-20. ModelRegistryEntry

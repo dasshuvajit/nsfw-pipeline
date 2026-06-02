@@ -102,7 +102,7 @@ def test_resolve_family_default_chroma(engine):
         family_id="chroma",
         override=None,
     )
-    assert out == "templates/chroma/gonzaLomo_Chroma_Refiner_v11.json"
+    assert out == "templates/chroma/gonzaLomo_Chroma_4K_v12.json"
 
 
 @pytest.mark.parametrize("family_id", ["sdxl", "pony", "illustrious", "flux", "flux2"])

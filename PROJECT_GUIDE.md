@@ -35,8 +35,10 @@ python scripts/list_models.py
 # weighted random mode + T2_implied tier).
 python scripts/prepare_prompts.py
 
-# Render (uses families.yaml::<family>::default_template; chroma falls
-# back to templates/chroma/gonzaLomo_Chroma_Refiner_v11.json).
+# Render (uses families.yaml::<family>::default_template; chroma default is
+# the true-4K production graph templates/chroma/gonzaLomo_Chroma_4K_v12.json
+# — gonzaLomo base → SDXL DMD refine → UltimateSDUpscale 4K → face/eyes/hands
+# detailers; ~14 min/img on M4 Pro. See docs/COMFYUI_WORKFLOWS.md).
 python scripts/render_prompts.py --series-id <id from step above>
 ```
 

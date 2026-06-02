@@ -40,7 +40,12 @@ from src.niche.selector import (  # noqa: E402
     NicheLibrary, NicheLibraryError, build_selection, build_brief,
 )
 
-DEFAULT_TEMPLATE = "templates/chroma/gonzaLomo_Chroma_Refiner_v11.json"
+DEFAULT_TEMPLATE = "templates/chroma/gonzaLomo_Chroma_4K_v12.json"
+# T4 variant: base v12 chain + tier-gated NSFW-region detailers (nipples,
+# vagina). Auto-selected for T4_explicit main images only; SFW covers and
+# T3-and-below stay on the base template (their detectors would not fire and
+# NSFW-region inpainting is unwanted there).
+T4_TEMPLATE = "templates/chroma/gonzaLomo_Chroma_4K_v12_T4.json"
 
 # Persistent seed counter — guarantees every render across runs gets a
 # never-before-used seed, defeating ComfyUI's per-node cache collisions
@@ -53,11 +58,15 @@ LEGACY_DEFAULT_SEED = 7
 # niche (deterministic, no randomness; mirrors the seed counter pattern).
 NICHE_CURSOR_FILE = ROOT / "output/art_series/.niche_cursor"
 
-# gonzalomo_chroma_v30 resolution presets.
+# gonzalomo_chroma_v30 base resolution presets. These feed the v12 4K
+# template, whose chain is base ->(ImageScaleBy 1.25)-> SDXL refine
+# ->(UltimateSDUpscale 2.0)-> detailers. Final long edge = base * 1.25 * 2.0.
+# Portrait/landscape bases give a TRUE-4K (>=3840px) long edge; square at
+# 1024 yields 2560px (raise to 1536 for a true-4K square at higher base cost).
 ORIENTATIONS = {
-    "portrait": (896, 1152),
-    "square": (1024, 1024),
-    "landscape": (1152, 896),
+    "portrait": (1024, 1536),   # -> 2560 x 3840  (true 4K)
+    "square": (1024, 1024),     # -> 2560 x 2560  (2.5K; see note above)
+    "landscape": (1536, 1024),  # -> 3840 x 2560  (true 4K)
 }
 
 # Self-contained default negative (age-safety + multi-subject + anatomy +
@@ -236,7 +245,10 @@ def _render_rows(
                 wf = builder.build_external(
                     external_template=template, prompt_text=r["prompt"],
                     negative_prompt=negative, resolution=resolution, seed=seed)
-                images = client.render_single_with_retry(wf, timeout=480)
+                # v12 4K chain (base + SDXL refine + UltimateSDUpscale to
+                # 3840px + 3 detailers) runs ~8-15 min/img on the M4 Pro;
+                # 1800s leaves headroom so a slow render is not killed mid-pass.
+                images = client.render_single_with_retry(wf, timeout=1800)
                 outs = [im for im in images if im.type == "output"] or images
                 name = f"{prefix}{idx + 1:02d}_{look}_s{seed}.png"
                 dst = dest_dir / name
@@ -555,12 +567,17 @@ def main() -> int:
     _unload_llm(args.model_tag)
 
     # ── Phase 2: render (main + SFW covers) ────────────────────────────
-    print(f"\n=== Phase 2: rendering via {Path(args.template).name} ===",
-          flush=True)
+    # T4 main images get the NSFW-region detailer variant unless the user
+    # pinned --template explicitly. Covers always use the base template.
+    main_template = args.template
+    if args.tier == "T4_explicit" and args.template == DEFAULT_TEMPLATE:
+        main_template = T4_TEMPLATE
+    print(f"\n=== Phase 2: rendering via {Path(main_template).name} "
+          f"(covers via {Path(args.template).name}) ===", flush=True)
     builder = WorkflowBuilder(workflow_dir)
     client = ComfyUIClient(base_url=cu["base_url"], output_dir=cu["output_dir"])
     manifest = _render_rows(
-        rows, builder=builder, client=client, template=args.template,
+        rows, builder=builder, client=client, template=main_template,
         negative=DEFAULT_NEGATIVE, resolution=resolution, base_seed=base_seed,
         seeds=args.seeds, dest_dir=img_dir, out_dir=out_dir, prefix="ad")
     cover_manifest: list[dict] = []
@@ -609,7 +626,7 @@ def main() -> int:
             "persona": selection.persona.name if selection.persona else None,
         }
     (out_dir / "manifest.json").write_text(json.dumps({
-        "brief": brief, "tier": args.tier, "template": args.template,
+        "brief": brief, "tier": args.tier, "template": main_template,
         "model_tag": args.model_tag, "orientation": args.orientation,
         "resolution": resolution, "seeds_per_prompt": args.seeds,
         "base_seed": base_seed, "word_band": list(word_band),
