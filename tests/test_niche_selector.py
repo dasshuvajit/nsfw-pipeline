@@ -218,3 +218,27 @@ def test_cycle_is_deterministic(lib):
     a, _ = select_niche_cycle(lib, ["fine_art_figure_study"], tier="T3_artnude")
     b, _ = select_niche_cycle(lib, ["fine_art_figure_study"], tier="T3_artnude")
     assert a.id == b.id
+
+
+# ── fantasy/historical/monochrome niches (2026-06-04 competitor-proven) ──
+
+def test_new_fantasy_historical_niches_present(lib):
+    for nid in ("renaissance_baroque", "mythology_goddess", "medieval_lady",
+                "angelic_divine", "arabian_nights", "dark_fantasy_vampire",
+                "monochrome_fine_art"):
+        n = lib.by_id(nid)
+        assert n.sub_looks and n.aesthetics.get("lighting")
+        assert "T3_artnude" in n.tier_band or "T2_implied" in n.tier_band
+
+
+def test_risky_theme_niches_block_problematic_tropes(lib):
+    # arabian_nights/vampire/medieval must avoid harem-slave/victim/damsel
+    motifs = " ".join(lib.by_id("arabian_nights").avoid_motifs).lower()
+    assert "harem" in motifs and "slave" in motifs
+    assert "victim" in " ".join(lib.by_id("dark_fantasy_vampire").avoid_motifs).lower()
+    assert "damsel" in " ".join(lib.by_id("medieval_lady").avoid_motifs).lower()
+
+
+def test_monochrome_niche_specifies_black_and_white(lib):
+    n = lib.by_id("monochrome_fine_art")
+    assert "black-and-white" in n.brief_seed.lower() or "black and white" in n.brief_seed.lower()

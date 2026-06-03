@@ -272,6 +272,145 @@ niches:
       photographers: ["pastoral lifestyle film", "Tim Walker whimsical editorial", "natural-light countryside"]
     brief_seed: "Cottagecore pastoral — one woman in soft rustic countryside light, wildflowers and linen, gentle and dreamy."
 
+  # ──────── FANTASY / HISTORICAL / FINE-ART (2026-06-04, competitor-proven) ────────
+  # The DeviantArt field thrives on fantasy/historical framing (see
+  # docs/COMPETITOR_INTEL.md): it reads as ART (dodges the hyperrealism clause),
+  # adds collectibility, and sells. All fine-art-framed; no harem/slave/damsel/
+  # victim tropes (those are an avoid_motif where the theme risks them).
+  - id: renaissance_baroque
+    class: core
+    weight: 1.0
+    tier_band: [T1_suggestive, T2_implied, T3_artnude, T4_explicit]
+    da_folder: "Renaissance Portrait"
+    source: classical_fineart
+    tags: [renaissance, baroque, classical, fineart, chiaroscuro, oldmaster,
+           portrait, elegant, sensual, painterly, aiart, digitalart]
+    sub_looks:
+      - "old-master chiaroscuro — a single warm candle or window key carving the figure out of deep shadow, rich oxblood and gold drapery as set dressing, the sculptural modelling of Caravaggio rendered as photography"
+      - "Vermeer window light — soft cool north light across pale skin in a quiet panelled chamber, a pearl, a fall of velvet, serene composure, true fine-grain photographic skin"
+      - "baroque opulence — gilt and damask, a hazed shaft through tall leaded glass, jewel-toned palette, regal three-quarter poise"
+    aesthetics:
+      palettes: ["oxblood, gold and deep shadow", "Vermeer cool-and-cream", "jewel-toned baroque"]
+      lighting: ["single candle chiaroscuro", "soft north-window light", "hazed shaft through leaded glass"]
+      photographers: ["Caravaggio chiaroscuro (as photography)", "Vermeer window light", "old-master portrait lighting"]
+    brief_seed: "Renaissance / baroque fine-art portrait — one woman as an old-master study in chiaroscuro and rich period drapery, photographed, sculptural and timeless."
+
+  - id: mythology_goddess
+    class: core
+    weight: 1.0
+    tier_band: [T2_implied, T3_artnude, T4_explicit]
+    da_folder: "Mythic Goddess"
+    source: classical_fantasy
+    tags: [mythology, goddess, greek, roman, classical, marble, divine, fantasy,
+           elegant, sensual, fineart, aiart, digitalart, portrait]
+    sub_looks:
+      - "marble temple goddess — diffused daylight in a sunlit colonnade, white marble and laurel, a fall of translucent chiton slipped from the shoulder, serene divine composure"
+      - "Aphrodite at the shore — warm low light, sea-spray and shell, gilded skin, classical contrapposto, the body as idealized form"
+      - "moonlit Artemis — cool silver light in a sacred grove, a drawn bow at rest, athletic poise, distant cool gaze"
+    aesthetics:
+      palettes: ["marble white and gold", "warm Aegean light", "cool silver moonlight"]
+      lighting: ["diffused colonnade daylight", "warm shoreline low sun", "cool moonlit grove"]
+      photographers: ["classical sculpture lighting", "Helmut Newton statuesque", "fine-art figure study"]
+    brief_seed: "Mythic goddess — one woman as a classical deity (Aphrodite, Artemis) in marble-and-light, idealized form, serene and divine."
+    avoid_motifs:
+      - "actual stone-statue skin — she is a living woman AS a goddess, true warm skin, not carved marble"
+
+  - id: medieval_lady
+    class: core
+    weight: 0.9
+    tier_band: [T1_suggestive, T2_implied, T3_artnude, T4_explicit]
+    da_folder: "Lady of the Castle"
+    source: medieval_fantasy
+    tags: [medieval, castle, noblewoman, fantasy, historical, candlelit, gown,
+           elegant, sensual, fineart, aiart, digitalart, portrait]
+    sub_looks:
+      - "candlelit stone chamber — warm flame light across a noblewoman in a velvet-and-brocade gown slipping from one shoulder, tapestries and a four-poster behind, intimate and regal"
+      - "tower window dawn — cool first light through a narrow arched window onto pale skin, loose laced chemise, quiet self-possession"
+      - "great-hall firelight — flickering hearth glow, fur and candle, confident lady-of-the-house composure"
+    aesthetics:
+      palettes: ["warm candle-and-velvet", "cool stone dawn", "amber hearth glow"]
+      lighting: ["warm candle flame", "cool arched-window dawn", "flickering hearth fire"]
+      photographers: ["candlelit period portrait", "fine-art historical editorial", "chiaroscuro figure"]
+    brief_seed: "Lady of the castle — one medieval noblewoman, confident and self-possessed, in candlelit stone interiors and period dress."
+    avoid_motifs:
+      - "damsel/captive/victim framing — she is the confident lady of the house, never a prisoner"
+
+  - id: angelic_divine
+    class: core
+    weight: 0.9
+    tier_band: [T1_suggestive, T2_implied, T3_artnude]
+    da_folder: "Angelic & Divine"
+    source: ethereal_fantasy
+    tags: [angel, divine, ethereal, celestial, heavenly, soft, luminous, fantasy,
+           fineart, elegant, aiart, digitalart, portrait]
+    sub_looks:
+      - "shaft of heavenly light — soft volumetric beams through cloud or cathedral glass, luminous pale skin, sheer drifting fabric, large soft feathered wings half-furled behind, serene transcendence"
+      - "dawn cloud reverie — warm gold sunrise on a figure among soft cloud, gauze and gold light, weightless calm"
+      - "candlelit chapel — quiet warm glow, a fall of white linen, downcast contemplative grace"
+    aesthetics:
+      palettes: ["luminous white and gold", "soft heavenly pastel", "warm sunrise gold"]
+      lighting: ["volumetric heavenly beams", "soft golden sunrise", "warm chapel candlelight"]
+      photographers: ["ethereal high-key editorial", "soft-light fine-art nude", "luminous beauty"]
+    brief_seed: "Angelic & divine — one woman as a luminous celestial figure, soft wings and heavenly light, serene and transcendent (tasteful, fine-art)."
+
+  - id: arabian_nights
+    class: trend
+    weight: 0.8
+    tier_band: [T2_implied, T3_artnude, T4_explicit]
+    da_folder: "Desert Palace Reverie"
+    source: orientalist_fantasy
+    tags: [arabiannights, desertpalace, orientalist, opulent, silk, lantern, jewels,
+           fantasy, sensual, fineart, aiart, digitalart]
+    sub_looks:
+      - "lantern-lit palace alcove — warm filigree lantern light across a reclining figure on jewel-toned cushions and silk, gold jewellery and incense smoke, opulent and serene"
+      - "desert dawn terrace — cool first light over dunes through carved arches, sheer drifting silk, calm distant gaze"
+      - "bathhouse steam — warm diffused light through steam and mosaic, water and gold, languid composure"
+    aesthetics:
+      palettes: ["jewel-toned silk and gold", "cool desert dawn", "warm mosaic amber"]
+      lighting: ["warm filigree lantern light", "cool desert sunrise", "diffused steam light"]
+      photographers: ["opulent orientalist editorial", "warm jewel-tone fine-art", "Helmut Newton opulence"]
+    brief_seed: "Desert-palace reverie — one woman amid opulent silks, lanterns and jewels in an Arabian-Nights palace, confident and serene."
+    avoid_motifs:
+      - "harem / slave / concubine / captive framing — she is the confident mistress of the palace, never owned"
+
+  - id: dark_fantasy_vampire
+    class: trend
+    weight: 0.8
+    tier_band: [T2_implied, T3_artnude, T4_explicit]
+    da_folder: "Dark Fantasy Vampire"
+    source: gothic_fantasy
+    tags: [vampire, darkfantasy, gothic, moonlit, castle, sensual, dramatic, fantasy,
+           nocturnal, fineart, aiart, digitalart]
+    sub_looks:
+      - "moonlit gothic hall — cool blue moonlight through tall arched windows across pale luminous skin, dark crimson velvet and a fall of black hair, regal predatory calm"
+      - "candle-and-blood-red boudoir — warm low candle against deep crimson drapery, a goblet, languid confident poise"
+      - "crypt dawn — first cold light in a vaulted stone crypt, pale skin and dark lace, still composure"
+    aesthetics:
+      palettes: ["cool moonlit blue and crimson", "deep crimson and candle", "cold stone and black lace"]
+      lighting: ["cool blue moonlight", "warm low candle", "cold crypt dawn"]
+      photographers: ["gothic cinematic chiaroscuro", "dark-romantic fine-art", "Bill Henson twilight"]
+    brief_seed: "Dark-fantasy vampire — one woman as a regal nocturnal predator, pale skin and crimson velvet in moonlit gothic interiors, confident (never a victim)."
+    avoid_motifs:
+      - "gore / blood pooling / wounds / victim framing — sensual and regal, not horror; she is the predator, composed"
+
+  - id: monochrome_fine_art
+    class: core
+    weight: 1.0
+    tier_band: [T2_implied, T3_artnude, T4_explicit]
+    da_folder: "Fine-Art Black & White"
+    source: fineart_bw
+    tags: [blackandwhite, monochrome, fineart, figurestudy, chiaroscuro, filmnoir,
+           sculptural, elegant, sensual, analog, aiart, digitalart]
+    sub_looks:
+      - "black-and-white studio chiaroscuro — a single hard key against deep black, the body sculpted in light and shadow, rich silver-gelatin tonal range, grain, the form as pure abstraction"
+      - "high-key B&W beauty — soft even white light, luminous pale tones, minimal shadow, delicate monochrome skin texture"
+      - "film-noir window light — hard slatted light striping the figure in a dim room, deep blacks, smoke and grain, dramatic monochrome stillness"
+    aesthetics:
+      palettes: ["high-contrast silver-gelatin black-and-white", "soft high-key monochrome", "deep film-noir black-and-white"]
+      lighting: ["single hard studio key", "soft even high-key", "hard venetian-blind slats"]
+      photographers: ["Helmut Newton B&W", "Ansel Adams tonal range (figure)", "film-noir cinematography"]
+    brief_seed: "Fine-art black-and-white figure study — one woman sculpted in monochrome light and shadow, rich silver-gelatin tones and grain; the image is BLACK-AND-WHITE, not colour."
+
 # Optional recurring personas (Q5: persona-brief now, visual face-lock deferred).
 # When bound, the persona's traits are held constant across a series as a stable
 # subject prefix; the scene/light/wardrobe/mood vary per image. Face will still
