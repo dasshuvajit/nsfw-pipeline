@@ -171,6 +171,40 @@ HARD RULES:
   scenes use a vanity, dressing table or console WITHOUT a mirror (perfume \
   bottles, a powder compact, a lamp, jewellery), never a mirror.
 
+────────────── FRAMING & COMPOSITION (you CHOOSE this per image) ──────────────
+You decide the ORIENTATION and SHOT TYPE that best serve each scene, and you VARY
+them across a series — never default everything to a portrait close-up. The prompt
+prose must PHYSICALLY MATCH the framing you choose.
+
+ORIENTATION (aspect):
+- portrait (tall 2:3): intimate close-ups; a standing or kneeling full-body where
+  height is the story; vertical settings (windows, doorways, tall drapery).
+- landscape (wide 3:2): a reclining body along the frame; environmental scenes
+  where the setting breathes beside her; horizons, beds, chaises, pools, terraces.
+- square (1:1): balanced medium shots; centred, graphic, editorial compositions.
+
+SHOT TYPE — and what each DEMANDS of the prose:
+- close_up: the face/gaze fills the frame — describe eyes, lips, skin texture,
+  a catchlight, the fall of hair; little or no body. Make the face the subject.
+- bust: head to chest/collarbone — face + shoulders + décolletage; a portrait.
+- medium: head to waist/hips — the default; pose + expression + upper body.
+- full_body: head to FEET, the WHOLE figure in the scene — every limb visible and
+  ANATOMICALLY COHERENT (see below). Composition shows the complete pose.
+- wide_environmental: subject and setting are co-equal — she sits within a rich
+  space (a room, a landscape) that is itself part of the picture; she may be
+  smaller in frame, but remains the clear focal point via light and placement.
+
+SUBJECT FOCUS: in every shot she is the unmistakable subject — lead the eye to her
+with light, contrast, placement and depth of field. Even wide_environmental keeps
+her the focal point; never let the background swallow her unless that IS the point.
+
+ANATOMICAL CLARITY (mandatory whenever the body is visible, especially full_body
+at T3/T4): describe a pose the body can actually hold — weight planted on one or
+both feet (standing), hips resting on the surface (seated), a continuous natural
+spine (reclining); arms and legs in clear, unforced positions; hands resolved
+(resting, trailing, in her hair) not hidden-then-mangled. No twisted joints, no
+floating or detached torso, no impossible contortion. One coherent body.
+
 ────────────────────── EXEMPLARS (this is the bar) ──────────────────────
 
 [T3 · golden-hour glamour]
@@ -212,9 +246,25 @@ with serene, regal composure, full lips still. Elegant three-quarter portrait, \
 true skin and the soft sheen of the pooled silk on the floor, warm light and \
 fine grain.
 
+[T3 · landscape · full_body environmental]  (orientation: landscape, shot_type: full_body)
+Late afternoon light pours low across a sun-warmed stone terrace where a woman \
+reclines full-length along a weathered chaise, her whole body stretched easy \
+through the wide frame — head resting back on one arm, the long line of her spine \
+and hip and legs unbroken and relaxed, one knee lifted, the other leg extended, \
+bare feet crossed at the ankle. Her nude form is gilded by the raking sun, true \
+skin luminous along every edge it catches; a sheer linen throw has slipped to the \
+floor beside her. Behind and around her the terrace breathes — a cracked terracotta \
+urn, a spill of bougainvillea, the soft blue haze of distant hills — the setting \
+co-equal with her, yet she holds the eye through the warm key light falling square \
+on her body. She gazes off toward the horizon, lips parted, wholly at ease. Wide \
+environmental frame, 35mm at f/4 so the whole body and the terrace stay sharp, the \
+warm contrast and fine grain of late-golden-hour film. [Every limb clearly placed, \
+weight settled into the chaise, one coherent restful body.]
+
 ──────────────────────────────────────────────────────────────────────────
 
-Write at this level. Return ONLY the prompt text in the requested JSON shape.
+Write at this level. Choose the orientation + shot_type that best serve the scene
+and VARY them across the series. Return ONLY the JSON shape requested.
 """
 
 
@@ -227,8 +277,51 @@ def _build_system_prompt(word_band: tuple[int, int] = WORD_BAND_DEFAULT) -> str:
     return ART_DIRECTOR_SYSTEM_PROMPT.replace("110-160 words", f"{lo}-{hi} words")
 
 
+# Per-prompt framing the LLM chooses (Phase 1 — kills the only-portrait
+# problem + drives subject/anatomy focus). Tolerant str fields: a value the
+# model gets slightly wrong falls back to a safe default rather than failing
+# the render. The system prompt + user prompt teach the LLM what each means.
+ORIENTATIONS_ALLOWED = ("portrait", "square", "landscape")
+SHOT_TYPES_ALLOWED = ("close_up", "bust", "medium", "full_body", "wide_environmental")
+
+# Rotated framing TARGETS — without a per-scene nudge the LLM defaults almost
+# everything to portrait/medium. This rotation guarantees a sellable spread
+# across all 3 orientations + 5 shot types; the LLM still emits the FINAL choice
+# + a rationale and may override when the scene genuinely demands it.
+FRAMING_TARGETS: tuple[tuple[str, str], ...] = (
+    ("portrait", "full_body"),          # standing/kneeling, height is the story
+    ("landscape", "wide_environmental"), # subject within a rich setting
+    ("portrait", "close_up"),           # face/gaze fills the frame
+    ("square", "medium"),               # balanced, graphic, centred
+    ("landscape", "full_body"),         # reclining along the frame
+    ("portrait", "bust"),               # head-to-chest portrait
+    ("square", "bust"),
+    ("landscape", "medium"),
+)
+
+
 class _PromptOut(BaseModel):
     prompt: str
+    orientation: str = "portrait"      # portrait | square | landscape
+    shot_type: str = "medium"          # close_up | bust | medium | full_body | wide_environmental
+    framing_rationale: str = ""         # 1-2 sentences: why this orientation+shot fits the scene
+
+    @field_validator("orientation")
+    @classmethod
+    def _orient(cls, v: str) -> str:
+        v = (v or "").strip().lower()
+        return v if v in ORIENTATIONS_ALLOWED else "portrait"
+
+    @field_validator("shot_type")
+    @classmethod
+    def _shot(cls, v: str) -> str:
+        v = (v or "").strip().lower().replace("-", "_").replace(" ", "_")
+        # tolerate common synonyms the LLM may emit
+        synonyms = {"closeup": "close_up", "headshot": "close_up", "portrait": "bust",
+                    "fullbody": "full_body", "full": "full_body", "wide": "wide_environmental",
+                    "environmental": "wide_environmental", "establishing": "wide_environmental"}
+        v = synonyms.get(v, v)
+        return v if v in SHOT_TYPES_ALLOWED else "medium"
 
     @field_validator("prompt")
     @classmethod
@@ -249,8 +342,12 @@ class _PromptOut(BaseModel):
         banned = (
             "child", "teen", "teenage", "loli", "underage", "minor",
             "young girl", "little girl", "schoolgirl",
-            "2girls", "two women", "couple", "her partner", "with him",
-            "they ", "group", "threesome", "multiple women",
+            # multi-subject — precise phrases only (bare "they"/"group" caused
+            # false positives on "where they catch the light" / "a group of trees")
+            "2girls", "two women", "two figures", "the two of them",
+            "both women", "couple", "her partner", "with him",
+            "threesome", "multiple women", "multiple figures", "group of women",
+            "group of people", "other woman", "another woman",
         )
         hit = [b for b in banned if b in low]
         if hit:
@@ -309,7 +406,8 @@ def generate_one(
     temperature: float,
     word_band: tuple[int, int] = WORD_BAND_DEFAULT,
     extra_directive: str = "",
-) -> str:
+    framing_target: tuple[str, str] | None = None,
+) -> dict:
     tier_directive = TIER_DIRECTIVES.get(tier, TIER_DIRECTIVES["T3_artnude"])
     if extra_directive:
         tier_directive = f"{tier_directive}\n{extra_directive}"
@@ -333,6 +431,18 @@ def generate_one(
                 "prompts:\n" + "\n".join(f"  - {a}" for a in avoid)
             )
         variety = "".join(parts)
+    # Framing target — a rotated per-scene nudge so the series spreads across
+    # orientations + shot types instead of defaulting to portrait/medium.
+    framing_variety = ""
+    if framing_target:
+        o, s = framing_target
+        framing_variety = (
+            f"\n\nSUGGESTED FRAMING for THIS image: orientation={o}, shot_type={s}. "
+            f"Compose the scene to suit it and emit this in your JSON — UNLESS the "
+            f"scene you write genuinely calls for a different framing, in which case "
+            f"choose what fits and explain the change in framing_rationale. The point "
+            f"is a VARIED series, not portrait/medium every time."
+        )
     # 2026-06 — tier directive moved AFTER the sub-look (LLMs weight
     # last-mentioned more heavily). Without this, a strongly-themed brief
     # paired with the "rich fantasy / editorial" sub-look's wardrobe
@@ -344,23 +454,41 @@ def generate_one(
         f"TIER — STATE OF UNDRESS (this OVERRIDES any wardrobe language in "
         f"the look above; fabric in the look is SET DRESSING only):\n"
         f"  {tier_directive}\n"
-        f"{variety}\n\n"
+        f"{variety}{framing_variety}\n\n"
         'Write ONE excellent photograph-prompt at the level of the exemplars, '
         'in the target look above, honoring the TIER above EXACTLY. The TIER '
         'wins over the look\'s wardrobe descriptors — at T3+, the body is '
         'bare and any silk/gown/lace is set dressing (pooled, draped over a '
-        'chaise, fallen) rather than worn. '
-        'Return JSON: {"prompt": "<your prompt text>"}'
+        'chaise, fallen) rather than worn.\n\n'
+        'FRAMING DECISION — choose what best serves THIS scene (see the FRAMING '
+        '& COMPOSITION rules in your instructions):\n'
+        '  orientation: "portrait" (tall 2:3 — intimate close-ups, standing full-'
+        'body) | "landscape" (wide 3:2 — reclining, environmental, two-figure-'
+        'wide settings) | "square" (1:1 — balanced medium shots).\n'
+        '  shot_type: "close_up" (head/face fills frame) | "bust" (head to chest) '
+        '| "medium" (head to waist/hips) | "full_body" (head to feet, ALL limbs '
+        'coherent) | "wide_environmental" (subject + setting co-equal).\n'
+        '  Make the prompt PHYSICALLY MATCH the chosen framing (a close_up prompt '
+        'must describe the face/gaze in detail and crop tight; a full_body prompt '
+        'must place the whole body in the scene with clear, correct anatomy).\n\n'
+        'Return JSON: {"prompt": "<prompt text>", "orientation": "<portrait|square|'
+        'landscape>", "shot_type": "<close_up|bust|medium|full_body|wide_'
+        'environmental>", "framing_rationale": "<1-2 sentences>"}'
     )
     result = client.generate_json(
         _build_system_prompt(word_band),
         user_prompt,
         model=model_tag,
         temperature=temperature,
-        num_predict=1100,
+        num_predict=1200,
         schema=_PromptOut,
     )
-    return str(result["prompt"]).strip()
+    return {
+        "prompt": str(result["prompt"]).strip(),
+        "orientation": str(result.get("orientation", "portrait")),
+        "shot_type": str(result.get("shot_type", "medium")),
+        "framing_rationale": str(result.get("framing_rationale", "")).strip(),
+    }
 
 
 def generate_series(
@@ -407,11 +535,11 @@ def generate_series(
     for i in range(count):
         sub_look = looks[i % len(looks)]
         look_label = sub_look.split(" — ")[0]
-        best: tuple[str, float, list[str]] | None = None  # (prompt, score, issues)
+        best: tuple[dict, float, list[str]] | None = None  # (candidate, score, issues)
         last_err = None
         for attempt in range(max_attempts):
             try:
-                p = generate_one(
+                cand = generate_one(
                     client,
                     brief=brief,
                     tier=tier,
@@ -422,6 +550,7 @@ def generate_series(
                     temperature=temperature,
                     word_band=word_band,
                     extra_directive=extra_directive,
+                    framing_target=FRAMING_TARGETS[i % len(FRAMING_TARGETS)],
                 )
             except Exception as exc:  # noqa: BLE001 — Pydantic/safety reject → retry
                 last_err = exc
@@ -429,9 +558,9 @@ def generate_series(
                       file=sys.stderr, flush=True)
                 continue
 
-            score, issues = (score_fn(p, tier) if score_fn else (10.0, []))
+            score, issues = (score_fn(cand["prompt"], tier) if score_fn else (10.0, []))
             if best is None or score > best[1]:
-                best = (p, score, issues)
+                best = (cand, score, issues)
             if score >= audit_threshold:
                 break
             print(f"  (scene {i + 1} attempt {attempt + 1} audit {score:.1f}"
@@ -443,16 +572,21 @@ def generate_series(
                   f"{last_err}", file=sys.stderr, flush=True)
             continue
 
-        p, score, issues = best
+        cand, score, issues = best
         if score < audit_threshold:
             print(f"  (scene {i + 1} shipping best audit={score:.1f} after "
                   f"{max_attempts} attempts; issues={issues[:3]})",
                   file=sys.stderr, flush=True)
-        out.append({"look": look_label, "prompt": p, "audit_score": round(score, 2)})
-        avoid.append(_signature(p))
-        banned_openers.append(_opener(p))
-        print(f"\n[{i + 1}/{count}] {look_label} (audit {score:.1f}, "
-              f"{len(p.split())} words)\n{p}", flush=True)
+        ptext = cand["prompt"]
+        framing = f"{cand['orientation']}/{cand['shot_type']}"
+        out.append({"look": look_label, "prompt": ptext,
+                    "orientation": cand["orientation"], "shot_type": cand["shot_type"],
+                    "framing_rationale": cand["framing_rationale"],
+                    "audit_score": round(score, 2)})
+        avoid.append(_signature(ptext))
+        banned_openers.append(_opener(ptext))
+        print(f"\n[{i + 1}/{count}] {look_label} [{framing}] (audit {score:.1f}, "
+              f"{len(ptext.split())} words)\n{ptext}", flush=True)
     return out
 
 

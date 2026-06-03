@@ -297,8 +297,14 @@ def _render_stage_base(
     rows: list[dict], *, builder, client, base_template: str, negative: str,
     resolution: tuple[int, int], base_seed: int, seeds: int,
     dest_dir: Path, out_dir: Path, prefix: str,
+    rp: dict | None = None, default_orientation: str = "portrait",
 ) -> list[dict]:
     """Stage 1 (Chroma): base gen for every (prompt × seed) into dest_dir.
+
+    Each prompt is rendered at ITS OWN orientation (the LLM chose it per prompt
+    via art_director) → portrait/square/landscape variety instead of one fixed
+    ratio. ``rp`` is the render_pipeline config (base_resolution per orientation);
+    falls back to ``resolution`` / ``default_orientation`` when absent.
 
     Manifest images carry ``{base_path, seed}``; ``path`` (what curation +
     packaging read) is set later by the refine stage. Chroma is loaded ONCE
@@ -309,14 +315,19 @@ def _render_stage_base(
     manifest: list[dict] = []
     for idx, r in enumerate(rows):
         look = r["look"].split()[0]
+        orientation = r.get("orientation") or default_orientation
+        res = base_resolution_for(rp, orientation) if rp else resolution
         entry = {"index": idx, "look": r["look"], "prompt": r["prompt"],
-                 "audit_score": r.get("audit_score"), "images": []}
+                 "audit_score": r.get("audit_score"),
+                 "orientation": orientation, "shot_type": r.get("shot_type"),
+                 "framing_rationale": r.get("framing_rationale"),
+                 "resolution": list(res), "images": []}
         for k in range(seeds):
             seed = base_seed + k
             try:
                 wf = builder.build_external(
                     external_template=base_template, prompt_text=r["prompt"],
-                    negative_prompt=negative, resolution=resolution, seed=seed)
+                    negative_prompt=negative, resolution=res, seed=seed)
                 images = client.render_single_with_retry(wf, timeout=1800)
                 outs = [im for im in images if im.type == "output"] or images
                 name = f"{prefix}{idx + 1:02d}_{look}_s{seed}.png"
@@ -324,8 +335,8 @@ def _render_stage_base(
                 shutil.copy(outs[-1].file_path, dst)
                 entry["images"].append(
                     {"base_path": str(dst.relative_to(out_dir)), "seed": seed})
-                print(f"  [base {idx + 1}/{len(rows)}] seed {seed} -> {name}",
-                      flush=True)
+                print(f"  [base {idx + 1}/{len(rows)}] {orientation} {res[0]}x{res[1]}"
+                      f" seed {seed} -> {name}", flush=True)
             except Exception as exc:  # noqa: BLE001 — surface, continue
                 print(f"  [base {idx + 1}/{len(rows)}] seed {seed} FAILED: {exc}",
                       file=sys.stderr, flush=True)
@@ -735,13 +746,15 @@ def main() -> int:
         manifest = _render_stage_base(
             rows, builder=builder, client=client, base_template=base_tmpl,
             negative=DEFAULT_NEGATIVE, resolution=resolution, base_seed=base_seed,
-            seeds=args.seeds, dest_dir=base_dir, out_dir=out_dir, prefix="ad")
+            seeds=args.seeds, dest_dir=base_dir, out_dir=out_dir, prefix="ad",
+            rp=rp, default_orientation=args.orientation)
         if cover_rows:
             cover_manifest = _render_stage_base(
                 cover_rows, builder=builder, client=client, base_template=base_tmpl,
                 negative=DEFAULT_NEGATIVE, resolution=resolution,
                 base_seed=cover_base, seeds=cover_seeds,
-                dest_dir=base_dir, out_dir=out_dir, prefix="cover")
+                dest_dir=base_dir, out_dir=out_dir, prefix="cover",
+                rp=rp, default_orientation=args.orientation)
         if enable_refine:
             print(f"\n=== Phase 2b (refine, SDXL): {Path(refine_tmpl).name} "
                   f"→ review images ===", flush=True)

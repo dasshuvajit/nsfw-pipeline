@@ -158,7 +158,9 @@ def test_audit_gate_regenerates_below_threshold(monkeypatch):
 
     def fake_generate_one(client, **kw):
         calls["n"] += 1
-        return "LOW" if calls["n"] == 1 else "HIGH"
+        text = "LOW" if calls["n"] == 1 else "HIGH"
+        return {"prompt": text, "orientation": "portrait", "shot_type": "medium",
+                "framing_rationale": ""}
 
     def fake_score(text, tier):
         return (5.0, ["LOW_ISSUE"]) if text == "LOW" else (9.0, [])
@@ -173,6 +175,34 @@ def test_audit_gate_regenerates_below_threshold(monkeypatch):
     assert calls["n"] == 2, "should have regenerated past the LOW prompt"
     assert rows[0]["prompt"] == "HIGH"
     assert rows[0]["audit_score"] == 9.0
+
+
+def test_framing_fields_threaded_into_rows(monkeypatch):
+    """generate_series carries the LLM's per-prompt orientation/shot_type/
+    framing_rationale (Phase 1) into the manifest rows so the renderer can
+    pick the aspect ratio per image (kills the only-portrait problem)."""
+    seq = iter([
+        {"prompt": "p " * 80, "orientation": "landscape", "shot_type": "full_body",
+         "framing_rationale": "reclining body suits a wide frame"},
+        {"prompt": "q " * 80, "orientation": "square", "shot_type": "close_up",
+         "framing_rationale": "graphic centred face"},
+    ])
+    monkeypatch.setattr(AD, "generate_one", lambda client, **kw: next(seq))
+    monkeypatch.setattr(AD, "OllamaClient", lambda *a, **k: object())
+    rows = AD.generate_series(brief="b", tier="T3_artnude", count=2,
+                              model_tag="m", temperature=0.8, audit_gate=False)
+    assert rows[0]["orientation"] == "landscape" and rows[0]["shot_type"] == "full_body"
+    assert rows[1]["orientation"] == "square" and rows[1]["shot_type"] == "close_up"
+    assert "wide frame" in rows[0]["framing_rationale"]
+
+
+def test_promptout_framing_validators_tolerant():
+    P = "A warm shaft of light falls across a woman in a quiet room. " * 8
+    # synonyms coerce, junk falls back, omission defaults
+    assert AD._PromptOut(prompt=P, orientation="LANDSCAPE ", shot_type="closeup").shot_type == "close_up"
+    bad = AD._PromptOut(prompt=P, orientation="weird", shot_type="nonsense")
+    assert (bad.orientation, bad.shot_type) == ("portrait", "medium")
+    assert AD._PromptOut(prompt=P).orientation == "portrait"
 
 
 def test_sfw_cover_gate_rejects_nudity(monkeypatch):
@@ -200,7 +230,9 @@ def test_audit_gate_keeps_best_when_all_below(monkeypatch):
     (never drop the scene over a soft-quality miss)."""
     scores = iter([4.0, 6.5, 5.0, 3.0])
 
-    monkeypatch.setattr(AD, "generate_one", lambda client, **kw: "P")
+    monkeypatch.setattr(AD, "generate_one", lambda client, **kw: {
+        "prompt": "P", "orientation": "portrait", "shot_type": "medium",
+        "framing_rationale": ""})
     monkeypatch.setattr(AD, "OllamaClient", lambda *a, **k: object())
     monkeypatch.setattr("scripts.audit_prompts.score_prompt",
                         lambda t, tier: (next(scores), []))

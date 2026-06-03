@@ -76,6 +76,39 @@ def test_stage_base_records_base_path_and_seed(tmp_path, rows):
     assert len(list((out_dir / "base").glob("*.png"))) == 2
 
 
+def test_stage_base_uses_per_row_orientation(tmp_path):
+    """Each prompt renders at ITS OWN orientation (the LLM chose it); base
+    resolution comes from rp.base_resolution per row (Phase 1)."""
+    out_dir = tmp_path / "series"
+    rp = {"base_resolution": {"portrait": [896, 1152], "square": [1024, 1024],
+                              "landscape": [1152, 896]}}
+    mixed = [
+        {"look": "a", "prompt": "p0", "orientation": "landscape", "shot_type": "full_body"},
+        {"look": "b", "prompt": "p1", "orientation": "square", "shot_type": "close_up"},
+        {"look": "c", "prompt": "p2"},  # no orientation → default_orientation
+    ]
+
+    captured = []
+
+    class _CapBuilder(_FakeBuilder):
+        def build_external(self, *, external_template, prompt_text, negative_prompt,
+                           resolution, seed):
+            captured.append(resolution)
+            return {}
+
+    builder, client = _CapBuilder(), _FakeClient(_src_png(tmp_path))
+    manifest = A._render_stage_base(
+        mixed, builder=builder, client=client, base_template="t.json",
+        negative="n", resolution=(896, 1152), base_seed=1, seeds=1,
+        dest_dir=out_dir / "base", out_dir=out_dir, prefix="ad",
+        rp=rp, default_orientation="portrait")
+    assert captured == [(1152, 896), (1024, 1024), (896, 1152)]  # per-row
+    assert manifest[0]["orientation"] == "landscape"
+    assert manifest[1]["orientation"] == "square"
+    assert manifest[2]["orientation"] == "portrait"   # fallback
+    assert manifest[0]["resolution"] == [1152, 896]
+
+
 def test_stage_refine_sets_path_and_reuses_seed(tmp_path, rows):
     out_dir = tmp_path / "series"
     builder, client = _FakeBuilder(), _FakeClient(_src_png(tmp_path))
