@@ -105,6 +105,11 @@ def test_refine_contract_and_values():
     assert sk["sampler_name"] == "lcm" and sk["scheduler"] == "karras"
     assert sk["steps"] == 6                    # value fix (was 4)
     assert sk["denoise"] == 0.20               # value fix (was 0.15 ≈ noop)
+    # light face+eyes detailer makes review images anatomy-sharp for selection
+    assert wf["detailer_face"]["inputs"]["image"] == ["133", 0]
+    assert wf["detailer_eyes"]["inputs"]["image"] == ["detailer_face", 0]
+    assert wf["detailer_face"]["inputs"]["denoise"] == 0.15   # light (4K does the heavy pass)
+    assert wf["save"]["inputs"]["images"] == ["detailer_eyes", 0]
 
 
 def test_upscale_contract_and_values():
