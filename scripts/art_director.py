@@ -437,11 +437,13 @@ def generate_one(
     if framing_target:
         o, s = framing_target
         framing_variety = (
-            f"\n\nSUGGESTED FRAMING for THIS image: orientation={o}, shot_type={s}. "
-            f"Compose the scene to suit it and emit this in your JSON — UNLESS the "
-            f"scene you write genuinely calls for a different framing, in which case "
-            f"choose what fits and explain the change in framing_rationale. The point "
-            f"is a VARIED series, not portrait/medium every time."
+            f"\n\nASSIGNED FRAMING for THIS image: orientation={o}, shot_type={s}. "
+            f"COMPOSE THE SCENE TO FIT IT and emit exactly this in your JSON. This "
+            f"image's job in the series is to be the {o} {s} shot — write a scene "
+            f"that genuinely works in that frame (e.g. a {s} demands you actually "
+            f"frame the body that way). Only deviate if {o}/{s} would truly break "
+            f"this specific shot, and if so explain why in framing_rationale. A "
+            f"sellable series MUST vary — never portrait/medium every time."
         )
     # 2026-06 — tier directive moved AFTER the sub-look (LLMs weight
     # last-mentioned more heavily). Without this, a strongly-themed brief
