@@ -298,3 +298,7 @@ excellent on series_753f4daae5f2.
 - config/llm_models.yaml — LLM registry (multi-LLM upgrade, 2026-05). Per-CLI `--llm <id>` overrides routing + default; validated at startup. **Cydonia 24B recommended for prose families** (32K context, sustained 100+ word coherent prose).
 - scripts/audit_prompts.py — mechanical scoring of composed prompts against Grok/Claude-web rubric (style stacking, lighting collision, camera angle contradiction, B&W vs color, tag soup, T4 anatomy, repetition). `python scripts/audit_prompts.py <series_id>`.
 - `prepare_prompts.py --scenes N` — short-series testing (N=1 for fast iteration; default 25 for production).
+- docs/COMFYUI_WORKFLOWS.md — staged render pipeline (base→refine→manual-4K) + the v12 monolith escape hatch.
+- docs/COMPETITOR_INTEL.md — living research on 13 DeviantArt AI sellers (append new creators when the user drops links).
+- docs/DA_GO_TO_MARKET.md — pricing card + shop/gallery/series design + manual upload workflow (the DA selling strategy).
+- **LLM-direct prompt path (current, 2026-05-30+):** `scripts/art_director.py` (Cydonia-24B, exemplar-driven, audit-gated) emits per-prompt prose + **orientation + shot_type + framing_rationale** (Phase 1, 2026-06-04 — kills the only-portrait problem; system prompt has FRAMING & COMPOSITION + anatomical-clarity rules). `scripts/art_series.py` orchestrates niche→gen→staged render (per-prompt orientation)→curate→tier-split package (+ per-image `posting_templates/`). 20 niches (incl. fantasy/historical/B&W). This path bypasses the structured vocab/composer pipeline.
