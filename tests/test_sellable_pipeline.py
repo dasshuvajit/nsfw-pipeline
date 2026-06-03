@@ -149,6 +149,28 @@ def test_posting_checklist_carries_hard_rules(tmp):
     assert "Fanvue" in txt          # funnel option for the gated set
 
 
+def test_package_emits_per_image_posting_templates(tmp):
+    """Each packaged run emits copy-paste posting templates (TITLE/FOLDER/TAGS/
+    GROUPS/MATURE/AI/PRICE) per image so manual DA upload is trivial."""
+    main = [{"index": 0, "prompt": "x", "images": [
+        {"path": "images/ad01_a_s1.png", "seed": 1, "keeper": True}]}]
+    covers = [{"index": 0, "prompt": "c", "images": [
+        {"path": "covers/cover01_a_s9.png", "seed": 9, "keeper": True}]}]
+    for e in main + covers:
+        for im in e["images"]:
+            _mk(tmp, im["path"])
+    pkg = A._package(tmp, _selection("T3_artnude", "fine_art_figure_study"),
+                     "T3_artnude", main, covers, _META, _META, _WM_OFF)
+    tdir = pkg / "posting_templates"
+    files = sorted(tdir.glob("*.txt"))
+    assert len(files) >= 2   # one per public + gated image
+    body = files[0].read_text()
+    for key in ("TITLE:", "FOLDER:", "TAGS:", "GROUPS:", "MATURE:", "AI-LABEL:", "PRICE:"):
+        assert key in body, key
+    meta = json.loads((pkg / "metadata.json").read_text())
+    assert meta["price_by_tier"] and meta["da_groups"]
+
+
 # ── art_director inline audit gate ─────────────────────────────────
 
 def test_audit_gate_regenerates_below_threshold(monkeypatch):
