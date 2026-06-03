@@ -15,6 +15,7 @@ from src.niche.selector import (
     build_selection,
     select_aesthetic_lock,
     select_niche,
+    select_niche_cycle,
     select_persona,
 )
 
@@ -152,3 +153,68 @@ def test_build_brief_no_persona_clause_when_unbound(lib):
     sel = build_selection(lib, 0, tier="T3_artnude",
                           force_niche="modern_boudoir")
     assert "RECURRING SUBJECT" not in build_brief(sel)
+
+
+# ── per-niche avoid_motifs (mirror-prone niches) ───────────────────────
+
+def test_mirror_prone_niches_declare_avoid_motifs(lib):
+    for nid in ("old_hollywood_glamour", "modern_boudoir", "film_noir_boudoir",
+                "art_deco_boudoir", "burlesque_cabaret"):
+        n = lib.by_id(nid)
+        assert n.avoid_motifs, f"{nid} should declare avoid_motifs"
+        assert any("mirror" in m.lower() for m in n.avoid_motifs)
+
+
+def test_build_brief_injects_avoid_motifs(lib):
+    sel = build_selection(lib, 0, tier="T3_artnude",
+                          force_niche="old_hollywood_glamour")
+    brief = build_brief(sel)
+    assert "DO NOT DEPICT" in brief
+    assert "mirror" in brief.lower()
+
+
+def test_build_brief_omits_avoid_clause_when_none(lib):
+    # fine_art_figure_study has no avoid_motifs
+    sel = build_selection(lib, 0, tier="T3_artnude",
+                          force_niche="fine_art_figure_study")
+    assert not lib.by_id("fine_art_figure_study").avoid_motifs
+    assert "DO NOT DEPICT" not in build_brief(sel)
+
+
+# ── --auto niche cycle: exhaust all before repeating ───────────────────
+
+def test_cycle_exhausts_all_supporting_niches_before_repeat(lib):
+    supporting = [n.id for n in lib.niches if "T3_artnude" in n.tier_band]
+    used: list[str] = []
+    picks: list[str] = []
+    for _ in range(len(supporting)):
+        n, reset = select_niche_cycle(lib, used, tier="T3_artnude")
+        assert reset is False
+        picks.append(n.id)
+        used.append(n.id)
+    assert sorted(picks) == sorted(supporting)          # every niche, exactly once
+    assert len(set(picks)) == len(supporting)           # no repeats within the cycle
+
+
+def test_cycle_resets_after_wrap(lib):
+    supporting = [n.id for n in lib.niches if "T3_artnude" in n.tier_band]
+    used = list(supporting)  # everything already used
+    n, reset = select_niche_cycle(lib, used, tier="T3_artnude")
+    assert reset is True
+    assert n.id in supporting                            # picks a valid fresh start
+
+
+def test_cycle_only_returns_tier_supporting(lib):
+    used: list[str] = []
+    for _ in range(len(lib.niches) + 3):
+        n, reset = select_niche_cycle(lib, used, tier="T4_explicit")
+        assert "T4_explicit" in n.tier_band
+        if reset:
+            used = []
+        used.append(n.id)
+
+
+def test_cycle_is_deterministic(lib):
+    a, _ = select_niche_cycle(lib, ["fine_art_figure_study"], tier="T3_artnude")
+    b, _ = select_niche_cycle(lib, ["fine_art_figure_study"], tier="T3_artnude")
+    assert a.id == b.id

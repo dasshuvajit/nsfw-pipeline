@@ -99,6 +99,24 @@ def test_stage_refine_sets_path_and_reuses_seed(tmp_path, rows):
         assert seed == 100
 
 
+def test_used_niche_tracking(tmp_path, monkeypatch):
+    """--auto used-niche cycle file I/O: read empty, append, dedup, and a
+    post-reset write (used=[]) starts a fresh single-entry cycle."""
+    f = tmp_path / ".used_niches"
+    monkeypatch.setattr(A, "USED_NICHES_FILE", f)
+    assert A._read_used_niches() == []                  # missing file → empty
+    A._record_used_niche([], "fine_art_figure_study")
+    assert A._read_used_niches() == ["fine_art_figure_study"]
+    A._record_used_niche(["fine_art_figure_study"], "goth_romantic")
+    assert A._read_used_niches() == ["fine_art_figure_study", "goth_romantic"]
+    # dedup: recording an already-present id is a no-op append
+    A._record_used_niche(["fine_art_figure_study", "goth_romantic"], "goth_romantic")
+    assert A._read_used_niches() == ["fine_art_figure_study", "goth_romantic"]
+    # cycle reset: caller passes used=[] → file becomes just the fresh pick
+    A._record_used_niche([], "old_hollywood_glamour")
+    assert A._read_used_niches() == ["old_hollywood_glamour"]
+
+
 def test_refine_failure_falls_back_to_base(tmp_path, rows):
     out_dir = tmp_path / "series"
     builder, client = _FakeBuilder(), _FakeClient(_src_png(tmp_path))

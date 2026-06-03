@@ -41,6 +41,7 @@ from src.render.render_pipeline import (  # noqa: E402
 )
 from src.niche.selector import (  # noqa: E402
     NicheLibrary, NicheLibraryError, build_selection, build_brief,
+    select_niche_cycle,
 )
 
 DEFAULT_TEMPLATE = "templates/chroma/gonzaLomo_Chroma_4K_v12.json"
@@ -56,10 +57,17 @@ T4_TEMPLATE = "templates/chroma/gonzaLomo_Chroma_4K_v12_T4.json"
 SEED_COUNTER_FILE = ROOT / "output/art_series/.last_seed"
 LEGACY_DEFAULT_SEED = 7
 
-# Persistent niche cursor — advances each --auto run so successive runs
-# rotate through evergreen-core niches and periodically inject a trend
-# niche (deterministic, no randomness; mirrors the seed counter pattern).
+# Persistent niche cursor — advances each --auto run; drives the per-series
+# aesthetic-lock + persona rotation (deterministic, no randomness; mirrors the
+# seed counter pattern).
 NICHE_CURSOR_FILE = ROOT / "output/art_series/.niche_cursor"
+
+# Persistent used-niche set for --auto: the cursor alone over-samples
+# high-weight niches and repeats early, so --auto instead tracks which niches
+# it has already shot and picks the next UNUSED one — exhausting every
+# tier-supporting niche before repeating. Cleared automatically when the cycle
+# completes (select_niche_cycle signals the reset).
+USED_NICHES_FILE = ROOT / "output/art_series/.used_niches"
 
 # gonzalomo_chroma_v30 base resolution presets. These feed the v12 4K
 # template, whose chain is base ->(ImageScaleBy 1.25)-> SDXL refine
@@ -124,6 +132,24 @@ def _read_niche_cursor() -> int:
 def _advance_niche_cursor(cursor: int) -> None:
     NICHE_CURSOR_FILE.parent.mkdir(parents=True, exist_ok=True)
     NICHE_CURSOR_FILE.write_text(str(cursor + 1))
+
+
+def _read_used_niches() -> list[str]:
+    """Niche ids --auto has already shot this cycle (one per line)."""
+    try:
+        return [ln.strip() for ln in USED_NICHES_FILE.read_text().splitlines()
+                if ln.strip()]
+    except FileNotFoundError:
+        return []
+
+
+def _record_used_niche(used: list[str], niche_id: str) -> None:
+    """Append ``niche_id`` to the used-set. ``used`` is the list as it stood
+    for THIS pick (already emptied by the caller on a cycle reset), so this
+    writes the fresh cycle's first entry after a wrap."""
+    USED_NICHES_FILE.parent.mkdir(parents=True, exist_ok=True)
+    new = used + ([niche_id] if niche_id not in used else [])
+    USED_NICHES_FILE.write_text("\n".join(new) + "\n")
 
 
 def _unload_llm(model_tag: str) -> None:
@@ -587,13 +613,26 @@ def main() -> int:
     selection = None
     sub_looks = None
     brief = args.brief
+    used_niches: list[str] = []
+    auto_niche = not args.niche  # --auto / no explicit --niche → use the cycle
     if not args.brief:
         try:
             library = NicheLibrary.from_yaml()
             niche_cursor = _read_niche_cursor()
+            chosen_niche_id = args.niche
+            if auto_niche:
+                # Exhaust EVERY tier-supporting niche before repeating any.
+                used_niches = _read_used_niches()
+                picked, cycle_reset = select_niche_cycle(
+                    library, used_niches, tier=args.tier)
+                if cycle_reset:
+                    used_niches = []  # wrapped — start a fresh rotation
+                    print("=== niche cycle complete — starting a fresh "
+                          "rotation ===", flush=True)
+                chosen_niche_id = picked.id
             selection = build_selection(
                 library, niche_cursor, tier=args.tier,
-                force_niche=args.niche,
+                force_niche=chosen_niche_id,
                 persona=args.persona or bool(args.persona_name),
                 persona_name=args.persona_name,
             )
@@ -602,6 +641,8 @@ def main() -> int:
         brief = build_brief(selection)
         sub_looks = selection.sub_looks
         _advance_niche_cursor(niche_cursor)
+        if auto_niche:  # only --auto tracks the used-niche cycle
+            _record_used_niche(used_niches, selection.niche.id)
         print(f"=== niche: {selection.niche.id} ({selection.niche.niche_class}) "
               f"| folder={selection.niche.da_folder!r} "
               f"| persona={selection.persona.name if selection.persona else 'none'} "

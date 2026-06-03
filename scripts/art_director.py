@@ -165,6 +165,11 @@ HARD RULES:
   fashion photography (gallery, studio, atelier, editorial) — it should read as \
   ART, not a snapshot of a real person. Do NOT use the words "hyperrealistic", \
   "realistic", "real woman" or "photo of a real" — describe craft and light instead.
+- NO MIRRORS or reflective surfaces that show the subject (mirror, vanity \
+  mirror, reflection in glass/water). The model warps reflections into a \
+  second, distorted face — it breaks the image. For dressing-table / boudoir \
+  scenes use a vanity, dressing table or console WITHOUT a mirror (perfume \
+  bottles, a powder compact, a lamp, jewellery), never a mirror.
 
 ────────────────────── EXEMPLARS (this is the bar) ──────────────────────
 

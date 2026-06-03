@@ -49,6 +49,7 @@ class Niche:
     sub_looks: list[str]
     aesthetics: dict[str, list[str]]  # palettes / lighting / photographers
     brief_seed: str
+    avoid_motifs: list[str] = field(default_factory=list)  # per-niche "do NOT depict" hints
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "Niche":
@@ -64,6 +65,7 @@ class Niche:
                 sub_looks=list(d.get("sub_looks") or []),
                 aesthetics=dict(d.get("aesthetics") or {}),
                 brief_seed=str(d.get("brief_seed", "")),
+                avoid_motifs=list(d.get("avoid_motifs") or []),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise NicheLibraryError(f"invalid niche entry {d!r}: {exc}") from exc
@@ -191,6 +193,38 @@ def select_niche(
     return expanded[cursor % len(expanded)]
 
 
+def select_niche_cycle(
+    library: NicheLibrary,
+    used_ids: list[str],
+    *,
+    tier: str,
+) -> tuple[Niche, bool]:
+    """Pick the next niche NOT yet used this cycle, so ``--auto`` exhausts
+    EVERY tier-supporting niche before repeating any (unlike the cursor-modulo
+    ``select_niche`` which over-samples high-weight niches and repeats early).
+
+    Deterministic order: core first then trend, each by descending weight then
+    id. Returns ``(niche, cycle_reset)`` — ``cycle_reset=True`` means every
+    tier-supporting niche was already used, so this pick starts a fresh cycle
+    (the caller should clear its used-set, keeping only this niche).
+    """
+    def _order(pool: list[Niche]) -> list[Niche]:
+        return sorted((n for n in pool if tier in n.tier_band),
+                      key=lambda n: (-n.weight, n.id))
+
+    candidates = _order(library.core()) + _order(library.trend())
+    if not candidates:  # no class membership — fall back to any tier match
+        candidates = _order(library.niches)
+    if not candidates:
+        raise NicheLibraryError(f"no niche supports tier {tier!r}")
+
+    used = set(used_ids)
+    for n in candidates:
+        if n.id not in used:
+            return n, False
+    return candidates[0], True  # all used → new cycle
+
+
 def select_aesthetic_lock(niche: Niche, cursor: int) -> AestheticLock:
     """Lock one palette + one lighting recipe + one photographer for the
     series. Offsets stagger so the three axes don't move in lockstep across
@@ -277,6 +311,16 @@ def build_brief(selection: Selection) -> str:
             f"series: {p.name}, {p.age_anchor}, {p.hair}, {p.build}, styled in "
             f"{p.wardrobe_vibe} ({p.arc}). Vary scene, light, wardrobe and mood "
             f"per image, but she is the same woman throughout."
+        )
+
+    # Per-niche avoidances (e.g. mirror-prone niches: vanities WITHOUT a
+    # mirror). The model warps mirror reflections into double faces and the
+    # validator hard-rejects them — naming the avoidance up front stops the
+    # LLM reaching for the motif and churning through retries / dropped scenes.
+    if selection.niche.avoid_motifs:
+        parts.append(
+            "DO NOT DEPICT (renders poorly / rejected — design around it): "
+            + "; ".join(selection.niche.avoid_motifs) + "."
         )
 
     return " ".join(parts)

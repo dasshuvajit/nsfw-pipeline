@@ -61,13 +61,15 @@ niches:
            elegant, noir, blackandwhite, sensual, aiart, digitalart, portrait]
     sub_looks:
       - "1940s studio glamour — butterfly/paramount key + a soft fill, lacquered marcel waves, satin and fur, silver-grey tonal range, classic Hollywood-portrait elegance"
-      - "boudoir vanity — warm practical lamplight at a mirrored Art-Deco vanity (no mirror in frame), silk robe slipping, dressing-room intimacy"
+      - "boudoir vanity — warm practical lamplight at an Art-Deco dressing table (no mirror — perfume bottles, powder compact, lamp), silk robe slipping, dressing-room intimacy"
       - "noir-tinged glamour — a single hard key and deep studio shadow tail, smoke and satin, dramatic but elegant, half-light on the face"
     aesthetics:
       palettes: ["silver-grey monochrome", "champagne-and-ivory with soft sepia", "deep oxblood and gold"]
       lighting: ["butterfly/paramount glamour key + fill", "single hard key with a long shadow tail", "warm low practical lamplight"]
       photographers: ["George Hurrell Hollywood glamour", "Clarence Sinclair Bull studio portrait", "early Helmut Newton elegance"]
     brief_seed: "Old-Hollywood glamour — one woman in vintage studio elegance, satin and marcel waves, the lighting and styling of a 1940s star portrait."
+    avoid_motifs:
+      - "mirrors or vanity mirrors — use a vanity/dressing table dressed with perfume bottles, a powder compact, jewellery and a lamp, never a mirror"
 
   - id: pinup_1950s
     class: core
@@ -122,6 +124,8 @@ niches:
       lighting: ["soft diffuse window daylight", "single warm bedside lamp", "bright overcast morning"]
       photographers: ["natural-light boudoir editorial", "Sarah Moon soft grain", "Petra Collins dreamy film"]
     brief_seed: "Modern boudoir — one woman in an intimate bedroom in soft natural light, lace and linen, tender and sensual."
+    avoid_motifs:
+      - "mirrors or reflective glass showing the subject — keep the bedroom mirror-free"
 
   - id: film_noir_boudoir
     class: core
@@ -140,6 +144,8 @@ niches:
       lighting: ["hard venetian-blind slats", "single hard key, low-key noir", "cool rain-window night light"]
       photographers: ["film-noir cinematography tradition", "Helmut Newton hard flash", "Bill Henson twilight"]
     brief_seed: "Film-noir boudoir — one woman in high-contrast cinematic shadow, venetian blinds or a single hard lamp, brooding 1940s mystery."
+    avoid_motifs:
+      - "mirrors or reflections — carry the drama with blind-slat light, lamp glow and deep shadow instead"
 
   - id: art_deco_boudoir
     class: core
@@ -158,6 +164,8 @@ niches:
       lighting: ["warm opulent lamplight", "hazed warm shaft through tall windows", "soft glamour key"]
       photographers: ["Art-Deco era studio glamour", "Edward Steichen Vogue elegance", "George Hurrell deco portrait"]
     brief_seed: "Art-Deco boudoir — one woman in 1920s Gatsby-era luxury, pearls and gilt, opulent warm light, jazz-age elegance."
+    avoid_motifs:
+      - "mirrors or mirrored vanities — use a gilt console or lacquered dressing table with deco objets (no mirror)"
 
   # ───────────────────────── ROTATING TREND ─────────────────────────
   - id: goth_romantic
@@ -227,6 +235,8 @@ niches:
       lighting: ["warm theatrical spotlight", "warm vanity-bulb light", "single dramatic stage key"]
       photographers: ["vintage burlesque photography", "Helmut Newton showgirl glamour", "cabaret editorial"]
     brief_seed: "Burlesque cabaret glamour — one performer in feathers and rhinestones under warm theatrical light, confident showgirl charisma."
+    avoid_motifs:
+      - "dressing-room mirrors (incl. bulb-framed vanity mirrors) — use a bulb-lit vanity table with no mirror, or the stage/backstage instead"
 
   - id: cyberpunk_pinup
     class: trend
