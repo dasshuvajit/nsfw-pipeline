@@ -12,8 +12,11 @@ The complete architecture is documented in ARCHITECTURE.md — read it fully bef
   0.5+ is required: Phase 4b adopts the `format: <schema>` API for
   grammar-constrained JSON decoding, which lands at Ollama 0.5.
   Multi-LLM upgrade (2026-05) replaces the single-model assumption
-  with an LLM registry at `config/llm_models.yaml` (default:
-  `cydonia_heretic_24b`). Per-CLI `--llm <id>` is the canonical override;
+  with an LLM registry at `config/llm_models.yaml` (default since
+  2026-06-04: `gemma_4_26b_a4b_heretic`, an LM Studio backend — won a
+  blind 4-lens judge A/B on creativity/sellability/framing-fidelity at
+  ~2.7x Cydonia's speed; `cydonia_heretic_24b` is now the fallback +
+  painterly-light specialist). Per-CLI `--llm <id>` is the canonical override;
   every facet/prompt row stamps `llm_id` so multi-LLM A/B series
   coexist on the same scenes.
 - Mac M4 Pro, 48GB unified RAM
@@ -87,19 +90,24 @@ The complete architecture is documented in ARCHITECTURE.md — read it fully bef
     bump doesn't lose audit trail for older rows.
 - Static data sources:
   - `config/llm_models.yaml` — LLM registry (multi-LLM upgrade,
-    2026-05). Maps registry ids (e.g. `cydonia_heretic_24b`) to Ollama
-    tags (`Fermi/Cydonia-24B-v4.3-heretic-vision:Q4_K_M`). Declares
-    `default_llm: cydonia_heretic_24b` and `fallback_llm: qwen3_abliterated_30b`
-    (different lineage — used by `OllamaClient.generate_json` after
-    two consecutive primary failures). Validated at startup:
-    `LLMRegistryLoader` rejects an inactive default and any
-    `pipeline.yaml::llm.routing.*` target that doesn't resolve here.
-    Per-CLI `--llm <id>` overrides routing + default for that one
+    2026-05; multi-backend 2026-06). Maps registry ids to a
+    backend-specific tag — Ollama (`cydonia_heretic_24b` →
+    `Fermi/Cydonia-24B-v4.3-heretic-vision:Q4_K_M`), LM Studio
+    (`gemma_4_26b_a4b_heretic` → `gemma-4-26b-a4b-it-ultra-uncensored-heretic`),
+    or MLX. `LLMClientPool.backend_for_tag(tag)` routes each tag to the
+    right client. Declares `default_llm: gemma_4_26b_a4b_heretic` and
+    `fallback_llm: cydonia_heretic_24b` (different lineage + backend —
+    used by `generate_json` after two consecutive primary failures).
+    Validated at startup: `LLMRegistryLoader` rejects an inactive
+    default and any `pipeline.yaml::llm.routing.*` target that doesn't
+    resolve here. Per-CLI `--llm <id>` (structured path) / `--model-tag`
+    (art_director / art_series) overrides routing + default for that one
     command run. Output paths include `<llm_id>` segment so two
     LLMs A/B-rendering the same series don't overwrite each other.
-    **Routing state (2026-05-18):** `pipeline.yaml::llm.routing` is
+    **Routing state (2026-06-04):** `pipeline.yaml::llm.routing` is
     intentionally empty — every role falls through to `default_llm`
-    (`cydonia_heretic_24b`). The heretic-tuned variant's already-low
+    (`gemma_4_26b_a4b_heretic`; was `cydonia_heretic_24b` until the
+    2026-06-04 blind A/B). The heretic-tuned variants' already-low
     refusal floor obsoletes the prior per-role split. Re-enable
     routing only if a future evaluation shows a specific role
     benefits from a different LLM.
@@ -277,9 +285,13 @@ prose-family prompts (chroma / flux / flux2):
 - **SDXL / Pony / Illustrious** (CLIP encoder) keep the previous
   keyword-stitched architecture. CLIP rewards comma-tag stacking;
   T5 (chroma/flux/flux2) wants flowing prose.
-- **Cydonia 24B (32K context)** is the recommended LLM for prose
-  families. DavidAU 12B at 4K-16K context can't fit the dual-write
-  system prompt reliably. `--llm cydonia_heretic_24b` to switch.
+- **Long context is required for prose families** (the dual-write
+  system prompt is large). Both registry LLMs qualify: the default
+  **Gemma 26B-a4b (32K, LM Studio)** — preferred since the 2026-06-04
+  A/B — and **Cydonia 24B (32K, Ollama)**, the fallback + painterly-light
+  specialist. DavidAU 12B at 4K-16K can't fit the prompt reliably.
+  `--model-tag` (art_director / art_series) or `--llm cydonia_heretic_24b`
+  (structured path) to switch off the default.
 - **Sad/crying ban (vocab v12)**: MOOD_PENSIVE + MOOD_MELANCHOLIC
   rebranded to "introspective / contemplative / quiet composure".
   System prompt explicitly forbids tears, crying, weeping,
@@ -295,7 +307,7 @@ excellent on series_753f4daae5f2.
 - CLAUDE.md — This file (project context for Claude Code)
 - PROJECT_GUIDE.md — Living document: setup, run, test instructions (UPDATE after every implementation)
 - config/prompt_vocabulary.yaml — Versioned realism + NSFW + environment + narrative + aesthetic + composition concept library (vocab v12, 2026-05-23 — sad/crying mood softening; mood_pensive + mood_melancholic rebranded to introspective/contemplative)
-- config/llm_models.yaml — LLM registry (multi-LLM upgrade, 2026-05). Per-CLI `--llm <id>` overrides routing + default; validated at startup. **Cydonia 24B recommended for prose families** (32K context, sustained 100+ word coherent prose).
+- config/llm_models.yaml — LLM registry (multi-LLM upgrade, 2026-05; multi-backend 2026-06). Per-CLI `--llm <id>` / `--model-tag` overrides routing + default; validated at startup. **Default = Gemma 26B-a4b (LM Studio)** since the 2026-06-04 blind A/B; **Cydonia 24B (Ollama)** is the fallback + painterly-light specialist. Both 32K context, sustained 100+ word coherent prose.
 - scripts/audit_prompts.py — mechanical scoring of composed prompts against Grok/Claude-web rubric (style stacking, lighting collision, camera angle contradiction, B&W vs color, tag soup, T4 anatomy, repetition). `python scripts/audit_prompts.py <series_id>`.
 - `prepare_prompts.py --scenes N` — short-series testing (N=1 for fast iteration; default 25 for production).
 - docs/COMFYUI_WORKFLOWS.md — staged render pipeline (base→refine→manual-4K) + the v12 monolith escape hatch.
