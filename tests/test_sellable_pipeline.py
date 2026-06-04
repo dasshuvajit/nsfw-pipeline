@@ -278,6 +278,22 @@ def test_sfw_cover_gate_rejects_nudity(monkeypatch):
     assert AD._PromptOut(prompt=nude).prompt
 
 
+def test_mood_gate_rejects_sad_affect():
+    """The mood gate hard-rejects unambiguous sad-affect words (commercial
+    NSFW sells confident sensuality, not sorrow) at the WORD level — 'sad'
+    must not fire inside 'saddle', nor a stem inside 'sober'. Caught a Vermeer
+    prompt that drifted to 'melancholic composure'."""
+    base = "A warm shaft of light falls across a confident woman in a quiet room. " * 6
+    for sadword in ("melancholic", "a deep sorrow", "mournful and grieving",
+                    "softly weeping", "a forlorn, tearful"):
+        with pytest.raises(Exception):
+            AD._PromptOut(prompt=base + sadword + " she gazes away.")
+    # serene / introspective prose passes
+    assert AD._PromptOut(prompt=base + "serene and introspective, she gazes ahead.").prompt
+    # look-alikes must NOT false-positive (word-level matching)
+    assert AD._PromptOut(prompt=base + "seated on a worn leather saddle, sober and composed.").prompt
+
+
 def test_audit_gate_keeps_best_when_all_below(monkeypatch):
     """If no attempt clears the threshold, ship the best-scoring one
     (never drop the scene over a soft-quality miss)."""

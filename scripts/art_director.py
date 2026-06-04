@@ -79,6 +79,17 @@ _NUDITY_TOKENS = (
     "fully bare", "undressed", "unclothed", "bare-skinned",
 )
 
+# Mood gate: commercial NSFW sells confident sensuality, not sorrow. The prompt
+# validator hard-rejects (reject + re-roll) any prose carrying an unambiguous
+# sad-affect word. Matched at the WORD level (token-exact / stem-prefix) so
+# 'sad' can't fire inside 'saddle' and 'sob' can't fire inside 'sober'. Quiet
+# moods should read introspective / contemplative / serene, never sad.
+_SAD_MOOD_EXACT = frozenset({
+    "sad", "sadness", "mournful", "melancholic", "melancholy", "sorrow",
+    "sorrowful", "crying", "tearful", "forlorn", "woeful", "grief", "doleful",
+})
+_SAD_MOOD_PREFIX = ("griev", "weep", "despair", "anguish", "mourn")  # grieving, weeping, …
+
 # Hard SFW instruction appended to PUBLIC cover/teaser prompts.
 SFW_COVER_DIRECTIVE = (
     "PUBLIC SHOPFRONT COVER — she must be FULLY CLOTHED in elegant attire that "
@@ -178,7 +189,9 @@ WHAT MAKES YOUR PROMPTS EXCELLENT — study the exemplars and match their depth:
    NEVER airbrushed, plastic, waxy or over-smoothed.
 5. EMBODIED MOOD through pose, weight, gaze, parted lips (confident, languid, \
    sultry, serene, playful). Shown, not named. Confident and sensual — NEVER \
-   sad/crying/mournful.
+   sad/crying/mournful/melancholic/melancholy/sorrowful/wistful/forlorn. For \
+   quiet moods use introspective, contemplative, pensive-calm, or serene \
+   composure instead — never sadness.
 6. PHOTOGRAPHIC CRAFT woven in as a photographer notes it: a fast prime (50 / \
    85mm), wide aperture, creamy shallow depth of field melting the background \
    to bokeh, the colour and fine grain of a named film stock. Never a tag-list.
@@ -387,6 +400,17 @@ class _PromptOut(BaseModel):
         phit = [p for p in paint if p in low]
         if phit:
             raise ValueError(f"style: non-photographic token(s) {phit}")
+        # Mood gate: confident/sensual, never sad. Word-level so 'sad' can't
+        # fire inside 'saddle'. Reject + re-roll toward serene/introspective.
+        toks = {w.strip(".,;:!?—–-\"'()[]") for w in low.split()}
+        sad = sorted(t for t in toks if t in _SAD_MOOD_EXACT
+                     or any(t.startswith(p) for p in _SAD_MOOD_PREFIX))
+        if sad:
+            raise ValueError(
+                f"mood: sad-affect term(s) {sad} — commercial NSFW sells "
+                f"confident sensuality. Re-write as introspective / serene / "
+                f"contemplative, never sad."
+            )
         # Render-safety: chroma renders mirrors as warped faces / body
         # doubles. The ONE structural guard worth keeping from the old
         # pipeline — reject + retry so the LLM re-rolls the scene.
