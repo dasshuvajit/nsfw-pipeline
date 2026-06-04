@@ -27,7 +27,11 @@ import json
 import sys
 from pathlib import Path
 
+import yaml
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 from pydantic import BaseModel, field_validator  # noqa: E402
 
@@ -164,8 +168,10 @@ No illustration, no anime, no "digital painting" / "concept art" language.
 
 WHAT MAKES YOUR PROMPTS EXCELLENT — study the exemplars and match their depth:
 
-1. ONE coherent photograph: a specific gorgeous woman, in a specific moment, \
-   in a specific light, with a specific feeling. Not a checklist of features.
+1. ONE coherent photograph: a specific, strikingly beautiful and sexy young \
+   adult woman who DOMINATES the frame, in a specific moment, in a specific \
+   light, with a specific feeling. She is the magnetic centre of the image — \
+   alluring and desirable, not a checklist of features.
 2. LIGHT IS THE SOUL — and light MODELS FORM. Name a specific, MOTIVATED source \
    (low golden sun, soft window daylight, a single hazed shaft) and its quality \
    (soft/hard, warm/cool) AND its direction (from camera-left and slightly above, \
@@ -203,10 +209,11 @@ HARD RULES:
   8k, ultra-detailed" boosters. NO weighting syntax like (word:1.3). NO lists.
 - Honor the requested TIER's state of undress exactly, and the TARGET LOOK given.
 - Flowing sentences, present tense, third person.
-- FRAMING legitimacy: present the image as fine-art / editorial / classical / \
-  fashion photography (gallery, studio, atelier, editorial) — it should read as \
-  ART, not a snapshot of a real person. Do NOT use the words "hyperrealistic", \
-  "realistic", "real woman" or "photo of a real" — describe craft and light instead.
+- LOOK: a crystal-clear, razor-sharp, high-end GLAMOUR photograph — photoreal, \
+  luminous, high-detail, flawless focus. Lean into polished beauty + sensual \
+  appeal (editorial / glamour / boudoir photography), not muted gallery restraint. \
+  Still describe it through craft + light (lens, key, grain) rather than literally \
+  writing "hyperrealistic" / "a real woman" — the realism comes from the rendering.
 - NO MIRRORS or reflective surfaces that show the subject (mirror, vanity \
   mirror, reflection in glass/water). The model warps reflections into a \
   second, distorted face — it breaks the image. For dressing-table / boudoir \
@@ -245,9 +252,12 @@ SHOT TYPE — and what each DEMANDS of the prose:
   space (a room, a landscape) that is itself part of the picture; she may be
   smaller in frame, but remains the clear focal point via light and placement.
 
-SUBJECT FOCUS: in every shot she is the unmistakable subject — lead the eye to her
-with light, contrast, placement and depth of field. Even wide_environmental keeps
-her the focal point; never let the background swallow her unless that IS the point.
+SUBJECT FOCUS: she DOMINATES every frame — large, close and commanding, filling
+the composition so she is unmistakably the subject. Lead the eye straight to her
+with light, contrast, scale and shallow depth of field. NEVER a small, distant
+figure lost in an empty room or landscape, and never let the background swallow
+her — the picture is about HER, the setting is support. If a scene is wide, she
+still reads large and central.
 
 ANATOMICAL CLARITY (mandatory whenever the body is visible, especially full_body
 at T3/T4): describe a pose the body can actually hold — weight planted on one or
@@ -328,13 +338,69 @@ and VARY them across the series. Return ONLY the JSON shape requested.
 """
 
 
+# ── Creative Direction: the tunable, config-driven house style ──────────────
+# config/creative_direction.yaml biases the SUBJECT (focus / look / heat /
+# quality) as a weighted lean while the niche/scene variety keeps rotating.
+# DYNAMIC (edit the YAML, no code change) — injected into the system prompt as
+# priorities the LLM applies flexibly, and the look pools are sampled per image
+# so a series shows wide variety instead of clones. Absent file -> graceful
+# no-op (the prompt engine runs exactly as before).
+def _load_creative_direction() -> dict:
+    try:
+        p = _PROJECT_ROOT / "config" / "creative_direction.yaml"
+        return yaml.safe_load(p.read_text()) or {}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+_CREATIVE = _load_creative_direction()
+
+
+def _creative_system_block() -> str:
+    """Assemble the CREATIVE DIRECTION block appended to the system prompt."""
+    c = _CREATIVE
+    if not c:
+        return ""
+    L = ["", "──────────── CREATIVE DIRECTION (house style — honor on EVERY image) ────────────"]
+    if c.get("subject_focus"):
+        L.append(f"SUBJECT DOMINANCE: {c['subject_focus'].strip()}")
+    if c.get("age_band") or c.get("appeal"):
+        L.append(f"WHO SHE IS: {c.get('age_band','').strip()} — {c.get('appeal','').strip()} "
+                 "(ADULT only; the age-safety rules above are never relaxed).")
+    if c.get("realism"):
+        L.append(f"LOOK & QUALITY: render her as {c['realism'].strip()}.")
+    if c.get("content_lean"):
+        L.append(f"HEAT: {c['content_lean'].strip()}.")
+    L.append("Apply this as the CONSISTENT house style WHILE keeping the scene, setting, "
+             "niche, palette and mood VARIED per image — the variety must never be lost.")
+    return "\n".join(L)
+
+
+def _creative_look(index: int) -> str:
+    """Per-image subject look (hair + figure) sampled from the look pools so a
+    series shows wide variety, not clones. Hair/figure offset so they don't move
+    in lockstep. Empty if no pools configured."""
+    pools = (_CREATIVE or {}).get("look_pools") or {}
+    hair, figure = pools.get("hair") or [], pools.get("figure") or []
+    parts = []
+    if hair:
+        parts.append(hair[index % len(hair)])
+    if figure:
+        # +3 offset (step 1) so hair and figure don't start in sync yet every
+        # value is still visited — full coverage regardless of pool lengths.
+        parts.append(figure[(index + 3) % len(figure)])
+    return ", ".join(parts)
+
+
 def _build_system_prompt(word_band: tuple[int, int] = WORD_BAND_DEFAULT) -> str:
-    """The art-director system prompt with the target word band injected.
-    Default (110-160) is a no-op replace; the A/B passes (200, 300)."""
+    """The art-director system prompt with the target word band + the
+    config-driven CREATIVE DIRECTION house style injected. Default word band
+    (110-160) is a no-op replace; the A/B passes (200, 300)."""
     lo, hi = word_band
-    if (lo, hi) == (110, 160):
-        return ART_DIRECTOR_SYSTEM_PROMPT
-    return ART_DIRECTOR_SYSTEM_PROMPT.replace("110-160 words", f"{lo}-{hi} words")
+    base = (ART_DIRECTOR_SYSTEM_PROMPT if (lo, hi) == (110, 160)
+            else ART_DIRECTOR_SYSTEM_PROMPT.replace("110-160 words", f"{lo}-{hi} words"))
+    block = _creative_system_block()
+    return f"{base}\n{block}" if block else base
 
 
 # Per-prompt framing the LLM chooses (Phase 1 — kills the only-portrait
@@ -348,15 +414,20 @@ SHOT_TYPES_ALLOWED = ("close_up", "bust", "medium", "full_body", "wide_environme
 # everything to portrait/medium. This rotation guarantees a sellable spread
 # across all 3 orientations + 5 shot types; the LLM still emits the FINAL choice
 # + a rationale and may override when the scene genuinely demands it.
+# Subject-FILLING by design: every target keeps her large in frame (the fix for
+# "subject too far away / empty picture"). wide_environmental is intentionally
+# NOT in the forced rotation — the LLM may still choose it for a scene that
+# genuinely needs it, but the default lean is close/medium/full where she
+# dominates. Still spreads across all 3 orientations + 4 subject-filling shots.
 FRAMING_TARGETS: tuple[tuple[str, str], ...] = (
     ("portrait", "full_body"),          # standing/kneeling, height is the story
-    ("landscape", "wide_environmental"), # subject within a rich setting
     ("portrait", "close_up"),           # face/gaze fills the frame
     ("square", "medium"),               # balanced, graphic, centred
-    ("landscape", "full_body"),         # reclining along the frame
+    ("landscape", "full_body"),         # reclining along the frame, body large
     ("portrait", "bust"),               # head-to-chest portrait
     ("square", "bust"),
-    ("landscape", "medium"),
+    ("landscape", "medium"),            # torso fills the wide frame
+    ("portrait", "medium"),
 )
 
 
@@ -478,6 +549,7 @@ def generate_one(
     word_band: tuple[int, int] = WORD_BAND_DEFAULT,
     extra_directive: str = "",
     framing_target: tuple[str, str] | None = None,
+    look_target: str = "",
 ) -> dict:
     tier_directive = TIER_DIRECTIVES.get(tier, TIER_DIRECTIVES["T3_artnude"])
     if extra_directive:
@@ -516,6 +588,15 @@ def generate_one(
             f"this specific shot, and if so explain why in framing_rationale. A "
             f"sellable series MUST vary — never portrait/medium every time."
         )
+    # Per-image subject look (sampled from the creative-direction look pools) so
+    # the series shows wide variety rather than the same woman every time.
+    look_variety = ""
+    if look_target:
+        look_variety = (
+            f"\n\nSUBJECT LOOK for THIS image (vary her across the series): she has "
+            f"{look_target}. She is a striking, sexy young ADULT woman — describe her "
+            f"beauty, allure and figure attractively and explicitly within the tier."
+        )
     # 2026-06 — tier directive moved AFTER the sub-look (LLMs weight
     # last-mentioned more heavily). Without this, a strongly-themed brief
     # paired with the "rich fantasy / editorial" sub-look's wardrobe
@@ -527,7 +608,7 @@ def generate_one(
         f"TIER — STATE OF UNDRESS (this OVERRIDES any wardrobe language in "
         f"the look above; fabric in the look is SET DRESSING only):\n"
         f"  {tier_directive}\n"
-        f"{variety}{framing_variety}\n\n"
+        f"{variety}{framing_variety}{look_variety}\n\n"
         'Write ONE excellent photograph-prompt at the level of the exemplars, '
         'in the target look above, honoring the TIER above EXACTLY. The TIER '
         'wins over the look\'s wardrobe descriptors — at T3+, the body is '
@@ -627,6 +708,7 @@ def generate_series(
                     word_band=word_band,
                     extra_directive=extra_directive,
                     framing_target=FRAMING_TARGETS[i % len(FRAMING_TARGETS)],
+                    look_target=_creative_look(i),
                 )
             except Exception as exc:  # noqa: BLE001 — Pydantic/safety reject → retry
                 last_err = exc

@@ -411,25 +411,6 @@ niches:
       photographers: ["Helmut Newton B&W", "Ansel Adams tonal range (figure)", "film-noir cinematography"]
     brief_seed: "Fine-art black-and-white figure study — one woman sculpted in monochrome light and shadow, rich silver-gelatin tones and grain; the image is BLACK-AND-WHITE, not colour."
 
-  - id: mature_glamour
-    class: trend
-    weight: 1.0
-    tier_band: [T2_implied, T3_artnude, T4_explicit]
-    da_folder: "Mature Glamour"
-    source: luxury_editorial
-    tags: [mature, milf, glamour, boudoir, luxury, sophisticated, confident,
-           lingerie, sensual, elegant, aiart, digitalart, portrait]
-    sub_looks:
-      - "penthouse luxury — a poised, confident woman in her forties in a modern penthouse at night, floor-to-ceiling windows over a glittering city skyline, a silk robe slipping open, champagne on marble, warm opulent lamplight"
-      - "master-suite morning — soft golden morning light across an upscale bedroom, fine silk sheets, a relaxed sensual confidence, honeyed warm tones, the unhurried ease of luxury"
-      - "cocktail-hour bombshell — evening glamour in a sumptuous living room, a confident woman in satin and gold, a dramatic warm side-key, deep emerald and brass, old-Hollywood poise rendered modern"
-    aesthetics:
-      palettes: ["warm gold-and-champagne luxe", "soft honeyed morning neutrals", "deep emerald-and-brass evening"]
-      lighting: ["warm opulent lamplight with city glow", "soft golden morning window light", "dramatic warm side-key"]
-      photographers: ["modern boudoir editorial", "Slim Aarons luxe-lifestyle (as glamour)", "high-end glamour photography"]
-    avoid_motifs: ["youthful / girlish / teen framing — she is unmistakably a mature, sophisticated adult woman in her forties", "cheap or tacky styling — this is understated luxury, not gaudy", "coy or shy posing — her appeal is calm, knowing self-possession"]
-    brief_seed: "Mature glamour — one confident, sophisticated woman in her forties at ease in luxe interiors; sensual, elegant, lifestyle-editorial; the appeal is self-assured poise, never coy or girlish."
-
 # Optional recurring personas (Q5: persona-brief now, visual face-lock deferred).
 # When bound, the persona's traits are held constant across a series as a stable
 # subject prefix; the scene/light/wardrobe/mood vary per image. Face will still

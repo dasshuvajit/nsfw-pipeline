@@ -1,0 +1,59 @@
+# Creative Direction — the tunable "house style" the art-director LLM honors.
+# It biases the SUBJECT (look / focus / heat / quality) as a weighted lean while
+# the niche/scene/setting variety keeps rotating — so every category stays in
+# play and you get consistently striking subjects across different themes.
+# This is DYNAMIC: edit this file to retune the whole library; no code change.
+# It is injected into every art-director brief as priorities the LLM applies
+# flexibly (not a fixed appended string), and the look pools are sampled per
+# image so a series is never clones.
+version: 1
+
+# She DOMINATES the frame — fixes the "subject too far away / empty picture".
+subject_focus: >-
+  She DOMINATES the frame — large, close and commanding, filling the
+  composition. She is unmistakably the subject. NEVER a small, distant figure
+  lost in an empty room or landscape; even a wider shot keeps her the large,
+  clear focal point.
+
+# UNAMBIGUOUSLY ADULT. "young" here means young ADULT only — the age-safety
+# layers (adult anchors + banned-token guards) are NEVER relaxed by this file.
+age_band: >-
+  a young adult woman in her early-to-mid twenties, unmistakably an adult with
+  fully mature adult features and figure
+
+# How she reads — striking, sexy, desirable (glamour / sensual appeal).
+appeal: >-
+  strikingly beautiful and sexy, with a magnetic, alluring presence and an
+  attractive, desirable adult figure
+
+# Crystal-clear photoreal glamour (chosen: full photoreal-sexy everywhere).
+realism: >-
+  a crystal-clear, razor-sharp, high-end glamour photograph — photoreal,
+  luminous and high-detail, flawless focus, rich tonality
+
+# Overt at T3/T4: sexy, sensual, explicit where the tier allows, attractive
+# anatomy, confident — never coy or shy.
+content_lean: >-
+  lean overtly sexy and sensual; where the tier allows (T3/T4) the eroticism is
+  explicit and confident and the body and anatomy are presented attractively,
+  never coy or demure
+
+# WIDE look variety — sampled per image so the series isn't clones. Every entry
+# is a young-adult, attractive look; hair + figure vary widely.
+look_pools:
+  hair:
+    - long blonde waves
+    - sleek platinum-blonde
+    - warm honey-blonde
+    - rich chocolate-brunette
+    - glossy raven-black
+    - fiery auburn-red
+    - chestnut balayage
+    - sun-kissed caramel
+  figure:
+    - slender with an attractive full bust
+    - a curvy hourglass figure
+    - athletic and toned
+    - soft, feminine curves
+    - long-legged and lithe
+    - petite and shapely

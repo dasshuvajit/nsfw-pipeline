@@ -112,6 +112,28 @@ def test_curate_contact_sheet_name_no_clobber(tmp, monkeypatch):
     assert (tmp / "contact_sheet_covers.png").exists()
 
 
+def test_creative_direction_house_style(monkeypatch):
+    """The config-driven creative-direction layer injects the house style into
+    the system prompt + samples a VARIED look per image, stays adult-safe, and
+    degrades gracefully when the config is absent."""
+    block = AD._creative_system_block()
+    assert "CREATIVE DIRECTION" in block
+    assert "DOMINATE" in block.upper()                 # subject-focus fix
+    assert "young adult" in block.lower()              # the look lean
+    assert "ADULT only" in block                       # age-safety reinforcement
+    assert "VARIED" in block.upper()                   # variety preserved
+    # injected into the assembled system prompt
+    assert "CREATIVE DIRECTION" in AD._build_system_prompt()
+    # per-image look rotation is varied (not clones)
+    looks = [AD._creative_look(i) for i in range(6)]
+    assert len(set(looks)) >= 5, f"look rotation should vary, got {looks}"
+    # graceful: no config -> no block, prompt engine unchanged
+    monkeypatch.setattr(AD, "_CREATIVE", {})
+    assert AD._creative_system_block() == ""
+    assert AD._creative_look(0) == ""
+    assert "CREATIVE DIRECTION" not in AD._build_system_prompt()
+
+
 # ── tier-split packaging (_package) — the SFW-cover HARD rule ───────
 
 def _selection(tier, niche="fine_art_figure_study"):
