@@ -183,6 +183,7 @@ def _curate(
     keep_top: int,
     use_hps_v2: bool,
     use_image_reward: bool,
+    contact_sheet_name: str = "contact_sheet.png",
 ) -> list[Path]:
     """Score every rendered candidate (ImageScorer), rank per prompt, flag
     rejects, copy keepers to keepers/, and build a contact sheet for human
@@ -246,7 +247,7 @@ def _curate(
         cs = [{"file_path": str(out_dir / im["path"]),
                "quality_score": im.get("quality_score") or 0.0}
               for entry in manifest for im in entry["images"]]
-        create_contact_sheet(cs, out_dir / "contact_sheet.png")
+        create_contact_sheet(cs, out_dir / contact_sheet_name)
     except Exception as exc:  # noqa: BLE001
         print(f"  (contact sheet skipped: {exc})", file=sys.stderr, flush=True)
 
@@ -911,8 +912,11 @@ def main() -> int:
         _curate(manifest, out_dir, content_level=args.tier,
                 keep_top=args.keep_top, use_hps_v2=use_hps, use_image_reward=use_ir)
         if cover_manifest:
+            # Distinct sheet name so the covers pass doesn't clobber the main
+            # keepers' contact_sheet.png (the QA montage the checklist references).
             _curate(cover_manifest, out_dir, content_level="T1_suggestive",
-                    keep_top=1, use_hps_v2=use_hps, use_image_reward=use_ir)
+                    keep_top=1, use_hps_v2=use_hps, use_image_reward=use_ir,
+                    contact_sheet_name="contact_sheet_covers.png")
     else:  # keep all so packaging has candidates
         for m in (manifest, cover_manifest):
             for e in m:

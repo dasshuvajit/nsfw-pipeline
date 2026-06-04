@@ -81,6 +81,37 @@ def test_curate_graceful_when_scoring_unavailable(tmp, monkeypatch):
     assert len(keepers) == 2
 
 
+def test_curate_contact_sheet_name_no_clobber(tmp, monkeypatch):
+    """The covers curation pass must not overwrite the main keepers'
+    contact_sheet.png — each pass writes its own named sheet."""
+    monkeypatch.setattr("src.scoring.image_scorer.ImageScorer", _FakeScorer)
+    written: list[str] = []
+
+    def _rec(cs, out_path):
+        written.append(Path(out_path).name)
+        Path(out_path).write_bytes(b"PNG")
+    monkeypatch.setattr("src.review.contact_sheet.create_contact_sheet", _rec)
+
+    main = [{"index": 0, "prompt": "p", "images": [
+        {"path": "images/ad01_a_s1.png", "seed": 1}]}]
+    covers = [{"index": 0, "prompt": "c", "images": [
+        {"path": "covers/cover01_a_s1.png", "seed": 1}]}]
+    for m in (main, covers):
+        for e in m:
+            for im in e["images"]:
+                _mk(tmp, im["path"])
+
+    A._curate(main, tmp, content_level="T3_artnude", keep_top=1,
+              use_hps_v2=False, use_image_reward=False)
+    A._curate(covers, tmp, content_level="T1_suggestive", keep_top=1,
+              use_hps_v2=False, use_image_reward=False,
+              contact_sheet_name="contact_sheet_covers.png")
+
+    assert written == ["contact_sheet.png", "contact_sheet_covers.png"]
+    assert (tmp / "contact_sheet.png").exists()
+    assert (tmp / "contact_sheet_covers.png").exists()
+
+
 # ── tier-split packaging (_package) — the SFW-cover HARD rule ───────
 
 def _selection(tier, niche="fine_art_figure_study"):
