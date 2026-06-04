@@ -169,7 +169,7 @@
         0
       ],
       "model": [
-        "refiner_checkpoint_loader",
+        "diffdiff_model",
         0
       ],
       "clip": [
@@ -241,7 +241,7 @@
         0
       ],
       "model": [
-        "refiner_checkpoint_loader",
+        "diffdiff_model",
         0
       ],
       "clip": [
@@ -308,11 +308,11 @@
   },
   "det_hand_detector": {
     "inputs": {
-      "model_name": "bbox/hand_yolov8s.pt"
+      "model_name": "bbox/hand_yolov9c.pt"
     },
     "class_type": "UltralyticsDetectorProvider",
     "_meta": {
-      "title": "Detector \u2014 HANDS (hand_yolov8s)"
+      "title": "Detector \u2014 HANDS (hand_yolov9c)"
     }
   },
   "detailer_hands": {
@@ -322,7 +322,7 @@
         0
       ],
       "model": [
-        "refiner_checkpoint_loader",
+        "diffdiff_model",
         0
       ],
       "clip": [
@@ -375,7 +375,7 @@
       "sam_mask_hint_threshold": 0.7,
       "sam_mask_hint_use_negative": "False",
       "drop_size": 10,
-      "wildcard": "",
+      "wildcard": "perfect hands, five fingers, correct natural finger anatomy, detailed fingers, no extra fingers",
       "cycle": 1,
       "inpaint_model": false,
       "noise_mask_feather": 20,
@@ -385,6 +385,18 @@
     "class_type": "FaceDetailer",
     "_meta": {
       "title": "Review detailer \u2014 HANDS (hand_yolov8s, denoise 0.32)"
+    }
+  },
+  "diffdiff_model": {
+    "inputs": {
+      "model": [
+        "refiner_checkpoint_loader",
+        0
+      ]
+    },
+    "class_type": "DifferentialDiffusion",
+    "_meta": {
+      "title": "DifferentialDiffusion (soft-edge detailer mask blend)"
     }
   }
 }

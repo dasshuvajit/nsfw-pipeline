@@ -115,7 +115,14 @@ def test_refine_contract_and_values():
     assert wf["detailer_face"]["inputs"]["image"] == ["133", 0]
     assert wf["detailer_eyes"]["inputs"]["image"] == ["detailer_face", 0]
     assert wf["detailer_hands"]["inputs"]["image"] == ["detailer_eyes", 0]
-    assert wf["det_hand_detector"]["inputs"]["model_name"] == "bbox/hand_yolov8s.pt"
+    assert wf["det_hand_detector"]["inputs"]["model_name"] == "bbox/hand_yolov9c.pt"
+    # per-region hand prompt steers the hand crop toward correct fingers (v35 idea)
+    assert "five fingers" in wf["detailer_hands"]["inputs"]["wildcard"]
+    # DifferentialDiffusion wraps the detailer model — soft-edge mask blend (v35 idea)
+    assert wf["diffdiff_model"]["class_type"] == "DifferentialDiffusion"
+    assert wf["diffdiff_model"]["inputs"]["model"] == ["refiner_checkpoint_loader", 0]
+    assert wf["detailer_face"]["inputs"]["model"] == ["diffdiff_model", 0]
+    assert wf["detailer_hands"]["inputs"]["model"] == ["diffdiff_model", 0]
     assert wf["detailer_face"]["inputs"]["denoise"] == 0.15   # light (4K does the heavy pass)
     assert wf["save"]["inputs"]["images"] == ["detailer_hands", 0]
 
@@ -134,7 +141,11 @@ def test_upscale_contract_and_values():
     # with ~40GB free, so larger tiles than the monolith's 1280 are memory-safe
     # and ~halve the tile count.
     assert u["inputs"]["tile_width"] == 1536
-    assert u["inputs"]["seam_fix_mode"] == "Half Tile"
+    assert u["inputs"]["seam_fix_mode"] == "Half Tile + Intersections"  # v35: corner seam fix
+    # DifferentialDiffusion wraps the 4K detailer model (soft-edge mask blend)
+    assert wf["diffdiff_model"]["class_type"] == "DifferentialDiffusion"
+    assert wf["detailer_hands"]["inputs"]["model"] == ["diffdiff_model", 0]
+    assert wf["det_hand_detector"]["inputs"]["model_name"] == "bbox/hand_yolov9c.pt"
     assert wf["skin_upscale_model"]["inputs"]["model_name"] == "4x_foolhardy_Remacri.pth"
     # detail-after-upscale: face detailer reads the upscale output
     assert wf["detailer_face"]["inputs"]["image"] == ["upscale", 0]
