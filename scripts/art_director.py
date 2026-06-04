@@ -258,8 +258,10 @@ floating or detached torso, no impossible contortion. One coherent body.
 HANDS are the #1 render failure — write them to come out clean: at most ONE hand
 interacts with a prop, and keep that interaction simple (a hand resting ON a
 surface, hip or thigh beats fingers GRIPPING a wreath, a flute or fabric); the
-other hand relaxed and clearly placed. NEVER bury a hand in deep shadow — it melts
-to a fingerless blob — and NEVER combine both-arms-behind-the-head WITH a hand
+other hand relaxed and clearly placed. AVOID interlaced or tightly clasped hands —
+fingers fuse into a soft, indistinct cluster where they overlap. NEVER bury a hand
+in deep shadow — it melts to a fingerless blob — and NEVER combine
+both-arms-behind-the-head WITH a hand
 holding an object, which spawns a phantom third hand. Two hands, two arms, two
 legs, every one of them traceable to her single body.
 
