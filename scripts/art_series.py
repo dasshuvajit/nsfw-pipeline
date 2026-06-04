@@ -153,8 +153,15 @@ def _record_used_niche(used: list[str], niche_id: str) -> None:
 
 
 def _unload_llm(model_tag: str) -> None:
-    """Free the Ollama model before the render phase (never co-resident
-    with ComfyUI). Best-effort: `ollama stop`, then a short grace period."""
+    """Free the LLM before the render phase (never co-resident with ComfyUI).
+    Cascades across every backend (Ollama + LM Studio + MLX) via the pool, so
+    an LM-Studio-resident Gemma is freed too — not just Ollama models. Then a
+    direct `ollama stop` belt-and-braces for the Ollama path. Best-effort + grace."""
+    try:
+        from src.agents.llm_client import LLMClientPool
+        LLMClientPool().unload_all()
+    except Exception:  # noqa: BLE001
+        pass
     try:
         subprocess.run(["ollama", "stop", model_tag], timeout=30,
                        capture_output=True)
@@ -651,8 +658,11 @@ def main() -> int:
                     "render_pipeline.refine_template)")
     ap.add_argument("--no-refine", action="store_true",
                     help="skip stage-2 refine; review images = raw base render")
-    ap.add_argument("--model-tag", default=art_director.CYDONIA_TAG,
-                    help="Ollama LLM tag for prompt generation")
+    ap.add_argument("--model-tag", default=art_director.DEFAULT_LLM_TAG,
+                    help="LLM tag for prompt generation; routed to its backend "
+                         "(LM Studio / Ollama / MLX) by config/llm_models.yaml. "
+                         "Default = registry default_llm (Gemma, LM Studio). "
+                         "Pass art_director.CYDONIA_TAG for the Ollama/Cydonia path.")
     ap.add_argument("--temperature", type=float, default=0.85)
     ap.add_argument("--word-band", default="110-160",
                     help="prose word band 'lo-hi' (A/B: try 200-300)")

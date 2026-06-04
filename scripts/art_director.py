@@ -31,10 +31,30 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from pydantic import BaseModel, field_validator  # noqa: E402
 
-from src.agents.llm_client import OllamaClient  # noqa: E402
+from src.agents.llm_client import OllamaClient, LLMClientPool  # noqa: E402
 
-# Default LLM (Ollama tag for cydonia_heretic_24b — recommended for prose).
+# Cydonia (Ollama) — kept as the registry FALLBACK + the painterly-light
+# specialist (best optical light-on-form precision in the A/B). Use it via
+# `--model-tag $(python -c "import scripts.art_director as a; print(a.CYDONIA_TAG)")`.
 CYDONIA_TAG = "Fermi/Cydonia-24B-v4.3-heretic-vision:Q4_K_M"
+
+
+def _default_llm_tag() -> str:
+    """Backend tag of the registry's default_llm (config/llm_models.yaml).
+    As of 2026-06-04 that's gemma_4_26b_a4b_heretic (LM Studio) — made the main
+    prompt LLM after a blind 4-lens judge panel (wins creativity/sellability/
+    render-fidelity) + ~2.7x speed. Falls back to Cydonia if the registry is
+    unreadable. NOTE: the Gemma default needs LM Studio running with the model
+    loaded; otherwise pass --model-tag for the Ollama/Cydonia path."""
+    try:
+        from src.memory.llm_registry import LLMRegistryLoader
+        reg = LLMRegistryLoader()
+        return reg.get_llm(reg.default_llm_id).model_tag
+    except Exception:  # noqa: BLE001 — registry unreadable → safe Ollama default
+        return CYDONIA_TAG
+
+
+DEFAULT_LLM_TAG = _default_llm_tag()
 
 # Target word band for the prose prompt. Chroma's T5 encoder has a 512-token
 # ceiling (~350-380 words); the original 110-160 band used only ~30-47% of it.
@@ -135,10 +155,19 @@ WHAT MAKES YOUR PROMPTS EXCELLENT — study the exemplars and match their depth:
 
 1. ONE coherent photograph: a specific gorgeous woman, in a specific moment, \
    in a specific light, with a specific feeling. Not a checklist of features.
-2. LIGHT IS THE SOUL. Name a specific, MOTIVATED source (low golden sun, soft \
-   window daylight, a hazed shaft) and describe exactly how it FALLS and what \
-   it does to her — raking, wrapping, rim-lighting, grazing skin, catching an \
-   edge — plus its quality (soft/hard, warm/cool). This is your top lever.
+2. LIGHT IS THE SOUL — and light MODELS FORM. Name a specific, MOTIVATED source \
+   (low golden sun, soft window daylight, a single hazed shaft) and its quality \
+   (soft/hard, warm/cool) AND its direction (from camera-left and slightly above, \
+   from a low window behind her, raking across from the side). Then describe what \
+   it DOES optically: how it sculpts her in three dimensions — where the highlight \
+   sits, how it rolls through the soft half-light to the shadow terminator and \
+   falls off into shadow, giving the body real volume and weight. Be specific \
+   about where it pools and where it leaves dark. Name the precise micro-texture \
+   it reveals where it grazes: a catchlight in the eye, a specular sheen sliding \
+   along a collarbone or the rise of a hip, the warm translucency at the edge of \
+   an ear, grazing light making pores and fine vellus down legible at the \
+   terminator, a soft rim separating her from the background. This optical \
+   precision — light on form — is your single top lever.
 3. A RICH, SPECIFIC SETTING with real materials and a prop or two that tells a \
    story (a plate of cut fruit by the pool, a tarnished candelabra, an oil \
    lamp, tangled white linen, a chipped marble basin). Never "a room."
@@ -531,7 +560,9 @@ def generate_series(
                   file=sys.stderr, flush=True)
             score_fn = None
 
-    client = client or OllamaClient()  # caller may inject LMStudioClient (A/B)
+    # LLMClientPool routes by the model tag's backend (Ollama / LM Studio / MLX)
+    # via the registry, so the default Gemma tag → LM Studio automatically.
+    client = client or LLMClientPool()
     out: list[dict] = []
     avoid: list[str] = []
     banned_openers: list[str] = []
@@ -598,7 +629,7 @@ def main() -> int:
     ap.add_argument("--brief", required=True, help="creative brief / theme")
     ap.add_argument("--tier", default="T3_artnude", choices=list(TIER_DIRECTIVES))
     ap.add_argument("--count", type=int, default=6)
-    ap.add_argument("--model-tag", default=CYDONIA_TAG,
+    ap.add_argument("--model-tag", default=DEFAULT_LLM_TAG,
                     help="Ollama model tag (default: Cydonia 24B)")
     ap.add_argument("--temperature", type=float, default=0.85)
     ap.add_argument("--word-band", default="110-160",
@@ -633,7 +664,7 @@ def main() -> int:
         print(f"\nSaved {len(rows)} prompts -> {args.out}", flush=True)
 
     try:
-        OllamaClient().unload_all()
+        LLMClientPool().unload_all()  # cascade — frees Ollama + LM Studio + MLX
     except Exception:  # noqa: BLE001
         pass
     return 0 if rows else 1
