@@ -507,6 +507,7 @@ def generate_series(
     max_attempts: int = 4,
     require_sfw: bool = False,
     extra_directive: str = "",
+    client: "object | None" = None,
 ) -> list[dict]:
     """Generate ``count`` prompts. ``sub_looks`` (from the niche selector)
     overrides the default 3; the per-scene look rotates through them.
@@ -530,7 +531,7 @@ def generate_series(
                   file=sys.stderr, flush=True)
             score_fn = None
 
-    client = OllamaClient()
+    client = client or OllamaClient()  # caller may inject LMStudioClient (A/B)
     out: list[dict] = []
     avoid: list[str] = []
     banned_openers: list[str] = []

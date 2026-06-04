@@ -667,6 +667,9 @@ def main() -> int:
                     "runs — the public shopfront (default 2; 0 to skip)")
     ap.add_argument("--no-package", action="store_true",
                     help="skip the publish-ready packaging step")
+    ap.add_argument("--prompts-only", action="store_true",
+                    help="generate + save prompts and STOP (no render) — for "
+                    "prompt analysis / LLM A-B (writes prompts.json)")
     ap.add_argument("--base-seed", type=int, default=None,
                     help="explicit base seed; default = auto-advance past the "
                     "highest seed any prior run used (output/art_series/.last_seed)")
@@ -772,6 +775,26 @@ def main() -> int:
     if not rows:
         print("No prompts generated — aborting.", file=sys.stderr)
         return 1
+
+    # --prompts-only: stop after prompt generation (no render). Saves the rows
+    # (prompt + orientation/shot_type/framing + audit_score) for analysis/A-B.
+    if args.prompts_only:
+        out_dir.mkdir(parents=True, exist_ok=True)
+        from collections import Counter
+        oris = Counter(r.get("orientation") for r in rows)
+        shots = Counter(r.get("shot_type") for r in rows)
+        scores = [r.get("audit_score") for r in rows if r.get("audit_score") is not None]
+        payload = {"brief": brief, "tier": args.tier, "model_tag": args.model_tag,
+                   "niche": selection.niche.id if selection else None,
+                   "orientations": dict(oris), "shot_types": dict(shots),
+                   "mean_audit": round(sum(scores) / len(scores), 2) if scores else None,
+                   "prompts": rows}
+        (out_dir / "prompts.json").write_text(json.dumps(payload, indent=2))
+        print(f"\n=== PROMPTS ONLY (no render) — {len(rows)} prompts ===", flush=True)
+        print(f"  orientations: {dict(oris)}  shot_types: {dict(shots)}", flush=True)
+        print(f"  mean audit: {payload['mean_audit']}  -> {out_dir / 'prompts.json'}",
+              flush=True)
+        return 0
 
     cover_rows: list[dict] = []
     if n_covers:
