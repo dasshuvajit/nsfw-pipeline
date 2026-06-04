@@ -6,7 +6,8 @@ samplers/schedulers (no RES4LYF res_* which crash on Apple MPS), acyclic
 graphs with a single `save` sink, model-domain purity (base has no SDXL
 nodes), the staged contracts (base = build_external 4-field; refine/4K =
 build_image_stage load_image+save), and the research-backed value fixes
-(refine lcm/karras/6/denoise 0.20; hands detailer 0.35).
+(refine lcm/karras/10/denoise 0.20 on the v7.0 refiner; review-stage hands
+detailer; 4K hands detailer 0.40).
 """
 
 from __future__ import annotations
@@ -101,24 +102,33 @@ def test_refine_contract_and_values():
     assert wf["load_image"]["class_type"] == "VHS_LoadImagePath"
     assert "empty_latent" not in wf            # image-input stage, not a generator
     assert "UltimateSDUpscale" not in {nd["class_type"] for nd in wf.values()}
+    # v7.0 refiner (DMD2 baked in) at steps≈10×CFG; face detector upgraded to v9c
+    assert wf["refiner_checkpoint_loader"]["inputs"]["ckpt_name"] \
+        == "gonzalomoXLFluxPony_v70PhotoXLDMD.safetensors"
+    assert wf["det_face_detector"]["inputs"]["model_name"] == "bbox/face_yolov9c.pt"
     sk = wf["stage_ksampler"]["inputs"]
     assert sk["sampler_name"] == "lcm" and sk["scheduler"] == "karras"
-    assert sk["steps"] == 6                    # value fix (was 4)
+    assert sk["steps"] == 10                   # v7.0: steps≈10×CFG at cfg 1.0
     assert sk["denoise"] == 0.20               # value fix (was 0.15 ≈ noop)
-    # light face+eyes detailer makes review images anatomy-sharp for selection
+    # face → eyes → HANDS detailer chain; review images now get hand repair
+    # (the highest-leverage anatomy fix — soft fingers are the #1 defect)
     assert wf["detailer_face"]["inputs"]["image"] == ["133", 0]
     assert wf["detailer_eyes"]["inputs"]["image"] == ["detailer_face", 0]
+    assert wf["detailer_hands"]["inputs"]["image"] == ["detailer_eyes", 0]
+    assert wf["det_hand_detector"]["inputs"]["model_name"] == "bbox/hand_yolov8s.pt"
     assert wf["detailer_face"]["inputs"]["denoise"] == 0.15   # light (4K does the heavy pass)
-    assert wf["save"]["inputs"]["images"] == ["detailer_eyes", 0]
+    assert wf["save"]["inputs"]["images"] == ["detailer_hands", 0]
 
 
 def test_upscale_contract_and_values():
     wf = _load(UPSCALE)
     assert wf["load_image"]["class_type"] == "VHS_LoadImagePath"
+    assert wf["refiner_checkpoint_loader"]["inputs"]["ckpt_name"] \
+        == "gonzalomoXLFluxPony_v70PhotoXLDMD.safetensors"   # v7.0 refiner
     u = wf["upscale"]
     assert u["class_type"] == "UltimateSDUpscale"
     assert u["inputs"]["sampler_name"] == "lcm" and u["inputs"]["scheduler"] == "karras"
-    assert u["inputs"]["steps"] == 6
+    assert u["inputs"]["steps"] == 8           # v7.0: steps≈10×CFG (was 6)
     assert u["inputs"]["denoise"] == 0.18
     # tile 1536 (6 tiles for a ~3000x3848 4K): the staged 4K stage is SDXL-only
     # with ~40GB free, so larger tiles than the monolith's 1280 are memory-safe
@@ -128,7 +138,7 @@ def test_upscale_contract_and_values():
     assert wf["skin_upscale_model"]["inputs"]["model_name"] == "4x_foolhardy_Remacri.pth"
     # detail-after-upscale: face detailer reads the upscale output
     assert wf["detailer_face"]["inputs"]["image"] == ["upscale", 0]
-    assert wf["detailer_hands"]["inputs"]["denoise"] == 0.35   # value fix (was 0.40)
+    assert wf["detailer_hands"]["inputs"]["denoise"] == 0.40   # raised for mangled fingers
 
 
 def test_t4_appends_nsfw_detailers():

@@ -12,7 +12,7 @@
   },
   "refiner_checkpoint_loader": {
     "inputs": {
-      "ckpt_name": "gonzalomoXLFluxPony_v60PhotoXLDMD.safetensors"
+      "ckpt_name": "gonzalomoXLFluxPony_v70PhotoXLDMD.safetensors"
     },
     "class_type": "CheckpointLoaderSimple",
     "_meta": {
@@ -82,7 +82,7 @@
       ],
       "upscale_by": 2.0,
       "seed": 12346,
-      "steps": 6,
+      "steps": 8,
       "cfg": 1,
       "sampler_name": "lcm",
       "scheduler": "karras",
@@ -118,11 +118,11 @@
   },
   "det_face_detector": {
     "inputs": {
-      "model_name": "bbox/face_yolov8m.pt"
+      "model_name": "bbox/face_yolov9c.pt"
     },
     "class_type": "UltralyticsDetectorProvider",
     "_meta": {
-      "title": "Detector \u2014 FACE (face_yolov8m)"
+      "title": "Detector \u2014 FACE (face_yolov9c)"
     }
   },
   "det_eye_detector": {
@@ -333,7 +333,7 @@
       "cfg": 1,
       "sampler_name": "lcm",
       "scheduler": "karras",
-      "denoise": 0.35,
+      "denoise": 0.4,
       "feather": 8,
       "noise_mask": true,
       "force_inpaint": true,
@@ -356,7 +356,7 @@
     },
     "class_type": "FaceDetailer",
     "_meta": {
-      "title": "Detailer 3 \u2014 HANDS (denoise 0.35)"
+      "title": "Detailer 3 \u2014 HANDS (denoise 0.40)"
     }
   },
   "save": {

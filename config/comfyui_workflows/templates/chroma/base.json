@@ -115,7 +115,7 @@
   "ksampler": {
     "inputs": {
       "seed": 0,
-      "steps": 12,
+      "steps": 14,
       "cfg": 1,
       "sampler_name": "euler",
       "scheduler": "beta",
@@ -139,7 +139,7 @@
     },
     "class_type": "KSampler",
     "_meta": {
-      "title": "KSampler \u2014 base Chroma (euler/beta/12/cfg1, seed PATCHED)"
+      "title": "KSampler \u2014 base Chroma (euler/beta/14/cfg1, seed PATCHED)"
     }
   },
   "13": {

@@ -212,6 +212,15 @@ HARD RULES:
   second, distorted face — it breaks the image. For dressing-table / boudoir \
   scenes use a vanity, dressing table or console WITHOUT a mirror (perfume \
   bottles, a powder compact, a lamp, jewellery), never a mirror.
+- PROPS & ATMOSPHERE must be RENDERABLE and MOTIVATED. Every atmospheric \
+  element (smoke, steam, vapour, drifting dust) needs a VISIBLE in-frame \
+  source — a lit cigarette held or resting in an ashtray, a candle, a \
+  smouldering censer — or leave it out; floating smoke with no source reads \
+  as a glitch. Do NOT write an ambiguous "spill / splash / spray of champagne \
+  bubbles" for a glass that simply sits there — a coupe HOLDS its champagne, \
+  it does not erupt. Avoid thin, hard-to-render focal props (a long cigarette \
+  holder, a slim stem, a fine chain) — the model renders them as ambiguous \
+  lines, worst of all in silhouette; choose solid, legible props instead.
 
 ────────────── FRAMING & COMPOSITION (you CHOOSE this per image) ──────────────
 You decide the ORIENTATION and SHOT TYPE that best serve each scene, and you VARY
@@ -246,6 +255,13 @@ both feet (standing), hips resting on the surface (seated), a continuous natural
 spine (reclining); arms and legs in clear, unforced positions; hands resolved
 (resting, trailing, in her hair) not hidden-then-mangled. No twisted joints, no
 floating or detached torso, no impossible contortion. One coherent body.
+HANDS are the #1 render failure — write them to come out clean: at most ONE hand
+interacts with a prop, and keep that interaction simple (a hand resting ON a
+surface, hip or thigh beats fingers GRIPPING a wreath, a flute or fabric); the
+other hand relaxed and clearly placed. NEVER bury a hand in deep shadow — it melts
+to a fingerless blob — and NEVER combine both-arms-behind-the-head WITH a hand
+holding an object, which spawns a phantom third hand. Two hands, two arms, two
+legs, every one of them traceable to her single body.
 
 ────────────────────── EXEMPLARS (this is the bar) ──────────────────────
 
