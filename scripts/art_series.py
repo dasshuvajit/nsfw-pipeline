@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -154,14 +155,24 @@ def _record_used_niche(used: list[str], niche_id: str) -> None:
 
 def _unload_llm(model_tag: str) -> None:
     """Free the LLM before the render phase (never co-resident with ComfyUI).
-    Cascades across every backend (Ollama + LM Studio + MLX) via the pool, so
-    an LM-Studio-resident Gemma is freed too — not just Ollama models. Then a
-    direct `ollama stop` belt-and-braces for the Ollama path. Best-effort + grace."""
+    Belt-and-braces across backends: (1) the pool's unload_all(), (2) a DIRECT
+    `lms unload --all` for LM Studio, (3) a direct `ollama stop`. The direct CLI
+    calls are essential because the pool's unload_all() no-ops when this fresh
+    client never tracked loading the model (Gemma is pre-/JIT-loaded), which left
+    ~16.7 GB resident through every render and finally OOM-crashed ComfyUI. All
+    are graceful no-ops if nothing is loaded. Best-effort + grace period."""
     try:
         from src.agents.llm_client import LLMClientPool
         LLMClientPool().unload_all()
     except Exception:  # noqa: BLE001
         pass
+    # LM Studio — unconditional CLI evict (the pool can't see externally-loaded models).
+    lms = shutil.which("lms") or os.path.expanduser("~/.lmstudio/bin/lms")
+    if os.path.exists(lms):
+        try:
+            subprocess.run([lms, "unload", "--all"], timeout=30, capture_output=True)
+        except Exception:  # noqa: BLE001
+            pass
     try:
         subprocess.run(["ollama", "stop", model_tag], timeout=30,
                        capture_output=True)
