@@ -21,7 +21,7 @@
   },
   "det_pos": {
     "inputs": {
-      "text": "raw photo, photographic, highly detailed skin, natural skin texture, skin pores, sharp focus, detailed eyes, natural color, fine detail",
+      "text": "raw photo, photographic, natural untouched skin, visible freckles, skin pores, fine film grain, soft warm light, no makeup, natural color, true to life",
       "clip": [
         "refiner_checkpoint_loader",
         1
@@ -125,15 +125,6 @@
       "title": "Detector \u2014 FACE (face_yolov9c)"
     }
   },
-  "det_eye_detector": {
-    "inputs": {
-      "model_name": "bbox/Eyeful_v2-Paired.pt"
-    },
-    "class_type": "UltralyticsDetectorProvider",
-    "_meta": {
-      "title": "Detector \u2014 EYES (Eyeful_v2)"
-    }
-  },
   "det_hand_detector": {
     "inputs": {
       "model_name": "bbox/hand_yolov9c.pt"
@@ -189,7 +180,7 @@
       "cfg": 1,
       "sampler_name": "lcm",
       "scheduler": "karras",
-      "denoise": 0.3,
+      "denoise": 0.12,
       "feather": 8,
       "noise_mask": true,
       "force_inpaint": true,
@@ -212,85 +203,13 @@
     },
     "class_type": "FaceDetailer",
     "_meta": {
-      "title": "Detailer 1 \u2014 FACE (denoise 0.30)"
-    }
-  },
-  "detailer_eyes": {
-    "inputs": {
-      "image": [
-        "detailer_face",
-        0
-      ],
-      "model": [
-        "diffdiff_model",
-        0
-      ],
-      "clip": [
-        "refiner_checkpoint_loader",
-        1
-      ],
-      "vae": [
-        "refiner_checkpoint_loader",
-        2
-      ],
-      "positive": [
-        "det_pos",
-        0
-      ],
-      "negative": [
-        "det_neg",
-        0
-      ],
-      "bbox_detector": [
-        "det_eye_detector",
-        0
-      ],
-      "sam_model_opt": [
-        "sam_loader",
-        0
-      ],
-      "segm_detector_opt": [
-        "det_eye_detector",
-        1
-      ],
-      "guide_size": 512,
-      "guide_size_for": true,
-      "max_size": 768,
-      "seed": 10002,
-      "steps": 6,
-      "cfg": 1,
-      "sampler_name": "lcm",
-      "scheduler": "karras",
-      "denoise": 0.18,
-      "feather": 5,
-      "noise_mask": true,
-      "force_inpaint": true,
-      "bbox_threshold": 0.4,
-      "bbox_dilation": 4,
-      "bbox_crop_factor": 3.0,
-      "sam_detection_hint": "center-1",
-      "sam_dilation": 0,
-      "sam_threshold": 0.93,
-      "sam_bbox_expansion": 0,
-      "sam_mask_hint_threshold": 0.7,
-      "sam_mask_hint_use_negative": "False",
-      "drop_size": 10,
-      "wildcard": "",
-      "cycle": 1,
-      "inpaint_model": false,
-      "noise_mask_feather": 20,
-      "tiled_encode": false,
-      "tiled_decode": false
-    },
-    "class_type": "FaceDetailer",
-    "_meta": {
-      "title": "Detailer 2 \u2014 EYES (denoise 0.18)"
+      "title": "Detailer 1 \u2014 FACE (light 0.12, Chroma-faithful)"
     }
   },
   "detailer_hands": {
     "inputs": {
       "image": [
-        "detailer_eyes",
+        "detailer_face",
         0
       ],
       "model": [

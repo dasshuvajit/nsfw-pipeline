@@ -106,15 +106,19 @@ def test_refine_contract_and_values():
     assert wf["refiner_checkpoint_loader"]["inputs"]["ckpt_name"] \
         == "gonzalomoXLFluxPony_v70PhotoXLDMD.safetensors"
     assert wf["det_face_detector"]["inputs"]["model_name"] == "bbox/face_yolov9c.pt"
+    # FACE-FAITHFUL review pass: a gentle refine that preserves the Chroma base
+    # face (the SDXL refine + detailers were cooling/airbrushing it). Diagnosis:
+    # face-drift-diagnosis workflow — detailers + aggressive refine were the drag.
     sk = wf["stage_ksampler"]["inputs"]
     assert sk["sampler_name"] == "lcm" and sk["scheduler"] == "karras"
-    assert sk["steps"] == 10                   # v7.0: steps≈10×CFG at cfg 1.0
-    assert sk["denoise"] == 0.20               # value fix (was 0.15 ≈ noop)
-    # face → eyes → HANDS detailer chain; review images now get hand repair
-    # (the highest-leverage anatomy fix — soft fingers are the #1 defect)
+    assert sk["steps"] == 6                     # softened (was 10) — less SDXL conviction
+    assert sk["denoise"] == 0.10                # softened (was 0.20) — keep the Chroma face
+    # face → HANDS chain; the EYES detailer is DROPPED (it repainted the iris /
+    # added lash-liner / cooled the eyes away from the Chroma look).
+    assert "detailer_eyes" not in wf and "det_eye_detector" not in wf
     assert wf["detailer_face"]["inputs"]["image"] == ["133", 0]
-    assert wf["detailer_eyes"]["inputs"]["image"] == ["detailer_face", 0]
-    assert wf["detailer_hands"]["inputs"]["image"] == ["detailer_eyes", 0]
+    assert wf["detailer_hands"]["inputs"]["image"] == ["detailer_face", 0]
+    assert wf["detailer_face"]["inputs"]["denoise"] == 0.08   # very light — artifacts only, no repaint
     assert wf["det_hand_detector"]["inputs"]["model_name"] == "bbox/hand_yolov9c.pt"
     # per-region hand prompt steers the hand crop toward correct fingers (v35 idea)
     assert "five fingers" in wf["detailer_hands"]["inputs"]["wildcard"]
@@ -123,7 +127,6 @@ def test_refine_contract_and_values():
     assert wf["diffdiff_model"]["inputs"]["model"] == ["refiner_checkpoint_loader", 0]
     assert wf["detailer_face"]["inputs"]["model"] == ["diffdiff_model", 0]
     assert wf["detailer_hands"]["inputs"]["model"] == ["diffdiff_model", 0]
-    assert wf["detailer_face"]["inputs"]["denoise"] == 0.15   # light (4K does the heavy pass)
     assert wf["save"]["inputs"]["images"] == ["detailer_hands", 0]
 
 

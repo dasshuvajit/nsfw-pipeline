@@ -21,7 +21,7 @@
   },
   "det_pos": {
     "inputs": {
-      "text": "raw photo, photographic, highly detailed skin, natural skin texture, skin pores, sharp focus, detailed eyes, natural color, fine detail",
+      "text": "raw photo, photographic, natural untouched skin, visible freckles, skin pores, fine film grain, soft warm light, no makeup, natural color, true to life",
       "clip": [
         "refiner_checkpoint_loader",
         1
@@ -78,11 +78,11 @@
   "stage_ksampler": {
     "inputs": {
       "seed": 12345,
-      "steps": 10,
+      "steps": 6,
       "cfg": 1,
       "sampler_name": "lcm",
       "scheduler": "karras",
-      "denoise": 0.2,
+      "denoise": 0.1,
       "model": [
         "refiner_checkpoint_loader",
         0
@@ -102,7 +102,7 @@
     },
     "class_type": "KSampler",
     "_meta": {
-      "title": "SDXL DMD refine (lcm/karras/10/cfg1/denoise0.20)"
+      "title": "SDXL DMD refine (lcm/karras/6/cfg1/denoise0.10 \u2014 face-faithful)"
     }
   },
   "133": {
@@ -153,15 +153,6 @@
       "title": "Detector \u2014 FACE (face_yolov9c)"
     }
   },
-  "det_eye_detector": {
-    "inputs": {
-      "model_name": "bbox/Eyeful_v2-Paired.pt"
-    },
-    "class_type": "UltralyticsDetectorProvider",
-    "_meta": {
-      "title": "Detector \u2014 EYES (Eyeful_v2)"
-    }
-  },
   "detailer_face": {
     "inputs": {
       "image": [
@@ -208,7 +199,7 @@
       "cfg": 1,
       "sampler_name": "lcm",
       "scheduler": "karras",
-      "denoise": 0.15,
+      "denoise": 0.08,
       "feather": 6,
       "noise_mask": true,
       "force_inpaint": true,
@@ -231,79 +222,7 @@
     },
     "class_type": "FaceDetailer",
     "_meta": {
-      "title": "Review detailer \u2014 FACE (light, denoise 0.15)"
-    }
-  },
-  "detailer_eyes": {
-    "inputs": {
-      "image": [
-        "detailer_face",
-        0
-      ],
-      "model": [
-        "diffdiff_model",
-        0
-      ],
-      "clip": [
-        "refiner_checkpoint_loader",
-        1
-      ],
-      "vae": [
-        "refiner_checkpoint_loader",
-        2
-      ],
-      "positive": [
-        "det_pos",
-        0
-      ],
-      "negative": [
-        "det_neg",
-        0
-      ],
-      "bbox_detector": [
-        "det_eye_detector",
-        0
-      ],
-      "sam_model_opt": [
-        "sam_loader",
-        0
-      ],
-      "segm_detector_opt": [
-        "det_eye_detector",
-        1
-      ],
-      "guide_size": 384,
-      "guide_size_for": true,
-      "max_size": 640,
-      "seed": 20002,
-      "steps": 4,
-      "cfg": 1,
-      "sampler_name": "lcm",
-      "scheduler": "karras",
-      "denoise": 0.12,
-      "feather": 4,
-      "noise_mask": true,
-      "force_inpaint": true,
-      "bbox_threshold": 0.4,
-      "bbox_dilation": 4,
-      "bbox_crop_factor": 3.0,
-      "sam_detection_hint": "center-1",
-      "sam_dilation": 0,
-      "sam_threshold": 0.93,
-      "sam_bbox_expansion": 0,
-      "sam_mask_hint_threshold": 0.7,
-      "sam_mask_hint_use_negative": "False",
-      "drop_size": 10,
-      "wildcard": "",
-      "cycle": 1,
-      "inpaint_model": false,
-      "noise_mask_feather": 20,
-      "tiled_encode": false,
-      "tiled_decode": false
-    },
-    "class_type": "FaceDetailer",
-    "_meta": {
-      "title": "Review detailer \u2014 EYES (light, denoise 0.12)"
+      "title": "Review detailer \u2014 FACE (very light 0.08, artifact-only)"
     }
   },
   "det_hand_detector": {
@@ -318,7 +237,7 @@
   "detailer_hands": {
     "inputs": {
       "image": [
-        "detailer_eyes",
+        "detailer_face",
         0
       ],
       "model": [
