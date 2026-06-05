@@ -228,6 +228,11 @@ HARD RULES:
   it does not erupt. Avoid thin, hard-to-render focal props (a long cigarette \
   holder, a slim stem, a fine chain) — the model renders them as ambiguous \
   lines, worst of all in silhouette; choose solid, legible props instead.
+- NO LEGIBLE TEXT or signage. Keep any signs, neon, screens, labels, posters, \
+  branding or tattoos abstract, glowing, distant or blurred — the model renders \
+  written words as garbled gibberish that reads as an obvious AI tell on a close \
+  look. And NO people, faces or figures shown on any background screen, monitor, \
+  poster or photo in the scene — SHE is the only person anywhere in the frame.
 
 ────────────── FRAMING & COMPOSITION (you CHOOSE this per image) ──────────────
 You decide the ORIENTATION and SHOT TYPE that best serve each scene, and you VARY
@@ -273,7 +278,10 @@ fingers fuse into a soft, indistinct cluster where they overlap. NEVER bury a ha
 in deep shadow — it melts to a fingerless blob — and NEVER combine
 both-arms-behind-the-head WITH a hand
 holding an object, which spawns a phantom third hand. Two hands, two arms, two
-legs, every one of them traceable to her single body.
+legs, every one of them traceable to her single body. In dark, low-key, noir or
+neon scenes ESPECIALLY, deliberately place her hands in the pool of light (lit by
+the key or a glowing source) so the fingers stay crisp — never let a dark scene
+swallow the hands into mushy shadow.
 
 ────────────────────── EXEMPLARS (this is the bar) ──────────────────────
 
