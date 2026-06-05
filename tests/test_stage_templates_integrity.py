@@ -145,21 +145,26 @@ def test_upscale_contract_and_values():
     # and ~halve the tile count.
     assert u["inputs"]["tile_width"] == 1536
     assert u["inputs"]["seam_fix_mode"] == "Half Tile + Intersections"  # v35: corner seam fix
-    # DifferentialDiffusion wraps the 4K detailer model (soft-edge mask blend)
-    assert wf["diffdiff_model"]["class_type"] == "DifferentialDiffusion"
-    assert wf["detailer_hands"]["inputs"]["model"] == ["diffdiff_model", 0]
-    assert wf["det_hand_detector"]["inputs"]["model_name"] == "bbox/hand_yolov9c.pt"
     assert wf["skin_upscale_model"]["inputs"]["model_name"] == "4x_foolhardy_Remacri.pth"
-    # detail-after-upscale: face detailer reads the upscale output
-    assert wf["detailer_face"]["inputs"]["image"] == ["upscale", 0]
-    assert wf["detailer_hands"]["inputs"]["denoise"] == 0.40   # raised for mangled fingers
+    # USDU-ONLY at 4K: the post-upscale FaceDetailers cannot run at 4K on Apple
+    # MPS — the FaceDetailer's VAE-encode self-attention on a large face crop hits
+    # "tensor dims larger than INT_MAX" / a 55 GiB buffer (it does not tile). The
+    # USDU pass itself (4x Remacri + tiled SDXL DMD refine) already refines the 4K
+    # image, and the review keeper already carries the Chroma face + repaired hands.
+    no_detailers = {nd["class_type"] for nd in wf.values()}
+    assert "FaceDetailer" not in no_detailers
+    assert "DifferentialDiffusion" not in wf and "detailer_face" not in wf
+    assert wf["save"]["inputs"]["images"] == ["upscale", 0]   # save the USDU 4K directly
 
 
-def test_t4_appends_nsfw_detailers():
+def test_t4_is_usdu_only_on_mps():
+    """The T4 4K template is also USDU-only: the FaceDetailer-family nodes (incl.
+    the nipple/vagina detailers) hit the same MPS VAE-attention INT_MAX limit at
+    4K, so they are dropped. T4 explicit detail comes from the review stage +
+    the USDU tiled refine; revisit if a tiled-VAE detailer path lands."""
     wf = _load(UPSCALE_T4)
-    assert wf["det_nipple_detector"]["inputs"]["model_name"] == "bbox/nipples_yolov8s.pt"
-    assert wf["det_vagina_detector"]["inputs"]["model_name"] == "bbox/vagina-v3.2.pt"
-    # chained after the SFW detailers, sink reads the last NSFW detailer
-    assert wf["detailer_nipples"]["inputs"]["image"] == ["detailer_hands", 0]
-    assert wf["detailer_vagina"]["inputs"]["image"] == ["detailer_nipples", 0]
-    assert wf["save"]["inputs"]["images"] == ["detailer_vagina", 0]
+    classes = {nd["class_type"] for nd in wf.values()}
+    assert "FaceDetailer" not in classes
+    assert "det_nipple_detector" not in wf and "det_vagina_detector" not in wf
+    assert wf["upscale"]["class_type"] == "UltimateSDUpscale"
+    assert wf["save"]["inputs"]["images"] == ["upscale", 0]
