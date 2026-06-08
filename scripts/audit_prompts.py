@@ -237,6 +237,34 @@ def detect_mirror_dangling(text: str) -> list[str]:
     return hits
 
 
+# Implausible grounding — the subject reads as ON water / in mid-air / submerged
+# (a body hovering or sinking with no solid support; the "sitting on water"
+# failure). Mirrors the art_director hard-reject (this is the softer audit-gate
+# signal). A pose verb must precede on/atop/upon + a water body / "the water's
+# surface", so "kneels AT the water's edge" or "light ON the water" don't trip.
+_GROUNDING_WATER = r"(?:water|lake|river|pond|sea|ocean|pool)"
+_IMPLAUSIBLE_GROUNDING_PATTERNS = (
+    rf"\b(?:sit|sitt|sat|kneel|knelt|kneeling|lie|lying|lay|reclin|perch)\w*\b"
+    rf"(?:\W+\w+){{0,2}}?\W+(?:on|atop|upon)\W+(?:the\s+|her\s+)?(?:\w+\s+){{0,2}}"
+    rf"(?:{_GROUNDING_WATER}'?s\s+surface|surface\s+of\s+the\s+{_GROUNDING_WATER}|{_GROUNDING_WATER})\b",
+    rf"\b(?:float|hover)\w*\b(?:\W+\w+){{0,2}}?\W+(?:on|above|over|upon)\W+(?:the\s+)?"
+    rf"(?:\w+\s+){{0,2}}(?:{_GROUNDING_WATER}|air)\b",
+    r"\bmid[\s-]?air\b",
+    r"\bsuspended\s+in\s+(?:the\s+)?air\b",
+    rf"\b(?:sit|sitt|sat|kneel|knelt|kneeling|lie|lying|lay|reclin)\w*\b"
+    rf"(?:\W+\w+){{0,3}}?\W+(?:partially\s+|half\s+)?submerged\b",
+)
+
+
+def detect_implausible_grounding(text: str) -> list[str]:
+    """Flag the subject reading as on water / mid-air / submerged."""
+    hits = []
+    for pat in _IMPLAUSIBLE_GROUNDING_PATTERNS:
+        if re.search(pat, text, re.IGNORECASE):
+            hits.append(pat)
+    return hits
+
+
 def detect_repeated_clauses(text: str, min_repeats: int = 2) -> list[str]:
     """Find 4+ word phrases that repeat in the SAME prompt."""
     if not text:
@@ -307,6 +335,12 @@ def score_prompt(text: str, tier: str) -> tuple[float, list[str]]:
     if mirror_dang:
         score -= 2.0
         issues.append(f"MIRROR_DANGLING: {mirror_dang}")
+
+    # Implausible grounding — subject on water / mid-air / submerged
+    grounding = detect_implausible_grounding(text)
+    if grounding:
+        score -= 2.0
+        issues.append(f"IMPLAUSIBLE_GROUNDING: {grounding}")
 
     # 2026-05-23 verifier audit — sad tokens (user explicit ban)
     sad = detect_sad_tokens(text)

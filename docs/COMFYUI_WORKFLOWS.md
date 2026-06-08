@@ -119,7 +119,7 @@ SDXL (everything after)** — and gates 4K behind manual selection.
 | Stage | Template | Model | Run by | Output |
 |-------|----------|-------|--------|--------|
 | 1 Base | `templates/chroma/base.json` | Chroma + T5 + ae | `art_series` (all prompts) | ~896×1152 |
-| 2 Refine | `templates/chroma/refine.json` | SDXL DMD | `art_series` (all base outputs) | review ~1120×1440 |
+| 2 Refine | `templates/chroma/refine.json` | SDXL DMD (detailer crops only) | `art_series` (all base outputs) | review ~1120×1440 |
 | 3 4K-finish | `templates/sdxl/upscale_4k.json` (+`_T4`) | SDXL DMD | **`scripts/upscale_folder.py` (manual, keepers)** | true 4K ≥3840 |
 
 `art_series` runs stage 1 for the whole series (Chroma resident once), then
@@ -148,7 +148,7 @@ Stages 2 and 3 consume an INPUT IMAGE (no `empty_latent`), so they use
 |----|----------|-------|
 | `load_image` | yes — `inputs.image` ← absolute path | `VHS_LoadImagePath` |
 | `save` | no — presence-checked sink | `SaveImage` |
-| `stage_ksampler` | optional — `inputs.seed` | the stage's KSampler (refine) |
+| `stage_ksampler` | optional — `inputs.seed` | a stage KSampler if present (refine is now detailer-only — see below; kept for custom templates) |
 | `upscale` | optional — `inputs.upscale_by` + `seed` | `UltimateSDUpscale` |
 | `prelift` | optional — `inputs.largest_size` | `ImageScaleToMaxDimension` |
 
@@ -161,9 +161,25 @@ override + CLI (`--base-template` / `--refine-template` / `--no-refine`) layer
 over it. `--template <monolith>` is the back-compat escape hatch to the old
 single-pass v12 render.
 
-### Value fixes vs the monolith
-The refine sampler is **`lcm/karras/6/denoise 0.20`** (the monolith's 4/0.15 was
-≈0.6 effective steps — near-noop); the hands detailer is **0.35** (was 0.40).
+### Refine = Chroma-face preserved (2026-06-09)
+The refine stage runs **NO SDXL over the image**. The global img2img refine
+(`stage_ksampler` + its VAE encode/decode) AND the dedicated face detailer were
+**removed** — even at low denoise they shifted the warm/soft Chroma face toward a
+sharper/cooler SDXL look (the recurring *"I prefer the chroma base face"*
+complaint). Stage 2 now only **upscales 1.25× (lanczos)** and runs three
+**targeted detailer crops** on the SDXL DMD model (DifferentialDiffusion-wrapped,
+lcm/karras): `detailer_hands` (0.32, "five fingers") → `detailer_feet`
+(`foot-yolov8l`, 0.30, "five toes" — fixes the extra/fused-toe failure) →
+`detailer_nipples` (`nipples_yolov8s`, light 0.25; a no-op when none detected).
+The face and the rest of the body pass through as the (upscaled) Chroma base, so
+**the keeper face == the base face**. Pinned by
+`tests/test_stage_templates_integrity.py::test_refine_contract_and_values`.
+
+Pose grounding (the *"sitting on water"* failure) is fixed upstream in the prompt
+engine — `scripts/art_director.py` has a STABLE GROUNDING system-prompt block + a
+hard-reject validator (`_IMPLAUSIBLE_GROUNDING_RE`), `scripts/audit_prompts.py`
+penalises it, and water sub-looks in `config/niche_library.yaml` were grounded on
+a solid bank.
 
 ## Per-family default
 

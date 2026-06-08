@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -93,6 +94,27 @@ _SAD_MOOD_EXACT = frozenset({
     "sorrowful", "crying", "tearful", "forlorn", "woeful", "grief", "doleful",
 })
 _SAD_MOOD_PREFIX = ("griev", "weep", "despair", "anguish", "mourn")  # grieving, weeping, …
+
+# Implausible-grounding guard: the subject rendered SITTING / KNEELING / LYING /
+# FLOATING on water or in mid-air (a body hovering on nothing) — the #1 bad-pose
+# failure ("sitting on water"). Tight + high-precision: a pose verb must be
+# followed (within 2 words) by on/atop/upon + a water body or "the water's
+# surface" — so "kneels AT the water's edge" or "light ON the water" (no pose
+# verb) do NOT trip it. Plus floating/hovering on water/air + mid-air.
+_WATER_BODY = r"(?:water|lake|river|pond|sea|ocean|pool)"
+# A single optional adjective slot ("the CALM water", "the GLASSY lake") — but a
+# solid-surface noun consumes the slot and blocks the match ("on the ROCK by the
+# water" → no match), keeping precision high.
+_ADJ = r"(?:\w+\s+){0,2}"
+_IMPLAUSIBLE_GROUNDING_RE = re.compile(
+    r"\b(?:sit|sitt|sat|kneel|knelt|kneeling|lie|lying|lay|reclin|perch)\w*\b"
+    r"(?:\W+\w+){0,2}?\W+(?:on|atop|upon)\W+(?:the\s+|her\s+)?" + _ADJ
+    + rf"(?:{_WATER_BODY}'?s\s+surface|surface\s+of\s+the\s+{_WATER_BODY}|{_WATER_BODY})\b"
+    + rf"|\b(?:float|hover)\w*\b(?:\W+\w+){{0,2}}?\W+(?:on|above|over|upon)\W+(?:the\s+)?"
+    + _ADJ + rf"(?:{_WATER_BODY}|air)\b"
+    + r"|\bmid[\s-]?air\b|\bsuspended\s+in\s+(?:the\s+)?air\b",
+    re.IGNORECASE,
+)
 
 # Hard SFW instruction appended to PUBLIC cover/teaser prompts.
 SFW_COVER_DIRECTIVE = (
@@ -282,6 +304,17 @@ legs, every one of them traceable to her single body. In dark, low-key, noir or
 neon scenes ESPECIALLY, deliberately place her hands in the pool of light (lit by
 the key or a glowing source) so the fingers stay crisp — never let a dark scene
 swallow the hands into mushy shadow.
+
+STABLE GROUNDING & SUPPORT (mandatory): she must rest on a believable SOLID
+surface that visibly bears her weight — ground, grass, sand, rock, a blanket or
+towel, a bed, a chaise, a chair, a ledge, stone steps. NEVER write her sitting,
+kneeling, lying or floating ON water, ON the surface of a lake / river / pool /
+sea, or in mid-air — it renders as a body hovering on nothing. Near water she is
+on a clear bank, rock, dock, towel or shallow edge with the water BESIDE or
+BEHIND her, never under her. Choose a stable, weight-bearing, naturally
+flattering posture — no precarious balance, no contortion. FEET & TOES: when feet
+are in frame, place them clearly (flat on the surface or cleanly tucked), five
+toes per foot, never merged, doubled or overlapping feet.
 
 ────────────────────── EXEMPLARS (this is the bar) ──────────────────────
 
@@ -515,6 +548,16 @@ class _PromptOut(BaseModel):
             raise ValueError(
                 "render-risk: 'mirror' present — chroma warps mirror "
                 "reflections into double faces. Re-write without a mirror."
+            )
+        # Implausible-grounding gate: the subject must rest on a solid,
+        # weight-bearing surface — never sitting/kneeling/floating ON water or
+        # in mid-air (renders as a body hovering on nothing). Reject + re-roll
+        # toward a clear bank/rock/towel with the water beside or behind her.
+        if _IMPLAUSIBLE_GROUNDING_RE.search(low):
+            raise ValueError(
+                "grounding: subject reads as on water / mid-air — re-write so "
+                "she rests on a SOLID surface (bank, rock, towel, ground, chair) "
+                "with any water beside or behind her, never under her."
             )
         # SFW-cover gate: covers/thumbnails must be fully clothed (DA
         # shopfront ToS). Reject any nudity so the LLM re-rolls clothed.

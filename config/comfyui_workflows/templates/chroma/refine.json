@@ -16,7 +16,7 @@
     },
     "class_type": "CheckpointLoaderSimple",
     "_meta": {
-      "title": "Load SDXL DMD refiner (model+CLIP+VAE)"
+      "title": "Load SDXL DMD refiner (model+CLIP+VAE) — detailer crops only"
     }
   },
   "det_pos": {
@@ -29,7 +29,7 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "Detail prompt (generic, content-neutral) \u2014 refine + USDU + detailers"
+      "title": "Detail prompt (generic, content-neutral) — detailer crops"
     }
   },
   "det_neg": {
@@ -56,82 +56,20 @@
     },
     "class_type": "ImageScaleBy",
     "_meta": {
-      "title": "Upscale 1.25x (detail headroom into SDXL)"
-    }
-  },
-  "132": {
-    "inputs": {
-      "pixels": [
-        "143",
-        0
-      ],
-      "vae": [
-        "refiner_checkpoint_loader",
-        2
-      ]
-    },
-    "class_type": "VAEEncode",
-    "_meta": {
-      "title": "VAE Encode \u2192 SDXL latent (sdxl vae)"
-    }
-  },
-  "stage_ksampler": {
-    "inputs": {
-      "seed": 12345,
-      "steps": 6,
-      "cfg": 1,
-      "sampler_name": "lcm",
-      "scheduler": "karras",
-      "denoise": 0.1,
-      "model": [
-        "refiner_checkpoint_loader",
-        0
-      ],
-      "positive": [
-        "det_pos",
-        0
-      ],
-      "negative": [
-        "det_neg",
-        0
-      ],
-      "latent_image": [
-        "132",
-        0
-      ]
-    },
-    "class_type": "KSampler",
-    "_meta": {
-      "title": "SDXL DMD refine (lcm/karras/6/cfg1/denoise0.10 \u2014 face-faithful)"
-    }
-  },
-  "133": {
-    "inputs": {
-      "samples": [
-        "stage_ksampler",
-        0
-      ],
-      "vae": [
-        "refiner_checkpoint_loader",
-        2
-      ]
-    },
-    "class_type": "VAEDecode",
-    "_meta": {
-      "title": "VAE Decode \u2014 refined (sdxl vae)"
+      "title": "Upscale 1.25x (lanczos) — the Chroma base IS the body+face; no SDXL repaint"
     }
   },
   "save": {
     "inputs": {
       "filename_prefix": "stage2_review",
       "images": [
-        "detailer_hands",
+        "detailer_nipples",
         0
       ]
     },
     "class_type": "SaveImage",
     "_meta": {
-      "title": "Save Image \u2014 stage 2 review"
+      "title": "Save Image — stage 2 review"
     }
   },
   "sam_loader": {
@@ -144,85 +82,16 @@
       "title": "SAMLoader (Impact)"
     }
   },
-  "det_face_detector": {
+  "diffdiff_model": {
     "inputs": {
-      "model_name": "bbox/face_yolov9c.pt"
-    },
-    "class_type": "UltralyticsDetectorProvider",
-    "_meta": {
-      "title": "Detector \u2014 FACE (face_yolov9c)"
-    }
-  },
-  "detailer_face": {
-    "inputs": {
-      "image": [
-        "133",
-        0
-      ],
       "model": [
-        "diffdiff_model",
-        0
-      ],
-      "clip": [
         "refiner_checkpoint_loader",
-        1
-      ],
-      "vae": [
-        "refiner_checkpoint_loader",
-        2
-      ],
-      "positive": [
-        "det_pos",
         0
-      ],
-      "negative": [
-        "det_neg",
-        0
-      ],
-      "bbox_detector": [
-        "det_face_detector",
-        0
-      ],
-      "sam_model_opt": [
-        "sam_loader",
-        0
-      ],
-      "segm_detector_opt": [
-        "det_face_detector",
-        1
-      ],
-      "guide_size": 512,
-      "guide_size_for": true,
-      "max_size": 768,
-      "seed": 20001,
-      "steps": 6,
-      "cfg": 1,
-      "sampler_name": "lcm",
-      "scheduler": "karras",
-      "denoise": 0.08,
-      "feather": 6,
-      "noise_mask": true,
-      "force_inpaint": true,
-      "bbox_threshold": 0.5,
-      "bbox_dilation": 10,
-      "bbox_crop_factor": 3.0,
-      "sam_detection_hint": "center-1",
-      "sam_dilation": 0,
-      "sam_threshold": 0.93,
-      "sam_bbox_expansion": 0,
-      "sam_mask_hint_threshold": 0.7,
-      "sam_mask_hint_use_negative": "False",
-      "drop_size": 10,
-      "wildcard": "",
-      "cycle": 1,
-      "inpaint_model": false,
-      "noise_mask_feather": 20,
-      "tiled_encode": false,
-      "tiled_decode": false
+      ]
     },
-    "class_type": "FaceDetailer",
+    "class_type": "DifferentialDiffusion",
     "_meta": {
-      "title": "Review detailer \u2014 FACE (very light 0.08, artifact-only)"
+      "title": "DifferentialDiffusion (soft-edge detailer mask blend)"
     }
   },
   "det_hand_detector": {
@@ -231,13 +100,13 @@
     },
     "class_type": "UltralyticsDetectorProvider",
     "_meta": {
-      "title": "Detector \u2014 HANDS (hand_yolov9c)"
+      "title": "Detector — HANDS (hand_yolov9c)"
     }
   },
   "detailer_hands": {
     "inputs": {
       "image": [
-        "detailer_face",
+        "143",
         0
       ],
       "model": [
@@ -303,19 +172,169 @@
     },
     "class_type": "FaceDetailer",
     "_meta": {
-      "title": "Review detailer \u2014 HANDS (hand_yolov8s, denoise 0.32)"
+      "title": "Review detailer — HANDS (hand_yolov9c, denoise 0.32) — crop only, face untouched"
     }
   },
-  "diffdiff_model": {
+  "det_foot_detector": {
     "inputs": {
-      "model": [
-        "refiner_checkpoint_loader",
-        0
-      ]
+      "model_name": "bbox/foot-yolov8l.pt"
     },
-    "class_type": "DifferentialDiffusion",
+    "class_type": "UltralyticsDetectorProvider",
     "_meta": {
-      "title": "DifferentialDiffusion (soft-edge detailer mask blend)"
+      "title": "Detector — FEET (foot-yolov8l)"
+    }
+  },
+  "detailer_feet": {
+    "inputs": {
+      "image": [
+        "detailer_hands",
+        0
+      ],
+      "model": [
+        "diffdiff_model",
+        0
+      ],
+      "clip": [
+        "refiner_checkpoint_loader",
+        1
+      ],
+      "vae": [
+        "refiner_checkpoint_loader",
+        2
+      ],
+      "positive": [
+        "det_pos",
+        0
+      ],
+      "negative": [
+        "det_neg",
+        0
+      ],
+      "bbox_detector": [
+        "det_foot_detector",
+        0
+      ],
+      "sam_model_opt": [
+        "sam_loader",
+        0
+      ],
+      "segm_detector_opt": [
+        "det_foot_detector",
+        1
+      ],
+      "guide_size": 512,
+      "guide_size_for": true,
+      "max_size": 768,
+      "seed": 20005,
+      "steps": 8,
+      "cfg": 1,
+      "sampler_name": "lcm",
+      "scheduler": "karras",
+      "denoise": 0.3,
+      "feather": 6,
+      "noise_mask": true,
+      "force_inpaint": true,
+      "bbox_threshold": 0.5,
+      "bbox_dilation": 8,
+      "bbox_crop_factor": 3.0,
+      "sam_detection_hint": "center-1",
+      "sam_dilation": 0,
+      "sam_threshold": 0.93,
+      "sam_bbox_expansion": 0,
+      "sam_mask_hint_threshold": 0.7,
+      "sam_mask_hint_use_negative": "False",
+      "drop_size": 10,
+      "wildcard": "five toes, correct natural toe anatomy, no extra toes, no fused toes, realistic foot",
+      "cycle": 1,
+      "inpaint_model": false,
+      "noise_mask_feather": 20,
+      "tiled_encode": false,
+      "tiled_decode": false
+    },
+    "class_type": "FaceDetailer",
+    "_meta": {
+      "title": "Review detailer — FEET (foot-yolov8l, denoise 0.30) — fixes extra/fused toes"
+    }
+  },
+  "det_nipple_detector": {
+    "inputs": {
+      "model_name": "bbox/nipples_yolov8s.pt"
+    },
+    "class_type": "UltralyticsDetectorProvider",
+    "_meta": {
+      "title": "Detector — NIPPLES (nipples_yolov8s)"
+    }
+  },
+  "detailer_nipples": {
+    "inputs": {
+      "image": [
+        "detailer_feet",
+        0
+      ],
+      "model": [
+        "diffdiff_model",
+        0
+      ],
+      "clip": [
+        "refiner_checkpoint_loader",
+        1
+      ],
+      "vae": [
+        "refiner_checkpoint_loader",
+        2
+      ],
+      "positive": [
+        "det_pos",
+        0
+      ],
+      "negative": [
+        "det_neg",
+        0
+      ],
+      "bbox_detector": [
+        "det_nipple_detector",
+        0
+      ],
+      "sam_model_opt": [
+        "sam_loader",
+        0
+      ],
+      "segm_detector_opt": [
+        "det_nipple_detector",
+        1
+      ],
+      "guide_size": 384,
+      "guide_size_for": true,
+      "max_size": 640,
+      "seed": 20007,
+      "steps": 6,
+      "cfg": 1,
+      "sampler_name": "lcm",
+      "scheduler": "karras",
+      "denoise": 0.25,
+      "feather": 6,
+      "noise_mask": true,
+      "force_inpaint": true,
+      "bbox_threshold": 0.5,
+      "bbox_dilation": 6,
+      "bbox_crop_factor": 3.0,
+      "sam_detection_hint": "center-1",
+      "sam_dilation": 0,
+      "sam_threshold": 0.93,
+      "sam_bbox_expansion": 0,
+      "sam_mask_hint_threshold": 0.7,
+      "sam_mask_hint_use_negative": "False",
+      "drop_size": 10,
+      "wildcard": "natural soft areola and nipple, realistic skin, symmetric, anatomically correct",
+      "cycle": 1,
+      "inpaint_model": false,
+      "noise_mask_feather": 20,
+      "tiled_encode": false,
+      "tiled_decode": false
+    },
+    "class_type": "FaceDetailer",
+    "_meta": {
+      "title": "Review detailer — NIPPLES (nipples_yolov8s, light 0.25; no-op when none detected)"
     }
   }
 }

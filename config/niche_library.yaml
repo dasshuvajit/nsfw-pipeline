@@ -100,7 +100,7 @@ niches:
     sub_looks:
       - "ethereal elf in an enchanted forest — dappled god-rays through a mossy canopy, delicate adornments and sheer drapery as set dressing, luminous skin, dreamy and otherworldly"
       - "candlelit sorceress chamber — warm practical candlelight and a hazed shaft of light in a stone-and-velvet interior, jewelled adornments, regal composed presence"
-      - "fae by moonlit water — cool blue-hour ambient light at a forest pool, wet luminous skin, flowers and vines, mythic stillness"
+      - "fae by moonlit water — cool blue-hour light on a mossy rock or bank at the edge of a still forest pool; she rests on solid ground with the water beside her (never on the water), wet luminous skin, flowers and vines, mythic stillness"
     aesthetics:
       palettes: ["deep emerald and gold", "jewel-toned twilight", "cool moonlit cyan-and-indigo"]
       lighting: ["dappled god-rays through canopy", "warm practical candlelight", "cool blue-hour ambient glow"]
@@ -199,7 +199,7 @@ niches:
     sub_looks:
       - "sun-drenched boho loft — warm afternoon sun through gauze curtains across woven textures and trailing plants, loose natural hair, earthy and free-spirited"
       - "golden meadow at dusk — low warm sun in tall grass and wildflowers, sheer flowing fabric, dreamy soft-focus, natural and serene"
-      - "wildflower riverbank — dappled light at the water's edge among reeds and blossoms, sun-warmed damp skin, free and untamed"
+      - "wildflower riverbank — dappled light on a grassy, mossy bank at the river's edge; she rests on the solid bank with the water beside or behind her (never sitting or kneeling on the water), reeds and wild blossoms framing, sun-warmed skin, free and untamed"
       - "canvas tent at dawn — soft pink first light glowing through sun-bleached canvas, woven rugs and brass lanterns, sleepy bohemian intimacy"
       - "desert bloom at golden hour — warm low sun across pale sand and flowering cactus, a gauzy wrap lifting in the breeze, wild and serene"
     aesthetics:

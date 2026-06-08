@@ -5,9 +5,10 @@ three stage templates (+ a T4 variant). These tests pin: MPS-safe
 samplers/schedulers (no RES4LYF res_* which crash on Apple MPS), acyclic
 graphs with a single `save` sink, model-domain purity (base has no SDXL
 nodes), the staged contracts (base = build_external 4-field; refine/4K =
-build_image_stage load_image+save), and the research-backed value fixes
-(refine lcm/karras/10/denoise 0.20 on the v7.0 refiner; review-stage hands
-detailer; 4K hands detailer 0.40).
+build_image_stage load_image+save), and the Chroma-face-preservation contract
+(the refine stage runs NO SDXL on the face — no global img2img refine and no
+face detailer; only targeted hand / foot / nipple detailer crops on the
+upscaled Chroma base).
 """
 
 from __future__ import annotations
@@ -99,35 +100,47 @@ def test_load_image_has_required_widget_inputs(path: Path):
 
 def test_refine_contract_and_values():
     wf = _load(REFINE)
+    classes = {nd["class_type"] for nd in wf.values()}
     assert wf["load_image"]["class_type"] == "VHS_LoadImagePath"
     assert "empty_latent" not in wf            # image-input stage, not a generator
-    assert "UltimateSDUpscale" not in {nd["class_type"] for nd in wf.values()}
-    # v7.0 refiner (DMD2 baked in) at steps≈10×CFG; face detector upgraded to v9c
+    assert "UltimateSDUpscale" not in classes
+    # refiner is KEPT (it supplies model/CLIP/VAE to the detailer crops) — but it
+    # never runs a global pass over the image any more.
     assert wf["refiner_checkpoint_loader"]["inputs"]["ckpt_name"] \
         == "gonzalomoXLFluxPony_v70PhotoXLDMD.safetensors"
-    assert wf["det_face_detector"]["inputs"]["model_name"] == "bbox/face_yolov9c.pt"
-    # FACE-FAITHFUL review pass: a gentle refine that preserves the Chroma base
-    # face (the SDXL refine + detailers were cooling/airbrushing it). Diagnosis:
-    # face-drift-diagnosis workflow — detailers + aggressive refine were the drag.
-    sk = wf["stage_ksampler"]["inputs"]
-    assert sk["sampler_name"] == "lcm" and sk["scheduler"] == "karras"
-    assert sk["steps"] == 6                     # softened (was 10) — less SDXL conviction
-    assert sk["denoise"] == 0.10                # softened (was 0.20) — keep the Chroma face
-    # face → HANDS chain; the EYES detailer is DROPPED (it repainted the iris /
-    # added lash-liner / cooled the eyes away from the Chroma look).
-    assert "detailer_eyes" not in wf and "det_eye_detector" not in wf
-    assert wf["detailer_face"]["inputs"]["image"] == ["133", 0]
-    assert wf["detailer_hands"]["inputs"]["image"] == ["detailer_face", 0]
-    assert wf["detailer_face"]["inputs"]["denoise"] == 0.08   # very light — artifacts only, no repaint
+    # CHROMA-FACE PRESERVED (user: "I prefer the chroma base face only"): the refine
+    # stage runs NO SDXL on the face. BOTH the global img2img refine (stage_ksampler
+    # + its VAE encode/decode 132/133) AND the dedicated face detailer are REMOVED —
+    # the only SDXL touches are targeted crops on hands / feet / nipples, so the
+    # keeper face IS the (upscaled) Chroma base face.
+    for absent in ("stage_ksampler", "132", "133", "detailer_face", "det_face_detector",
+                   "detailer_eyes", "det_eye_detector"):
+        assert absent not in wf, f"{absent} must be removed (no SDXL on the face)"
+    assert "KSampler" not in classes           # no global img2img repaint at all
+    # 1.25x lanczos upscale feeds the detailer chain DIRECTLY (no VAE round-trip)
+    assert wf["143"]["class_type"] == "ImageScaleBy" and wf["143"]["inputs"]["scale_by"] == 1.25
+    # detailer chain: hands → feet → nipples → save, all on the upscaled Chroma image
+    assert wf["detailer_hands"]["inputs"]["image"] == ["143", 0]
+    assert wf["detailer_feet"]["inputs"]["image"] == ["detailer_hands", 0]
+    assert wf["detailer_nipples"]["inputs"]["image"] == ["detailer_feet", 0]
+    assert wf["save"]["inputs"]["images"] == ["detailer_nipples", 0]
+    # hands (existing) + NEW foot + nipple detectors, all on disk
     assert wf["det_hand_detector"]["inputs"]["model_name"] == "bbox/hand_yolov9c.pt"
-    # per-region hand prompt steers the hand crop toward correct fingers (v35 idea)
+    assert wf["det_foot_detector"]["inputs"]["model_name"] == "bbox/foot-yolov8l.pt"
+    assert wf["det_nipple_detector"]["inputs"]["model_name"] == "bbox/nipples_yolov8s.pt"
+    # per-region anatomy wildcards steer each crop
     assert "five fingers" in wf["detailer_hands"]["inputs"]["wildcard"]
-    # DifferentialDiffusion wraps the detailer model — soft-edge mask blend (v35 idea)
+    assert "toe" in wf["detailer_feet"]["inputs"]["wildcard"]       # fixes extra/fused toes
+    assert "areola" in wf["detailer_nipples"]["inputs"]["wildcard"]
+    # every detailer is MPS-safe lcm/karras on the DifferentialDiffusion-wrapped model
     assert wf["diffdiff_model"]["class_type"] == "DifferentialDiffusion"
     assert wf["diffdiff_model"]["inputs"]["model"] == ["refiner_checkpoint_loader", 0]
-    assert wf["detailer_face"]["inputs"]["model"] == ["diffdiff_model", 0]
-    assert wf["detailer_hands"]["inputs"]["model"] == ["diffdiff_model", 0]
-    assert wf["save"]["inputs"]["images"] == ["detailer_hands", 0]
+    for d in ("detailer_hands", "detailer_feet", "detailer_nipples"):
+        assert wf[d]["class_type"] == "FaceDetailer"
+        assert wf[d]["inputs"]["model"] == ["diffdiff_model", 0]
+        assert wf[d]["inputs"]["sampler_name"] == "lcm" and wf[d]["inputs"]["scheduler"] == "karras"
+    # nipple detailer is LIGHT (cosmetic; a no-op when no nipples are detected)
+    assert wf["detailer_nipples"]["inputs"]["denoise"] <= 0.25
 
 
 def test_upscale_contract_and_values():

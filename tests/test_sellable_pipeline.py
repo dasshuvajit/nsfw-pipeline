@@ -371,6 +371,42 @@ def test_gen_metadata_routes_by_backend_not_hardcoded_ollama(monkeypatch):
     assert meta["labels"]["ai_tools"] and meta["labels"]["mature"] is True
 
 
+def test_grounding_gate_rejects_subject_on_water(monkeypatch):
+    """_PromptOut hard-rejects the subject rendered sitting/kneeling/floating ON
+    water or in mid-air (the 'sitting on water' failure → a body hovering on
+    nothing), but passes a body grounded on a solid bank with water beside her.
+    High precision: 'at the water's edge' / 'light on the water' must NOT trip."""
+    monkeypatch.setattr(AD, "_ACTIVE_WORD_BAND", (110, 160))
+    on_water = ("A low amber sun catches the river reeds as a sun-kissed woman "
+                "kneels on the water, her wet skin glistening, gaze soft and "
+                "direct, the lake shimmering in a warm golden haze, 35mm film. ") * 2
+    grounded = ("A low amber sun catches the river reeds as a sun-kissed woman "
+                "kneels on the mossy bank at the water's edge, the river beside "
+                "her, her wet skin glistening, gaze soft and direct, 35mm film. ") * 2
+    with pytest.raises(Exception):
+        AD._PromptOut(prompt=on_water)
+    assert AD._PromptOut(prompt=grounded).prompt          # solid bank passes
+    # precision: innocent water mentions (no pose verb) are fine
+    assert not AD._IMPLAUSIBLE_GROUNDING_RE.search("warm light dances on the water")
+    assert not AD._IMPLAUSIBLE_GROUNDING_RE.search("she sits on the rock by the water")
+    assert AD._IMPLAUSIBLE_GROUNDING_RE.search("she floats on the calm lake")
+
+
+def test_audit_flags_implausible_grounding():
+    """The audit gate flags on-water / mid-air / submerged grounding with an
+    IMPLAUSIBLE_GROUNDING penalty so borderline prompts re-roll; clean grounding
+    scores normally."""
+    from scripts.audit_prompts import detect_implausible_grounding, score_prompt
+    assert detect_implausible_grounding("she kneels on the water")
+    assert detect_implausible_grounding("she lies partially submerged in the eddy")
+    assert not detect_implausible_grounding("she kneels on the mossy bank at the water's edge")
+    bad = ("A bright midday sun fractures through the reeds as a lithe woman "
+           "kneels on the water, her wet skin glistening, gaze soft and direct, "
+           "the lake shimmering in a warm haze, shot on 35mm film with bokeh. ") * 2
+    score, issues = score_prompt(bad, "T3_artnude")
+    assert any("IMPLAUSIBLE_GROUNDING" in i for i in issues)
+
+
 def test_promptout_framing_validators_tolerant():
     P = "A warm shaft of light falls across a woman in a quiet room. " * 8
     # synonyms coerce, junk falls back, omission defaults
