@@ -407,6 +407,82 @@ def test_audit_flags_implausible_grounding():
     assert any("IMPLAUSIBLE_GROUNDING" in i for i in issues)
 
 
+def _fake_render_env(tmp_path):
+    """A builder + client that 'render' by copying a tiny real PNG, for
+    _render_stage_base anatomy-guard tests."""
+    from PIL import Image
+    src = tmp_path / "src.png"
+    Image.new("RGB", (8, 8)).save(src)
+
+    class _Img:
+        type = "output"
+        file_path = str(src)
+
+    class _Client:
+        def render_single_with_retry(self, wf, timeout=0):
+            return [_Img()]
+
+    class _Builder:
+        def build_external(self, **kw):
+            return {}
+
+    return _Builder(), _Client()
+
+
+def test_base_anatomy_retry_rerolls_until_clean(tmp_path, monkeypatch):
+    """The extra-limb guard rerolls a base render (new seed) when the hand
+    detector reports >2 hands, keeps the first clean one, and deletes the
+    rejected file."""
+    builder, client = _fake_render_env(tmp_path)
+    monkeypatch.setattr(A, "_hand_detector", lambda p: "DET")
+    counts = iter([3, 2])               # defective → reroll → clean
+    monkeypatch.setattr(A, "_count_hands", lambda det, path, conf=0.5: next(counts))
+    rows = [{"look": "riverbank scene", "prompt": "p", "orientation": "portrait"}]
+    manifest = A._render_stage_base(
+        rows, builder=builder, client=client, base_template="t", negative="n",
+        resolution=(896, 1152), base_seed=100, seeds=1,
+        dest_dir=tmp_path / "base", out_dir=tmp_path, prefix="ad",
+        anatomy_retries=2, hand_detector_path="x")
+    imgs = manifest[0]["images"]
+    assert len(imgs) == 1
+    assert imgs[0]["seed"] == 101                       # the reroll seed, not the defective 100
+    # only the clean render survives on disk (defective seed-100 file deleted)
+    assert sorted(p.name for p in (tmp_path / "base").glob("*.png")) == \
+        ["ad01_riverbank_s101.png"]
+
+
+def test_base_anatomy_retry_keeps_least_bad_when_all_fail(tmp_path, monkeypatch):
+    """If every reroll still has an extra limb, keep the render with the FEWEST
+    hands (never drop the image — it's flagged for manual culling)."""
+    builder, client = _fake_render_env(tmp_path)
+    monkeypatch.setattr(A, "_hand_detector", lambda p: "DET")
+    counts = iter([4, 3, 5])            # all defective; fewest = 3 (the 2nd, seed 101)
+    monkeypatch.setattr(A, "_count_hands", lambda det, path, conf=0.5: next(counts))
+    rows = [{"look": "tent scene", "prompt": "p", "orientation": "portrait"}]
+    manifest = A._render_stage_base(
+        rows, builder=builder, client=client, base_template="t", negative="n",
+        resolution=(896, 1152), base_seed=100, seeds=1,
+        dest_dir=tmp_path / "base", out_dir=tmp_path, prefix="ad",
+        anatomy_retries=2, hand_detector_path="x")
+    assert manifest[0]["images"][0]["seed"] == 101     # fewest-hands render kept
+
+
+def test_base_anatomy_guard_off_single_render(tmp_path, monkeypatch):
+    """anatomy_retries=0 → no detector loaded, exactly one render at base_seed
+    (back-compat: the guard is opt-out)."""
+    builder, client = _fake_render_env(tmp_path)
+    loaded = []
+    monkeypatch.setattr(A, "_hand_detector", lambda p: loaded.append(p) or "DET")
+    rows = [{"look": "loft scene", "prompt": "p", "orientation": "portrait"}]
+    manifest = A._render_stage_base(
+        rows, builder=builder, client=client, base_template="t", negative="n",
+        resolution=(896, 1152), base_seed=100, seeds=1,
+        dest_dir=tmp_path / "base", out_dir=tmp_path, prefix="ad",
+        anatomy_retries=0, hand_detector_path="x")
+    assert manifest[0]["images"][0]["seed"] == 100
+    assert loaded == []                                # detector never loaded when off
+
+
 def test_promptout_framing_validators_tolerant():
     P = "A warm shaft of light falls across a woman in a quiet room. " * 8
     # synonyms coerce, junk falls back, omission defaults

@@ -129,6 +129,17 @@ images and curates/packages those. **4K is never auto-run.** Detailers +
 USDU live in stage 3 (the proven detail-after-upscale ordering), so the
 series render is tier-neutral.
 
+### Extra-limb guard (auto-retry, `--anatomy-retries`, default 2)
+A FaceDetailer cannot remove an extra limb, so a base render with a 3rd hand would
+survive to the keepers. After each base render `art_series` runs `hand_yolov9c`
+(CPU, conf 0.5) on it; if it counts **>2 hands** the render is rerolled with a new
+seed up to `--anatomy-retries` times, keeping the first clean one (or the
+fewest-hands render, flagged `CULL THIS CANDIDATE`, if all rerolls fail — an image
+is never dropped). Cost is paid only when a defect is found; clean renders render
+once. `--anatomy-retries 0` disables it. The check is hands-only — no bare-foot
+detector works (see the no-foot-detailer note above), so feet still rely on prompt
+guidance + manual culling.
+
 ### Stage-3 manual 4K — `scripts/upscale_folder.py`
 Eyeball the review images, copy favourites into a folder, then:
 ```bash

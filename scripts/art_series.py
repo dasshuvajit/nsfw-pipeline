@@ -353,11 +353,58 @@ def _render_rows(
     return manifest
 
 
+# Anatomy guard (auto-retry): a single female has at most TWO hands, so the hand
+# detector counting >2 is a reliable EXTRA-LIMB signal a detailer CAN'T fix (it
+# refines every hand it finds). We reroll the base seed until the render is clean
+# (or retries run out). hand_yolov9c is the same model the refine detailer uses;
+# run on CPU so it never contends with ComfyUI's GPU. No bare-foot detector works,
+# so feet are not guarded — see [[reference_anatomy_detailer_limits]].
+_HAND_DETECTORS: dict = {}
+EXPECTED_MAX_HANDS = 2
+
+
+def _hand_detector(model_path: "str | None"):
+    """Lazily load + cache the hand YOLO; None (→ anatomy guard disabled) when the
+    model file or ultralytics is unavailable."""
+    if not model_path:
+        return None
+    if model_path in _HAND_DETECTORS:
+        return _HAND_DETECTORS[model_path]
+    det = None
+    if Path(model_path).exists():
+        try:
+            from ultralytics import YOLO  # heavy import — only when the guard is on
+            det = YOLO(model_path)
+        except Exception as exc:  # noqa: BLE001
+            print(f"  (anatomy guard off — can't load hand detector: {exc})",
+                  file=sys.stderr, flush=True)
+    else:
+        print(f"  (anatomy guard off — hand detector not found: {model_path})",
+              file=sys.stderr, flush=True)
+    _HAND_DETECTORS[model_path] = det
+    return det
+
+
+def _count_hands(detector, image_path: Path, conf: float = 0.5) -> int:
+    """Confident hand-detection count (the extra-limb signal). Returns -1 when no
+    detector (guard disabled) — callers treat -1 as 'clean'."""
+    if detector is None:
+        return -1
+    try:
+        res = detector(str(image_path), conf=conf, device="cpu", verbose=False)[0]
+        return len(res.boxes)
+    except Exception as exc:  # noqa: BLE001
+        print(f"  (anatomy guard error on {image_path.name}: {exc})",
+              file=sys.stderr, flush=True)
+        return -1
+
+
 def _render_stage_base(
     rows: list[dict], *, builder, client, base_template: str, negative: str,
     resolution: tuple[int, int], base_seed: int, seeds: int,
     dest_dir: Path, out_dir: Path, prefix: str,
     rp: dict | None = None, default_orientation: str = "portrait",
+    anatomy_retries: int = 0, hand_detector_path: "str | None" = None,
 ) -> list[dict]:
     """Stage 1 (Chroma): base gen for every (prompt × seed) into dest_dir.
 
@@ -370,8 +417,14 @@ def _render_stage_base(
     packaging read) is set later by the refine stage. Chroma is loaded ONCE
     by ComfyUI and stays resident across all base submissions — SDXL is not
     touched here, so this whole batch runs without the monolith's Chroma+SDXL
-    co-residence (and its swap)."""
+    co-residence (and its swap).
+
+    ``anatomy_retries`` > 0 enables the extra-limb guard: each base render is
+    checked with the hand detector and rerolled (new seed) up to that many times
+    when >2 hands are found; the least-bad render is kept if all rerolls fail."""
     dest_dir.mkdir(parents=True, exist_ok=True)
+    hand_det = _hand_detector(hand_detector_path) if anatomy_retries > 0 else None
+    reroll_seed = base_seed + seeds   # reroll seeds never collide with candidate seeds
     manifest: list[dict] = []
     for idx, r in enumerate(rows):
         look = r["look"].split()[0]
@@ -383,23 +436,53 @@ def _render_stage_base(
                  "framing_rationale": r.get("framing_rationale"),
                  "resolution": list(res), "images": []}
         for k in range(seeds):
-            seed = base_seed + k
-            try:
-                wf = builder.build_external(
-                    external_template=base_template, prompt_text=r["prompt"],
-                    negative_prompt=negative, resolution=res, seed=seed)
-                images = client.render_single_with_retry(wf, timeout=1800)
-                outs = [im for im in images if im.type == "output"] or images
-                name = f"{prefix}{idx + 1:02d}_{look}_s{seed}.png"
-                dst = dest_dir / name
-                shutil.copy(outs[-1].file_path, dst)
-                entry["images"].append(
-                    {"base_path": str(dst.relative_to(out_dir)), "seed": seed})
-                print(f"  [base {idx + 1}/{len(rows)}] {orientation} {res[0]}x{res[1]}"
-                      f" seed {seed} -> {name}", flush=True)
-            except Exception as exc:  # noqa: BLE001 — surface, continue
-                print(f"  [base {idx + 1}/{len(rows)}] seed {seed} FAILED: {exc}",
+            kept: "tuple[str, int, int] | None" = None  # (rel_path, seed, hand_count)
+            for attempt in range(anatomy_retries + 1):
+                if attempt == 0:
+                    seed = base_seed + k
+                else:
+                    seed = reroll_seed
+                    reroll_seed += 1
+                try:
+                    wf = builder.build_external(
+                        external_template=base_template, prompt_text=r["prompt"],
+                        negative_prompt=negative, resolution=res, seed=seed)
+                    images = client.render_single_with_retry(wf, timeout=1800)
+                    outs = [im for im in images if im.type == "output"] or images
+                    name = f"{prefix}{idx + 1:02d}_{look}_s{seed}.png"
+                    dst = dest_dir / name
+                    shutil.copy(outs[-1].file_path, dst)
+                except Exception as exc:  # noqa: BLE001 — surface, continue
+                    print(f"  [base {idx + 1}/{len(rows)}] seed {seed} FAILED: {exc}",
+                          file=sys.stderr, flush=True)
+                    continue
+                hands = _count_hands(hand_det, dst)
+                rel = str(dst.relative_to(out_dir))
+                tag = f" (reroll {attempt})" if attempt else ""
+                if hands <= EXPECTED_MAX_HANDS:          # clean (or guard off: -1)
+                    if kept is not None:
+                        (out_dir / kept[0]).unlink(missing_ok=True)  # drop earlier reject
+                    kept = (rel, seed, hands)
+                    print(f"  [base {idx + 1}/{len(rows)}] {orientation} "
+                          f"{res[0]}x{res[1]} seed {seed} -> {name}{tag}", flush=True)
+                    break
+                # extra limb — keep the least-bad so far, then reroll a new seed
+                print(f"  [base {idx + 1}/{len(rows)}] seed {seed}: {hands} hands "
+                      f"(extra limb) — rerolling {attempt + 1}/{anatomy_retries}",
                       file=sys.stderr, flush=True)
+                if kept is None or hands < kept[2]:
+                    if kept is not None:
+                        (out_dir / kept[0]).unlink(missing_ok=True)
+                    kept = (rel, seed, hands)
+                else:
+                    dst.unlink(missing_ok=True)
+            if kept is not None:
+                rel, seed, hands = kept
+                entry["images"].append({"base_path": rel, "seed": seed})
+                if hands > EXPECTED_MAX_HANDS:
+                    print(f"  [base {idx + 1}/{len(rows)}] !! still {hands} hands after "
+                          f"{anatomy_retries} rerolls — kept best; CULL THIS CANDIDATE",
+                          file=sys.stderr, flush=True)
         manifest.append(entry)
     return manifest
 
@@ -701,6 +784,9 @@ def main() -> int:
     ap.add_argument("--count", type=int, default=6, help="number of prompts")
     ap.add_argument("--seeds", type=int, default=1,
                     help="renders per prompt (>1 = candidates to pick from)")
+    ap.add_argument("--anatomy-retries", type=int, default=2,
+                    help="extra-limb guard: reroll a base render up to N times when "
+                         "the hand detector finds >2 hands (0 = off; default 2)")
     ap.add_argument("--orientation", default="portrait",
                     choices=list(ORIENTATIONS))
     ap.add_argument("--template", default=None,
@@ -913,6 +999,11 @@ def main() -> int:
     # tier-NEUTRAL. --template pins the old monolith single-pass escape hatch.
     builder = WorkflowBuilder(workflow_dir)
     client = ComfyUIClient(base_url=cu["base_url"], output_dir=cu["output_dir"])
+    # Anatomy guard: the hand detector lives under the ComfyUI models dir
+    # (<comfyui_root>/models/ultralytics/bbox/hand_yolov9c.pt). output_dir is
+    # <comfyui_root>/output, so its parent is the root.
+    hand_det_path = str(Path(os.path.expanduser(cu["output_dir"])).parent
+                        / "models/ultralytics/bbox/hand_yolov9c.pt")
     base_dir = out_dir / "base"
     cover_dir = out_dir / "covers"
     cover_manifest: list[dict] = []
@@ -930,14 +1021,16 @@ def main() -> int:
             rows, builder=builder, client=client, base_template=base_tmpl,
             negative=DEFAULT_NEGATIVE, resolution=resolution, base_seed=base_seed,
             seeds=args.seeds, dest_dir=base_dir, out_dir=out_dir, prefix="ad",
-            rp=rp, default_orientation=args.orientation)
+            rp=rp, default_orientation=args.orientation,
+            anatomy_retries=args.anatomy_retries, hand_detector_path=hand_det_path)
         if cover_rows:
             cover_manifest = _render_stage_base(
                 cover_rows, builder=builder, client=client, base_template=base_tmpl,
                 negative=DEFAULT_NEGATIVE, resolution=resolution,
                 base_seed=cover_base, seeds=cover_seeds,
                 dest_dir=base_dir, out_dir=out_dir, prefix="cover",
-                rp=rp, default_orientation=args.orientation)
+                rp=rp, default_orientation=args.orientation,
+                anatomy_retries=args.anatomy_retries, hand_detector_path=hand_det_path)
         if enable_refine:
             print(f"\n=== Phase 2b (refine, SDXL): {Path(refine_tmpl).name} "
                   f"→ review images ===", flush=True)
