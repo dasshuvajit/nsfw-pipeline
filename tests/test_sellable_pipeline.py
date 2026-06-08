@@ -343,6 +343,34 @@ def test_load_niche_history_reads_prior_same_niche_manifests(tmp_path, monkeypat
     assert c2 == 2 and len(b2) == 2         # count = all runs; seeds = newest run only
 
 
+def test_gen_metadata_routes_by_backend_not_hardcoded_ollama(monkeypatch):
+    """Regression: _gen_metadata must drive the LLM via LLMClientPool (which
+    routes the tag to its backend — LM Studio / Ollama / MLX), NOT a hardcoded
+    OllamaClient. The hardcoded client 404'd whenever model_tag was an LM Studio
+    tag (the default Gemma), silently dropping the bespoke set title/description
+    back to the niche stub."""
+    captured: dict = {}
+    import src.agents.metadata_generator as MG
+
+    class _StubGen:
+        def __init__(self, client):
+            captured["client"] = client
+
+        def generate(self, **kw):
+            captured["model"] = kw.get("model")
+            return {"title": "T", "description": "D", "tags": ["boho"]}
+
+    monkeypatch.setattr(MG, "MetadataGenerator", _StubGen)
+    meta = A._gen_metadata(None, "a boho brief", "T3_artnude", 6,
+                           "gemma-4-26b-a4b-it-ultra-uncensored-heretic")
+    # the client is the backend-routing pool, not a bare OllamaClient
+    assert type(captured["client"]).__name__ == "LLMClientPool"
+    assert captured["model"] == "gemma-4-26b-a4b-it-ultra-uncensored-heretic"
+    # and the post-processing still merges discovery tags + mandatory labels
+    assert "aiart" in meta["tags"]
+    assert meta["labels"]["ai_tools"] and meta["labels"]["mature"] is True
+
+
 def test_promptout_framing_validators_tolerant():
     P = "A warm shaft of light falls across a woman in a quiet room. " * 8
     # synonyms coerce, junk falls back, omission defaults

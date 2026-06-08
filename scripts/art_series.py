@@ -461,8 +461,12 @@ def _gen_metadata(selection, brief: str, tier: str, image_count: int,
     meta: dict
     try:
         from src.agents.metadata_generator import MetadataGenerator
-        from src.agents.llm_client import OllamaClient
-        meta = MetadataGenerator(OllamaClient()).generate(
+        from src.agents.llm_client import LLMClientPool
+        # Route by the tag's backend (LM Studio / Ollama / MLX) via the registry,
+        # exactly like the prompt path. Hardcoding OllamaClient here 404'd whenever
+        # model_tag was an LM Studio tag (e.g. the default Gemma), silently
+        # dropping the LLM-bespoke set title/description back to the niche stub.
+        meta = MetadataGenerator(LLMClientPool()).generate(
             theme=theme, mood=mood, environment=env, content_level=tier,
             image_count=image_count, style_keywords=style_kw, model=model_tag)
     except Exception as exc:  # noqa: BLE001
