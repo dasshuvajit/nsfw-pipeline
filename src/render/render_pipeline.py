@@ -21,6 +21,7 @@ from typing import Any
 DEFAULTS: dict[str, Any] = {
     "base_template": "templates/chroma/base.json",
     "refine_template": "templates/chroma/refine.json",
+    "refine_template_t4": "templates/chroma/refine_T4.json",
     "upscale_template": "templates/sdxl/upscale_4k.json",
     "upscale_template_t4": "templates/sdxl/upscale_4k_T4.json",
     "enable_refine": True,
@@ -33,7 +34,7 @@ DEFAULTS: dict[str, Any] = {
 }
 
 _SCALAR_KEYS = (
-    "base_template", "refine_template", "upscale_template",
+    "base_template", "refine_template", "refine_template_t4", "upscale_template",
     "upscale_template_t4", "enable_refine", "target_4k_long_edge",
 )
 

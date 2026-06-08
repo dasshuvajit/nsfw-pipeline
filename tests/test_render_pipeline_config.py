@@ -21,6 +21,7 @@ def test_pipeline_yaml_block_parses():
     assert rp is not None, "pipeline.yaml missing render_pipeline block"
     assert rp["base_template"] == "templates/chroma/base.json"
     assert rp["refine_template"] == "templates/chroma/refine.json"
+    assert rp["refine_template_t4"] == "templates/chroma/refine_T4.json"  # T4 vagina variant
     assert rp["upscale_template"] == "templates/sdxl/upscale_4k.json"
     assert rp["enable_refine"] is True
     assert rp["target_4k_long_edge"] == 3840

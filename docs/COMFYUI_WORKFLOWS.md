@@ -191,6 +191,15 @@ foot detailer never fires. Feet rely on the prompt's "keep feet tucked / out of
 frame, five toes" guidance + manual culling. Likewise a detailer cannot remove an
 *extra* limb (e.g. a 3rd hand the base generated) — those are culled by hand.
 
+**T4 variant — `refine_T4.json`:** for **T4_explicit MAIN images only** (routed via
+`render_pipeline.refine_template_t4`; SFW covers and T1/T2/T3 stay on the base
+`refine.json` for tier purity), the chain gains a light vagina detailer
+(`vagina-v3.2`, denoise 0.25, after the nipple detailer). Unlike the bare-foot
+models, `vagina-v3.2` detects reliably (0.86–0.91 conf), and the light pass adds
+natural labia/skin texture to Chroma's slightly-soft vulva. It is otherwise an
+exact superset of `refine.json` (pinned by a drift-guard test), so the Chroma face
+is still untouched.
+
 Pose grounding (the *"sitting on water"* failure) is fixed upstream in the prompt
 engine — `scripts/art_director.py` has a STABLE GROUNDING system-prompt block + a
 hard-reject validator (`_IMPLAUSIBLE_GROUNDING_RE`), `scripts/audit_prompts.py`

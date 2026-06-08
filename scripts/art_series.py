@@ -46,11 +46,8 @@ from src.niche.selector import (  # noqa: E402
 )
 
 DEFAULT_TEMPLATE = "templates/chroma/gonzaLomo_Chroma_4K_v12.json"
-# T4 variant: base v12 chain + tier-gated NSFW-region detailers (nipples,
-# vagina). Auto-selected for T4_explicit main images only; SFW covers and
-# T3-and-below stay on the base template (their detectors would not fire and
-# NSFW-region inpainting is unwanted there).
-T4_TEMPLATE = "templates/chroma/gonzaLomo_Chroma_4K_v12_T4.json"
+# (The staged pipeline routes the T4 refine variant via _select_refine_template +
+#  render_pipeline.refine_template_t4 — there is no monolith-level T4 auto-select.)
 
 # Persistent seed counter — guarantees every render across runs gets a
 # never-before-used seed, defeating ComfyUI's per-node cache collisions
@@ -485,6 +482,32 @@ def _render_stage_base(
                           file=sys.stderr, flush=True)
         manifest.append(entry)
     return manifest
+
+
+def _select_refine_template(tier: str, rp: dict) -> str:
+    """Stage-2 refine template for a tier. T4_explicit MAIN images get the variant
+    with the vagina detailer (``refine_template_t4``); every lower tier — and SFW
+    covers, which the caller routes separately to the base — uses ``refine_template``
+    so a tasteful T3 nude never has its genitals detailed (tier purity)."""
+    base = rp["refine_template"]
+    return rp.get("refine_template_t4", base) if tier == "T4_explicit" else base
+
+
+def _template_has_genital_detailer(workflow_dir: Path, template_rel: "str | None") -> bool:
+    """True if a workflow template contains a vagina/genital detailer node.
+    CONTENT-based (not filename-based) so a renamed template can't smuggle explicit
+    detailing past the tier-purity guard. Missing/unreadable template → False."""
+    if not template_rel:
+        return False
+    try:
+        wf = json.loads((workflow_dir / template_rel).read_text())
+    except Exception:  # noqa: BLE001 — absent/bad template → treat as clean
+        return False
+    for nid, nd in wf.items():
+        blob = (nid + " " + str(nd.get("inputs", {}).get("model_name", ""))).lower()
+        if "vagina" in blob:
+            return True
+    return False
 
 
 def _render_stage_refine(
@@ -1012,8 +1035,19 @@ def main() -> int:
     if staged:
         base_tmpl = rp["base_template"]
         refine_tmpl = rp["refine_template"]
+        # T4-ONLY: explicit main images get the refine variant with the vagina
+        # detailer; SFW covers (and T1/T2/T3) use the base refine so a tasteful
+        # nude never has its genitals detailed (tier purity).
+        refine_tmpl_main = _select_refine_template(args.tier, rp)
+        # Tier-purity guard (content-based): refuse to render explicit genital
+        # detailing below T4 — catches a --refine-template override that injects a
+        # T4 template into a lower tier. Covers always use the base refine (safe).
+        if args.tier != "T4_explicit" and _template_has_genital_detailer(workflow_dir, refine_tmpl_main):
+            sys.exit(f"TIER-PURITY ABORT: refine template '{refine_tmpl_main}' has a "
+                     f"genital detailer but --tier {args.tier} (not T4_explicit). "
+                     f"Explicit detailing is T4-only.")
         enable_refine = rp.get("enable_refine", True)
-        run_template = {"base": base_tmpl, "refine": refine_tmpl,
+        run_template = {"base": base_tmpl, "refine": refine_tmpl_main,
                         "upscale": rp["upscale_template"]}
         print(f"\n=== Phase 2a (base, Chroma): {Path(base_tmpl).name} ===",
               flush=True)
@@ -1032,12 +1066,12 @@ def main() -> int:
                 rp=rp, default_orientation=args.orientation,
                 anatomy_retries=args.anatomy_retries, hand_detector_path=hand_det_path)
         if enable_refine:
-            print(f"\n=== Phase 2b (refine, SDXL): {Path(refine_tmpl).name} "
+            print(f"\n=== Phase 2b (refine, SDXL): {Path(refine_tmpl_main).name} "
                   f"→ review images ===", flush=True)
             _render_stage_refine(manifest, builder=builder, client=client,
-                                 refine_template=refine_tmpl, dest_dir=img_dir,
+                                 refine_template=refine_tmpl_main, dest_dir=img_dir,
                                  out_dir=out_dir)
-            if cover_manifest:
+            if cover_manifest:   # covers are SFW → always the base refine
                 _render_stage_refine(cover_manifest, builder=builder, client=client,
                                      refine_template=refine_tmpl, dest_dir=cover_dir,
                                      out_dir=out_dir)
@@ -1050,7 +1084,16 @@ def main() -> int:
                         im["path"] = im.get("base_path")
                         im["review_path"] = im["path"]
     else:
-        # Monolith escape hatch — old single-pass via _render_rows.
+        # Monolith escape hatch — old single-pass via _render_rows. Tier purity is
+        # NOT enforced here (the single template renders main AND covers); warn if a
+        # genital-detailer template is used below T4 or for covers (it is a no-op on
+        # SFW/clothed cover prompts, but the operator should know).
+        if _template_has_genital_detailer(workflow_dir, args.template) and \
+                (args.tier != "T4_explicit" or cover_rows):
+            print(f"  !! WARNING: monolith template '{Path(args.template).name}' has a "
+                  f"genital detailer; tier purity is NOT enforced in monolith mode "
+                  f"(tier={args.tier}, covers={'yes' if cover_rows else 'no'}).",
+                  file=sys.stderr, flush=True)
         mono_res = ORIENTATIONS[args.orientation]
         print(f"\n=== Phase 2 (monolith): {Path(args.template).name} ===",
               flush=True)

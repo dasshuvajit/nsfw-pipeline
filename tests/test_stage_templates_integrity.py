@@ -22,6 +22,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 TPL = PROJECT_ROOT / "config" / "comfyui_workflows" / "templates"
 BASE = TPL / "chroma" / "base.json"
 REFINE = TPL / "chroma" / "refine.json"
+REFINE_T4 = TPL / "chroma" / "refine_T4.json"
 UPSCALE = TPL / "sdxl" / "upscale_4k.json"
 UPSCALE_T4 = TPL / "sdxl" / "upscale_4k_T4.json"
 
@@ -58,12 +59,12 @@ def _acyclic_single_sink(wf: dict) -> tuple[bool, list[str]]:
     return seen == len(ids), sinks
 
 
-@pytest.mark.parametrize("path", [BASE, REFINE, UPSCALE, UPSCALE_T4])
+@pytest.mark.parametrize("path", [BASE, REFINE, REFINE_T4, UPSCALE, UPSCALE_T4])
 def test_exists(path: Path):
     assert path.exists(), f"missing stage template {path}"
 
 
-@pytest.mark.parametrize("path", [BASE, REFINE, UPSCALE, UPSCALE_T4])
+@pytest.mark.parametrize("path", [BASE, REFINE, REFINE_T4, UPSCALE, UPSCALE_T4])
 def test_mps_safe_and_acyclic_single_sink(path: Path):
     wf = _load(path)
     for nid, node in wf.items():
@@ -89,7 +90,7 @@ def test_base_is_chroma_domain_only():
     assert "FaceDetailer" not in classes
 
 
-@pytest.mark.parametrize("path", [REFINE, UPSCALE, UPSCALE_T4])
+@pytest.mark.parametrize("path", [REFINE, REFINE_T4, UPSCALE, UPSCALE_T4])
 def test_load_image_has_required_widget_inputs(path: Path):
     """VHS_LoadImagePath requires image + custom_width + custom_height in the
     API JSON (ComfyUI rejects the prompt otherwise — regression guard)."""
@@ -144,6 +145,36 @@ def test_refine_contract_and_values():
         assert wf[d]["inputs"]["sampler_name"] == "lcm" and wf[d]["inputs"]["scheduler"] == "karras"
     # nipple detailer is LIGHT (cosmetic; a no-op when no nipples are detected)
     assert wf["detailer_nipples"]["inputs"]["denoise"] <= 0.25
+    # TIER PURITY: the base (non-T4) refine carries NO vagina detailer, so a
+    # tasteful T3 art-nude never has its genitals detailed.
+    assert "detailer_vagina" not in wf and "det_vagina_detector" not in wf
+
+
+def test_refine_t4_is_refine_plus_vagina_detailer():
+    """The T4 refine variant == the base refine + a light vagina detailer
+    (vagina-v3.2, which DOES reliably detect — 0.86–0.91 conf in testing, unlike
+    the bare-foot models). T4-only routing keeps T3 tasteful (tier purity)."""
+    base = _load(REFINE)
+    t4 = _load(REFINE_T4)
+    # drift guard: every base-refine node is present UNCHANGED in the T4 variant
+    # (the sink is the only rewire — it points at the new vagina detailer).
+    for nid, node in base.items():
+        if nid == "save":
+            continue
+        assert t4.get(nid) == node, f"refine_T4 drifted from refine at node {nid}"
+    # the T4 variant adds exactly the vagina detector + a light detailer, chained
+    # last (hands → nipples → vagina → save)
+    assert t4["det_vagina_detector"]["inputs"]["model_name"] == "bbox/vagina-v3.2.pt"
+    assert t4["detailer_vagina"]["class_type"] == "FaceDetailer"
+    assert t4["detailer_vagina"]["inputs"]["image"] == ["detailer_nipples", 0]
+    assert t4["detailer_vagina"]["inputs"]["model"] == ["diffdiff_model", 0]
+    assert t4["detailer_vagina"]["inputs"]["denoise"] <= 0.25          # light polish
+    wc = t4["detailer_vagina"]["inputs"]["wildcard"]
+    assert "vulva" in wc or "labia" in wc
+    assert t4["save"]["inputs"]["images"] == ["detailer_vagina", 0]
+    # Chroma face is still preserved in the T4 variant (no SDXL on the face)
+    for absent in ("stage_ksampler", "detailer_face", "det_face_detector"):
+        assert absent not in t4
 
 
 def test_upscale_contract_and_values():

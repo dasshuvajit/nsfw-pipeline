@@ -483,6 +483,34 @@ def test_base_anatomy_guard_off_single_render(tmp_path, monkeypatch):
     assert loaded == []                                # detector never loaded when off
 
 
+@pytest.mark.parametrize("tier,expected", [
+    ("T4_explicit", "refine_T4.json"),     # explicit main → vagina-detailer variant
+    ("T3_artnude", "refine.json"),         # tasteful nude → base refine (tier purity)
+    ("T2_implied", "refine.json"),
+    ("T1_suggestive", "refine.json"),
+])
+def test_select_refine_template_is_tier_pure(tier, expected):
+    rp = {"refine_template": "templates/chroma/refine.json",
+          "refine_template_t4": "templates/chroma/refine_T4.json"}
+    assert A._select_refine_template(tier, rp).endswith(expected)
+
+
+def test_select_refine_template_falls_back_without_t4_key():
+    rp = {"refine_template": "templates/chroma/refine.json"}   # no _t4 configured
+    assert A._select_refine_template("T4_explicit", rp).endswith("refine.json")
+
+
+def test_genital_detailer_detection_drives_tier_purity_guard():
+    """Content-based (not filename) tier-purity signal: refine_T4 has a vagina
+    detailer, the base refine does not — so the staged guard aborts a sub-T4
+    render only when a T4 template leaks in (e.g. via --refine-template)."""
+    wd = Path("config/comfyui_workflows")
+    assert A._template_has_genital_detailer(wd, "templates/chroma/refine_T4.json") is True
+    assert A._template_has_genital_detailer(wd, "templates/chroma/refine.json") is False
+    assert A._template_has_genital_detailer(wd, None) is False              # no template
+    assert A._template_has_genital_detailer(wd, "templates/chroma/nope.json") is False  # missing
+
+
 def test_promptout_framing_validators_tolerant():
     P = "A warm shaft of light falls across a woman in a quiet room. " * 8
     # synonyms coerce, junk falls back, omission defaults
