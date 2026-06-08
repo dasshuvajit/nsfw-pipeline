@@ -566,20 +566,23 @@ def generate_one(
     if avoid or banned_openers:
         parts: list[str] = [
             "\n\nThis is one image in a varied series. Make it VISIBLY "
-            "DIFFERENT from the ones already shot — a different opening, "
-            "setting, time of day, light direction, pose, wardrobe/props AND "
-            "mood."
+            "DIFFERENT from the ones already shot AND from any PRIOR series in "
+            "this same category listed below — a different opening, setting, "
+            "time of day, light direction, pose, wardrobe/props AND mood. We do "
+            "NOT want this series to resemble earlier series in the same category."
         ]
         if banned_openers:
             parts.append(
-                "\n\nBANNED OPENERS — do NOT begin your prompt with any of "
-                "these phrasings or close variants:\n"
+                "\n\nBANNED OPENERS — do NOT begin your prompt with any of these "
+                "phrasings or close variants (from this series AND earlier series "
+                "in the same category):\n"
                 + "\n".join(f"  • {o}" for o in banned_openers)
             )
         if avoid:
             parts.append(
-                "\n\nDo NOT echo the setting / light / pose of these prior "
-                "prompts:\n" + "\n".join(f"  - {a}" for a in avoid)
+                "\n\nDo NOT echo the setting / light / pose of these prior prompts "
+                "(this series AND earlier series in the same category):\n"
+                + "\n".join(f"  - {a}" for a in avoid)
             )
         variety = "".join(parts)
     # Framing target — a rotated per-scene nudge so the series spreads across
@@ -668,6 +671,9 @@ def generate_series(
     require_sfw: bool = False,
     extra_directive: str = "",
     client: "object | None" = None,
+    seed_avoid: "list[str] | None" = None,
+    seed_banned_openers: "list[str] | None" = None,
+    run_offset: int = 0,
 ) -> list[dict]:
     """Generate ``count`` prompts. ``sub_looks`` (from the niche selector)
     overrides the default 3; the per-scene look rotates through them.
@@ -695,10 +701,16 @@ def generate_series(
     # via the registry, so the default Gemma tag → LM Studio automatically.
     client = client or LLMClientPool()
     out: list[dict] = []
-    avoid: list[str] = []
-    banned_openers: list[str] = []
+    # Cross-series memory: seed the anti-repetition lists with PRIOR same-niche
+    # prompts (openers/signatures, supplied by art_series._load_niche_history) so
+    # this series deliberately differs from past ones; they keep growing
+    # within-series as before. run_offset rotates the sub-look / framing / look
+    # sequences so the SEQUENCE also differs per run (= the niche's prior-run
+    # count) — without it, re-running a niche reproduces it verbatim.
+    avoid: list[str] = list(seed_avoid or [])
+    banned_openers: list[str] = list(seed_banned_openers or [])
     for i in range(count):
-        sub_look = looks[i % len(looks)]
+        sub_look = looks[(i + run_offset) % len(looks)]
         look_label = sub_look.split(" — ")[0]
         best: tuple[dict, float, list[str]] | None = None  # (candidate, score, issues)
         last_err = None
@@ -715,8 +727,8 @@ def generate_series(
                     temperature=temperature,
                     word_band=word_band,
                     extra_directive=extra_directive,
-                    framing_target=FRAMING_TARGETS[i % len(FRAMING_TARGETS)],
-                    look_target=_creative_look(i),
+                    framing_target=FRAMING_TARGETS[(i + run_offset) % len(FRAMING_TARGETS)],
+                    look_target=_creative_look(i + run_offset),
                 )
             except Exception as exc:  # noqa: BLE001 — Pydantic/safety reject → retry
                 last_err = exc

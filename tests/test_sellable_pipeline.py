@@ -271,6 +271,78 @@ def test_framing_fields_threaded_into_rows(monkeypatch):
     assert "wide frame" in rows[0]["framing_rationale"]
 
 
+def test_generate_series_seeds_avoid_and_offsets_rotation(monkeypatch):
+    """Cross-series variety wiring: generate_series must (1) seed the
+    anti-repetition lists from seed_avoid/seed_banned_openers (so the FIRST
+    scene already avoids prior-series prompts) and (2) offset the sub-look /
+    framing / look rotation by run_offset (so the SEQUENCE differs per run)."""
+    calls: list[dict] = []
+
+    def rec(client, **kw):
+        # snapshot the mutable lists at call time (generate_series appends to them)
+        calls.append({"avoid": list(kw["avoid"]),
+                      "banned_openers": list(kw["banned_openers"]),
+                      "sub_look": kw["sub_look"],
+                      "framing_target": kw["framing_target"],
+                      "look_target": kw["look_target"]})
+        return {"prompt": f"scene {len(calls)} " + "word " * 80,
+                "orientation": "portrait", "shot_type": "medium",
+                "framing_rationale": "r"}
+
+    monkeypatch.setattr(AD, "generate_one", rec)
+    looks = ["a — x", "b — y", "c — z", "d — w"]
+    rows = AD.generate_series(
+        brief="b", tier="T3_artnude", count=3, model_tag="m", temperature=0.8,
+        sub_looks=looks, audit_gate=False, client=object(),
+        seed_avoid=["PRIOR SIG …"], seed_banned_openers=["prior opener words"],
+        run_offset=2,
+    )
+    assert len(rows) == 3
+    # (1) the first scene sees ONLY the seeded history (not empty)
+    assert calls[0]["avoid"] == ["PRIOR SIG …"]
+    assert calls[0]["banned_openers"] == ["prior opener words"]
+    # the seed persists and the lists grow within-series as scenes commit
+    assert calls[1]["avoid"][0] == "PRIOR SIG …" and len(calls[1]["avoid"]) == 2
+    # (2) run_offset=2 rotates the sub-look sequence: looks[(i+2)%4]
+    assert [c["sub_look"] for c in calls] == [looks[2], looks[3], looks[0]]
+    # framing + look rotations are offset by the same amount
+    assert [c["framing_target"] for c in calls] == \
+        [AD.FRAMING_TARGETS[(i + 2) % len(AD.FRAMING_TARGETS)] for i in range(3)]
+    assert [c["look_target"] for c in calls] == [AD._creative_look(i + 2) for i in range(3)]
+
+
+def test_load_niche_history_reads_prior_same_niche_manifests(tmp_path, monkeypatch):
+    """art_series._load_niche_history mines prior same-niche manifests for the
+    avoid/banned seeds + the prior-run count, ignoring other niches and
+    malformed files (no DB — the manifests ARE the prompt store)."""
+    base = tmp_path / "output" / "art_series"
+    def _mf(name: str, niche: str, prompts: list[str]):
+        d = base / name
+        d.mkdir(parents=True)
+        (d / "manifest.json").write_text(json.dumps(
+            {"niche": {"id": niche},
+             "prompts": [{"prompt": p} for p in prompts]}))
+    _mf("20260101_000000", "bohemian_naturallight", ["Warm honey light over X " * 6])
+    _mf("20260102_000000", "bohemian_naturallight", ["Cool blue dusk over Y " * 6,
+                                                      "Soft grey dawn over Z " * 6])
+    _mf("20260103_000000", "goth_romantic", ["Candlelit gothic chamber W " * 6])
+    (base / "broken").mkdir(parents=True)
+    (base / "broken" / "manifest.json").write_text("{ not json")
+
+    monkeypatch.setattr(A, "ROOT", tmp_path)
+    banned, avoid, count = A._load_niche_history("bohemian_naturallight")
+    assert count == 2                       # two prior bohemian runs (goth excluded)
+    assert len(banned) == 3 and len(avoid) == 3   # 1 + 2 prompts across the 2 runs
+    # the seeds are derived via the shared art_director helpers
+    assert banned[0] == AD._opener("Warm honey light over X " * 6)
+    assert avoid[0] == AD._signature("Warm honey light over X " * 6)
+    # a never-run niche → empty seeds + zero offset (graceful)
+    assert A._load_niche_history("does_not_exist_niche") == ([], [], 0)
+    # recent_series cap limits how many prior runs feed the seeds
+    b2, a2, c2 = A._load_niche_history("bohemian_naturallight", recent_series=1)
+    assert c2 == 2 and len(b2) == 2         # count = all runs; seeds = newest run only
+
+
 def test_promptout_framing_validators_tolerant():
     P = "A warm shaft of light falls across a woman in a quiet room. " * 8
     # synonyms coerce, junk falls back, omission defaults

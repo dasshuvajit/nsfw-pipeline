@@ -179,6 +179,9 @@ niches:
     sub_looks:
       - "candlelit gothic chamber — warm flickering candlelight in a dark velvet-and-stone interior, dark lace and silver jewellery, pale luminous skin, romantic and brooding"
       - "moonlit gothic window — cool moonlight through a leaded window in a shadowed room, dark drapery, melancholy-free composed intensity"
+      - "cathedral ruin at dusk — fading violet light through a shattered rose window, ivy over broken stone, dark velvet pooled on the flagstones, solemn romantic stillness"
+      - "candlelit dark bath — a black marble tub by guttering tapers, rose petals on still dark water, wet pale skin, decadent gothic intimacy"
+      - "raven's library — towering shadowed bookshelves and a single oil lamp, a fall of black lace and antique pearls, brooding scholarly sensuality"
     aesthetics:
       palettes: ["deep black, oxblood and silver", "cool moonlit monochrome", "candlelit amber in deep shadow"]
       lighting: ["warm flickering candlelight", "cool moonlight through a window", "single low key in darkness"]
@@ -196,6 +199,9 @@ niches:
     sub_looks:
       - "sun-drenched boho loft — warm afternoon sun through gauze curtains across woven textures and trailing plants, loose natural hair, earthy and free-spirited"
       - "golden meadow at dusk — low warm sun in tall grass and wildflowers, sheer flowing fabric, dreamy soft-focus, natural and serene"
+      - "wildflower riverbank — dappled light at the water's edge among reeds and blossoms, sun-warmed damp skin, free and untamed"
+      - "canvas tent at dawn — soft pink first light glowing through sun-bleached canvas, woven rugs and brass lanterns, sleepy bohemian intimacy"
+      - "desert bloom at golden hour — warm low sun across pale sand and flowering cactus, a gauzy wrap lifting in the breeze, wild and serene"
     aesthetics:
       palettes: ["warm earthy ochres and cream", "golden honey light", "sun-faded pastel"]
       lighting: ["warm afternoon sun through gauze", "low golden-hour backlight", "soft diffuse daylight"]
@@ -213,6 +219,9 @@ niches:
     sub_looks:
       - "Mediterranean villa pool at golden hour — low warm sun raking across wet sun-bronzed skin, a villa dissolving into warm bokeh, delicate swimwear, confident sultry calm"
       - "cliffside terrace sunset — windswept sun-streaked hair, the sea below, sheer wrap, honeyed backlight, jet-set glamour"
+      - "infinity pool over the sea — bronzed skin against the horizon, glassy water catching the sunset, minimal swimwear, serene luxury"
+      - "shaded sun-lounger siesta — a striped lounger under a palm's dappled gold shade, a sweating cocktail beside her, languid jet-set ease"
+      - "outdoor villa shower — warm water and low sun on bare skin against terracotta tile, bougainvillea overhead, fresh sensual glow"
     aesthetics:
       palettes: ["honey, peach and sky-blue", "warm golden-hour saturation", "sun-bleached Riviera tones"]
       lighting: ["low warm golden-hour sun", "bright backlit sunset", "warm rim-light + sky-bounce fill"]
@@ -230,6 +239,9 @@ niches:
     sub_looks:
       - "vintage cabaret stage — warm theatrical spotlight in a dim velvet-curtained club, feather fans and rhinestones, performer's confident charisma"
       - "backstage dressing room — warm bulb-lit vanity (no mirror in frame), corset and stockings, feathers, intimate pre-show glamour"
+      - "champagne speakeasy booth — a velvet banquette in smoky low light, a coupe of champagne, gloves and garters, conspiratorial after-hours glamour"
+      - "spotlight feather reveal — a single hard spotlight catching ostrich plumes mid-gesture on a dark stage, rhinestones glinting, theatrical tease"
+      - "art-deco lounge — gilded geometric panelling and a chaise, a beaded gown slipping, warm gold lamplight, jazz-age opulence"
     aesthetics:
       palettes: ["deep red velvet and gold", "warm theatrical amber", "black-and-rhinestone sparkle"]
       lighting: ["warm theatrical spotlight", "warm vanity-bulb light", "single dramatic stage key"]
@@ -249,6 +261,9 @@ niches:
     sub_looks:
       - "neon-noir alley — magenta-and-cyan neon rim light on wet skin in a rain-slick futuristic street, sleek styling, cinematic and moody"
       - "neon loft window — saturated neon spill through a high window over a dim apartment, futuristic adornments, urban-night glamour"
+      - "holographic nightclub — pulsing cyan-and-magenta holograms over a dark floor, latex and chrome accents, electric sensual energy"
+      - "rooftop above the megacity — neon haze and traffic light-trails far below a high parapet, windswept sleek styling, vertiginous night glamour"
+      - "rain-soaked noodle stall — warm sign-glow and steam in a cramped neon alley, wet skin and neon-slick puddles, intimate street-level cool"
     aesthetics:
       palettes: ["magenta-and-cyan neon", "teal-and-orange blockbuster", "blade-runner neon-noir"]
       lighting: ["magenta key + cyan rim, neon night", "saturated neon window spill", "wet-specular neon reflections"]
@@ -266,6 +281,9 @@ niches:
     sub_looks:
       - "rustic cottage morning — soft window daylight in a wood-and-linen cottage interior, wildflowers and a soft cotton slip, gentle and pastoral"
       - "sunlit orchard — dappled warm light under blossoming trees, flowing natural fabric, a woven basket, dreamy countryside serenity"
+      - "wheat field at golden hour — warm low sun across swaying golden wheat, a linen dress slipping from a shoulder, barefoot and dreamy"
+      - "misty herb garden at dawn — soft grey-gold morning light among lavender and climbing roses, dewy gentle sensuality"
+      - "reedy lakeside meadow — soft afternoon light by a still lake, a picnic blanket and scattered wildflowers, languid countryside calm"
     aesthetics:
       palettes: ["soft sage, cream and wildflower", "warm pastoral daylight", "faded pastel countryside"]
       lighting: ["soft window daylight", "dappled orchard sunlight", "warm overcast morning"]

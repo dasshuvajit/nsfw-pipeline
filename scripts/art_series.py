@@ -153,6 +153,47 @@ def _record_used_niche(used: list[str], niche_id: str) -> None:
     USED_NICHES_FILE.write_text("\n".join(new) + "\n")
 
 
+# Cross-series variety: how many prior series of the SAME niche feed the avoid
+# lists. Cap so the LLM is steered away from recent repetition without being
+# over-constrained (which would dip prose quality / slow regen).
+NICHE_HISTORY_RECENT = 2
+
+
+def _load_niche_history(niche_id: str,
+                        recent_series: int = NICHE_HISTORY_RECENT) -> "tuple[list[str], list[str], int]":
+    """Cross-series memory from prior series of the SAME niche.
+
+    Returns ``(banned_openers, avoid_signatures, prior_series_count)``:
+    - banned_openers / avoid_signatures — first-8-words / first-40-words of each
+      prior prompt (most-recent ``recent_series`` runs), to seed the
+      art_director anti-repetition lists so a new run DIFFERS from past ones.
+    - prior_series_count — how many times this niche has been run (ALL prior
+      runs); used as the per-run rotation offset so the sub-look / framing / look
+      SEQUENCE also varies each run.
+
+    Reads the existing per-series ``manifest.json`` files (the prompt store — no
+    DB). Robust: skips malformed/partial manifests."""
+    runs: list[tuple[str, list[dict]]] = []  # (timestamp-dirname, prompts)
+    for mf in (ROOT / "output/art_series").glob("*/manifest.json"):
+        try:
+            m = json.loads(mf.read_text())
+            if (m.get("niche") or {}).get("id") == niche_id:
+                runs.append((mf.parent.name, m.get("prompts") or []))
+        except Exception:  # noqa: BLE001 — skip partial/broken manifests
+            continue
+    runs.sort(key=lambda r: r[0])  # oldest -> newest by timestamp dirname
+    prior_count = len(runs)
+    recent = runs[-recent_series:] if recent_series > 0 else runs
+    banned, avoid = [], []
+    for _, prompts in recent:
+        for p in prompts:
+            txt = p.get("prompt") or ""
+            if txt:
+                banned.append(art_director._opener(txt))
+                avoid.append(art_director._signature(txt))
+    return banned, avoid, prior_count
+
+
 def _unload_llm(model_tag: str) -> None:
     """Free the LLM before the render phase (never co-resident with ComfyUI).
     Belt-and-braces across backends: (1) the pool's unload_all(), (2) a DIRECT
@@ -789,10 +830,22 @@ def main() -> int:
     print(f"\n=== Phase 1 (LLM): {args.count} prompts"
           f"{f' + {n_covers} SFW covers' if n_covers else ''} + metadata via "
           f"{args.model_tag} ===", flush=True)
+    # Cross-series variety: seed the anti-repetition lists with prior same-niche
+    # prompts + offset the per-run rotations, so re-running a niche yields a
+    # DISTINCT series instead of reproducing it.
+    _niche_id = selection.niche.id if selection else None
+    seed_banned, seed_avoid, run_offset = ([], [], 0)
+    if _niche_id:
+        seed_banned, seed_avoid, run_offset = _load_niche_history(_niche_id)
+        if run_offset:
+            print(f"  (cross-series variety: run #{run_offset + 1} of '{_niche_id}'"
+                  f" — steering away from {len(seed_avoid)} prior prompts, "
+                  f"sequence offset {run_offset})", flush=True)
     rows = art_director.generate_series(
         brief=brief, tier=args.tier, count=args.count, model_tag=args.model_tag,
         temperature=args.temperature, sub_looks=sub_looks, word_band=word_band,
         audit_gate=not args.no_audit_gate,
+        seed_avoid=seed_avoid, seed_banned_openers=seed_banned, run_offset=run_offset,
     )
     if not rows:
         print("No prompts generated — aborting.", file=sys.stderr)
@@ -827,6 +880,7 @@ def main() -> int:
             model_tag=args.model_tag, temperature=args.temperature,
             sub_looks=sub_looks, word_band=word_band,
             audit_gate=not args.no_audit_gate,
+            run_offset=run_offset,
             require_sfw=True,
             extra_directive=art_director.SFW_COVER_DIRECTIVE,
         )

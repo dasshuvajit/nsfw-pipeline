@@ -38,6 +38,26 @@ def test_library_loads_with_core_and_trend(lib):
         assert n.sub_looks, f"{n.id} missing sub_looks"
 
 
+def test_every_niche_has_enough_sub_looks(lib):
+    """Cross-series variety needs scene room: ≥3 sub-looks per niche so the
+    per-run rotation offset lands on a different scene each run. The 6 niches
+    that were thin (2 sub-looks → near-identical re-runs) are expanded to ≥5."""
+    EXPANDED = {"goth_romantic", "bohemian_naturallight", "poolside_goldenhour",
+                "burlesque_cabaret", "cyberpunk_pinup", "cottagecore_pastoral"}
+    for n in lib.niches:
+        assert len(n.sub_looks) >= 3, f"{n.id} has only {len(n.sub_looks)} sub_looks"
+    for n in lib.niches:
+        if n.id in EXPANDED:
+            assert len(n.sub_looks) >= 5, \
+                f"{n.id} expected ≥5 sub_looks, has {len(n.sub_looks)}"
+    # the expanded sub-looks must not reintroduce a mirror motif (the validator
+    # bans literal mirrors — only a negated "no mirror" instruction is allowed).
+    for n in lib.niches:
+        for s in n.sub_looks:
+            assert "mirror" not in s.lower() or "no mirror" in s.lower(), \
+                f"{n.id} sub_look reintroduces a mirror: {s!r}"
+
+
 def test_by_id_and_unknown_raises(lib):
     n = lib.by_id("fine_art_figure_study")
     assert n.niche_class == "core"
