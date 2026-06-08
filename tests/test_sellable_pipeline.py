@@ -549,6 +549,67 @@ def test_genital_detailer_detection_drives_tier_purity_guard():
     assert A._template_has_genital_detailer(wd, "templates/chroma/nope.json") is False  # missing
 
 
+def test_t4_explicit_reveal_rotation_only_at_t4(monkeypatch):
+    """T4_explicit gets a rotated EXPLICIT REVEAL STYLE + grooming per image (so
+    the set spans many tasteful reveals, not one centred splay); T3 and below get
+    NONE (no vulva shown → nothing to rotate). Distance-bound styles pin shot_type."""
+    seen = []
+
+    def rec(client, **kw):
+        seen.append({"reveal": kw.get("reveal_target"), "grooming": kw.get("grooming"),
+                     "framing": kw.get("framing_target")})
+        return {"prompt": "word " * 80, "orientation": "portrait",
+                "shot_type": "medium", "framing_rationale": "r"}
+
+    monkeypatch.setattr(AD, "generate_one", rec)
+    AD.generate_series(brief="b", tier="T4_explicit", count=6, model_tag="m",
+                       temperature=0.8, audit_gate=False, client=object())
+    reveals = [s["reveal"] for s in seen]
+    assert all(r is not None for r in reveals)                       # every T4 image
+    assert [r[0] for r in reveals] == [AD.REVEAL_STYLES[i][0] for i in range(6)]  # rotates
+    assert all(s["grooming"] for s in seen)                          # grooming assigned
+    for s in seen:                                                   # pins honoured
+        pin = AD.REVEAL_SHOT_PIN.get(s["reveal"][0])
+        if pin:
+            assert s["framing"][1] == pin
+    seen.clear()
+    AD.generate_series(brief="b", tier="T3_artnude", count=4, model_tag="m",
+                       temperature=0.8, audit_gate=False, client=object())
+    assert all(s["reveal"] is None and not s["grooming"] for s in seen)  # T3 untouched
+
+
+def test_generate_one_weaves_reveal_style_into_prompt():
+    """generate_one injects the assigned REVEAL STYLE + grooming into the user
+    prompt (the per-image artistic-explicit nudge)."""
+    captured = {}
+
+    class _Client:
+        def generate_json(self, system, user, **kw):
+            captured["user"] = user
+            return {"prompt": "p " * 80, "orientation": "portrait",
+                    "shot_type": "medium", "framing_rationale": "r"}
+
+    AD.generate_one(_Client(), brief="b", tier="T4_explicit", sub_look="x — y",
+                    avoid=[], banned_openers=[], model_tag="m", temperature=0.8,
+                    reveal_target=("from-behind arch", "From behind and above ..."),
+                    grooming="neatly trimmed")
+    u = captured["user"]
+    assert "EXPLICIT REVEAL STYLE" in u and "from-behind arch" in u
+    assert "neatly trimmed" in u and "never clinical or gynecological" in u
+
+
+def test_t4_directive_and_reveal_data_are_artistic():
+    d = AD.TIER_DIRECTIVES["T4_explicit"].lower()
+    assert "fine-art" in d and "off-centre" in d and "natural" in d
+    assert "clinical" in d or "gynecolog" in d                       # explicitly forbids it
+    import math
+    assert len(AD.REVEAL_STYLES) == 11                               # prime …
+    assert math.gcd(len(AD.REVEAL_STYLES), len(AD.FRAMING_TARGETS)) == 1  # … coprime: no lockstep
+    for label, st in AD.REVEAL_SHOT_PIN.items():
+        assert any(label == r[0] for r in AD.REVEAL_STYLES)
+        assert st in {"close_up", "bust", "medium", "full_body", "wide_environmental"}
+
+
 def test_promptout_framing_validators_tolerant():
     P = "A warm shaft of light falls across a woman in a quiet room. " * 8
     # synonyms coerce, junk falls back, omission defaults

@@ -146,8 +146,18 @@ TIER_DIRECTIVES = {
         "fine-art tradition — the body as form and light, sensual and elegant."
     ),
     "T4_explicit": (
-        "T4 — EXPLICIT. Full nudity including explicit anatomy, rendered with "
-        "the same artistic intent and craft — confident and sensual, never crude."
+        "T4 — EXPLICIT. Full nudity with the vulva bare and visible — but as "
+        "FINE-ART EROTICA, never a clinical / gynecological display. The sex is "
+        "ONE beautiful element of a flowing, gorgeously-lit figure: modelled by "
+        "the SAME warm key light and soft shadow that sculpts her body (never flat "
+        "frontal exposure), framed OFF-CENTRE along the curve of hip and thigh and "
+        "the leading lines of her form, and revealed at the angle / distance / "
+        "degree the assigned REVEAL STYLE sets below — prefer suggestion and "
+        "partial reveal over a centred splay. Render the anatomy TRUE-TO-LIFE and "
+        "NATURAL: soft, individual, gently asymmetric labia, real lived-in skin in "
+        "the crease, grooming as assigned — never airbrushed, plastic, waxy or "
+        "symmetric-idealised. NEVER legs-splayed-flat-to-camera with the vulva "
+        "dead-centred under even light. Confident and sensual, never crude."
     ),
 }
 
@@ -232,7 +242,10 @@ HARD RULES:
 - Honor the requested TIER's state of undress exactly, and the TARGET LOOK given.
 - Flowing sentences, present tense, third person.
 - LOOK: a crystal-clear, razor-sharp, high-end GLAMOUR photograph — photoreal, \
-  luminous, high-detail, flawless focus. Lean into polished beauty + sensual \
+  luminous, high-detail, tack-sharp focus, but with TRUE, natural, unretouched \
+  skin and real anatomy everywhere (including the intimate anatomy at T4) — \
+  honest texture, fine grain, natural variation, NEVER airbrushed, plastic, waxy \
+  or symmetric-idealised. Sharp is not airbrushed. Lean into polished beauty + sensual \
   appeal (editorial / glamour / boudoir photography), not muted gallery restraint. \
   Still describe it through craft + light (lens, key, grain) rather than literally \
   writing "hyperrealistic" / "a real woman" — the realism comes from the rendering.
@@ -317,6 +330,25 @@ are render-fragile, so PREFER poses that keep them tucked under her, angled away
 or out of frame; when a foot IS in frame place it clearly (flat on the surface or
 cleanly tucked), exactly five toes per foot, never merged, doubled or overlapping
 feet.
+
+EXPLICIT CRAFT (applies ONLY at T4, when the bare sex is shown — fine-art erotica,
+never gynecology): (1) LIGHT MODELS THE SEX like it models the body — the same warm
+key + soft shadow that sculpts her belly and hip carries through, the sex read in
+three-quarter relief and chiaroscuro with part falling into shadow, NEVER flat even
+frontal exposure. (2) REVEAL THROUGH COMPOSITION, NOT CENTRING — the sex is a
+DESTINATION the eye arrives at along leading lines (the long line of the belly, the
+curve of hip into thigh, a trailing fold of silk), framed OFF-CENTRE as one note in
+a flowing figure, never the dead-centre bullseye. (3) SUGGESTION OFTEN BEATS FULL —
+half-shadowed, glimpsed between thighs, edge-lit, veiled by a fallen fabric or an
+oblique angle reads more erotic than a splay; vary partial and full, near and far,
+across the set. (4) GAZE, INTIMACY & MOOD carry it — a face with intent and an
+embodied feeling, never a disconnected porn-insert. (5) NATURAL, UNIDEALISED ANATOMY
+— soft asymmetric labia of varied natural length, true lived-in skin in the crease,
+grooming varied per image, NEVER a smooth seamless symmetric hairless plastic blank
+or the identical ideal every frame. (6) CLEAN, MOTIVATED POSE — the reveal comes from
+how she is posed and lit, never from spreading or holding herself open (the
+gynecological tell AND a hand-render hazard); soft, relaxed, weight-settled, one
+simple lit hand at most.
 
 ────────────────────── EXEMPLARS (this is the bar) ──────────────────────
 
@@ -473,6 +505,71 @@ FRAMING_TARGETS: tuple[tuple[str, str], ...] = (
     ("portrait", "medium"),
 )
 
+# T4-ONLY explicit-reveal rotation (orthogonal to FRAMING_TARGETS, which only
+# varies aspect+crop). Each entry = (label, craft directive) describing HOW the
+# bare anatomy is revealed/framed — angle, pose, distance, partial-vs-full — so a
+# T4 set spans many tasteful reveals instead of the same centred clinical splay.
+# 11 entries (PRIME, coprime with the 8 FRAMING_TARGETS) so reveal × framing don't
+# fall into lockstep across a set. Sourced from the 2026-06 artistic-explicit R&D.
+REVEAL_STYLES: tuple[tuple[str, str], ...] = (
+    ("from-behind arch", "From behind and slightly above — she kneels forward or "
+     "lies in a low arch on a bed/chaise/bank, the long curve of spine-to-hip "
+     "leading the eye, the sex revealed softly between her thighs from the rear; "
+     "the lit back and the curve of buttock and thigh are the heroes."),
+    ("three-quarter open", "Turned three-quarters to camera, reclining or seated "
+     "on a solid surface with the upper knee drifting open along a diagonal, the "
+     "sex read at an oblique angle in the warm cradle of her thighs — half in key, "
+     "half in shadow — never a flat frontal spread; her body's S-curve carries it."),
+    ("lying-back overhead", "Camera looking down as she lies back on linen, one "
+     "knee loosely raised, the form gently foreshortened, the anatomy visible in "
+     "the relaxed open of her thighs while she holds the lens with a languid "
+     "up-gaze; intimate, unhurried, lit soft."),
+    ("seated knees-apart", "Seated UPRIGHT on a windowsill, chair edge or stone "
+     "step, knees drifting apart, the sex softly visible in the shadowed cradle of "
+     "her thighs — composed and self-possessed rather than reclined; posture tall, "
+     "gaze level, the key grazing one thigh."),
+    ("standing high-line", "Standing, weight shifted with one foot raised on a "
+     "ledge or stool, a long high leg-line opening the silhouette so the sex is "
+     "glimpsed at the apex of her thighs from a low, statuesque angle; confident, "
+     "commanding, side-lit."),
+    ("kneeling upright", "Kneeling tall on a bed or rug, thighs a little parted, "
+     "hands easy in her hair or resting on her own thighs, the sex softly present "
+     "low in the frame while the lit torso and face stay the heroes; serene, "
+     "devotional stillness."),
+    ("intimate detail", "A tight, tasteful close frame on the lower body — the "
+     "soft crease of the groin, her natural hair, the sex rendered as intimate "
+     "landscape where grazing light reveals real skin texture; abstracted, "
+     "sensual form, not a catalogued spread."),
+    ("full-figure incidental", "The WHOLE figure reclining or standing in a rich "
+     "environment, the sex naturally visible as ONE element of a complete picture "
+     "rather than the focal point — the eye travels the entire body and the room."),
+    ("veiled glimpse", "A deliberate PARTIAL reveal — a draped sheet, a fall of "
+     "shadow, her own thigh or a relaxed hand half-veils the sex, exposing a "
+     "charged sliver rather than everything; the suggestion more electric than "
+     "full exposure, a play of light and concealment."),
+    ("hand-framed", "One relaxed hand rests low at her inner thigh or soft belly, "
+     "FRAMING rather than hiding, fingers soft and clearly resolved — an intimate, "
+     "self-possessed gesture that draws the eye without any crude spreading."),
+    ("post-bath dewy", "Fresh from a bath or the water's edge — wet luminous skin, "
+     "a towel pooled beneath her on a tub rim, tiled floor or stone bank, reclining "
+     "with one knee raised, water beading along the thigh, the sex visible in a "
+     "relaxed natural sprawl; dewy, real, unstyled intimacy."),
+)
+# Two reveal styles are distance-bound — they pin a compatible shot_type while
+# keeping the rotated framing's orientation, so the assigned reveal and crop agree.
+REVEAL_SHOT_PIN: dict[str, str] = {
+    "intimate detail": "close_up",
+    "full-figure incidental": "full_body",
+}
+# Grooming rotates per T4 image (a varied styling choice, not a uniform default) so
+# the set reads like real, different women rather than one airbrushed ideal.
+GROOMING_OPTIONS: tuple[str, ...] = (
+    "a soft natural triangle of hair",
+    "neatly trimmed",
+    "a light trimmed strip",
+    "smoothly bare",
+)
+
 
 class _PromptOut(BaseModel):
     prompt: str
@@ -603,6 +700,8 @@ def generate_one(
     extra_directive: str = "",
     framing_target: tuple[str, str] | None = None,
     look_target: str = "",
+    reveal_target: "tuple[str, str] | None" = None,
+    grooming: str = "",
 ) -> dict:
     tier_directive = TIER_DIRECTIVES.get(tier, TIER_DIRECTIVES["T3_artnude"])
     if extra_directive:
@@ -653,6 +752,22 @@ def generate_one(
             f"{look_target}. She is a striking, sexy young ADULT woman — describe her "
             f"beauty, allure and figure attractively and explicitly within the tier."
         )
+    # T4-only explicit-reveal nudge — rotates HOW the bare anatomy is revealed so a
+    # set spans many tasteful angles/poses/degrees instead of one centred splay.
+    reveal_variety = ""
+    if reveal_target:
+        label, directive = reveal_target
+        groom = f" Her grooming for THIS image (vary it across the set): {grooming}." if grooming else ""
+        reveal_variety = (
+            f"\n\nEXPLICIT REVEAL STYLE for THIS image — HOW the bare anatomy is "
+            f"revealed/framed (NOT a centred frontal splay): {label} — {directive}"
+            f"{groom} The sex is present and visible but woven into a gorgeous pose, "
+            f"light and mood; revealed via THIS angle/distance/degree, off-centre, "
+            f"modelled by the same key light as her body — explicit but fine-art, "
+            f"never clinical or gynecological. Reconcile with the ASSIGNED FRAMING "
+            f"above (the reveal sets pose/angle, the framing sets aspect+crop); if "
+            f"they truly conflict, favour the reveal and note it in framing_rationale."
+        )
     # 2026-06 — tier directive moved AFTER the sub-look (LLMs weight
     # last-mentioned more heavily). Without this, a strongly-themed brief
     # paired with the "rich fantasy / editorial" sub-look's wardrobe
@@ -664,7 +779,7 @@ def generate_one(
         f"TIER — STATE OF UNDRESS (this OVERRIDES any wardrobe language in "
         f"the look above; fabric in the look is SET DRESSING only):\n"
         f"  {tier_directive}\n"
-        f"{variety}{framing_variety}{look_variety}\n\n"
+        f"{variety}{framing_variety}{look_variety}{reveal_variety}\n\n"
         'Write ONE excellent photograph-prompt at the level of the exemplars, '
         'in the target look above, honoring the TIER above EXACTLY. The TIER '
         'wins over the look\'s wardrobe descriptors — at T3+, the body is '
@@ -757,6 +872,17 @@ def generate_series(
     for i in range(count):
         sub_look = looks[(i + run_offset) % len(looks)]
         look_label = sub_look.split(" — ")[0]
+        framing = FRAMING_TARGETS[(i + run_offset) % len(FRAMING_TARGETS)]
+        # T4-only: rotate an explicit REVEAL STYLE + grooming alongside the framing
+        # so the set spans many tasteful reveals (not one centred splay). Two
+        # distance-bound styles pin a compatible shot_type (keep the orientation).
+        reveal_target = grooming = None
+        if tier == "T4_explicit":
+            reveal_target = REVEAL_STYLES[(i + run_offset) % len(REVEAL_STYLES)]
+            grooming = GROOMING_OPTIONS[(i + run_offset) % len(GROOMING_OPTIONS)]
+            pin = REVEAL_SHOT_PIN.get(reveal_target[0])
+            if pin:
+                framing = (framing[0], pin)
         best: tuple[dict, float, list[str]] | None = None  # (candidate, score, issues)
         last_err = None
         for attempt in range(max_attempts):
@@ -772,8 +898,10 @@ def generate_series(
                     temperature=temperature,
                     word_band=word_band,
                     extra_directive=extra_directive,
-                    framing_target=FRAMING_TARGETS[(i + run_offset) % len(FRAMING_TARGETS)],
+                    framing_target=framing,
                     look_target=_creative_look(i + run_offset),
+                    reveal_target=reveal_target,
+                    grooming=grooming or "",
                 )
             except Exception as exc:  # noqa: BLE001 — Pydantic/safety reject → retry
                 last_err = exc
