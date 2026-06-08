@@ -168,12 +168,17 @@ The refine stage runs **NO SDXL over the image**. The global img2img refine
 sharper/cooler SDXL look (the recurring *"I prefer the chroma base face"*
 complaint). Stage 2 now only **upscales 1.25× (lanczos)** and runs three
 **targeted detailer crops** on the SDXL DMD model (DifferentialDiffusion-wrapped,
-lcm/karras): `detailer_hands` (0.32, "five fingers") → `detailer_feet`
-(`foot-yolov8l`, 0.30, "five toes" — fixes the extra/fused-toe failure) →
-`detailer_nipples` (`nipples_yolov8s`, light 0.25; a no-op when none detected).
-The face and the rest of the body pass through as the (upscaled) Chroma base, so
-**the keeper face == the base face**. Pinned by
+lcm/karras): `detailer_hands` (denoise **0.45 ×2 cycles** — restructures bad
+fingers, not just polish) → `detailer_nipples` (`nipples_yolov8s`, light 0.25; a
+no-op when none detected). The face and the rest of the body pass through as the
+(upscaled) Chroma base, so **the keeper face == the base face**. Pinned by
 `tests/test_stage_templates_integrity.py::test_refine_contract_and_values`.
+
+**No foot detailer:** neither bare-foot YOLO on disk (`foot-yolov8l`,
+`FootYolov8x_v20`) detects *nude* feet — 0 detections even at conf 0.05 — so a
+foot detailer never fires. Feet rely on the prompt's "keep feet tucked / out of
+frame, five toes" guidance + manual culling. Likewise a detailer cannot remove an
+*extra* limb (e.g. a 3rd hand the base generated) — those are culled by hand.
 
 Pose grounding (the *"sitting on water"* failure) is fixed upstream in the prompt
 engine — `scripts/art_director.py` has a STABLE GROUNDING system-prompt block + a

@@ -312,9 +312,11 @@ kneeling, lying or floating ON water, ON the surface of a lake / river / pool /
 sea, or in mid-air — it renders as a body hovering on nothing. Near water she is
 on a clear bank, rock, dock, towel or shallow edge with the water BESIDE or
 BEHIND her, never under her. Choose a stable, weight-bearing, naturally
-flattering posture — no precarious balance, no contortion. FEET & TOES: when feet
-are in frame, place them clearly (flat on the surface or cleanly tucked), five
-toes per foot, never merged, doubled or overlapping feet.
+flattering posture — no precarious balance, no contortion. FEET & TOES: bare feet
+are render-fragile, so PREFER poses that keep them tucked under her, angled away,
+or out of frame; when a foot IS in frame place it clearly (flat on the surface or
+cleanly tucked), exactly five toes per foot, never merged, doubled or overlapping
+feet.
 
 ────────────────────── EXEMPLARS (this is the bar) ──────────────────────
 

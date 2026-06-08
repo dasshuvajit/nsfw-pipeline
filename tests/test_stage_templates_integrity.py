@@ -117,25 +117,28 @@ def test_refine_contract_and_values():
                    "detailer_eyes", "det_eye_detector"):
         assert absent not in wf, f"{absent} must be removed (no SDXL on the face)"
     assert "KSampler" not in classes           # no global img2img repaint at all
+    # The FOOT detailer was DROPPED: neither bare-foot YOLO (foot-yolov8l /
+    # FootYolov8x_v20) detects nude feet (0 detections even at conf 0.05), so it
+    # never fired — pure overhead. Feet now rely on prompt guidance + framing.
+    assert "detailer_feet" not in wf and "det_foot_detector" not in wf
     # 1.25x lanczos upscale feeds the detailer chain DIRECTLY (no VAE round-trip)
     assert wf["143"]["class_type"] == "ImageScaleBy" and wf["143"]["inputs"]["scale_by"] == 1.25
-    # detailer chain: hands → feet → nipples → save, all on the upscaled Chroma image
+    # detailer chain: hands → nipples → save, all on the upscaled Chroma image
     assert wf["detailer_hands"]["inputs"]["image"] == ["143", 0]
-    assert wf["detailer_feet"]["inputs"]["image"] == ["detailer_hands", 0]
-    assert wf["detailer_nipples"]["inputs"]["image"] == ["detailer_feet", 0]
+    assert wf["detailer_nipples"]["inputs"]["image"] == ["detailer_hands", 0]
     assert wf["save"]["inputs"]["images"] == ["detailer_nipples", 0]
-    # hands (existing) + NEW foot + nipple detectors, all on disk
     assert wf["det_hand_detector"]["inputs"]["model_name"] == "bbox/hand_yolov9c.pt"
-    assert wf["det_foot_detector"]["inputs"]["model_name"] == "bbox/foot-yolov8l.pt"
     assert wf["det_nipple_detector"]["inputs"]["model_name"] == "bbox/nipples_yolov8s.pt"
-    # per-region anatomy wildcards steer each crop
+    # hand detailer is STRONGER (denoise 0.45 ×2 cycles) to actually RESTRUCTURE
+    # bad fingers, not just polish them; per-region anatomy wildcards steer the crops
+    assert wf["detailer_hands"]["inputs"]["denoise"] == 0.45
+    assert wf["detailer_hands"]["inputs"]["cycle"] == 2
     assert "five fingers" in wf["detailer_hands"]["inputs"]["wildcard"]
-    assert "toe" in wf["detailer_feet"]["inputs"]["wildcard"]       # fixes extra/fused toes
     assert "areola" in wf["detailer_nipples"]["inputs"]["wildcard"]
     # every detailer is MPS-safe lcm/karras on the DifferentialDiffusion-wrapped model
     assert wf["diffdiff_model"]["class_type"] == "DifferentialDiffusion"
     assert wf["diffdiff_model"]["inputs"]["model"] == ["refiner_checkpoint_loader", 0]
-    for d in ("detailer_hands", "detailer_feet", "detailer_nipples"):
+    for d in ("detailer_hands", "detailer_nipples"):
         assert wf[d]["class_type"] == "FaceDetailer"
         assert wf[d]["inputs"]["model"] == ["diffdiff_model", 0]
         assert wf[d]["inputs"]["sampler_name"] == "lcm" and wf[d]["inputs"]["scheduler"] == "karras"
