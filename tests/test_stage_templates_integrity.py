@@ -153,7 +153,12 @@ def test_refine_contract_and_values():
 def test_refine_t4_is_refine_plus_vagina_detailer():
     """The T4 refine variant == the base refine + a light vagina detailer
     (vagina-v3.2, which DOES reliably detect — 0.86–0.91 conf in testing, unlike
-    the bare-foot models). T4-only routing keeps T3 tasteful (tier purity)."""
+    the bare-foot models). T4-only routing keeps T3 tasteful (tier purity).
+
+    This pins the TEMPLATE STRUCTURE only; the tier ROUTING that keeps this
+    template off sub-T4 main images + all covers is tested in
+    tests/test_sellable_pipeline.py (test_refine_templates_for_keeps_covers_sfw +
+    test_genital_detailer_detection_drives_tier_purity_guard)."""
     base = _load(REFINE)
     t4 = _load(REFINE_T4)
     # drift guard: every base-refine node is present UNCHANGED in the T4 variant

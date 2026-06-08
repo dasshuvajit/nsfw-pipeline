@@ -500,6 +500,44 @@ def test_select_refine_template_falls_back_without_t4_key():
     assert A._select_refine_template("T4_explicit", rp).endswith("refine.json")
 
 
+@pytest.mark.parametrize("tier,main_ext,cover_ext", [
+    ("T4_explicit", "refine_T4.json", "refine.json"),   # covers stay SFW even on a T4 run
+    ("T3_artnude", "refine.json", "refine.json"),
+    ("T2_implied", "refine.json", "refine.json"),
+    ("T1_suggestive", "refine.json", "refine.json"),
+])
+def test_refine_templates_for_keeps_covers_sfw(tier, main_ext, cover_ext):
+    """The whole staged routing decision: MAIN follows the tier, COVERS ALWAYS use
+    the base refine — so a public/teaser image is never genital-detailed, even when
+    the main set is T4 explicit."""
+    rp = {"refine_template": "templates/chroma/refine.json",
+          "refine_template_t4": "templates/chroma/refine_T4.json"}
+    main, cover = A._refine_templates_for(tier, rp)
+    assert main.endswith(main_ext)
+    assert cover.endswith(cover_ext)
+    # the cover template never carries a genital detailer, at any tier
+    assert A._template_has_genital_detailer(Path("config/comfyui_workflows"), cover) is False
+
+
+def test_tier_purity_guard_aborts_on_refine_template_override_leak():
+    """The staged guard: a --refine-template override that injects the T4 template
+    into a sub-T4 tier is caught (would abort); the same template at T4 is allowed;
+    the normal base refine at any tier passes."""
+    wd = Path("config/comfyui_workflows")
+    leaked = {"refine_template": "templates/chroma/refine_T4.json",   # CLI override leak
+              "refine_template_t4": "templates/chroma/refine_T4.json"}
+    main_t3, _ = A._refine_templates_for("T3_artnude", leaked)
+    assert A._violates_tier_purity("T3_artnude", main_t3, wd) is True       # ABORT
+    main_t4, _ = A._refine_templates_for("T4_explicit", leaked)
+    assert A._violates_tier_purity("T4_explicit", main_t4, wd) is False     # allowed at T4
+    # the normal (un-overridden) base refine never violates purity, at any tier
+    normal = {"refine_template": "templates/chroma/refine.json",
+              "refine_template_t4": "templates/chroma/refine_T4.json"}
+    for tier in ("T1_suggestive", "T3_artnude", "T4_explicit"):
+        m, _ = A._refine_templates_for(tier, normal)
+        assert A._violates_tier_purity(tier, m, wd) is False
+
+
 def test_genital_detailer_detection_drives_tier_purity_guard():
     """Content-based (not filename) tier-purity signal: refine_T4 has a vagina
     detailer, the base refine does not — so the staged guard aborts a sub-T4

@@ -200,6 +200,17 @@ natural labia/skin texture to Chroma's slightly-soft vulva. It is otherwise an
 exact superset of `refine.json` (pinned by a drift-guard test), so the Chroma face
 is still untouched.
 
+**Detailer no-op contract:** every region detailer (nipple, vagina, hand) is an
+Impact-pack `FaceDetailer` — when its bbox detector returns zero detections it
+passes the image through unchanged (no diffusion), so e.g. the nipple/vagina
+detailers are harmless on a clothed SFW cover. **Tier routing is enforced in
+code regardless** (`art_series._refine_templates_for` + the content-based
+`_template_has_genital_detailer` guard), so explicit detailers never even reach a
+sub-T4 main image or any cover — the no-op is a second line of defence, not the
+first. Routing/purity is tested in `tests/test_sellable_pipeline.py`
+(`test_refine_templates_for_keeps_covers_sfw`,
+`test_genital_detailer_detection_drives_tier_purity_guard`).
+
 Pose grounding (the *"sitting on water"* failure) is fixed upstream in the prompt
 engine — `scripts/art_director.py` has a STABLE GROUNDING system-prompt block + a
 hard-reject validator (`_IMPLAUSIBLE_GROUNDING_RE`), `scripts/audit_prompts.py`

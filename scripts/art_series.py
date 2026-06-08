@@ -485,12 +485,21 @@ def _render_stage_base(
 
 
 def _select_refine_template(tier: str, rp: dict) -> str:
-    """Stage-2 refine template for a tier. T4_explicit MAIN images get the variant
-    with the vagina detailer (``refine_template_t4``); every lower tier — and SFW
-    covers, which the caller routes separately to the base — uses ``refine_template``
-    so a tasteful T3 nude never has its genitals detailed (tier purity)."""
+    """Stage-2 refine template for a tier's MAIN images. T4_explicit gets the
+    variant with the vagina detailer (``refine_template_t4``); every lower tier
+    uses ``refine_template`` so a tasteful T3 nude never has its genitals detailed
+    (tier purity)."""
     base = rp["refine_template"]
     return rp.get("refine_template_t4", base) if tier == "T4_explicit" else base
+
+
+def _refine_templates_for(tier: str, rp: dict) -> "tuple[str, str]":
+    """``(main_template, cover_template)`` for the staged refine. MAIN follows the
+    tier (T4 → vagina-detailer variant); COVERS are always SFW so they ALWAYS use
+    the base refine — even on a T4 run — so a public/teaser image is never
+    genital-detailed. The whole routing decision lives here so the cover-purity
+    invariant is tested in one place."""
+    return _select_refine_template(tier, rp), rp["refine_template"]
 
 
 def _template_has_genital_detailer(workflow_dir: Path, template_rel: "str | None") -> bool:
@@ -508,6 +517,13 @@ def _template_has_genital_detailer(workflow_dir: Path, template_rel: "str | None
         if "vagina" in blob:
             return True
     return False
+
+
+def _violates_tier_purity(tier: str, main_template: "str | None", workflow_dir: Path) -> bool:
+    """True if rendering would run a genital detailer outside T4_explicit — e.g. a
+    ``--refine-template`` override leaking the T4 template into a lower tier. The
+    staged render aborts when this is True."""
+    return tier != "T4_explicit" and _template_has_genital_detailer(workflow_dir, main_template)
 
 
 def _render_stage_refine(
@@ -1034,15 +1050,14 @@ def main() -> int:
 
     if staged:
         base_tmpl = rp["base_template"]
-        refine_tmpl = rp["refine_template"]
         # T4-ONLY: explicit main images get the refine variant with the vagina
         # detailer; SFW covers (and T1/T2/T3) use the base refine so a tasteful
-        # nude never has its genitals detailed (tier purity).
-        refine_tmpl_main = _select_refine_template(args.tier, rp)
+        # nude (or a public teaser) never has its genitals detailed (tier purity).
+        refine_tmpl_main, refine_cover_tmpl = _refine_templates_for(args.tier, rp)
         # Tier-purity guard (content-based): refuse to render explicit genital
         # detailing below T4 — catches a --refine-template override that injects a
         # T4 template into a lower tier. Covers always use the base refine (safe).
-        if args.tier != "T4_explicit" and _template_has_genital_detailer(workflow_dir, refine_tmpl_main):
+        if _violates_tier_purity(args.tier, refine_tmpl_main, workflow_dir):
             sys.exit(f"TIER-PURITY ABORT: refine template '{refine_tmpl_main}' has a "
                      f"genital detailer but --tier {args.tier} (not T4_explicit). "
                      f"Explicit detailing is T4-only.")
@@ -1073,7 +1088,7 @@ def main() -> int:
                                  out_dir=out_dir)
             if cover_manifest:   # covers are SFW → always the base refine
                 _render_stage_refine(cover_manifest, builder=builder, client=client,
-                                     refine_template=refine_tmpl, dest_dir=cover_dir,
+                                     refine_template=refine_cover_tmpl, dest_dir=cover_dir,
                                      out_dir=out_dir)
         else:
             print("\n=== Phase 2b skipped (--no-refine): review = raw base ===",
