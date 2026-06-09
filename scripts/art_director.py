@@ -157,11 +157,12 @@ TIER_DIRECTIVES = {
         "NATURAL: soft, individual, gently asymmetric labia, real lived-in skin in "
         "the crease, grooming as assigned — never airbrushed, plastic, waxy or "
         "symmetric-idealised. The vulva is BARE and clearly VISIBLE and naturally "
-        "lit in the frame — fabric is set dressing (never covering the sex), and "
-        "the pose keeps it SHOWN, not lost to deep shadow, drapery or crossed "
-        "legs: revealed artistically and off-centre, but unmistakably visible. "
-        "NEVER legs-splayed-flat-to-camera with the vulva dead-centred under even "
-        "light, and NEVER fully concealed either. Confident and sensual, never crude."
+        "lit — her thighs are genuinely PARTED so it is shown (NEVER crossed legs, "
+        "NEVER sitting back on her heels, NEVER fabric draped over her lap, never "
+        "lost to deep shadow): revealed artistically and off-centre, but "
+        "unmistakably visible. NEVER legs-splayed-flat-to-camera with the vulva "
+        "dead-centred under even light, and NEVER concealed either — relaxed-open, "
+        "soft-lit and shown. Confident and sensual, never crude."
     ),
 }
 
@@ -516,56 +517,47 @@ FRAMING_TARGETS: tuple[tuple[str, str], ...] = (
 # 11 entries (PRIME, coprime with the 8 FRAMING_TARGETS) so reveal × framing don't
 # fall into lockstep across a set. Sourced from the 2026-06 artistic-explicit R&D.
 REVEAL_STYLES: tuple[tuple[str, str], ...] = (
-    ("from-behind arch", "From behind and slightly above — she kneels forward or "
-     "lies in a low arch on a bed/chaise/bank, the long curve of spine-to-hip "
-     "leading the eye, the bare sex clearly visible and softly LIT between her "
-     "parted thighs from the rear (not lost to shadow); the lit back and the curve "
-     "of buttock and thigh frame it."),
-    ("three-quarter open", "Turned three-quarters to camera, reclining or seated "
-     "on a solid surface with the upper knee drifting open along a diagonal, the "
-     "sex read at an oblique angle in the warm cradle of her thighs — half in key, "
-     "half in shadow — never a flat frontal spread; her body's S-curve carries it."),
-    ("lying-back overhead", "Camera looking down as she lies back on linen, one "
-     "knee loosely raised, the form gently foreshortened, the anatomy visible in "
-     "the relaxed open of her thighs while she holds the lens with a languid "
-     "up-gaze; intimate, unhurried, lit soft."),
-    ("seated knees-apart", "Seated UPRIGHT on a windowsill, chair edge or stone "
-     "step, knees drifting apart, the sex softly visible in the shadowed cradle of "
-     "her thighs — composed and self-possessed rather than reclined; posture tall, "
-     "gaze level, the key grazing one thigh."),
-    ("standing high-line", "Standing, weight shifted with one foot raised on a "
-     "ledge or stool, a long high leg-line opening the silhouette so the sex is "
-     "glimpsed at the apex of her thighs from a low, statuesque angle; confident, "
-     "commanding, side-lit."),
-    ("kneeling upright", "Kneeling tall on a bed or rug, thighs a little parted, "
-     "hands easy in her hair or resting on her own thighs, the sex softly present "
-     "low in the frame while the lit torso and face stay the heroes; serene, "
-     "devotional stillness."),
-    ("intimate detail", "A tight, tasteful close frame on the lower body — the "
-     "soft crease of the groin, her natural hair, the sex rendered as intimate "
-     "landscape where grazing light reveals real skin texture; abstracted, "
-     "sensual form, not a catalogued spread."),
-    ("full-figure incidental", "The WHOLE figure reclining or standing in a rich "
-     "environment, the sex naturally visible as ONE element of a complete picture "
-     "rather than the focal point — the eye travels the entire body and the room."),
-    ("sheer-framed", "A length of sheer, translucent fabric falls BESIDE or just "
-     "across one thigh — framing, not covering — so the bare sex stays clearly "
-     "visible and lit through/beside the gauze; the sheer plays against her skin "
-     "as texture and light, the anatomy shown, never concealed."),
-    ("hand-framed", "One relaxed hand rests low on her inner thigh or soft belly, "
-     "FRAMING rather than hiding — the bare sex clearly visible and lit beside her "
-     "soft, clearly-resolved fingers; an intimate, self-possessed gesture that "
-     "draws the eye without any crude spreading or covering."),
-    ("post-bath dewy", "Fresh from a bath or the water's edge — wet luminous skin, "
-     "a towel pooled beneath her on a tub rim, tiled floor or stone bank, reclining "
-     "with one knee raised, water beading along the thigh, the sex visible in a "
-     "relaxed natural sprawl; dewy, real, unstyled intimacy."),
+    ("reclining open", "Half-reclining on a bed or chaise, propped on her elbows, "
+     "thighs relaxed and clearly PARTED toward the lens, the bare sex plainly "
+     "visible and warmly lit between them; she looks down her own body at the "
+     "viewer, inviting and at ease — off-centre and soft-lit, never a flat splay."),
+    ("knees-up open", "On her back on linen, both knees drawn up and eased apart "
+     "in a relaxed natural open, the bare sex clearly visible and softly modelled "
+     "by the key light; tender, unhurried mood, an intimate down-the-body view."),
+    ("lying-back overhead", "Camera looking down the length of her as she lies "
+     "back, one knee raised and fallen open, the bare sex clearly visible in the "
+     "parted relaxed thighs, languid up-gaze; foreshortened, intimate, soft-lit."),
+    ("seated leaning-back open", "Seated on a bed-edge, ledge or floor, LEANING "
+     "BACK on her hands with knees apart and FACING the lens, the bare sex clearly "
+     "visible in the open cradle of her thighs; self-possessed, confident posture, "
+     "the key grazing belly and thigh."),
+    ("side-lying open", "Lying on her side, the top leg lifted and drawn forward "
+     "to open the line, the bare sex clearly visible in soft profile-open, the hip "
+     "a warm curve; relaxed and sensual, side-lit."),
+    ("window-light open", "Half-reclining at a bright window, hips angled toward "
+     "the light, thighs eased open, the bare sex clearly lit and visible while her "
+     "body is rim-lit; dreamy, luminous, off-centre composition."),
+    ("standing thigh-gap", "Standing with one foot raised on a ledge or stool, "
+     "weight on one hip, the bare sex clearly visible and lit at the apex of her "
+     "PARTED thighs from a low, statuesque angle; commanding and confident."),
+    ("from-behind open", "Kneeling forward or arched from behind with thighs "
+     "clearly PARTED, the bare sex plainly visible and LIT between them from the "
+     "rear (never closed or lost to shadow); the lit back and buttock-curve frame it."),
+    ("hand-resting open", "Reclining with thighs parted and the bare sex clearly "
+     "visible and lit, one relaxed hand resting on her inner thigh BESIDE it (never "
+     "covering it), fingers soft and clearly resolved; intimate, assured gesture."),
+    ("intimate detail", "A tight, tasteful close frame on the OPEN lower body — the "
+     "natural vulva clearly visible as soft intimate landscape, grazing light "
+     "revealing real skin texture; sensual form, not a clinical catalogue shot."),
+    ("full-figure open", "The whole figure reclining OPEN in a rich environment, "
+     "thighs parted, the bare sex clearly visible as one warmly-lit element while "
+     "the eye travels the entire body and the room."),
 )
 # Two reveal styles are distance-bound — they pin a compatible shot_type while
 # keeping the rotated framing's orientation, so the assigned reveal and crop agree.
 REVEAL_SHOT_PIN: dict[str, str] = {
     "intimate detail": "close_up",
-    "full-figure incidental": "full_body",
+    "full-figure open": "full_body",
 }
 # Grooming rotates per T4 image (a varied styling choice, not a uniform default) so
 # the set reads like real, different women rather than one airbrushed ideal.
