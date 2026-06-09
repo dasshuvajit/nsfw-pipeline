@@ -1,9 +1,9 @@
 # WARNING: This is a REMOTE API backend (no local memory to free) — unload is a
 # no-op. The LLM/ComfyUI co-residence rule does NOT apply to API calls.
 """OpenAI-compatible HTTP client — generate text and structured JSON against any
-``/v1/chat/completions`` gateway. Built for **Agent Router** (agentrouter.org)
-and equally usable for OpenAI or any OpenAI-compatible endpoint (same shape,
-different ``base_url`` + key).
+``/v1/chat/completions`` gateway: OpenRouter, OpenAI, DeepSeek, GLM/Zhipu,
+Together, Groq, … (same wire protocol, different ``base_url`` + key). Provider-
+agnostic — name describes the protocol, not a vendor.
 
 Mirrors :class:`src.agents.lm_studio_client.LMStudioClient`'s public interface so
 :class:`src.agents.llm_client.LLMClientPool` dispatches a registry-id-keyed call
@@ -12,10 +12,10 @@ to this backend identically to the local ones.
 Backend specifics
 -----------------
 * **Endpoint** — ``{base_url}/chat/completions`` where ``base_url`` already
-  includes ``/v1`` (e.g. ``https://agentrouter.org/v1``). Auth via an
+  includes ``/v1`` (e.g. ``https://openrouter.ai/api/v1``). Auth via an
   ``Authorization: Bearer <key>`` header; the key is read from the env var named
   in ``pipeline.yaml::openai_compatible.api_key_env`` (default
-  ``AGENTROUTER_API_KEY``). The key is NEVER stored in config or logged.
+  ``OPENAI_COMPATIBLE_API_KEY``). The key is NEVER stored in config or logged.
 * **JSON output** — uses the ROBUST path (prompt-instructed JSON + markdown-fence
   stripping + brace-finding + Pydantic post-validation), NOT OpenAI ``json_schema``
   (not all routed providers support it). When a schema is set and the model is not
@@ -49,8 +49,10 @@ logger = logging.getLogger(__name__)
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 _PIPELINE_YAML = _PROJECT_ROOT / "config" / "pipeline.yaml"
 
-_DEFAULT_BASE_URL = "https://agentrouter.org/v1"
-_DEFAULT_API_KEY_ENV = "AGENTROUTER_API_KEY"
+# No vendor default — base_url must be set in pipeline.yaml::openai_compatible
+# (or passed explicitly) to enable the backend; empty ⇒ dormant / unavailable.
+_DEFAULT_BASE_URL = ""
+_DEFAULT_API_KEY_ENV = "OPENAI_COMPATIBLE_API_KEY"
 
 
 class OpenAICompatibleError(Exception):
@@ -94,11 +96,12 @@ class OpenAICompatibleClient:
     Parameters
     ----------
     base_url : str | None
-        Full OpenAI base incl. ``/v1`` (default ``https://agentrouter.org/v1`` or
-        ``pipeline.yaml::openai_compatible.base_url``).
+        Full OpenAI base incl. ``/v1`` (from
+        ``pipeline.yaml::openai_compatible.base_url``; no vendor default — empty
+        leaves the backend dormant, e.g. ``https://openrouter.ai/api/v1``).
     api_key : str | None
         Override the key; otherwise read from the env var named in
-        ``openai_compatible.api_key_env`` (default ``AGENTROUTER_API_KEY``).
+        ``openai_compatible.api_key_env`` (default ``OPENAI_COMPATIBLE_API_KEY``).
     use_json_object : bool | None
         Send ``response_format: json_object`` for schema'd non-reasoning calls
         (default True; ``openai_compatible.use_json_object`` overrides).
@@ -247,9 +250,10 @@ class OpenAICompatibleClient:
         self.loaded_models.clear()
 
     def is_available(self) -> bool:
-        """True iff an API key is configured (cheap — no network call). Actual
-        reachability surfaces at generate time."""
-        return bool(self.api_key)
+        """True iff the backend is pointed at a provider — both a ``base_url``
+        and an API key are configured (cheap — no network call). Either missing
+        ⇒ dormant. Actual reachability surfaces at generate time."""
+        return bool(self.api_key and self.base_url)
 
     def list_models(self) -> list[str]:
         """Return the model ids the gateway exposes (``GET {base_url}/models``)."""
@@ -282,10 +286,16 @@ class OpenAICompatibleClient:
         response_format: dict | None,
     ) -> str:
         """Send a chat-completion request and return the assistant text."""
+        if not self.base_url:
+            raise OpenAICompatibleConnectionError(
+                "No base_url — set pipeline.yaml::openai_compatible.base_url to a "
+                "provider endpoint (e.g. https://openrouter.ai/api/v1) to enable "
+                "the remote backend."
+            )
         if not self.api_key:
             raise OpenAICompatibleConnectionError(
                 f"No API key — set the {self.api_key_env} environment variable "
-                f"(get a token at the Agent Router console)."
+                f"(get a token from your API provider, e.g. OpenRouter / OpenAI)."
             )
         self.loaded_models.add(model)
         payload: dict = {

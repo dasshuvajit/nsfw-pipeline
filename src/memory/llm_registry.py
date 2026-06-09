@@ -60,9 +60,10 @@ class LLMNotFound(LLMRegistryError):
 BACKEND_OLLAMA = "ollama"
 BACKEND_LM_STUDIO = "lm_studio"
 BACKEND_MLX = "mlx"
-# Round-25 (2026-06): remote OpenAI-compatible API backend — Agent Router
-# (agentrouter.org) today, OpenAI / any /v1/chat/completions gateway tomorrow.
-# Identifier lives in ``openai_compatible_id``; auth + base_url come from
+# Remote OpenAI-compatible API backend — any /v1/chat/completions gateway
+# (OpenRouter, OpenAI, DeepSeek, GLM/Zhipu, Together, Groq, …); name describes
+# the wire protocol, not a vendor. Dormant until a provider base_url + key are
+# set. Identifier lives in ``openai_compatible_id``; auth + base_url come from
 # pipeline.yaml::openai_compatible. NOTE: the API frontier models are CENSORED
 # for explicit NSFW, so this backend is for non-explicit / experimentation only —
 # the local uncensored default stays the explicit-prompt engine.
@@ -116,8 +117,9 @@ class LLMRegistryEntry:
     # mlx_lm.server was started with). Required when backend=mlx,
     # ignored otherwise.
     mlx_model_id: str = ""
-    # Round-25 (2026-06): remote OpenAI-compatible model id (the `model` string
-    # sent to agentrouter.org / OpenAI). Required when backend=openai_compatible.
+    # Remote OpenAI-compatible model id (the `model` string sent to the gateway,
+    # e.g. "anthropic/claude-opus-4.1" on OpenRouter). Required when
+    # backend=openai_compatible.
     openai_compatible_id: str = ""
     # Round-18 (2026-05-22) — reasoning-model flag. Qwen 3.5+ thinking
     # models emit a ``<think>...</think>`` chain-of-thought block

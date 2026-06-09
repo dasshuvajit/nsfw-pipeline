@@ -542,7 +542,7 @@ class TestReasoningModelFlag:
 
 
 class TestOpenAICompatibleBackend:
-    """Round-25 — Agent Router / OpenAI-compatible API backend."""
+    """Remote OpenAI-compatible API backend (OpenRouter / OpenAI / DeepSeek / …)."""
 
     def test_model_tag_and_backend_resolution(self, tmp_path):
         yaml = _write(tmp_path / "api.yaml", """
@@ -553,7 +553,7 @@ class TestOpenAICompatibleBackend:
               api:
                 backend: openai_compatible
                 openai_compatible_id: "claude-opus-4-6"
-                display_name: "Agent Router Claude"
+                display_name: "Remote API model"
             default_llm: local
         """)
         loader = LLMRegistryLoader(yaml)
@@ -576,10 +576,13 @@ class TestOpenAICompatibleBackend:
         with pytest.raises(LLMRegistryError):
             LLMRegistryLoader(yaml)
 
-    def test_real_registry_default_unchanged_with_api_models(self):
-        """The shipped registry adds Agent Router entries but the default stays
-        local Gemma (the live path is untouched)."""
+    def test_real_registry_default_is_local_gemma(self):
+        """The shipped registry's default + fallback stay on the local backends
+        (no remote-API entry is shipped; the live local path is untouched)."""
         loader = LLMRegistryLoader()
         assert loader.default_llm_id == "gemma_4_26b_a4b_heretic"
-        api = loader.get_llm("agentrouter_claude_opus")
-        assert api.backend == "openai_compatible"
+        assert loader.fallback_llm_id == "cydonia_heretic_24b"
+        # The OpenAI-compatible backend is supported but DORMANT by default —
+        # no shipped entry uses it (it's opt-in via --llm once a provider is set).
+        backends = {e.backend for e in loader.list_llms(include_inactive=True)}
+        assert "openai_compatible" not in backends

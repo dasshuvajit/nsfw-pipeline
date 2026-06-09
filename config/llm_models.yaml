@@ -459,78 +459,27 @@ llms:
     families_recommended: ["all"]
     active: true
 
-  # ===========================================================================
-  # Agent Router (agentrouter.org) — remote OpenAI-compatible API backend.
-  # Round-25 (2026-06). Auth + base_url come from pipeline.yaml::openai_compatible
-  # (key in the AGENTROUTER_API_KEY env var). Reachable ONLY via --llm <id> /
-  # --model-tag — they are NOT the default, so the local Gemma path is untouched.
-  #
-  # ⚠️ CENSORED FOR EXPLICIT NSFW: Claude hard-refuses; DeepSeek/GLM public models
-  # are moderated. Use for NON-EXPLICIT creative work (concept / composition /
-  # SFW covers / metadata); the local uncensored default stays the explicit engine.
-  #
-  # ⚠️ CONFIRM the exact `openai_compatible_id` strings from the Agent Router
-  # console (Models page) or `GET /v1/models` — the values below are best-guess
-  # for the newer versions and will be corrected before the A/B run.
-  # ---------------------------------------------------------------------------
-  agentrouter_claude_opus:
-    backend: openai_compatible
-    openai_compatible_id: "claude-opus-4-6"      # CONFIRM exact id
-    display_name: "Agent Router — Claude Opus 4.6"
-    description: >-
-      Anthropic Claude Opus 4.6 via Agent Router. Best creative writer /
-      art-director (richest concept, composition, variety). HARD-REFUSES explicit
-      content — use for non-explicit concept/composition + SFW covers only.
-    context_tokens: 200000
-    refusal_rate: 9.5            # explicit NSFW → near-total refusal
-    strengths: ["frontier creativity", "composition", "art-direction", "variety"]
-    families_recommended: ["all"]
-    active: true
-
-  agentrouter_deepseek_v4_pro:
-    backend: openai_compatible
-    openai_compatible_id: "deepseek-v4-pro"      # CONFIRM exact id
-    display_name: "Agent Router — DeepSeek V4 Pro"
-    description: >-
-      DeepSeek V4 Pro via Agent Router. Strong + cheap; the public model is
-      SFT-moderated so it may refuse/soften explicit nudity. Good for concept /
-      non-explicit. If JSON returns empty (a <think> trace), set is_reasoning_model.
-    context_tokens: 131072
-    refusal_rate: 7.0
-    strengths: ["strong creativity", "cheap", "long context"]
-    families_recommended: ["all"]
-    active: true
-
-  agentrouter_deepseek_v4_flash:
-    backend: openai_compatible
-    openai_compatible_id: "deepseek-v4-flash"    # CONFIRM exact id
-    display_name: "Agent Router — DeepSeek V4 Flash"
-    description: >-
-      DeepSeek V4 Flash via Agent Router — fast, cheapest DeepSeek tier;
-      SFT-moderated. Good as a low-cost A/B baseline for non-explicit concept gen.
-    context_tokens: 131072
-    refusal_rate: 7.0
-    strengths: ["fast", "cheapest", "non-explicit concept"]
-    families_recommended: ["all"]
-    active: true
-
-  agentrouter_glm_51:
-    backend: openai_compatible
-    openai_compatible_id: "glm-5.1"              # CONFIRM exact id
-    display_name: "Agent Router — GLM 5.1 (Zhipu)"
-    description: >-
-      Zhipu GLM 5.1 via Agent Router. Capable + cheap, near-frontier; standard
-      moderation (may refuse explicit). Good for non-explicit concept / composition.
-    context_tokens: 200000
-    refusal_rate: 7.0
-    strengths: ["capable", "cheap", "long context"]
-    families_recommended: ["all"]
-    active: true
-
   # ---------------------------------------------------------------------------
   # To add another LLM: ollama pull <tag>, then add an entry below mirroring
   # the shape above. Set active: true to make it routable. Setting it as
   # default_llm makes it the project-wide default.
+  #
+  # To add a REMOTE API model (OpenRouter / OpenAI / DeepSeek / GLM-Zhipu / any
+  # OpenAI-compatible gateway): set backend + the exact remote id, and configure
+  # base_url + the api-key env var in pipeline.yaml::openai_compatible. Remote
+  # models are reachable only via --llm <id> / --model-tag, so the local default
+  # is untouched. ⚠️ Frontier API models are censored for explicit NSFW — use
+  # them for non-explicit concept / composition / SFW covers / metadata only.
+  # Copy-paste template (uncomment + set the id, then add the matching
+  # pipeline.yaml block + export the key):
+  #
+  #   openrouter_example:
+  #     backend: openai_compatible
+  #     openai_compatible_id: "anthropic/claude-opus-4.1"   # exact gateway id
+  #     display_name: "OpenRouter — example"
+  #     context_tokens: 200000
+  #     families_recommended: ["all"]
+  #     active: true
   # ---------------------------------------------------------------------------
 
 # Default LLM used when --llm flag is omitted on the CLI and no per-role

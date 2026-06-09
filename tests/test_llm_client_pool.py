@@ -40,11 +40,11 @@ def _write_registry(tmp_path: Path) -> Path:
           api_one:
             backend: openai_compatible
             openai_compatible_id: "tag_api"
-            display_name: "Agent Router"
+            display_name: "Remote API"
           api_reasoning:
             backend: openai_compatible
             openai_compatible_id: "tag_api_r"
-            display_name: "Agent Router (reasoning)"
+            display_name: "Remote API (reasoning)"
             is_reasoning_model: true
         default_llm: ollama_one
     """))
@@ -180,8 +180,8 @@ def test_is_available_true_when_only_mlx_reachable(pool):
 
 
 def test_is_available_true_when_only_api_key_set(pool):
-    """Round-25 — the OpenAI-compatible (Agent Router) backend counts: a
-    configured API key makes the pool available even with all local backends off."""
+    """The OpenAI-compatible (remote API) backend counts: a configured API
+    key makes the pool available even with all local backends off."""
     pool.ollama.is_available.return_value = False
     pool.lm_studio.is_available.return_value = False
     pool.mlx.is_available.return_value = False

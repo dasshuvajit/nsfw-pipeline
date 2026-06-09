@@ -212,17 +212,25 @@ lm_studio:
   # ~/.lmstudio/bin/lms; edit if your install differs.
   lms_binary: "~/.lmstudio/bin/lms"
 
-# Remote OpenAI-compatible API backend (Agent Router today; OpenAI / any
-# /v1/chat/completions gateway by changing base_url + the key env var).
-# Round-25 (2026-06). The API key is read from the env var named below and is
-# NEVER stored here — set it in your shell profile / a gitignored .env:
-#   export AGENTROUTER_API_KEY="sk-..."
-# NOTE: the routed frontier models are CENSORED for explicit NSFW — this backend
-# is for non-explicit / experimentation; the local default stays the explicit
-# engine. Reachable only via --llm <id> / --model-tag (default_llm is unchanged).
+# Remote OpenAI-compatible API backend — any /v1/chat/completions gateway
+# (OpenRouter, OpenAI, DeepSeek, GLM/Zhipu, Together, Groq, ...). DORMANT by
+# default: base_url is empty, so the backend is unavailable until you point it
+# at a provider. To enable, set base_url + the api-key env var below and add a
+# `backend: openai_compatible` entry in llm_models.yaml. The API key is read
+# from the env var named below and is NEVER stored here — set it in your shell
+# profile / a gitignored .env, e.g.:
+#   export OPENAI_COMPATIBLE_API_KEY="sk-..."
+# Example base_urls (full OpenAI base, incl. /v1):
+#   OpenRouter → https://openrouter.ai/api/v1
+#   OpenAI     → https://api.openai.com/v1
+#   DeepSeek   → https://api.deepseek.com/v1
+#   GLM/Zhipu  → https://open.bigmodel.cn/api/paas/v4
+# NOTE: frontier API models are CENSORED for explicit NSFW — this backend is for
+# non-explicit / experimentation; the local default stays the explicit engine.
+# Reachable only via --llm <id> / --model-tag (default_llm is unchanged).
 openai_compatible:
-  base_url: "https://agentrouter.org/v1"   # full OpenAI base incl. /v1
-  api_key_env: "AGENTROUTER_API_KEY"        # env var holding the sk-... token
+  base_url: ""                              # set a provider base_url to enable
+  api_key_env: "OPENAI_COMPATIBLE_API_KEY"  # env var holding the API token
   request_timeout_seconds: 600
   # Send response_format:{"type":"json_object"} for schema'd non-reasoning calls
   # (a light JSON nudge; widely supported). Reasoning models skip it automatically.
