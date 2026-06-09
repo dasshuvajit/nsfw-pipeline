@@ -610,6 +610,25 @@ def test_t4_directive_and_reveal_data_are_artistic():
         assert st in {"close_up", "bust", "medium", "full_body", "wide_environmental"}
 
 
+def test_mirror_dangling_ignores_normal_prose():
+    """The MIRROR_DANGLING audit check must NOT flag normal LLM prose — `before
+    her,` / `in a hand,` / `before,` are legitimate ("the stones before her,",
+    "a goblet in a hand,", "moments before,"); only ungrammatical mirror-strip
+    leftovers trip it."""
+    from scripts.audit_prompts import detect_mirror_dangling, score_prompt
+    assert detect_mirror_dangling("her hands rest on the mossy stones before her, fingers clean") == []
+    assert detect_mirror_dangling("a silver goblet in a hand, raised to the candlelight") == []
+    assert detect_mirror_dangling("moments before, the room was dark and still") == []
+    # genuinely ungrammatical mirror-strip artifacts are still caught
+    assert detect_mirror_dangling("she holds the at arm's length, gazing") != []
+    # end-to-end: a clean prompt with "before her," is no longer docked
+    clean = ("Dappled light falls across a woman kneeling on the mossy bank, her "
+             "hands resting on the smooth stones before her, her gaze serene and "
+             "untamed, shot on 35mm film with a warm dreamy bokeh. ") * 2
+    score, issues = score_prompt(clean, "T3_artnude")
+    assert not any("MIRROR_DANGLING" in i for i in issues)
+
+
 def test_promptout_framing_validators_tolerant():
     P = "A warm shaft of light falls across a woman in a quiet room. " * 8
     # synonyms coerce, junk falls back, omission defaults

@@ -87,13 +87,17 @@ _PROPS_FOR_BIGRAM_LOCK = (
 )
 
 
+# Ungrammatical leftovers from the OLD vocab-canonicalizer's mirror-strip (since
+# fixed by vocab v7 dropping the mirror entries). Only patterns that CANNOT occur
+# in valid prose are kept. The normal-prose ones — `before her,`, `before,`,
+# `in a hand,` — were removed: LLM-direct prompts use them legitimately ("the
+# stones before her,", "a goblet in a hand,", "moments before,") and they
+# false-flagged clean prompts (−2.0). Genuine mirrors are still caught by the
+# `_PromptOut` 'mirror' reject + detect_mirror_prose.
 _MIRROR_DANGLING_PATTERNS = (
-    r"\bbefore her,",
-    r"\bbefore,",
-    r"\bat in,",
-    r"\bin a hand,",
-    r"\bholds the at\b",
-    r"\bgilded,\s+her\s+bare\s+body\s+reflected",
+    r"\bat in,",                                     # "looks at [mirror] in," → "at in,"
+    r"\bholds the at\b",                             # "holds the [mirror] at" → "holds the at"
+    r"\bgilded,\s+her\s+bare\s+body\s+reflected",    # a real mirror-reflection phrase
 )
 
 
