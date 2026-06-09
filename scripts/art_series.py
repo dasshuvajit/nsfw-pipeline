@@ -201,14 +201,15 @@ LLM_LOAD_CONTEXT = 32768     # the registry-native context we (re)load at
 def _ensure_llm_loaded(model_tag: str) -> None:
     """Make an LM Studio model resident at a LARGE-enough context BEFORE gen — LM
     Studio JIT-loads at its app default (often 4096), which truncates this
-    pipeline's ~5K-token prompts (T4 especially) into an HTTP 400. Ollama tags are
-    skipped (their context is set per-request via num_ctx). Best-effort + graceful."""
+    pipeline's ~5K-token prompts (T4 especially) into an HTTP 400. Non-LM-Studio
+    tags (Ollama / MLX / remote OpenAI-compatible API) are skipped — only LM Studio
+    needs this preload. Best-effort + graceful."""
     try:
         from src.memory.llm_registry import LLMRegistryLoader, BACKEND_LM_STUDIO
         if LLMRegistryLoader().backend_for_tag(model_tag) != BACKEND_LM_STUDIO:
             return
     except Exception:  # noqa: BLE001 — registry unavailable → fall back to a tag heuristic
-        if "/" in model_tag or ":" in model_tag:   # looks like an ollama_id
+        if "/" in model_tag or ":" in model_tag:   # slash/colon → ollama_id or remote 'vendor/model', not LM Studio
             return
     lms = shutil.which("lms") or os.path.expanduser("~/.lmstudio/bin/lms")
     if not os.path.exists(lms):

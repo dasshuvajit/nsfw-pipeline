@@ -224,10 +224,10 @@ class OllamaClient:
         ONE second-chance retry against the fallback Ollama tag. The
         most common cause for the primary failing is a refusal-shaped
         output that even constrained-decoding + prefill couldn't
-        prevent; switching to a lower-refusal-floor LLM (Venice in the
-        recommended config) recovers most of those cases. ``None``
-        skips the fallback path entirely (legacy single-model
-        behaviour). Caller resolves the tag via
+        prevent; switching to the configured ``fallback_llm`` (a
+        different-lineage, lower-refusal-floor LLM) recovers most of
+        those cases. ``None`` skips the fallback path entirely (legacy
+        single-model behaviour). Caller resolves the tag via
         ``router.fallback()`` / ``router.resolve_fallback().ollama_id``.
 
         The returned value is always a plain ``dict`` / ``list`` —

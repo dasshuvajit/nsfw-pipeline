@@ -1,13 +1,16 @@
 # =============================================================================
-# LLM Registry — declared installed Ollama models the pipeline can use
+# LLM Registry — declared local + remote LLMs the pipeline can use
 # =============================================================================
 # Each entry maps a stable registry id (used by --llm flag, routing config in
-# pipeline.yaml, and prompts.llm_id / scene_facets.llm_id in the DB) to the
-# Ollama tag installed on this machine.
+# pipeline.yaml, and prompts.llm_id / scene_facets.llm_id in the DB) to a
+# backend-specific tag: ollama_id (Ollama) / lm_studio_id (LM Studio) /
+# mlx_model_id (MLX) / openai_compatible_id (remote OpenAI-compatible API).
+# `backend:` selects which (default: ollama).
 #
 # To add a new LLM:
-#   1. ollama pull <ollama_tag>
-#   2. add an entry below with a unique registry id
+#   1. install/register it for its backend (e.g. `ollama pull <tag>` for Ollama;
+#      for a remote API set base_url + key in pipeline.yaml::openai_compatible)
+#   2. add an entry below with a unique registry id + the backend-specific tag
 #   3. (optional) set as default by editing default_llm at the bottom
 #
 # Validation: at startup the loader rejects:

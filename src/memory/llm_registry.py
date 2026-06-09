@@ -347,7 +347,8 @@ class LLMRegistryLoader:
             lines.append(f"  - {entry.id:<24} ({status}){tag}")
         lines.append("")
         lines.append("To install a new LLM:")
-        lines.append("  1. ollama pull <ollama_tag>")
+        lines.append("  1. install/register it for its backend "
+                     "(e.g. `ollama pull <tag>` for Ollama)")
         lines.append("  2. add an entry to config/llm_models.yaml")
         lines.append("  3. re-run with --llm <id>")
         return "\n".join(lines)
