@@ -191,6 +191,47 @@ def _load_niche_history(niche_id: str,
     return banned, avoid, prior_count
 
 
+# This pipeline's prompts run ~5K tokens (the T4 explicit system+reveal prompt is
+# the largest); LM Studio's JIT default context (often 4096) is too small and
+# returns HTTP 400. Ensure the model is resident at a large context before gen.
+LLM_MIN_CONTEXT = 8192       # reload if the loaded context is smaller than this
+LLM_LOAD_CONTEXT = 32768     # the registry-native context we (re)load at
+
+
+def _ensure_llm_loaded(model_tag: str) -> None:
+    """Make an LM Studio model resident at a LARGE-enough context BEFORE gen — LM
+    Studio JIT-loads at its app default (often 4096), which truncates this
+    pipeline's ~5K-token prompts (T4 especially) into an HTTP 400. Ollama tags are
+    skipped (their context is set per-request via num_ctx). Best-effort + graceful."""
+    try:
+        from src.memory.llm_registry import LLMRegistryLoader, BACKEND_LM_STUDIO
+        if LLMRegistryLoader().backend_for_tag(model_tag) != BACKEND_LM_STUDIO:
+            return
+    except Exception:  # noqa: BLE001 — registry unavailable → fall back to a tag heuristic
+        if "/" in model_tag or ":" in model_tag:   # looks like an ollama_id
+            return
+    lms = shutil.which("lms") or os.path.expanduser("~/.lmstudio/bin/lms")
+    if not os.path.exists(lms):
+        return
+    try:  # already resident with enough context? (CONTEXT column in `lms ps`)
+        ps = subprocess.run([lms, "ps"], timeout=20, capture_output=True, text=True).stdout
+        for line in ps.splitlines():
+            if model_tag in line:
+                if any(int(t) >= LLM_MIN_CONTEXT for t in line.split() if t.isdigit()):
+                    return
+                break
+    except Exception:  # noqa: BLE001
+        pass
+    try:  # (re)load at the large context
+        subprocess.run([lms, "unload", "--all"], timeout=30, capture_output=True)
+        subprocess.run([lms, "load", model_tag, "--context-length", str(LLM_LOAD_CONTEXT), "-y"],
+                       timeout=300, capture_output=True)
+        print(f"  (ensured {model_tag} resident at {LLM_LOAD_CONTEXT} context)", flush=True)
+    except Exception as exc:  # noqa: BLE001
+        print(f"  (could not ensure LLM context — load it manually at "
+              f"{LLM_LOAD_CONTEXT}: {exc})", file=sys.stderr, flush=True)
+
+
 def _unload_llm(model_tag: str) -> None:
     """Free the LLM before the render phase (never co-resident with ComfyUI).
     Belt-and-braces across backends: (1) the pool's unload_all(), (2) a DIRECT
@@ -959,6 +1000,7 @@ def main() -> int:
     print(f"\n=== Phase 1 (LLM): {args.count} prompts"
           f"{f' + {n_covers} SFW covers' if n_covers else ''} + metadata via "
           f"{args.model_tag} ===", flush=True)
+    _ensure_llm_loaded(args.model_tag)   # large context — JIT default 4096 truncates T4 prompts
     # Cross-series variety: seed the anti-repetition lists with prior same-niche
     # prompts + offset the per-run rotations, so re-running a niche yields a
     # DISTINCT series instead of reproducing it.
