@@ -212,6 +212,22 @@ lm_studio:
   # ~/.lmstudio/bin/lms; edit if your install differs.
   lms_binary: "~/.lmstudio/bin/lms"
 
+# Remote OpenAI-compatible API backend (Agent Router today; OpenAI / any
+# /v1/chat/completions gateway by changing base_url + the key env var).
+# Round-25 (2026-06). The API key is read from the env var named below and is
+# NEVER stored here — set it in your shell profile / a gitignored .env:
+#   export AGENTROUTER_API_KEY="sk-..."
+# NOTE: the routed frontier models are CENSORED for explicit NSFW — this backend
+# is for non-explicit / experimentation; the local default stays the explicit
+# engine. Reachable only via --llm <id> / --model-tag (default_llm is unchanged).
+openai_compatible:
+  base_url: "https://agentrouter.org/v1"   # full OpenAI base incl. /v1
+  api_key_env: "AGENTROUTER_API_KEY"        # env var holding the sk-... token
+  request_timeout_seconds: 600
+  # Send response_format:{"type":"json_object"} for schema'd non-reasoning calls
+  # (a light JSON nudge; widely supported). Reasoning models skip it automatically.
+  use_json_object: true
+
 comfyui:
   base_url: "http://127.0.0.1:8188"
   # Where ComfyUI writes its rendered images on disk. Used by ComfyUIClient

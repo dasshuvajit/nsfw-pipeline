@@ -589,6 +589,7 @@ class LLMClientPool:
         ollama_client: "OllamaClient | None" = None,
         lm_studio_client: "object | None" = None,
         mlx_client: "object | None" = None,
+        openai_compatible_client: "object | None" = None,
         registry: "object | None" = None,
     ) -> None:
         # Lazy-import to avoid a circular dependency: LLMRegistryLoader
@@ -603,9 +604,13 @@ class LLMClientPool:
         if mlx_client is None:
             from src.agents.mlx_client import MlxClient
             mlx_client = MlxClient()
+        if openai_compatible_client is None:
+            from src.agents.openai_client import OpenAICompatibleClient
+            openai_compatible_client = OpenAICompatibleClient()
         self._ollama = ollama_client or OllamaClient()
         self._lm_studio = lm_studio_client
         self._mlx = mlx_client
+        self._openai_compatible = openai_compatible_client
         self._registry = registry
 
     # ------------------------------------------------------------------
@@ -614,12 +619,16 @@ class LLMClientPool:
 
     def _client_for(self, model: str):
         """Resolve a backend client for ``model`` (registry lookup)."""
-        from src.memory.llm_registry import BACKEND_LM_STUDIO, BACKEND_MLX
+        from src.memory.llm_registry import (
+            BACKEND_LM_STUDIO, BACKEND_MLX, BACKEND_OPENAI_COMPATIBLE,
+        )
         backend = self._registry.backend_for_tag(model)
         if backend == BACKEND_LM_STUDIO:
             return self._lm_studio
         if backend == BACKEND_MLX:
             return self._mlx
+        if backend == BACKEND_OPENAI_COMPATIBLE:
+            return self._openai_compatible
         return self._ollama
 
     # ------------------------------------------------------------------
@@ -640,8 +649,12 @@ class LLMClientPool:
             hasattr(client, "_chat")
             and "skip_grammar_constraint" not in kwargs
         ):
+            # LM Studio (json_schema grammar) AND the OpenAI-compatible backend
+            # (json_object nudge) both fight a model's <think> trace — skip the
+            # constraint for reasoning models on either; Pydantic still validates.
             from src.agents.lm_studio_client import LMStudioClient
-            if isinstance(client, LMStudioClient):
+            from src.agents.openai_client import OpenAICompatibleClient
+            if isinstance(client, (LMStudioClient, OpenAICompatibleClient)):
                 kwargs["skip_grammar_constraint"] = (
                     self._registry.is_reasoning_model(model)
                 )
@@ -663,6 +676,7 @@ class LLMClientPool:
         self._ollama.unload_all()
         self._lm_studio.unload_all()
         self._mlx.unload_all()
+        self._openai_compatible.unload_all()   # no-op (remote API)
 
     def is_available(self) -> bool:
         """True iff at least one sub-backend is reachable.
@@ -674,6 +688,7 @@ class LLMClientPool:
             self._ollama.is_available()
             or self._lm_studio.is_available()
             or self._mlx.is_available()
+            or self._openai_compatible.is_available()
         )
 
     # ------------------------------------------------------------------
@@ -691,3 +706,7 @@ class LLMClientPool:
     @property
     def mlx(self):
         return self._mlx
+
+    @property
+    def openai_compatible(self):
+        return self._openai_compatible

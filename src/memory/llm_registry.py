@@ -60,8 +60,15 @@ class LLMNotFound(LLMRegistryError):
 BACKEND_OLLAMA = "ollama"
 BACKEND_LM_STUDIO = "lm_studio"
 BACKEND_MLX = "mlx"
+# Round-25 (2026-06): remote OpenAI-compatible API backend — Agent Router
+# (agentrouter.org) today, OpenAI / any /v1/chat/completions gateway tomorrow.
+# Identifier lives in ``openai_compatible_id``; auth + base_url come from
+# pipeline.yaml::openai_compatible. NOTE: the API frontier models are CENSORED
+# for explicit NSFW, so this backend is for non-explicit / experimentation only —
+# the local uncensored default stays the explicit-prompt engine.
+BACKEND_OPENAI_COMPATIBLE = "openai_compatible"
 _KNOWN_BACKENDS: frozenset[str] = frozenset(
-    {BACKEND_OLLAMA, BACKEND_LM_STUDIO, BACKEND_MLX}
+    {BACKEND_OLLAMA, BACKEND_LM_STUDIO, BACKEND_MLX, BACKEND_OPENAI_COMPATIBLE}
 )
 
 
@@ -109,6 +116,9 @@ class LLMRegistryEntry:
     # mlx_lm.server was started with). Required when backend=mlx,
     # ignored otherwise.
     mlx_model_id: str = ""
+    # Round-25 (2026-06): remote OpenAI-compatible model id (the `model` string
+    # sent to agentrouter.org / OpenAI). Required when backend=openai_compatible.
+    openai_compatible_id: str = ""
     # Round-18 (2026-05-22) — reasoning-model flag. Qwen 3.5+ thinking
     # models emit a ``<think>...</think>`` chain-of-thought block
     # before the answer, which is incompatible with LM Studio's
@@ -138,6 +148,8 @@ class LLMRegistryEntry:
             return self.lm_studio_id
         if self.backend == BACKEND_MLX:
             return self.mlx_model_id
+        if self.backend == BACKEND_OPENAI_COMPATIBLE:
+            return self.openai_compatible_id
         return self.ollama_id
 
     @classmethod
@@ -153,6 +165,8 @@ class LLMRegistryEntry:
             required = {"ollama_id", "display_name"}
         elif backend == BACKEND_LM_STUDIO:
             required = {"lm_studio_id", "display_name"}
+        elif backend == BACKEND_OPENAI_COMPATIBLE:
+            required = {"openai_compatible_id", "display_name"}
         else:  # BACKEND_MLX
             required = {"mlx_model_id", "display_name"}
         missing = required - d.keys()
@@ -166,6 +180,7 @@ class LLMRegistryEntry:
             ollama_id=str(d.get("ollama_id") or ""),
             lm_studio_id=str(d.get("lm_studio_id") or ""),
             mlx_model_id=str(d.get("mlx_model_id") or ""),
+            openai_compatible_id=str(d.get("openai_compatible_id") or ""),
             backend=backend,
             display_name=str(d["display_name"]),
             description=str(d.get("description") or ""),

@@ -539,3 +539,47 @@ class TestReasoningModelFlag:
         assert loader.is_reasoning_model("y") is True
         # Unknown tag → False (defensive default)
         assert loader.is_reasoning_model("unknown") is False
+
+
+class TestOpenAICompatibleBackend:
+    """Round-25 — Agent Router / OpenAI-compatible API backend."""
+
+    def test_model_tag_and_backend_resolution(self, tmp_path):
+        yaml = _write(tmp_path / "api.yaml", """
+            llms:
+              local:
+                ollama_id: "tag_local"
+                display_name: "Local"
+              api:
+                backend: openai_compatible
+                openai_compatible_id: "claude-opus-4-6"
+                display_name: "Agent Router Claude"
+            default_llm: local
+        """)
+        loader = LLMRegistryLoader(yaml)
+        entry = loader.get_llm("api")
+        assert entry.backend == "openai_compatible"
+        assert entry.model_tag == "claude-opus-4-6"          # not the (empty) ollama_id
+        assert loader.backend_for_tag("claude-opus-4-6") == "openai_compatible"
+
+    def test_missing_openai_id_rejected(self, tmp_path):
+        yaml = _write(tmp_path / "bad.yaml", """
+            llms:
+              local:
+                ollama_id: "x"
+                display_name: "Local"
+              api:
+                backend: openai_compatible
+                display_name: "Missing id"
+            default_llm: local
+        """)
+        with pytest.raises(LLMRegistryError):
+            LLMRegistryLoader(yaml)
+
+    def test_real_registry_default_unchanged_with_api_models(self):
+        """The shipped registry adds Agent Router entries but the default stays
+        local Gemma (the live path is untouched)."""
+        loader = LLMRegistryLoader()
+        assert loader.default_llm_id == "gemma_4_26b_a4b_heretic"
+        api = loader.get_llm("agentrouter_claude_opus")
+        assert api.backend == "openai_compatible"

@@ -37,6 +37,15 @@ def _write_registry(tmp_path: Path) -> Path:
             backend: mlx
             mlx_model_id: "tag_mlx"
             display_name: "MLX"
+          api_one:
+            backend: openai_compatible
+            openai_compatible_id: "tag_api"
+            display_name: "Agent Router"
+          api_reasoning:
+            backend: openai_compatible
+            openai_compatible_id: "tag_api_r"
+            display_name: "Agent Router (reasoning)"
+            is_reasoning_model: true
         default_llm: ollama_one
     """))
     return yaml
@@ -46,11 +55,14 @@ def _write_registry(tmp_path: Path) -> Path:
 def pool(tmp_path):
     """Pool wired with mock sub-clients + a tiny test registry."""
     from src.memory.llm_registry import LLMRegistryLoader
+    from src.agents.openai_client import OpenAICompatibleClient
     registry = LLMRegistryLoader(_write_registry(tmp_path))
     return LLMClientPool(
         ollama_client=MagicMock(name="OllamaClient"),
         lm_studio_client=MagicMock(name="LMStudioClient"),
         mlx_client=MagicMock(name="MlxClient"),
+        # spec'd so isinstance() in the pool's reasoning-model handling engages
+        openai_compatible_client=MagicMock(spec=OpenAICompatibleClient),
         registry=registry,
     )
 
@@ -76,6 +88,27 @@ def test_generate_json_dispatches_lm_studio_tag_to_lm_studio_client(pool):
     assert out == {"ok": True}
     pool.lm_studio.generate_json.assert_called_once()
     pool.ollama.generate_json.assert_not_called()
+
+
+def test_generate_json_dispatches_api_tag_to_openai_client(pool):
+    pool.openai_compatible.generate_json.return_value = {"ok": True}
+    out = pool.generate_json("system", "user", model="tag_api", schema=None)
+    assert out == {"ok": True}
+    pool.openai_compatible.generate_json.assert_called_once()
+    pool.ollama.generate_json.assert_not_called()
+    pool.lm_studio.generate_json.assert_not_called()
+
+
+def test_api_reasoning_model_gets_skip_grammar(pool):
+    """A reasoning API model (is_reasoning_model: true) is told to skip the
+    json_object grammar nudge so it can't fight a <think> trace; a normal API
+    model is not."""
+    pool.openai_compatible.generate_json.return_value = {"ok": True}
+    pool.generate_json("s", "u", model="tag_api_r", schema=None)
+    assert pool.openai_compatible.generate_json.call_args.kwargs["skip_grammar_constraint"] is True
+    pool.openai_compatible.generate_json.reset_mock()
+    pool.generate_json("s", "u", model="tag_api", schema=None)
+    assert pool.openai_compatible.generate_json.call_args.kwargs["skip_grammar_constraint"] is False
 
 
 def test_generate_forwards_kwargs(pool):
@@ -146,10 +179,21 @@ def test_is_available_true_when_only_mlx_reachable(pool):
     assert pool.is_available() is True
 
 
+def test_is_available_true_when_only_api_key_set(pool):
+    """Round-25 — the OpenAI-compatible (Agent Router) backend counts: a
+    configured API key makes the pool available even with all local backends off."""
+    pool.ollama.is_available.return_value = False
+    pool.lm_studio.is_available.return_value = False
+    pool.mlx.is_available.return_value = False
+    pool.openai_compatible.is_available.return_value = True
+    assert pool.is_available() is True
+
+
 def test_is_available_false_when_all_offline(pool):
     pool.ollama.is_available.return_value = False
     pool.lm_studio.is_available.return_value = False
     pool.mlx.is_available.return_value = False
+    pool.openai_compatible.is_available.return_value = False
     assert pool.is_available() is False
 
 
