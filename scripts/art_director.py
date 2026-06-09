@@ -156,8 +156,12 @@ TIER_DIRECTIVES = {
         "partial reveal over a centred splay. Render the anatomy TRUE-TO-LIFE and "
         "NATURAL: soft, individual, gently asymmetric labia, real lived-in skin in "
         "the crease, grooming as assigned — never airbrushed, plastic, waxy or "
-        "symmetric-idealised. NEVER legs-splayed-flat-to-camera with the vulva "
-        "dead-centred under even light. Confident and sensual, never crude."
+        "symmetric-idealised. The vulva is BARE and clearly VISIBLE and naturally "
+        "lit in the frame — fabric is set dressing (never covering the sex), and "
+        "the pose keeps it SHOWN, not lost to deep shadow, drapery or crossed "
+        "legs: revealed artistically and off-centre, but unmistakably visible. "
+        "NEVER legs-splayed-flat-to-camera with the vulva dead-centred under even "
+        "light, and NEVER fully concealed either. Confident and sensual, never crude."
     ),
 }
 
@@ -514,8 +518,9 @@ FRAMING_TARGETS: tuple[tuple[str, str], ...] = (
 REVEAL_STYLES: tuple[tuple[str, str], ...] = (
     ("from-behind arch", "From behind and slightly above — she kneels forward or "
      "lies in a low arch on a bed/chaise/bank, the long curve of spine-to-hip "
-     "leading the eye, the sex revealed softly between her thighs from the rear; "
-     "the lit back and the curve of buttock and thigh are the heroes."),
+     "leading the eye, the bare sex clearly visible and softly LIT between her "
+     "parted thighs from the rear (not lost to shadow); the lit back and the curve "
+     "of buttock and thigh frame it."),
     ("three-quarter open", "Turned three-quarters to camera, reclining or seated "
      "on a solid surface with the upper knee drifting open along a diagonal, the "
      "sex read at an oblique angle in the warm cradle of her thighs — half in key, "
@@ -543,13 +548,14 @@ REVEAL_STYLES: tuple[tuple[str, str], ...] = (
     ("full-figure incidental", "The WHOLE figure reclining or standing in a rich "
      "environment, the sex naturally visible as ONE element of a complete picture "
      "rather than the focal point — the eye travels the entire body and the room."),
-    ("veiled glimpse", "A deliberate PARTIAL reveal — a draped sheet, a fall of "
-     "shadow, her own thigh or a relaxed hand half-veils the sex, exposing a "
-     "charged sliver rather than everything; the suggestion more electric than "
-     "full exposure, a play of light and concealment."),
-    ("hand-framed", "One relaxed hand rests low at her inner thigh or soft belly, "
-     "FRAMING rather than hiding, fingers soft and clearly resolved — an intimate, "
-     "self-possessed gesture that draws the eye without any crude spreading."),
+    ("sheer-framed", "A length of sheer, translucent fabric falls BESIDE or just "
+     "across one thigh — framing, not covering — so the bare sex stays clearly "
+     "visible and lit through/beside the gauze; the sheer plays against her skin "
+     "as texture and light, the anatomy shown, never concealed."),
+    ("hand-framed", "One relaxed hand rests low on her inner thigh or soft belly, "
+     "FRAMING rather than hiding — the bare sex clearly visible and lit beside her "
+     "soft, clearly-resolved fingers; an intimate, self-possessed gesture that "
+     "draws the eye without any crude spreading or covering."),
     ("post-bath dewy", "Fresh from a bath or the water's edge — wet luminous skin, "
      "a towel pooled beneath her on a tub rim, tiled floor or stone bank, reclining "
      "with one knee raised, water beading along the thigh, the sex visible in a "
@@ -761,10 +767,12 @@ def generate_one(
         reveal_variety = (
             f"\n\nEXPLICIT REVEAL STYLE for THIS image — HOW the bare anatomy is "
             f"revealed/framed (NOT a centred frontal splay): {label} — {directive}"
-            f"{groom} The sex is present and visible but woven into a gorgeous pose, "
-            f"light and mood; revealed via THIS angle/distance/degree, off-centre, "
-            f"modelled by the same key light as her body — explicit but fine-art, "
-            f"never clinical or gynecological. Reconcile with the ASSIGNED FRAMING "
+            f"{groom} The bare sex stays clearly VISIBLE and naturally lit in this "
+            f"frame — woven into a gorgeous pose, light and mood and revealed via "
+            f"THIS angle/distance/degree, off-centre, modelled by the same key light "
+            f"as her body, but SHOWN (not lost to deep shadow, not covered by fabric, "
+            f"not hidden by crossed legs) — explicit but fine-art, never clinical or "
+            f"gynecological. Reconcile with the ASSIGNED FRAMING "
             f"above (the reveal sets pose/angle, the framing sets aspect+crop); if "
             f"they truly conflict, favour the reveal and note it in framing_rationale."
         )
