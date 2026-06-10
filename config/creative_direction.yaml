@@ -8,30 +8,24 @@
 # image so a series is never clones.
 version: 1
 
-# She DOMINATES the frame — fixes the "subject too far away / empty picture".
-subject_focus: >-
-  She DOMINATES the frame — large, close and commanding, filling the
-  composition. She is unmistakably the subject. NEVER a small, distant figure
-  lost in an empty room or landscape; even a wider shot keeps her the large,
-  clear focal point.
+# (2026-06-10 dedup: the former `subject_focus` and `realism` keys were
+# REMOVED — they duplicated the SUBJECT FOCUS and LOOK sections of the
+# art_director system prompt verbatim, and the LLM received both copies on
+# every call. The system prompt is the single canonical home for invariant
+# craft rules; this file keeps only the genuinely TUNABLE knobs below.)
 
 # UNAMBIGUOUSLY ADULT. "young" here means young ADULT only — the age-safety
 # layers (adult anchors + banned-token guards) are NEVER relaxed by this file.
+# The age_look pool below varies her within this band per image (mid-20s →
+# early 30s) so the catalog doesn't collapse to one same-age face.
 age_band: >-
-  a young adult woman in her early-to-mid twenties, unmistakably an adult with
-  fully mature adult features and figure
+  a young adult woman in her twenties or early thirties, unmistakably an adult
+  with fully mature adult features and figure
 
 # How she reads — striking, sexy, desirable (glamour / sensual appeal).
 appeal: >-
   strikingly beautiful and sexy, with a magnetic, alluring presence and an
   attractive, desirable adult figure
-
-# Crystal-clear photoreal glamour, but with TRUE natural skin (sharp != airbrushed).
-realism: >-
-  a crystal-clear, razor-sharp, high-end glamour photograph — photoreal,
-  luminous and high-detail, tack-sharp focus, rich tonality, with true,
-  natural, unretouched skin and real anatomy (honest texture, fine grain,
-  natural variation) — never airbrushed, plastic, waxy or idealised
 
 # Overt at T3/T4: sexy, sensual, explicit where the tier allows, attractive
 # anatomy, confident — never coy or shy.
@@ -41,21 +35,53 @@ content_lean: >-
   never coy or demure
 
 # WIDE look variety — sampled per image so the series isn't clones. Every entry
-# is a young-adult, attractive look; hair + figure vary widely.
+# is a young-adult, attractive look. 2026-06 audit overhaul: the old 8-hair/
+# 6-figure pools were all long-hair colorways with one busty entry and NO
+# face/skin axes — measured output: 0 freckles, 0 eye colors, 0 non-Caucasian
+# skin markers in 114 prompts, "full bust" in 10%. Pools now span hair
+# texture/length/style, figure (3 natural-busty entries per the stated
+# representation goal), face features, complexion and age-look.
+# Pool LENGTHS are deliberately coprime with the per-pool strides in
+# art_director._creative_look (hair 10 / figure 7 / face 8 / complexion 6 /
+# age_look 4) so rotations never lock to each other or to the 8 framing targets.
 look_pools:
-  hair:
+  hair:                                   # 10 entries, ≤3 blonde-family
     - long blonde waves
-    - sleek platinum-blonde
-    - warm honey-blonde
-    - rich chocolate-brunette
-    - glossy raven-black
-    - fiery auburn-red
-    - chestnut balayage
-    - sun-kissed caramel
-  figure:
-    - slender with an attractive full bust
-    - a curvy hourglass figure
+    - sleek platinum-blonde cut in a sharp jaw-length bob
+    - warm honey-blonde with a loose braid over one shoulder
+    - rich chocolate-brunette, thick and straight to her waist
+    - glossy raven-black in a soft updo with loose strands escaping
+    - fiery auburn-red in tight natural curls
+    - chestnut balayage in tousled shoulder-length layers
+    - deep espresso-brown in heavy old-Hollywood waves
+    - jet-black, poker-straight with blunt bangs
+    - dark copper-brown in a thick fishtail braid coming loose
+  figure:                                 # 7 entries, 3 natural-busty
+    - slender with an attractive full natural bust
+    - soft natural curves with a heavy, full natural bust
+    - a curvy hourglass figure with a generous natural bust and wide hips
     - athletic and toned
     - soft, feminine curves
     - long-legged and lithe
     - petite and shapely
+  face:                                   # 8 entries — eyes + features
+    - clear green eyes and a dusting of freckles across her nose and cheeks
+    - dark almond eyes and a small beauty mark above her lip
+    - grey-blue eyes, high Slavic cheekbones and full lips
+    - warm brown doe eyes and softly rounded cheeks with a dimple
+    - hazel eyes, strong dark brows and an angular jaw
+    - deep brown eyes and a fine gold stud in one nostril
+    - pale blue eyes, a faint mole on her cheekbone and a heart-shaped face
+    - amber eyes and gently upturned, feline features
+  complexion:                             # 6 entries — span of skin tones
+    - fair, cool-toned skin that flushes easily
+    - sun-warmed olive Mediterranean skin
+    - golden-tan skin with sun-kissed shoulders
+    - deep brown skin with a warm, even glow
+    - light golden East-Asian skin, smooth and luminous at the cheekbones
+    - warm caramel skin with cool undertones
+  age_look:                               # 4 entries — always clearly adult
+    - in her mid-twenties
+    - in her late twenties
+    - around thirty, radiantly self-assured
+    - in her early thirties, poised and worldly

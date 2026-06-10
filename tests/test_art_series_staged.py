@@ -70,7 +70,9 @@ def test_stage_base_records_base_path_and_seed(tmp_path, rows):
         im = entry["images"][0]
         assert im["base_path"].startswith("base/")
         assert "path" not in im            # path is set by the refine stage, not base
-        assert im["seed"] == 100
+        # Per-PROMPT seeds (2026-06): seed = base_seed + idx*seeds + k — each
+        # prompt gets its OWN initial latent noise (was base_seed+k for all).
+        assert im["seed"] == 100 + i
     # files actually written under base/
     assert (out_dir / "base").is_dir()
     assert len(list((out_dir / "base").glob("*.png"))) == 2
@@ -124,12 +126,15 @@ def test_stage_refine_sets_path_and_reuses_seed(tmp_path, rows):
         im = entry["images"][0]
         assert im["path"].startswith("images/")     # review image — what curation reads
         assert im["review_path"] == im["path"]
-    # refine reused the SAME seed as the base render, and got an absolute path
+    # refine reused the SAME per-prompt seed as the base render (100, 101 —
+    # per-prompt seeds since 2026-06), and got an absolute path
     assert len(builder.image_stage_calls) == 2
+    seeds_seen = []
     for tmpl, image_path, seed in builder.image_stage_calls:
         assert tmpl == "templates/chroma/refine.json"
         assert Path(image_path).is_absolute()
-        assert seed == 100
+        seeds_seen.append(seed)
+    assert seeds_seen == [100, 101]
 
 
 def test_used_niche_tracking(tmp_path, monkeypatch):

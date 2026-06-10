@@ -61,12 +61,16 @@ def _default_llm_tag() -> str:
 
 DEFAULT_LLM_TAG = _default_llm_tag()
 
-# Target word band for the prose prompt. Chroma's T5 encoder has a 512-token
-# ceiling (~350-380 words); the original 110-160 band used only ~30-47% of it.
-# Parameterized so the band A/B (110-160 vs 200-300, ImageReward-judged) is a
-# CLI flag, not a code edit. `_ACTIVE_WORD_BAND` is set per-run by
+# Target word band for the prose prompt. NOTE (2026-06 Chroma R&D): the T5
+# 512-token ceiling is a CEILING, NOT an optimum — gonzaLomo is flash-merged
+# (flash-heun LoRA baked in) and community evidence converges on ~150-word
+# organized prose as the sweet spot; longer prompts DILUTE adherence on flash
+# checkpoints. Do NOT widen toward 300+. The band is declared honestly at
+# 120-180 (the engine empirically writes ~150-220; the old declared 110-160
+# was fiction — every production prompt exceeded it). Parameterized as a CLI
+# flag for any future band A/B. `_ACTIVE_WORD_BAND` is set per-run by
 # generate_series so the Pydantic validator's lenient floor/ceiling track it.
-WORD_BAND_DEFAULT = (110, 160)
+WORD_BAND_DEFAULT = (120, 180)
 _ACTIVE_WORD_BAND = WORD_BAND_DEFAULT
 
 # When True, the validator hard-rejects any nudity in a generated prompt.
@@ -84,35 +88,24 @@ _NUDITY_TOKENS = (
     "fully bare", "undressed", "unclothed", "bare-skinned",
 )
 
-# Mood gate: commercial NSFW sells confident sensuality, not sorrow. The prompt
-# validator hard-rejects (reject + re-roll) any prose carrying an unambiguous
-# sad-affect word. Matched at the WORD level (token-exact / stem-prefix) so
-# 'sad' can't fire inside 'saddle' and 'sob' can't fire inside 'sober'. Quiet
-# moods should read introspective / contemplative / serene, never sad.
-_SAD_MOOD_EXACT = frozenset({
-    "sad", "sadness", "mournful", "melancholic", "melancholy", "sorrow",
-    "sorrowful", "crying", "tearful", "forlorn", "woeful", "grief", "doleful",
-})
-_SAD_MOOD_PREFIX = ("griev", "weep", "despair", "anguish", "mourn")  # grieving, weeping, …
+# Mood + grounding rules — CONSUMED from scripts.audit_prompts (the single
+# source of truth since 2026-06-10; the lists had drifted across 3 homes —
+# the system prompt banned 'wistful' but neither enforcement list had it).
+# Hard gate (here) uses the strict subsets; the audit's soft scoring uses its
+# broader lists. audit_prompts is stdlib-only, so this top-level import stays
+# light and acyclic.
+from scripts.audit_prompts import (  # noqa: E402
+    HARD_SAD_EXACT as _SAD_MOOD_EXACT,
+    HARD_SAD_PREFIX as _SAD_MOOD_PREFIX,
+    _IMPLAUSIBLE_GROUNDING_PATTERNS,
+)
 
 # Implausible-grounding guard: the subject rendered SITTING / KNEELING / LYING /
 # FLOATING on water or in mid-air (a body hovering on nothing) — the #1 bad-pose
-# failure ("sitting on water"). Tight + high-precision: a pose verb must be
-# followed (within 2 words) by on/atop/upon + a water body or "the water's
-# surface" — so "kneels AT the water's edge" or "light ON the water" (no pose
-# verb) do NOT trip it. Plus floating/hovering on water/air + mid-air.
-_WATER_BODY = r"(?:water|lake|river|pond|sea|ocean|pool)"
-# A single optional adjective slot ("the CALM water", "the GLASSY lake") — but a
-# solid-surface noun consumes the slot and blocks the match ("on the ROCK by the
-# water" → no match), keeping precision high.
-_ADJ = r"(?:\w+\s+){0,2}"
+# failure ("sitting on water"). Compiled from the shared audit patterns (incl.
+# the 'submerged' clause the local copy used to lack).
 _IMPLAUSIBLE_GROUNDING_RE = re.compile(
-    r"\b(?:sit|sitt|sat|kneel|knelt|kneeling|lie|lying|lay|reclin|perch)\w*\b"
-    r"(?:\W+\w+){0,2}?\W+(?:on|atop|upon)\W+(?:the\s+|her\s+)?" + _ADJ
-    + rf"(?:{_WATER_BODY}'?s\s+surface|surface\s+of\s+the\s+{_WATER_BODY}|{_WATER_BODY})\b"
-    + rf"|\b(?:float|hover)\w*\b(?:\W+\w+){{0,2}}?\W+(?:on|above|over|upon)\W+(?:the\s+)?"
-    + _ADJ + rf"(?:{_WATER_BODY}|air)\b"
-    + r"|\bmid[\s-]?air\b|\bsuspended\s+in\s+(?:the\s+)?air\b",
+    "|".join(f"(?:{p})" for p in _IMPLAUSIBLE_GROUNDING_PATTERNS),
     re.IGNORECASE,
 )
 
@@ -127,9 +120,13 @@ SFW_COVER_DIRECTIVE = (
 
 # Inline prompt-quality gate: every generated prompt is scored by
 # scripts/audit_prompts.score_prompt; below this, regenerate (keep-best
-# fallback after the attempt budget). Calibrated to the rubric (clean
-# LLM-direct prompts score ~9-10; 7.5 is a safe floor).
-AUDIT_GATE_THRESHOLD_DEFAULT = 7.5
+# fallback after the attempt budget). Gate v2 calibration (2026-06, n=154
+# production prompts): scores now spread 3.5-9.5 (mean 7.3) instead of
+# pinning at 10.0; 8.5 passes the top ~44% of the OLD corpus — prompts
+# written under the new system prompt (light direction, cliché variation,
+# tier contracts) score higher, and keep-best means a scene is never
+# dropped for a soft miss.
+AUDIT_GATE_THRESHOLD_DEFAULT = 8.5
 
 
 TIER_DIRECTIVES = {
@@ -235,25 +232,40 @@ WHAT MAKES YOUR PROMPTS EXCELLENT — study the exemplars and match their depth:
    sad/crying/mournful/melancholic/melancholy/sorrowful/wistful/forlorn. For \
    quiet moods use introspective, contemplative, pensive-calm, or serene \
    composure instead — never sadness.
-6. PHOTOGRAPHIC CRAFT woven in as a photographer notes it: a fast prime (50 / \
-   85mm), wide aperture, creamy shallow depth of field melting the background \
-   to bokeh, the colour and fine grain of a named film stock. Never a tag-list.
+6. PHOTOGRAPHIC CRAFT woven in as a photographer notes it: a chosen lens \
+   (24 / 35 / 50 / 85 / 105 / 135mm — or "a fast prime", "a short telephoto", \
+   "a macro"), its aperture and what the glass DOES to the image (depth of \
+   field, compression, closeness), and the colour/grain of a named film stock \
+   or a clean digital look. PLACE IT WHERE IT SERVES THE PROSE — mid-sentence \
+   while describing the background, or near the close — and VARY its position \
+   and phrasing image to image; never close every prompt with the same \
+   "Shot on …" sentence. A lens is glass, not film: write "an 85mm at f/1.8 \
+   on Portra 400", never "85mm film". Never a tag-list.
 
 HARD RULES:
+- SENTENCE 1 ESTABLISHES HER. The first sentence names the woman, her pose or \
+  action, and where she is — the SUBJECT leads the prompt; light and setting \
+  develop from sentence 2 onward. Vary WHAT carries that first sentence (her \
+  action, her placement, a prop she touches, the light striking her body) — \
+  but she appears in it, every time. Never open on an empty room or a light \
+  source alone.
 - 110-160 words of DENSE, flowing natural prose. Every phrase earns its place. \
   No padding, no repetition.
 - NO tag-soup (no long comma-runs of keywords). NO "masterpiece, best quality, \
   8k, ultra-detailed" boosters. NO weighting syntax like (word:1.3). NO lists.
 - Honor the requested TIER's state of undress exactly, and the TARGET LOOK given.
 - Flowing sentences, present tense, third person.
-- LOOK: a crystal-clear, razor-sharp, high-end GLAMOUR photograph — photoreal, \
-  luminous, high-detail, tack-sharp focus, but with TRUE, natural, unretouched \
-  skin and real anatomy everywhere (including the intimate anatomy at T4) — \
-  honest texture, fine grain, natural variation, NEVER airbrushed, plastic, waxy \
-  or symmetric-idealised. Sharp is not airbrushed. Lean into polished beauty + sensual \
-  appeal (editorial / glamour / boudoir photography), not muted gallery restraint. \
-  Still describe it through craft + light (lens, key, grain) rather than literally \
-  writing "hyperrealistic" / "a real woman" — the realism comes from the rendering.
+- LOOK: a crystal-clear, high-end GLAMOUR photograph — photoreal and \
+  high-detail, with TRUE, natural, unretouched skin and real anatomy \
+  everywhere (including the intimate anatomy at T4) — honest texture, natural \
+  variation, NEVER airbrushed, plastic, waxy or symmetric-idealised. Sharp is \
+  not airbrushed. Lean into polished beauty + sensual appeal (editorial / \
+  glamour / boudoir photography), not muted gallery restraint. Express this \
+  intent IN YOUR OWN WORDS each time — do not lean on the same stock \
+  adjectives ("luminous", "tack-sharp", "velvety") image after image; find \
+  the precise word THIS image needs. Describe it through craft + light \
+  (lens, key, grain) rather than literally writing "hyperrealistic" / "a real \
+  woman" — the realism comes from the rendering.
 - NO MIRRORS or reflective surfaces that show the subject (mirror, vanity \
   mirror, reflection in glass/water). The model warps reflections into a \
   second, distorted face — it breaks the image. For dressing-table / boudoir \
@@ -356,60 +368,87 @@ gynecological tell AND a hand-render hazard); soft, relaxed, weight-settled, one
 simple lit hand at most.
 
 ────────────────────── EXEMPLARS (this is the bar) ──────────────────────
+Note how every exemplar opens ON HER, and how the craft note moves — mid-prose,
+woven into the close, or absent entirely. Match the depth, not the phrasing.
 
 [T3 · golden-hour glamour]
-The last low sun of the day rakes warm gold across a woman standing at the \
-lip of a villa pool, the sea breeze lifting her sun-streaked hair across one \
-shoulder. She wears a delicate ivory lace bralette and tanga, the sheer \
-panels burning bright at their edges where the light catches them, her bronzed \
-skin dewy and luminous. One hand rests on a cocked hip, chin lifted a fraction \
-as she holds the lens with a cool, knowing calm, lips just parted. Behind her \
-the pool throws shivering caustics and a stucco villa dissolves into warm \
-bokeh; a single palm frond cuts the upper corner. Shot on an 85mm wide open, \
-creamy shallow depth of field, true tanned skin with a faint sheen, the warm \
-contrast and fine grain of golden-hour film.
+A woman stands at the lip of a villa pool in the last low sun of the day, one \
+hand on a cocked hip, chin lifted a fraction as the sea breeze pushes her \
+sun-streaked hair across one shoulder. Warm gold rakes across her from \
+camera-left, and she wears only a delicate ivory lace bralette and tanga, the \
+sheer panels burning bright at their edges where the light catches them, her \
+bronzed skin dewy with a faint salt sheen. She holds the lens with a cool, \
+knowing calm, lips just parted. Behind her the pool throws shivering caustics \
+and a stucco villa softens into warm bokeh through an 85mm wide open; a single \
+palm frond cuts the upper corner. True tanned skin, the warm contrast and fine \
+grain of golden-hour film stock.
 
 [T3 · soft natural-light beauty]
-Soft overcast daylight spills through a tall window and wraps a woman sitting \
-at the edge of an unmade bed, the gentle light grazing the long waves of her \
-hair and revealing every honest detail of her skin — a faint scatter of \
-freckles across her nose, the fine down at her temple, a natural flush high on \
-one cheek. A thin cotton slip has slipped low; she holds it loosely, bare \
-shoulders and the soft inner line of her chest catching the diffuse glow. Her \
-clear grey eyes meet the lens directly, calm and unguarded, lips barely \
-parted. White linen tangles at her hip; a sheer curtain breathes at the glass. \
-Intimate medium-close frame, 50mm at f/1.8, background melting to soft grey \
-bokeh, no hard shadow — just true skin and quiet morning light, the faded \
-warmth of Portra 400.
+A woman sits at the edge of an unmade bed, holding a thin cotton slip loosely \
+where it has slipped low, soft overcast daylight from the tall window grazing \
+the long waves of her hair. The gentle light reveals every honest detail of \
+her — a faint scatter of freckles across her nose, the fine down at her \
+temple, a natural flush high on one cheek — her bare shoulders and the soft \
+inner line of her chest catching the diffuse glow. Her clear grey eyes meet \
+the lens directly — a 50mm at f/1.8 melting the room behind her to soft grey \
+nothing — calm and unguarded, lips barely parted. White linen tangles at her \
+hip; a sheer curtain breathes at the glass; the morning holds its quiet, the \
+faded warmth of Portra 400 in the skin tones.
 
 [T3 · rich fantasy / editorial]
-A hazed shaft of late light cuts through an opulent, dust-soft bedchamber and \
-falls across a woman seated bare at the edge of an ornate gilded bed, a length \
-of iridescent oxblood-and-gold silk pooled at her feet where it has slipped \
-from her shoulders moments before. Her body is fully nude, olive skin glowing \
-luminous against the deep shadow of the room — tiny jewels glint in her dark, \
-loosely waved hair and a fine chain traces her collarbone, but no fabric \
-covers her. Embroidered damask pillows and a tarnished candelabra sit behind \
-her, a thread of smoke curling slow through the beam. She regards the lens \
-with serene, regal composure, full lips still. Elegant three-quarter portrait, \
-85mm at f/2.2, sumptuous shallow depth of field, a rich jewel-toned palette, \
-true skin and the soft sheen of the pooled silk on the floor, warm light and \
-fine grain.
+A woman sits bare at the edge of an ornate gilded bed, regal and still, a \
+length of iridescent oxblood-and-gold silk pooled at her feet where it slipped \
+from her shoulders moments before. A hazed shaft of late light cuts through \
+the dust-soft bedchamber and falls across her — her body fully nude, olive \
+skin glowing against the deep shadow of the room, tiny jewels glinting in her \
+dark, loosely waved hair, a fine chain tracing her collarbone, no fabric \
+covering her. Embroidered damask pillows and a tarnished candelabra sit behind \
+her, a thread of smoke curling slow through the beam from a smouldering \
+censer. She regards the lens with serene, composed authority, full lips still, \
+the rich jewel palette deepening around her into the dark. Elegant \
+three-quarter portrait, sumptuous shallow depth, true skin against the soft \
+sheen of pooled silk.
+
+[T2 · square · medium — implied]  (orientation: square, shot_type: medium)
+A woman kneels on a rumpled white duvet facing a bright window, caught \
+mid-turn over her shoulder, dark copper hair falling loose down her bare \
+back. Morning light from behind rims her silhouette and leaves her front in \
+soft shadow — she holds a heavy cream knit pressed to her chest, the wool \
+covering everything yet promising what it covers, one bare hip and the long \
+line of a thigh emerging where the blanket falls away. Her gaze over the \
+shoulder is playful and unhurried, a half-smile starting at the corner of \
+her mouth, a fine gold anklet catching one spark of sun. The bedroom blurs \
+into pale, milky depth around her, all whites and warm wood through a fast \
+prime, the scene carrying the soft, grainy hush of early light on true skin.
 
 [T3 · landscape · full_body environmental]  (orientation: landscape, shot_type: full_body)
-Late afternoon light pours low across a sun-warmed stone terrace where a woman \
-reclines full-length along a weathered chaise, her whole body stretched easy \
-through the wide frame — head resting back on one arm, the long line of her spine \
-and hip and legs unbroken and relaxed, one knee lifted, the other leg extended, \
-bare feet crossed at the ankle. Her nude form is gilded by the raking sun, true \
-skin luminous along every edge it catches; a sheer linen throw has slipped to the \
-floor beside her. Behind and around her the terrace breathes — a cracked terracotta \
-urn, a spill of bougainvillea, the soft blue haze of distant hills — the setting \
-co-equal with her, yet she holds the eye through the warm key light falling square \
-on her body. She gazes off toward the horizon, lips parted, wholly at ease. Wide \
-environmental frame, 35mm at f/4 so the whole body and the terrace stay sharp, the \
-warm contrast and fine grain of late-golden-hour film. [Every limb clearly placed, \
+A woman reclines full-length along a weathered chaise on a sun-warmed stone \
+terrace, her whole body stretched easy through the wide frame — head resting \
+back on one arm, the long line of her spine and hip and legs unbroken and \
+relaxed, one knee lifted, the other leg extended, bare feet crossed at the \
+ankle. Late afternoon light pours low and raking across her nude form, gilding \
+every edge it catches; a sheer linen throw has slipped to the floor beside \
+her. Behind and around her the terrace breathes — a cracked terracotta urn, a \
+spill of bougainvillea, the soft blue haze of distant hills — yet she holds \
+the eye through the warm key falling square on her body. She gazes off toward \
+the horizon, lips parted, wholly at ease, a 35mm at f/4 keeping her and the \
+terrace sharp together in the late-golden grain. [Every limb clearly placed, \
 weight settled into the chaise, one coherent restful body.]
+
+[T4 · portrait · medium — seated leaning-back reveal]  (orientation: portrait, shot_type: medium)
+A woman sits on the edge of a low oak bed in a dim, candle-warmed room, \
+leaning back on both hands with her knees eased apart toward the lens, \
+completely nude, utterly at ease. The single flame on the nightstand throws \
+its warm key across her from the right — it slides down her throat, over the \
+full curve of a natural breast, pools on her belly, and carries through to her \
+parted thighs, where her bare vulva is plainly visible, soft and naturally \
+asymmetric, half-modelled in the same amber light and falling shadow that \
+sculpts the rest of her. Nothing about the pose is clinical: her weight is \
+settled, one knee drifting wider than the other, her auburn hair loose over \
+one shoulder, and her eyes hold the lens with slow, certain interest. Rumpled \
+flax linen and a worn brass bedframe frame her off-centre; the room falls away \
+into deep brown shadow behind. True lived-in skin everywhere the light grazes \
+— the crease of her hip, the fine down on her thigh.
 
 ──────────────────────────────────────────────────────────────────────────
 
@@ -456,29 +495,44 @@ def _creative_system_block() -> str:
     return "\n".join(L)
 
 
-def _creative_look(index: int) -> str:
-    """Per-image subject look (hair + figure) sampled from the look pools so a
-    series shows wide variety, not clones. Hair/figure offset so they don't move
-    in lockstep. Empty if no pools configured."""
+# Per-pool prime strides — combined with coprime pool LENGTHS (see the YAML)
+# these guarantee full coverage of every pool while no two pools (or the
+# 8-entry framing rotation) ever move in lockstep. The old shared-index
+# rotation pinned hair to framing permanently: every portrait close-up in the
+# whole catalog was platinum-blonde (22/22 measured).
+_POOL_STRIDES = {"hair": 3, "figure": 5, "face": 7, "complexion": 11,
+                 "age_look": 13}
+
+
+def _creative_look(index: int, run_key: int = 0) -> str:
+    """Per-image subject look sampled from EVERY configured look pool (hair /
+    figure / face / complexion / age_look / any future axis) so a series shows
+    wide variety, not clones. Each pool advances by its own prime stride, and
+    ``run_key`` (the per-run rotation offset) deterministically reshuffles each
+    pool per run — so position k of one run is NOT the same woman as position k
+    of every other run in the batch (the measured catalog-wide persona
+    lockstep). Empty if no pools configured."""
+    import random as _random
     pools = (_CREATIVE or {}).get("look_pools") or {}
-    hair, figure = pools.get("hair") or [], pools.get("figure") or []
-    parts = []
-    if hair:
-        parts.append(hair[index % len(hair)])
-    if figure:
-        # +3 offset (step 1) so hair and figure don't start in sync yet every
-        # value is still visited — full coverage regardless of pool lengths.
-        parts.append(figure[(index + 3) % len(figure)])
+    parts: list[str] = []
+    for name, pool in pools.items():
+        entries = list(pool or [])
+        if not entries:
+            continue
+        # Deterministic per-(run, pool) shuffle — string seeds hash stably.
+        _random.Random(f"{run_key}:{name}").shuffle(entries)
+        stride = _POOL_STRIDES.get(name, 3)
+        parts.append(entries[(index * stride) % len(entries)])
     return ", ".join(parts)
 
 
 def _build_system_prompt(word_band: tuple[int, int] = WORD_BAND_DEFAULT) -> str:
     """The art-director system prompt with the target word band + the
-    config-driven CREATIVE DIRECTION house style injected. Default word band
-    (110-160) is a no-op replace; the A/B passes (200, 300)."""
+    config-driven CREATIVE DIRECTION house style injected. The literal
+    "110-160 words" in the constant is the placeholder; the active band is
+    always substituted."""
     lo, hi = word_band
-    base = (ART_DIRECTOR_SYSTEM_PROMPT if (lo, hi) == (110, 160)
-            else ART_DIRECTOR_SYSTEM_PROMPT.replace("110-160 words", f"{lo}-{hi} words"))
+    base = ART_DIRECTOR_SYSTEM_PROMPT.replace("110-160 words", f"{lo}-{hi} words")
     block = _creative_system_block()
     return f"{base}\n{block}" if block else base
 
@@ -509,6 +563,43 @@ FRAMING_TARGETS: tuple[tuple[str, str], ...] = (
     ("landscape", "medium"),            # torso fills the wide frame
     ("portrait", "medium"),
 )
+
+# T4-only shot remap: the framing rotation is tier-blind, and a head-to-chest
+# crop physically cannot contain the T4 directive's required visible anatomy —
+# the LLM resolved the contradiction by silently DROPPING the explicit content
+# (a nudity-free "T4" image shipped inside a paid set). At T4, tight crops
+# remap to body-showing shots BEFORE the reveal pin.
+_T4_SHOT_REMAP = {"close_up": "medium", "bust": "full_body"}
+
+# Sentence-1 lead rotation (2026-06 audit: 75-80% of all prompts opened on a
+# light source — one structural template catalog-wide). The woman appears in
+# sentence 1 EVERY time (Chroma front-loads subject adherence); what varies is
+# what carries the clause. Length 5 — coprime with the 8 framing targets.
+OPENER_LEADS: tuple[str, ...] = (
+    "her ACTION leads — open mid-gesture on what she is doing",
+    "her PLACEMENT leads — open on where she is in the space",
+    "a PROP or material she touches leads, then her",
+    "the LIGHT STRIKING HER leads — light landing on her body, not the room",
+    "her GAZE/PRESENCE leads — open on her meeting the lens",
+)
+
+# Craft-note placement rotation (audit: 93% of prompts ended in the same
+# "Shot on NNmm…" sentence — one closing formula catalog-wide). Length 7 —
+# coprime with framing(8) and leads(5). "omit" prompts carry the look purely
+# through described light/texture.
+CRAFT_PLACEMENTS: tuple[str, ...] = (
+    "mid", "tail", "omit", "mid", "tail", "omit", "mid",
+)
+_CRAFT_DIRECTIVES = {
+    "mid": ("Weave the lens/film craft note INTO THE MIDDLE of the prose "
+            "(e.g. while describing what the glass does to the background) — "
+            "do NOT end on a camera sentence."),
+    "tail": ("You may close with a brief craft note, but phrase it freshly — "
+             "NEVER the formula 'Shot on …mm'. A lens is glass, not film: "
+             "'an 85mm at f/1.8 on Portra 400', never '85mm film'."),
+    "omit": ("OMIT lens/film talk entirely for this image — carry the look "
+             "purely through the described light, depth and texture."),
+}
 
 # T4-ONLY explicit-reveal rotation (orthogonal to FRAMING_TARGETS, which only
 # varies aspect+crop). Each entry = (label, craft directive) describing HOW the
@@ -599,7 +690,10 @@ class _PromptOut(BaseModel):
         words = len(text.split())
         lo, hi = _ACTIVE_WORD_BAND
         floor = max(40, int(lo * 0.6))      # lenient — gate quality via audit, not length
-        ceiling = int(hi * 1.4) + 30
+        # Ceiling tightened (was hi*1.4+30 = a fiction band): flash-merged
+        # Chroma loses adherence on overlong prose, so drift past ~hi*1.25
+        # is a real quality cost, not a style choice.
+        ceiling = int(hi * 1.25)
         if words < floor:
             raise ValueError(
                 f"prompt too short ({words} words) — needs {lo}-{hi} of rich prose"
@@ -607,6 +701,16 @@ class _PromptOut(BaseModel):
         if words > ceiling:
             raise ValueError(f"prompt too long ({words} words) — tighten toward {hi}")
         low = text.lower()
+        # Refusal-shaped output (2026-06-11): a polite refusal can satisfy the
+        # word band and carry no banned tokens — Skyfall shipped one as a
+        # "prompt" until the blind panel caught it. Hard reject + re-roll.
+        from scripts.audit_prompts import REFUSAL_TOKENS as _REFUSALS
+        ref_hit = [t for t in _REFUSALS if t in low[:300]]
+        if ref_hit:
+            raise ValueError(
+                f"refusal-shaped output {ref_hit} — write the photograph "
+                f"prompt itself, never a refusal or meta-commentary."
+            )
         # Age / solo safety guard (non-negotiable).
         banned = (
             "child", "teen", "teenage", "loli", "underage", "minor",
@@ -684,6 +788,68 @@ def _opener(prompt: str) -> str:
     return " ".join(prompt.split()[:8])
 
 
+def _tail_signature(prompt: str) -> str:
+    """The LAST 14 words — the audit measured 93% of prompts ending in the
+    same 'Shot on NNmm … grain' formula; openers were guarded, tails were
+    free. Fed into the avoid list + similarity check like a signature."""
+    return "… " + " ".join(prompt.split()[-14:])
+
+
+# ── Mechanical anti-repetition (2026-06) ─────────────────────────────────
+# The banned-openers / avoid lists were INSTRUCTION-ONLY — no validator ever
+# compared a candidate against them, and the LLM dodged a ban with a one-word
+# edit ("goblet"→"chalice", 0.57 overlap, both shipped). These checks make
+# the lists enforced: a too-similar candidate is rejected exactly like a
+# Pydantic failure and re-rolled with the reason fed back.
+
+def _ngrams3(text: str) -> set[str]:
+    words = re.findall(r"[a-z']+", (text or "").lower())
+    return {" ".join(words[i:i + 3]) for i in range(len(words) - 2)}
+
+
+def _containment(a: set[str], b: set[str]) -> float:
+    """|a∩b| / min(|a|,|b|) — robust when refs (signatures) are much shorter
+    than the candidate."""
+    if not a or not b:
+        return 0.0
+    return len(a & b) / min(len(a), len(b))
+
+
+# Candidate-vs-accepted full prompts: healthy same-look rewrites measure well
+# under 0.15 on 3-gram containment; the near-duplicate candle pair was ~0.5+.
+_SIMILARITY_REJECT = 0.22
+# Candidate opener vs banned openers: ≥6 of 8 tokens shared = the same opener.
+_OPENER_TOKEN_REJECT = 6
+
+
+def _too_similar(
+    text: str,
+    accepted_ngrams: "list[tuple[str, set[str]]]",
+    ref_sigs: "list[tuple[str, set[str]]]",
+    banned_openers: "list[str]",
+) -> "str | None":
+    """Reason string when the candidate mechanically repeats prior work, else
+    None. Checks: (1) opener token overlap vs every banned opener; (2) 3-gram
+    containment vs accepted prompts this run; (3) 3-gram containment vs seeded
+    history signatures (openers/40-word heads/tails of prior runs)."""
+    cand_opener = set(re.findall(r"[a-z']+", " ".join(text.split()[:8]).lower()))
+    for b in banned_openers:
+        b_toks = set(re.findall(r"[a-z']+", b.lower()))
+        if b_toks and len(cand_opener & b_toks) >= _OPENER_TOKEN_REJECT:
+            return f"opener nearly identical to a banned opener: {b!r}"
+    cand = _ngrams3(text)
+    for label, ref in accepted_ngrams:
+        c = _containment(cand, ref)
+        if c >= _SIMILARITY_REJECT:
+            return (f"{c:.0%} 3-gram overlap with an already-accepted prompt "
+                    f"this series ({label!r})")
+    for label, ref in ref_sigs:
+        c = _containment(cand, ref)
+        if c >= 0.5:        # sigs are short fragments — demand strong overlap
+            return f"{c:.0%} overlap with a prior-series fragment ({label!r})"
+    return None
+
+
 def generate_one(
     client: OllamaClient,
     *,
@@ -700,6 +866,8 @@ def generate_one(
     look_target: str = "",
     reveal_target: "tuple[str, str] | None" = None,
     grooming: str = "",
+    opener_lead: str = "",
+    craft_placement: str = "",
 ) -> dict:
     tier_directive = TIER_DIRECTIVES.get(tier, TIER_DIRECTIVES["T3_artnude"])
     if extra_directive:
@@ -750,6 +918,20 @@ def generate_one(
             f"{look_target}. She is a striking, sexy young ADULT woman — describe her "
             f"beauty, allure and figure attractively and explicitly within the tier."
         )
+    # Structural rotation — sentence-1 lead + craft-note placement. Breaks the
+    # measured corpus templates (75-80% light openers, 93% camera tails) by
+    # rotating the prompt's SKELETON the same way framing already rotates.
+    structure_variety = ""
+    if opener_lead:
+        structure_variety += (
+            f"\n\nSENTENCE-1 LEAD for THIS image: {opener_lead}. She appears IN "
+            f"sentence 1 regardless — the woman and her pose are established "
+            f"first; the light and setting develop from there."
+        )
+    if craft_placement:
+        directive = _CRAFT_DIRECTIVES.get(craft_placement, "")
+        if directive:
+            structure_variety += f"\n\nCRAFT NOTE for THIS image: {directive}"
     # T4-only explicit-reveal nudge — rotates HOW the bare anatomy is revealed so a
     # set spans many tasteful angles/poses/degrees instead of one centred splay.
     reveal_variety = ""
@@ -779,7 +961,7 @@ def generate_one(
         f"TIER — STATE OF UNDRESS (this OVERRIDES any wardrobe language in "
         f"the look above; fabric in the look is SET DRESSING only):\n"
         f"  {tier_directive}\n"
-        f"{variety}{framing_variety}{look_variety}{reveal_variety}\n\n"
+        f"{variety}{framing_variety}{look_variety}{structure_variety}{reveal_variety}\n\n"
         'Write ONE excellent photograph-prompt at the level of the exemplars, '
         'in the target look above, honoring the TIER above EXACTLY. The TIER '
         'wins over the look\'s wardrobe descriptors — at T3+, the body is '
@@ -834,6 +1016,7 @@ def generate_series(
     seed_avoid: "list[str] | None" = None,
     seed_banned_openers: "list[str] | None" = None,
     run_offset: int = 0,
+    seed_overused: "list[str] | None" = None,
 ) -> list[dict]:
     """Generate ``count`` prompts. ``sub_looks`` (from the niche selector)
     overrides the default 3; the per-scene look rotates through them.
@@ -842,10 +1025,25 @@ def generate_series(
     ``audit_prompts.score_prompt``; below ``audit_threshold`` it regenerates,
     keeping the best-scoring attempt as a fallback so a scene is never dropped
     purely for a soft-quality miss. Pydantic guards (safety/word-band/mirror)
-    still hard-reject before scoring."""
+    still hard-reject before scoring.
+
+    Gate v2 additions: a MECHANICAL similarity check enforces the avoid /
+    banned-opener lists (previously instruction-only); rejection reasons are
+    fed back into the retry; temperature escalates +0.1 on attempts 3-4; the
+    final attempt of an otherwise-failed scene falls back to the Cydonia tag
+    (different lineage + backend); ``seed_overused`` house words are limited
+    to one use per series; a shortfall is reported loudly."""
     global _ACTIVE_WORD_BAND, _ACTIVE_REQUIRE_SFW
     _ACTIVE_WORD_BAND = word_band
     _ACTIVE_REQUIRE_SFW = require_sfw
+
+    series_directive = extra_directive
+    if seed_overused:
+        series_directive += (
+            "\n\nOVERUSED HOUSE WORDS — these saturated recent series in this "
+            "category; each may appear in AT MOST ONE prompt of this series, "
+            "prefer fresh alternatives: " + ", ".join(seed_overused)
+        )
 
     looks = sub_looks or [s for s in SUB_LOOKS]
     score_fn = None
@@ -869,15 +1067,29 @@ def generate_series(
     # count) — without it, re-running a niche reproduces it verbatim.
     avoid: list[str] = list(seed_avoid or [])
     banned_openers: list[str] = list(seed_banned_openers or [])
+    # Mechanical-similarity reference sets: accepted prompts this run (full
+    # 3-gram sets) + seeded history fragments (openers / heads / tails).
+    accepted_ngrams: list[tuple[str, set[str]]] = []
+    accepted_texts: list[str] = []
+    ref_sigs: list[tuple[str, set[str]]] = [
+        (s[:36], _ngrams3(s)) for s in avoid if s
+    ]
     for i in range(count):
         sub_look = looks[(i + run_offset) % len(looks)]
         look_label = sub_look.split(" — ")[0]
         framing = FRAMING_TARGETS[(i + run_offset) % len(FRAMING_TARGETS)]
-        # T4-only: rotate an explicit REVEAL STYLE + grooming alongside the framing
-        # so the set spans many tasteful reveals (not one centred splay). Two
+        # Structural rotation — sentence-1 lead (5-cycle) + craft-note
+        # placement (7-cycle), both coprime with the 8 framing targets.
+        opener_lead = OPENER_LEADS[(i + run_offset) % len(OPENER_LEADS)]
+        craft_placement = CRAFT_PLACEMENTS[(i + run_offset) % len(CRAFT_PLACEMENTS)]
+        # T4-only: tight crops physically can't show the required anatomy —
+        # remap them to body-showing shots BEFORE the reveal pin, then rotate
+        # an explicit REVEAL STYLE + grooming alongside the framing so the set
+        # spans many tasteful reveals (not one centred splay). Two
         # distance-bound styles pin a compatible shot_type (keep the orientation).
         reveal_target = grooming = None
         if tier == "T4_explicit":
+            framing = (framing[0], _T4_SHOT_REMAP.get(framing[1], framing[1]))
             reveal_target = REVEAL_STYLES[(i + run_offset) % len(REVEAL_STYLES)]
             grooming = GROOMING_OPTIONS[(i + run_offset) % len(GROOMING_OPTIONS)]
             pin = REVEAL_SHOT_PIN.get(reveal_target[0])
@@ -885,7 +1097,25 @@ def generate_series(
                 framing = (framing[0], pin)
         best: tuple[dict, float, list[str]] | None = None  # (candidate, score, issues)
         last_err = None
+        feedback = ""           # rejection reason fed into the NEXT attempt
         for attempt in range(max_attempts):
+            # Blind-retry fix: escalate temperature on later attempts to escape
+            # deterministic failure basins; final attempt of an otherwise-failed
+            # scene switches to the Cydonia fallback (different lineage+backend —
+            # the pool routes the tag to Ollama).
+            cur_temp = temperature + (0.1 if attempt >= 2 else 0.0)
+            cur_tag = model_tag
+            if (attempt == max_attempts - 1 and best is None
+                    and model_tag != CYDONIA_TAG):
+                cur_tag = CYDONIA_TAG
+                print(f"  (scene {i + 1} final attempt — falling back to "
+                      f"{CYDONIA_TAG})", file=sys.stderr, flush=True)
+            attempt_directive = series_directive
+            if feedback:
+                attempt_directive += (
+                    f"\n\nYOUR PREVIOUS ATTEMPT WAS REJECTED: {feedback}\n"
+                    f"Fix exactly this in the rewrite."
+                )
             try:
                 cand = generate_one(
                     client,
@@ -894,26 +1124,49 @@ def generate_series(
                     sub_look=sub_look,
                     avoid=avoid,
                     banned_openers=banned_openers,
-                    model_tag=model_tag,
-                    temperature=temperature,
+                    model_tag=cur_tag,
+                    temperature=cur_temp,
                     word_band=word_band,
-                    extra_directive=extra_directive,
+                    extra_directive=attempt_directive,
                     framing_target=framing,
-                    look_target=_creative_look(i + run_offset),
+                    look_target=_creative_look(i, run_offset),
                     reveal_target=reveal_target,
                     grooming=grooming or "",
+                    opener_lead=opener_lead,
+                    craft_placement=craft_placement,
                 )
             except Exception as exc:  # noqa: BLE001 — Pydantic/safety reject → retry
                 last_err = exc
+                feedback = str(exc)[:400]
                 print(f"  (scene {i + 1} attempt {attempt + 1} rejected: {exc})",
                       file=sys.stderr, flush=True)
                 continue
 
-            score, issues = (score_fn(cand["prompt"], tier) if score_fn else (10.0, []))
+            # Mechanical anti-repetition — the avoid/banned lists are ENFORCED,
+            # not advisory: a too-similar candidate re-rolls like a hard reject.
+            sim_reason = _too_similar(cand["prompt"], accepted_ngrams,
+                                      ref_sigs, banned_openers)
+            if sim_reason:
+                feedback = (f"too similar to prior work — {sim_reason}. Write a "
+                            f"VISIBLY different opening, setting and phrasing.")
+                print(f"  (scene {i + 1} attempt {attempt + 1} similarity-reject: "
+                      f"{sim_reason})", file=sys.stderr, flush=True)
+                continue
+
+            if score_fn:
+                score_ctx = accepted_texts + avoid
+                try:
+                    score, issues = score_fn(cand["prompt"], tier,
+                                             context_prompts=score_ctx)
+                except TypeError:   # 2-arg scorer (tests / older monkeypatch)
+                    score, issues = score_fn(cand["prompt"], tier)
+            else:
+                score, issues = 10.0, []
             if best is None or score > best[1]:
                 best = (cand, score, issues)
             if score >= audit_threshold:
                 break
+            feedback = f"audit score {score:.1f} — issues: {'; '.join(issues[:3])}"
             print(f"  (scene {i + 1} attempt {attempt + 1} audit {score:.1f}"
                   f"<{audit_threshold} — regenerating; issues={issues[:2]})",
                   file=sys.stderr, flush=True)
@@ -929,15 +1182,27 @@ def generate_series(
                   f"{max_attempts} attempts; issues={issues[:3]})",
                   file=sys.stderr, flush=True)
         ptext = cand["prompt"]
+        nwords = len(ptext.split())
+        lo, hi = word_band
+        if nwords > hi * 1.15 or nwords < lo * 0.85:
+            print(f"  (scene {i + 1} band drift: {nwords} words vs declared "
+                  f"{lo}-{hi})", file=sys.stderr, flush=True)
         framing = f"{cand['orientation']}/{cand['shot_type']}"
         out.append({"look": look_label, "prompt": ptext,
                     "orientation": cand["orientation"], "shot_type": cand["shot_type"],
                     "framing_rationale": cand["framing_rationale"],
                     "audit_score": round(score, 2)})
         avoid.append(_signature(ptext))
+        avoid.append(_tail_signature(ptext))    # tails were unguarded (93% same formula)
         banned_openers.append(_opener(ptext))
+        accepted_texts.append(ptext)
+        accepted_ngrams.append((look_label, _ngrams3(ptext)))
         print(f"\n[{i + 1}/{count}] {look_label} [{framing}] (audit {score:.1f}, "
-              f"{len(ptext.split())} words)\n{ptext}", flush=True)
+              f"{nwords} words)\n{ptext}", flush=True)
+    if len(out) < count:
+        print(f"  !! SERIES SHORTFALL: only {len(out)}/{count} prompts survived "
+              f"generation — the set will be smaller than requested.",
+              file=sys.stderr, flush=True)
     return out
 
 
@@ -947,10 +1212,12 @@ def main() -> int:
     ap.add_argument("--tier", default="T3_artnude", choices=list(TIER_DIRECTIVES))
     ap.add_argument("--count", type=int, default=6)
     ap.add_argument("--model-tag", default=DEFAULT_LLM_TAG,
-                    help="Ollama model tag (default: Cydonia 24B)")
+                    help="backend model tag (default: registry default_llm — "
+                         "currently Gemma 26B via LM Studio)")
     ap.add_argument("--temperature", type=float, default=0.85)
-    ap.add_argument("--word-band", default="110-160",
-                    help="target prose word band 'lo-hi' (A/B: try 200-300)")
+    ap.add_argument("--word-band", default="120-180",
+                    help="target prose word band 'lo-hi' (flash-merged Chroma "
+                         "prefers ~150-word prose; do not exceed ~250)")
     ap.add_argument("--no-audit-gate", action="store_true",
                     help="disable the inline audit_prompts quality gate")
     ap.add_argument("--out", default="", help="optional JSON output path")
@@ -982,6 +1249,23 @@ def main() -> int:
 
     try:
         LLMClientPool().unload_all()  # cascade — frees Ollama + LM Studio + MLX
+    except Exception:  # noqa: BLE001
+        pass
+    # Belt-and-braces (2026-06-11): the pool's unload_all() NO-OPS for models
+    # it never tracked loading (anything pre-/JIT-/manually-loaded) — a direct
+    # A/B run left a 17.7GB challenger resident. Evict via the CLIs like
+    # art_series._unload_llm does.
+    import os
+    import shutil as _shutil
+    import subprocess as _sp
+    lms = _shutil.which("lms") or os.path.expanduser("~/.lmstudio/bin/lms")
+    if os.path.exists(lms):
+        try:
+            _sp.run([lms, "unload", "--all"], timeout=30, capture_output=True)
+        except Exception:  # noqa: BLE001
+            pass
+    try:
+        _sp.run(["ollama", "stop", CYDONIA_TAG], timeout=30, capture_output=True)
     except Exception:  # noqa: BLE001
         pass
     return 0 if rows else 1

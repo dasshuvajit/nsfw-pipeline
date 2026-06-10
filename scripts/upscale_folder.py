@@ -71,6 +71,28 @@ def upscale_folder(
             images = client.render_single_with_retry(wf, timeout=timeout)
             outs = [im for im in images if im.type == "output"] or images
             shutil.copy(outs[-1].file_path, dst)
+            # Carry the source's tEXt chunks (incl. the A1111 'parameters'
+            # block the refine stage embeds) onto the 4K master + note the
+            # postprocess — the SOLD file stays self-describing.
+            try:
+                from PIL.PngImagePlugin import PngInfo
+                with Image.open(p) as src_im:
+                    src_text = dict(getattr(src_im, "text", None) or {})
+                with Image.open(dst) as dst_im:
+                    merged = {**dict(getattr(dst_im, "text", None) or {}),
+                              **src_text}
+                    info = PngInfo()
+                    for k, v in merged.items():
+                        if isinstance(v, str):
+                            info.add_text(k, v)
+                    info.add_text("postprocess",
+                                  f"USDU x{upscale_by} Remacri "
+                                  f"(upscale_folder.py)")
+                    dst_im.load()
+                    dst_im.save(dst, pnginfo=info)
+            except Exception as exc:  # noqa: BLE001 — metadata never fatal
+                print(f"  (metadata passthrough skipped: {exc})",
+                      file=sys.stderr, flush=True)
             results.append({"src": str(p), "dst": str(dst), "upscale_by": upscale_by,
                             "src_size": [w, h]})
             print(f"  {p.name} ({w}x{h}) x{upscale_by} -> {dst.name}", flush=True)
@@ -86,7 +108,7 @@ def main() -> int:
     ap.add_argument("--out-dir", default="",
                     help="output dir (default: <input_dir>_4k)")
     ap.add_argument("--tier", default="T3_artnude",
-                    help="T4_explicit selects the NSFW-detailer upscale template")
+                    help="(no-op since 2026-06-10 — the 4K stage is tier-neutral)")
     ap.add_argument("--template", default=None,
                     help="override the stage-3 template (relative to workflow_dir)")
     ap.add_argument("--target-long-edge", type=int, default=0,
@@ -105,9 +127,10 @@ def main() -> int:
     cfg = yaml.safe_load((ROOT / "config/pipeline.yaml").read_text())
     cu = cfg["comfyui"]
     rp = resolve_render_pipeline(cfg.get("render_pipeline"))
-    template = args.template or (
-        rp["upscale_template_t4"] if args.tier == "T4_explicit"
-        else rp["upscale_template"])
+    # --tier is a retained no-op alias: the T4 4K variant was deleted (it had
+    # become byte-identical after the MPS post-upscale-detailer removal — the
+    # 4K stage is tier-neutral; explicit detail comes from the review stage).
+    template = args.template or rp["upscale_template"]
     target = args.target_long_edge or int(rp["target_4k_long_edge"])
     out_dir = (Path(args.out_dir).expanduser() if args.out_dir
                else input_dir.parent / f"{input_dir.name}_4k")

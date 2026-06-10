@@ -50,6 +50,7 @@ class Niche:
     aesthetics: dict[str, list[str]]  # palettes / lighting / photographers
     brief_seed: str
     avoid_motifs: list[str] = field(default_factory=list)  # per-niche "do NOT depict" hints
+    family: str = ""                 # 5-family DA architecture (DA_GO_TO_MARKET.md §3)
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "Niche":
@@ -66,6 +67,7 @@ class Niche:
                 aesthetics=dict(d.get("aesthetics") or {}),
                 brief_seed=str(d.get("brief_seed", "")),
                 avoid_motifs=list(d.get("avoid_motifs") or []),
+                family=str(d.get("family", "")),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise NicheLibraryError(f"invalid niche entry {d!r}: {exc}") from exc
@@ -227,16 +229,25 @@ def select_niche_cycle(
 
 def select_aesthetic_lock(niche: Niche, cursor: int) -> AestheticLock:
     """Lock one palette + one lighting recipe + one photographer for the
-    series. Offsets stagger so the three axes don't move in lockstep across
-    runs. Tolerates missing/empty aesthetic lists."""
-    def _pick(key: str, offset: int) -> str:
+    series. MIXED-RADIX indexing (2026-06): the old constant-offset scheme
+    moved all three equal-length axes in perfect lockstep — only 3 of 27
+    combinations were ever reachable and two niches received the IDENTICAL
+    full lock on consecutive runs. Dividing the cursor by each axis's radix
+    walks every combination before repeating. Tolerates missing/empty lists."""
+    div = 1
+    picks: dict[str, str] = {}
+    for key in ("palettes", "lighting", "photographers"):
         opts = niche.aesthetics.get(key) or []
-        return opts[(cursor + offset) % len(opts)] if opts else ""
+        if opts:
+            picks[key] = opts[(cursor // div) % len(opts)]
+            div *= len(opts)
+        else:
+            picks[key] = ""
 
     return AestheticLock(
-        palette=_pick("palettes", 0),
-        lighting=_pick("lighting", 1),
-        photographer=_pick("photographers", 2),
+        palette=picks["palettes"],
+        lighting=picks["lighting"],
+        photographer=picks["photographers"],
     )
 
 

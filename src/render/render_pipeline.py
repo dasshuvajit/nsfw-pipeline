@@ -23,7 +23,8 @@ DEFAULTS: dict[str, Any] = {
     "refine_template": "templates/chroma/refine.json",
     "refine_template_t4": "templates/chroma/refine_T4.json",
     "upscale_template": "templates/sdxl/upscale_4k.json",
-    "upscale_template_t4": "templates/sdxl/upscale_4k_T4.json",
+    # (upscale_template_t4 removed 2026-06-10 — the 4K stage is tier-neutral;
+    #  the T4 variant had become byte-identical after the MPS detailer removal)
     "enable_refine": True,
     "target_4k_long_edge": 3840,
     "base_resolution": {
@@ -35,7 +36,7 @@ DEFAULTS: dict[str, Any] = {
 
 _SCALAR_KEYS = (
     "base_template", "refine_template", "refine_template_t4", "upscale_template",
-    "upscale_template_t4", "enable_refine", "target_4k_long_edge",
+    "enable_refine", "target_4k_long_edge",
 )
 
 

@@ -24,7 +24,9 @@ BASE = TPL / "chroma" / "base.json"
 REFINE = TPL / "chroma" / "refine.json"
 REFINE_T4 = TPL / "chroma" / "refine_T4.json"
 UPSCALE = TPL / "sdxl" / "upscale_4k.json"
-UPSCALE_T4 = TPL / "sdxl" / "upscale_4k_T4.json"
+# (upscale_4k_T4.json was deleted 2026-06-10: it had become byte-identical to
+#  upscale_4k.json after the MPS post-upscale-detailer removal — 4K is tier-
+#  neutral; explicit detail comes from the REVIEW stage.)
 
 _MPS_BANNED_SAMPLERS = {"res_2m", "res_2s", "res_3m", "res_multistep", "res_2m_sde"}
 _MPS_BANNED_SCHEDULERS = {"bong_tangent"}
@@ -59,12 +61,12 @@ def _acyclic_single_sink(wf: dict) -> tuple[bool, list[str]]:
     return seen == len(ids), sinks
 
 
-@pytest.mark.parametrize("path", [BASE, REFINE, REFINE_T4, UPSCALE, UPSCALE_T4])
+@pytest.mark.parametrize("path", [BASE, REFINE, REFINE_T4, UPSCALE])
 def test_exists(path: Path):
     assert path.exists(), f"missing stage template {path}"
 
 
-@pytest.mark.parametrize("path", [BASE, REFINE, REFINE_T4, UPSCALE, UPSCALE_T4])
+@pytest.mark.parametrize("path", [BASE, REFINE, REFINE_T4, UPSCALE])
 def test_mps_safe_and_acyclic_single_sink(path: Path):
     wf = _load(path)
     for nid, node in wf.items():
@@ -90,7 +92,7 @@ def test_base_is_chroma_domain_only():
     assert "FaceDetailer" not in classes
 
 
-@pytest.mark.parametrize("path", [REFINE, REFINE_T4, UPSCALE, UPSCALE_T4])
+@pytest.mark.parametrize("path", [REFINE, REFINE_T4, UPSCALE])
 def test_load_image_has_required_widget_inputs(path: Path):
     """VHS_LoadImagePath requires image + custom_width + custom_height in the
     API JSON (ComfyUI rejects the prompt otherwise — regression guard)."""
@@ -191,7 +193,11 @@ def test_upscale_contract_and_values():
     assert u["class_type"] == "UltimateSDUpscale"
     assert u["inputs"]["sampler_name"] == "lcm" and u["inputs"]["scheduler"] == "karras"
     assert u["inputs"]["steps"] == 8           # v7.0: steps≈10×CFG (was 6)
-    assert u["inputs"]["denoise"] == 0.18
+    # FACE-TRUE 4K (2026-06-10 A/B): denoise 0.18 visibly restructured the
+    # Chroma face on the PAID product (sharpened eyes/brows, changed makeup);
+    # 0.05 ≈ Remacri upscale + seam blend, face nearly identical to source.
+    assert u["inputs"]["denoise"] == 0.05
+    assert u["inputs"]["seam_fix_denoise"] == 0.10
     # tile 1536 (6 tiles for a ~3000x3848 4K): the staged 4K stage is SDXL-only
     # with ~40GB free, so larger tiles than the monolith's 1280 are memory-safe
     # and ~halve the tile count.
@@ -207,16 +213,3 @@ def test_upscale_contract_and_values():
     assert "FaceDetailer" not in no_detailers
     assert "DifferentialDiffusion" not in wf and "detailer_face" not in wf
     assert wf["save"]["inputs"]["images"] == ["upscale", 0]   # save the USDU 4K directly
-
-
-def test_t4_is_usdu_only_on_mps():
-    """The T4 4K template is also USDU-only: the FaceDetailer-family nodes (incl.
-    the nipple/vagina detailers) hit the same MPS VAE-attention INT_MAX limit at
-    4K, so they are dropped. T4 explicit detail comes from the review stage +
-    the USDU tiled refine; revisit if a tiled-VAE detailer path lands."""
-    wf = _load(UPSCALE_T4)
-    classes = {nd["class_type"] for nd in wf.values()}
-    assert "FaceDetailer" not in classes
-    assert "det_nipple_detector" not in wf and "det_vagina_detector" not in wf
-    assert wf["upscale"]["class_type"] == "UltimateSDUpscale"
-    assert wf["save"]["inputs"]["images"] == ["upscale", 0]

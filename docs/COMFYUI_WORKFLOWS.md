@@ -120,14 +120,28 @@ SDXL (everything after)** — and gates 4K behind manual selection.
 |-------|----------|-------|--------|--------|
 | 1 Base | `templates/chroma/base.json` | Chroma + T5 + ae | `art_series` (all prompts) | ~896×1152 |
 | 2 Refine | `templates/chroma/refine.json` | SDXL DMD (detailer crops only) | `art_series` (all base outputs) | review ~1120×1440 |
-| 3 4K-finish | `templates/sdxl/upscale_4k.json` (+`_T4`) | SDXL DMD | **`scripts/upscale_folder.py` (manual, keepers)** | true 4K ≥3840 |
+| 3 4K-finish | `templates/sdxl/upscale_4k.json` (tier-neutral; the `_T4` variant was deleted 2026-06-10 — it had become byte-identical) | SDXL DMD | **`scripts/upscale_folder.py` (manual, `4k_queue/`)** | true 4K ≥3840 |
 
 `art_series` runs stage 1 for the whole series (Chroma resident once), then
 stage 2 for every base output (SDXL resident once) — the two domains never
 co-reside, so each batch stays well under 48 GB. It produces **review**
-images and curates/packages those. **4K is never auto-run.** Detailers +
-USDU live in stage 3 (the proven detail-after-upscale ordering), so the
-series render is tier-neutral.
+images and curates/packages those. **4K is never auto-run.** Stage 3 is
+**USDU-only** (the post-upscale detailers were removed — they OOM on MPS at
+4K; detailers live in stage 2), so the 4K stage is tier-neutral.
+
+**Face-true 4K (2026-06-10 A/B):** USDU `denoise` is **0.05** (seam_fix
+0.10). The old 0.18 visibly restructured the Chroma face on the sold 4K
+product — higher than the 0.15 global refine that was removed for exactly
+that drift. At 0.05 Remacri does the upscaling and SDXL only blends seams;
+the face stays the reviewed Chroma face. (0.10 = slightly more texture with
+slight eye/brow crispening — rejected under the face mandate.)
+
+**Negative prompts are INERT in this staged path:** base = cfg 1.0 +
+`ConditioningZeroOut` (the gonzaLomo flash-heun contract); refine detailers
+= cfg 1 lcm/DMD. `DEFAULT_NEGATIVE` does nothing at render time — avoidance
+is carried entirely by positive prose + the art_director validators. Do not
+raise cfg to revive negatives (doubles base time); if real negative guidance
+is ever needed, A/B ComfyUI-NAG (NAGCFGGuider supports Chroma at cfg=1).
 
 ### Extra-limb guard (auto-retry, `--anatomy-retries`, default 2)
 A FaceDetailer cannot remove an extra limb, so a base render with a 3rd hand would
@@ -141,11 +155,13 @@ detector works (see the no-foot-detailer note above), so feet still rely on prom
 guidance + manual culling.
 
 ### Stage-3 manual 4K — `scripts/upscale_folder.py`
-Eyeball the review images, copy favourites into a folder, then:
+Packaging now emits a **`4k_queue/`** (keepers with quality_score ≥ 0.62 and
+no flags — the images that earn the ~10-min pass). Review it, delete any you
+veto, then:
 ```bash
-python scripts/upscale_folder.py output/art_series/<ts>/keepers
-python scripts/upscale_folder.py my_picks --tier T4_explicit   # NSFW detailers
+python scripts/upscale_folder.py output/art_series/<ts>/4k_queue
 ```
+(`--tier` is a retained no-op; the 4K stage is tier-neutral.)
 It reads each image's dims, computes `upscale_by = ceil((target/long_edge)*100)/100`
 (clamped ≥1.0, default target 3840), and runs the stage-3 template. **Stateless
 + base-model-agnostic** — it upscales output from any source, not just this

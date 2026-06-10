@@ -20,22 +20,24 @@ flagged on three separate prompts of series_79ae3b962c8d:
 Score 1-10 per prompt, list issues. Print summary + per-prompt detail.
 
 Usage:
-    python scripts/audit_prompts.py <series_id> [--family chroma]
+    python scripts/audit_prompts.py output/art_series/<ts>     # manifest.json
+    python scripts/audit_prompts.py <dir-or-file> --verbose    # prompts.json works too
 
-The script is read-only — it does not modify the DB or any files.
+(The old <series_id> DB mode was archived 2026-06-10 with the structured
+path — the LLM-direct store is per-run manifest.json/prompts.json.)
+The script is read-only.
 """
 from __future__ import annotations
 
 import argparse
+import json
 import re
-import sqlite3
 import sys
 from collections import Counter
 from pathlib import Path
 
 # Repo root
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DB_PATH = PROJECT_ROOT / "nsfw_pipeline.db"
 
 
 # ── Issue detectors ───────────────────────────────────────────────────
@@ -49,14 +51,23 @@ _PHOTOGRAPHER_REFS = (
 )
 
 
-_LIGHTING_RECIPES = (
+# Split into primary SOURCES (mutually exclusive — two competing recipes is a
+# real collision) and MODIFIERS (rim/fill/flare/dappled legitimately layer on
+# one source; the system prompt itself teaches "a soft rim separating her from
+# the background"). Penalizing modifiers alongside sources false-flagged the
+# engine's best layered-light prose.
+_LIGHTING_SOURCES = (
     "Rembrandt lighting", "golden hour", "butterfly lighting",
-    "low-key", "noir lighting", "split lighting", "rim light",
-    "soft fill", "overcast", "volumetric golden", "crepuscular",
-    "dappled", "Cinestill", "lens flare", "Caravaggio chiaroscuro",
-    "Baroque Caravaggio", "fireplace", "single hard key",
-    "window light", "neon",
+    "noir lighting", "split lighting", "overcast",
+    "Caravaggio chiaroscuro", "Baroque Caravaggio", "fireplace",
+    "single hard key", "window light", "neon", "Cinestill",
 )
+_LIGHTING_MODIFIERS = (
+    "low-key", "rim light", "soft fill", "volumetric golden",
+    "crepuscular", "dappled", "lens flare",
+)
+# Back-compat alias (callers/tests may import the old name).
+_LIGHTING_RECIPES = _LIGHTING_SOURCES + _LIGHTING_MODIFIERS
 
 
 _CAMERA_ANGLES = (
@@ -79,12 +90,89 @@ _T4_ANATOMY_KEYWORDS = (
     "naked", "bare skin", "bare hips", "bare thighs",
 )
 
-
-_PROPS_FOR_BIGRAM_LOCK = (
-    "persian rug", "champagne glass", "silk dress", "vinyl record",
-    "fountain pen", "letter opener", "ostrich feather",
-    "marble pedestal", "moss-covered", "ivy",
+# Tier contracts (2026-06 audit): the gate was tier-blind below T4 — a T3
+# "art-nude" face close-up with zero nudity scored 10.0 and shipped inside a
+# nude set, and a T4 with mere "bare shoulders" passed on the weak generic
+# list above. Strong per-tier token contracts close both holes.
+_T3_NUDITY_TOKENS = (
+    "nude", "naked", "topless", "bare breast", "bare chest", "bare body",
+    "undressed", "unclothed", "fully bare", "wears nothing",
 )
+_T4_EXPLICIT_TOKENS = (
+    "vulva", "labia", "her sex", "mound", "her bare sex",
+    "between her parted thighs", "between her thighs",
+)
+_LOW_TIER_EXPLICIT_TOKENS = (        # never in T1/T2 prose
+    "vulva", "labia", "her sex", "nipple", "areola",
+)
+# Overt-nudity ceiling for BOTH low tiers (2026-06-10): a pre-gate-v2 T2
+# prompt rendered fully nude and shipped in a PUBLIC package — T2 means
+# IMPLIED (strategic cover), so overt nudity tokens are a violation at T1
+# and T2 alike, not just T1.
+_LOW_TIER_NUDITY_TOKENS = ("topless", "fully nude", "entirely nude",
+                           "completely nude", "bare breast", "naked",
+                           "fully bare", "in the nude")
+_T1_NUDITY_TOKENS = _LOW_TIER_NUDITY_TOKENS    # back-compat alias
+
+# Cliché-density ladder (2026-06 audit): house words measured saturating the
+# corpus — "luminous" 83% of prompts, camera-tail formula 93%, "velvety" 35%.
+# A few are fine; a pile is the house style fossilizing. ≥3 distinct hits
+# starts costing.
+_CLICHE_PHRASES = (
+    "luminous", "velvety", "sultry", "tack-sharp", "exquisite",
+    "breathtaking", "strikingly beautiful", "her expression is one of",
+    "the fine texture of her skin", "toward the lens with a",
+    "melts into", "dissolves into", "creamy bokeh", "unretouched",
+    "alabaster", "porcelain skin",
+)
+_CLICHE_REGEXES = (re.compile(r"\bshot on \d+\s?mm", re.IGNORECASE),)
+
+# Specificity ladder (excellence-presence, not defect-absence): the audit found
+# 10.0 meant only "no defects". These reward the concrete optical/material
+# precision the house doctrine demands — absence now costs.
+_LIGHT_DIRECTION_TOKENS = (
+    "camera-left", "camera-right", "camera left", "camera right",
+    "from behind", "from above", "from below", "from the left",
+    "from the right", "raking", "backlit", "back-lit", "side-lit",
+    "sidelight", "side light", "rim-lit", "overhead", "low-angled",
+    "from a high window", "from one side", "obliquely", "low and from",
+)
+_MATERIAL_NOUNS = (
+    "velvet", "marble", "brass", "linen", "silk", "oak", "stone",
+    "leather", "lace", "copper", "iron", "mahogany", "satin", "wool",
+    "terracotta", "ceramic", "pearl", "chrome", "latex", "cotton",
+    "fur", "gilt", "gilded", "bronze", "obsidian", "damask", "tulle",
+    "chiffon", "rattan", "wicker", "burlap", "denim", "glass",
+)
+_MICRO_TEXTURE_TOKENS = (
+    "pores", "vellus", "freckle", "mole", "catchlight", "sheen",
+    "grain", "goosebumps", "flush", "dew", "down at her", "fine down",
+    "peach fuzz", "translucency",
+)
+
+
+def _ngram_set(text: str, n: int = 3) -> set[str]:
+    """Word n-grams for freshness/overlap comparison."""
+    words = re.findall(r"[a-z']+", (text or "").lower())
+    return {" ".join(words[i:i + n]) for i in range(len(words) - n + 1)}
+
+
+def freshness_overlap(text: str, context_prompts: "list[str] | None") -> float:
+    """Max 3-gram CONTAINMENT of ``text`` vs each context prompt — how much of
+    the candidate's phrasing already exists in this run/recent history.
+    0.0 when no context."""
+    if not context_prompts:
+        return 0.0
+    cand = _ngram_set(text)
+    if not cand:
+        return 0.0
+    worst = 0.0
+    for ref in context_prompts:
+        ref_set = _ngram_set(ref)
+        if not ref_set:
+            continue
+        worst = max(worst, len(cand & ref_set) / min(len(cand), len(ref_set)))
+    return worst
 
 
 # Ungrammatical leftovers from the OLD vocab-canonicalizer's mirror-strip (since
@@ -100,6 +188,27 @@ _MIRROR_DANGLING_PATTERNS = (
     r"\bgilded,\s+her\s+bare\s+body\s+reflected",    # a real mirror-reflection phrase
 )
 
+
+# ── Canonical shared rule lists (single source of truth, 2026-06-10) ──
+# Both enforcement layers consume THESE: art_director's hard Pydantic gate
+# imports the strict subsets below; this module's soft scoring uses the
+# broader _SAD_TOKENS underneath. The lists had drifted across 3 homes —
+# the system prompt banned 'wistful' but neither enforcement list had it.
+HARD_SAD_EXACT = frozenset({
+    "sad", "sadness", "mournful", "melancholic", "melancholy", "sorrow",
+    "sorrowful", "crying", "tearful", "forlorn", "woeful", "grief", "doleful",
+    "wistful",
+})
+HARD_SAD_PREFIX = ("griev", "weep", "despair", "anguish", "mourn")
+
+# Refusal-shaped output (2026-06-11 blind panel catch): Skyfall emitted
+# "I cannot generate this image as requested..." — right length, no banned
+# tokens — and it SHIPPED via keep-best at 4.0. A refusal is never a prompt.
+REFUSAL_TOKENS = (
+    "i cannot", "i can't", "i am unable", "i'm unable", "i won't",
+    "as an ai", "cannot generate", "unable to generate", "cannot create",
+    "i must decline", "i apologize", "i'm sorry, but", "i am sorry, but",
+)
 
 # 2026-05-23 (verifier audit) — sad/crying tokens flagged. User
 # explicit ban: commercial adult-art markets sell confidence +
@@ -189,10 +298,12 @@ def count_photographer_refs(text: str) -> tuple[int, list[str]]:
 
 
 def count_lighting_recipes(text: str) -> tuple[int, list[str]]:
-    """Count distinct lighting recipes in the prompt. >1 = style stacking."""
+    """Count distinct PRIMARY lighting sources in the prompt. >1 = a real
+    collision (two competing recipes). Modifiers (rim/fill/flare/dappled)
+    legitimately layer on one source and are NOT counted."""
     found = []
     text_lower = text.lower()
-    for recipe in _LIGHTING_RECIPES:
+    for recipe in _LIGHTING_SOURCES:
         if recipe.lower() in text_lower:
             found.append(recipe)
     return len(found), found
@@ -289,26 +400,44 @@ def word_count(text: str) -> int:
 # ── Scoring ───────────────────────────────────────────────────────────
 
 
-def score_prompt(text: str, tier: str) -> tuple[float, list[str]]:
-    """Score 1-10 + issue list.
+def score_prompt(
+    text: str, tier: str, context_prompts: "list[str] | None" = None,
+) -> tuple[float, list[str]]:
+    """Score 1-10 + issue list. 10.0 = zero defects AND fully specific.
 
-    Heavy penalties:
+    Gate v2 (2026-06 audit): the old rubric was all floor-checks with a +1
+    coherence bonus that masked up to 1.0 of penalties — 29/36 production
+    prompts scored exactly 10.0 and the regenerate branch never fired. The
+    bonus is gone; three quality LADDERS spread the top end (cliché density,
+    freshness vs ``context_prompts``, specificity-absence), and per-tier
+    token CONTRACTS enforce T1-T4 explicitness both ways.
+
+    Defect penalties:
     - Style stacking (>1 photographer): -2
-    - Multiple lighting recipes (>1): -2
+    - Multiple lighting SOURCES (>1; modifiers free): -2
     - Camera angle contradiction: -2
     - B&W + color contradiction: -1.5
-    - Mirror dangling syntax: -2
-    - T4 missing anatomy: -2 (T4 only)
-    - Tag-soup sentences (>3): -1
-    - Repeated 4-grams: -0.5 each
-
-    Light bonuses:
-    - Trailing period: +0 (just expected)
-    - One coherent paragraph (<7 sentences): +1
-    - Concrete anatomy at T4 (>3 anatomy keywords): +0.5
+    - Mirror dangling / prose, grounding, sad tokens: as before
+    - Tag-soup sentences (>3): -1 · Repeated 4-grams: -0.5 each
+    Tier contracts:
+    - T4 without a strong explicit token (vulva/labia/her sex/...): -4
+    - T3 without any nudity token: -3
+    - T1/T2 carrying explicit-anatomy tokens: -3 (T1 also bare/topless: -3)
+    Quality ladders:
+    - ≥3 distinct cliché phrases: -0.5 each beyond the 2nd (cap -2)
+    - freshness overlap vs context >0.15: -1.0; >0.30: -2.0
+    - no named light direction / <3 material nouns / <2 micro-texture
+      tokens: -0.5 each
     """
     score = 10.0
     issues: list[str] = []
+
+    # Refusal-shaped output — floor the score (keep-best must never ship it).
+    _low_head = (text or "").lower()[:300]
+    refusals = [t for t in REFUSAL_TOKENS if t in _low_head]
+    if refusals:
+        issues.append(f"REFUSAL: {refusals} — this is a refusal, not a prompt")
+        return 0.0, issues
 
     # Style stacking
     n_photog, photogs = count_photographer_refs(text)
@@ -363,10 +492,33 @@ def score_prompt(text: str, tier: str) -> tuple[float, list[str]]:
         score -= 1.5
         issues.append("FRAGMENTED_PROSE: per-axis clauses not paragraph")
 
-    # T4 anatomy
-    if tier == "T4_explicit" and detect_t4_anatomy_missing(text):
-        score -= 2.0
-        issues.append("T4_NO_ANATOMY: no anatomy keyword in T4 prompt")
+    # ── Tier contracts (both directions) ──────────────────────────────
+    text_lower = text.lower()
+    if tier == "T4_explicit":
+        if not any(t in text_lower for t in _T4_EXPLICIT_TOKENS):
+            # Strong contract: T4 means the bare sex is described — mere
+            # nudity ("bare shoulders") passing the old weak list let a
+            # nudity-free prompt ship inside a paid T4 set at 9.0.
+            score -= 4.0
+            issues.append("T4_NO_EXPLICIT: no explicit-anatomy token in T4 prompt")
+        elif detect_t4_anatomy_missing(text):
+            score -= 2.0
+            issues.append("T4_NO_ANATOMY: no anatomy keyword in T4 prompt")
+    elif tier == "T3_artnude":
+        if not any(t in text_lower for t in _T3_NUDITY_TOKENS):
+            score -= 3.0
+            issues.append("T3_NO_NUDITY: no nudity token in an art-nude prompt")
+    elif tier in ("T1_suggestive", "T2_implied"):
+        explicit_hits = [t for t in _LOW_TIER_EXPLICIT_TOKENS if t in text_lower]
+        if explicit_hits:
+            score -= 3.0
+            issues.append(f"LOW_TIER_EXPLICIT: {explicit_hits} in {tier}")
+        nudity_hits = [t for t in _LOW_TIER_NUDITY_TOKENS if t in text_lower]
+        if nudity_hits:
+            # T1 = clothed/lingerie; T2 = IMPLIED nudity (covered). Overt
+            # nudity is a tier violation at both — these sets post PUBLIC.
+            score -= 3.0
+            issues.append(f"LOW_TIER_NUDITY: {nudity_hits} in {tier}")
 
     # Tag-soup sentences
     n_soup = detect_tag_soup_sentences(text)
@@ -374,26 +526,43 @@ def score_prompt(text: str, tier: str) -> tuple[float, list[str]]:
         score -= 1.0
         issues.append(f"TAG_SOUP: {n_soup} sentences with >4 commas")
 
-    # Repetition
+    # Repetition (within-prompt)
     repeats = detect_repeated_clauses(text)
     if repeats:
         score -= 0.5 * min(len(repeats), 4)
         issues.append(f"REPETITION: {len(repeats)} repeated 4-grams: {repeats[:3]}")
 
-    # Single-paragraph coherence bonus
-    n_sentences = count_sentences(text)
-    wc = word_count(text)
-    if n_sentences < 7 and wc < 250:
-        score += 1.0
-        issues.append(f"GOOD_COHERENCE: {n_sentences} sentences, {wc} words")
+    # ── Quality ladders (excellence presence) ─────────────────────────
+    # Cliché density: a few house words are voice; a pile is fossilization.
+    cliche_hits = [p for p in _CLICHE_PHRASES if p in text_lower]
+    cliche_hits += [rx.pattern for rx in _CLICHE_REGEXES if rx.search(text)]
+    if len(cliche_hits) >= 3:
+        pen = min(2.0, 0.5 * (len(cliche_hits) - 2))
+        score -= pen
+        issues.append(f"CLICHE_DENSITY: {len(cliche_hits)} house phrases: "
+                      f"{cliche_hits[:4]}")
 
-    # T4 concrete anatomy bonus
-    if tier == "T4_explicit":
-        text_lower = text.lower()
-        n_anatomy = sum(1 for kw in _T4_ANATOMY_KEYWORDS if kw in text_lower)
-        if n_anatomy >= 3:
-            score += 0.5
-            issues.append(f"CONCRETE_ANATOMY: {n_anatomy} anatomy keywords")
+    # Freshness vs the run/recent history (when the caller supplies context).
+    overlap = freshness_overlap(text, context_prompts)
+    if overlap > 0.30:
+        score -= 2.0
+        issues.append(f"STALE_PHRASING: {overlap:.0%} 3-gram overlap with prior prompts")
+    elif overlap > 0.15:
+        score -= 1.0
+        issues.append(f"FAMILIAR_PHRASING: {overlap:.0%} 3-gram overlap with prior prompts")
+
+    # Specificity: named light direction, concrete materials, micro-texture.
+    if not any(t in text_lower for t in _LIGHT_DIRECTION_TOKENS):
+        score -= 0.5
+        issues.append("NO_LIGHT_DIRECTION: light has no named direction")
+    n_materials = sum(1 for m in _MATERIAL_NOUNS if m in text_lower)
+    if n_materials < 3:
+        score -= 0.5
+        issues.append(f"THIN_MATERIALS: only {n_materials} concrete material nouns")
+    n_micro = sum(1 for m in _MICRO_TEXTURE_TOKENS if m in text_lower)
+    if n_micro < 2:
+        score -= 0.5
+        issues.append(f"THIN_MICRO_TEXTURE: only {n_micro} micro-texture tokens")
 
     # Trailing period
     if not text.rstrip().endswith((".", "!", "?")):
@@ -403,132 +572,64 @@ def score_prompt(text: str, tier: str) -> tuple[float, list[str]]:
     return max(0.0, min(10.0, score)), issues
 
 
-def find_repeated_props_across_series(prompts: list[tuple]) -> dict[str, int]:
-    """Count which props/bigrams appear in multiple prompts.
-
-    Accepts either 2-tuples ``(scene_id, text)`` or 3-tuples
-    ``(scene_id, text, generation_kind)`` — only reads the first two
-    elements so callers that include extra columns don't break.
-    """
-    counts: Counter[str] = Counter()
-    for row in prompts:
-        text = row[1]
-        text_lower = (text or "").lower()
-        for prop in _PROPS_FOR_BIGRAM_LOCK:
-            if prop in text_lower:
-                counts[prop] += 1
-    return {prop: c for prop, c in counts.items() if c >= 3}
-
 
 # ── Main ──────────────────────────────────────────────────────────────
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Audit composed prompts for quality issues (Grok+Claude-web rubric)."
-    )
-    parser.add_argument("series_id", help="Series ID to audit")
-    parser.add_argument("--model", default="gonzalomo_chroma_v30", help="Model ID")
-    parser.add_argument(
-        "--verbose", action="store_true", help="Print full prompt text per issue"
-    )
+        description="Score a run's prompts (gate-v2 rubric) from its "
+                    "manifest.json / prompts.json.")
+    parser.add_argument("run_dir",
+                        help="output/art_series/<ts> dir, or a direct path to "
+                             "manifest.json / prompts.json")
+    parser.add_argument("--verbose", action="store_true",
+                        help="print full prompt text per entry")
     args = parser.parse_args()
 
-    conn = sqlite3.connect(str(DB_PATH))
-    try:
-        # Get series tier
-        row = conn.execute(
-            "SELECT content_level, theme, style_profile_id FROM series WHERE id = ?",
-            (args.series_id,),
-        ).fetchone()
-        if not row:
-            print(f"Series {args.series_id!r} not found.")
-            return 1
-        tier, theme, style_profile = row
-
-        # Get all prompts
-        cur = conn.execute(
-            "SELECT scene_id, prompt_text, generation_kind FROM prompts "
-            "WHERE scene_id LIKE ? AND model_id = ? ORDER BY scene_id",
-            (f"{args.series_id}%", args.model),
-        )
-        prompts = cur.fetchall()
-    finally:
-        conn.close()
-
-    if not prompts:
-        print(f"No prompts found for series {args.series_id!r} model {args.model!r}")
+    p = Path(args.run_dir).expanduser()
+    f = p
+    if p.is_dir():
+        f = (p / "manifest.json") if (p / "manifest.json").exists() \
+            else (p / "prompts.json")
+    if not f.exists():
+        print(f"No manifest.json / prompts.json under {p}", file=sys.stderr)
         return 1
+    data = json.loads(f.read_text())
+    tier = data.get("tier", "T3_artnude")
+    rows = (data.get("prompts") or []) + (data.get("covers") or [])
+    texts = [(r.get("prompt") or "") for r in rows]
 
     print("=" * 72)
-    print(f"AUDIT — series {args.series_id}")
-    print(f"  theme: {theme!r}")
-    print(f"  style_profile: {style_profile!r}")
-    print(f"  tier: {tier}")
-    print(f"  prompts: {len(prompts)}")
-    print("=" * 72)
-    print()
+    print(f"AUDIT — {f}")
+    print(f"  tier: {tier}   prompts (incl. covers): {len(rows)}")
+    print("=" * 72 + "\n")
 
     scores: list[float] = []
-    fallback_count = 0
-    llm_success_count = 0
-    for scene_id, text, gen_kind in prompts:
-        short_id = scene_id[-3:] if scene_id else "?"
-        score, issues = score_prompt(text or "", tier)
+    for i, txt in enumerate(texts):
+        if not txt:
+            continue
+        # context = the prompts accepted BEFORE this one (freshness ladder)
+        score, issues = score_prompt(txt, tier, context_prompts=texts[:i])
         scores.append(score)
-        rating = "✓" if score >= 7.5 else ("△" if score >= 5 else "✗")
-        wc = word_count(text or "")
-        ns = count_sentences(text or "")
-        # 2026-05-24 — generation_kind tag shows whether the LLM
-        # produced the body or the composer used the tier-aware fallback.
-        if gen_kind == "llm_success":
-            kind_tag = "LLM"
-            llm_success_count += 1
-        elif gen_kind and gen_kind.startswith("fallback_"):
-            kind_tag = "FB"
-            fallback_count += 1
-        else:
-            kind_tag = "?? "
-        print(
-            f"[{rating}] [{kind_tag}] scene_{short_id} — "
-            f"score {score:.1f}/10 ({ns}s, {wc}w)"
-        )
+        rating = "✓" if score >= 8.5 else ("△" if score >= 7 else "✗")
+        print(f"[{rating}] #{i + 1:02d} — score {score:.1f}/10 "
+              f"({count_sentences(txt)}s, {word_count(txt)}w)")
         for issue in issues:
             print(f"    {issue}")
         if args.verbose:
-            print(f"    PROMPT: {(text or '')[:200]}...")
+            print(f"    PROMPT: {txt[:240]}…")
         print()
 
-    # Series-level: cross-prompt prop repetition
+    if not scores:
+        print("No prompts found.")
+        return 1
     print("=" * 72)
-    print("SERIES-LEVEL PROP LOCK-IN")
-    print("-" * 72)
-    repeated_props = find_repeated_props_across_series(prompts)
-    if repeated_props:
-        for prop, count in sorted(repeated_props.items(), key=lambda x: -x[1]):
-            print(f"  {prop!r}: {count}/{len(prompts)} scenes")
-    else:
-        print("  (none — good diversity)")
-
-    print()
-    print("=" * 72)
-    print("SUMMARY")
-    print("-" * 72)
     avg = sum(scores) / len(scores)
-    n_excellent = sum(1 for s in scores if s >= 8)
-    n_acceptable = sum(1 for s in scores if 5 <= s < 8)
-    n_poor = sum(1 for s in scores if s < 5)
-    print(f"  Average score: {avg:.2f}/10")
-    print(f"  Excellent (≥8): {n_excellent}/{len(scores)}")
-    print(f"  Acceptable (5-8): {n_acceptable}/{len(scores)}")
-    print(f"  Poor (<5): {n_poor}/{len(scores)}")
-    print()
-    n = llm_success_count + fallback_count
-    if n > 0:
-        print(f"  LLM-success:  {llm_success_count}/{n} ({100*llm_success_count/n:.0f}%)")
-        print(f"  Fallback:     {fallback_count}/{n} ({100*fallback_count/n:.0f}%)")
+    print(f"  Average score: {avg:.2f}/10   "
+          f"≥8.5: {sum(1 for s in scores if s >= 8.5)}/{len(scores)}   "
+          f"<7: {sum(1 for s in scores if s < 7)}/{len(scores)}")
     print("=" * 72)
-
     return 0
 
 

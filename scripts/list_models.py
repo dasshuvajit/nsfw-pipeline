@@ -1,27 +1,23 @@
 #!/usr/bin/env python3
-"""Print model registries — image models and/or LLM registry, plus
-optional per-role routing resolution.
+"""Print the LLM registry + optional per-role routing resolution.
 
-Thin read-only frontend over the three registries:
-  - ``ModelRegistryLoader`` for ``config/models/*.yaml``
+Thin read-only frontend over:
   - ``LLMRegistryLoader`` for ``config/llm_models.yaml``
   - ``LLMRouter`` (constructed against ``pipeline.yaml::llm.routing``)
     for the per-role resolution table
 
-Default output: BOTH image-model and LLM registries (no routing).
+(The image-model registry half was archived 2026-06-10 with the legacy
+structured path — ``config/models/*.yaml`` now lives under ``legacy/config/``;
+the active render path hardcodes its checkpoint in the workflow templates.)
 
 Flags:
-  --family <id>       filter image models by family
-  --all               include inactive image models
-  --models-only       skip the LLM registry section
-  --llms-only         skip the image-model registry section
   --routing           print the per-role LLM resolution table + reverse mapping
+  --llms-only         retained no-op (back-compat; the LLM registry is all
+                      there is now)
 
 Examples:
     python scripts/list_models.py
     python scripts/list_models.py --routing
-    python scripts/list_models.py --family sdxl --all
-    python scripts/list_models.py --llms-only
 """
 
 from __future__ import annotations
@@ -41,69 +37,6 @@ from src.memory.llm_registry import (  # noqa: E402
     LLMRegistryError,
     LLMRegistryLoader,
 )
-from src.memory.model_registry import (  # noqa: E402
-    ModelRegistryError,
-    ModelRegistryLoader,
-    ModelPromptGuide,
-)
-
-
-def _print_image_models(args: argparse.Namespace) -> int:
-    """Print the image-model registry table. Returns exit code."""
-    try:
-        loader = ModelRegistryLoader()
-    except ModelRegistryError as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
-        return 1
-
-    models = loader.list_models(
-        family=args.family, include_inactive=args.all,
-    )
-    if not models:
-        where = []
-        if args.family:
-            where.append(f"family={args.family!r}")
-        if not args.all:
-            where.append("active=1")
-        suffix = f" ({', '.join(where)})" if where else ""
-        print(f"No models in registry{suffix}.")
-        return 0
-
-    guides: dict[str, ModelPromptGuide | None] = {}
-    for m in models:
-        guides[m.id] = loader.get_prompt_guide(m.id)
-
-    headers = (
-        "id", "family", "neg", "prompt_style", "active", "notes",
-    )
-    rows: list[tuple[str, ...]] = []
-    for m in models:
-        g = guides.get(m.id)
-        rows.append((
-            m.id,
-            m.family,
-            "Y" if (g and g.supports_negative_prompt) else "N",
-            g.prompt_style if g else "sdxl_keywords",
-            "Y" if m.active else "N",
-            (m.notes or "")[:50],
-        ))
-
-    widths = [
-        max(len(h), *(len(r[i]) for r in rows))
-        for i, h in enumerate(headers)
-    ]
-
-    def fmt(values: tuple[str, ...]) -> str:
-        return "  ".join(v.ljust(w) for v, w in zip(values, widths))
-
-    print("Image models (config/models/*.yaml):")
-    print(fmt(headers))
-    print(fmt(tuple("─" * w for w in widths)))
-    for r in rows:
-        print(fmt(r))
-
-    print(f"\n{len(rows)} image model(s)")
-    return 0
 
 
 def _print_llms(loader: LLMRegistryLoader) -> int:
@@ -214,24 +147,9 @@ def main() -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
-        "--family",
-        default=None,
-        help="Filter image models by family (sdxl|pony|illustrious|flux|chroma|flux2).",
-    )
-    parser.add_argument(
-        "--all",
-        action="store_true",
-        help="Include inactive image models (active: false).",
-    )
-    parser.add_argument(
-        "--models-only",
-        action="store_true",
-        help="Print only the image-model registry (skip LLMs).",
-    )
-    parser.add_argument(
         "--llms-only",
         action="store_true",
-        help="Print only the LLM registry (skip image models).",
+        help="Retained no-op (the LLM registry is the only registry now).",
     )
     parser.add_argument(
         "--routing",
@@ -240,34 +158,16 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    if args.models_only and args.llms_only:
-        print(
-            "ERROR: --models-only and --llms-only are mutually exclusive.",
-            file=sys.stderr,
-        )
-        return 2
+    try:
+        llm_loader = LLMRegistryLoader()
+    except LLMRegistryError as exc:
+        print(f"ERROR: LLM registry — {exc}", file=sys.stderr)
+        return 1
+    rc = _print_llms(llm_loader)
 
-    rc = 0
-
-    # Image models — unless --llms-only.
-    if not args.llms_only:
-        rc = _print_image_models(args) or rc
-
-    # LLM registry — unless --models-only.
-    if not args.models_only:
-        if not args.llms_only:
-            print()  # spacer between sections
-        try:
-            llm_loader = LLMRegistryLoader()
-        except LLMRegistryError as exc:
-            print(f"ERROR: LLM registry — {exc}", file=sys.stderr)
-            return 1
-        rc = _print_llms(llm_loader) or rc
-
-        # Routing table — only after LLM registry is loaded.
-        if args.routing:
-            print()  # spacer
-            rc = _print_routing(llm_loader) or rc
+    if args.routing:
+        print()  # spacer
+        rc = _print_routing(llm_loader) or rc
 
     return rc
 

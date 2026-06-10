@@ -325,7 +325,10 @@ class TestRealRegistry:
         ids = {e.id for e in loader.list_llms()}
         assert "cydonia_heretic_24b" in ids
         assert "qwen3_abliterated_30b" in ids
-        assert "magnum_v4_27b" in ids
+        # magnum_v4_27b deactivated 2026-06-11 (W5 hygiene: 8K context can't
+        # fit the T4 system prompt); the W5 dense challengers are active.
+        assert "deckard_gemma4_31b_heretic" in ids
+        assert "magnum_v4_27b" not in ids
 
 
 # ── Round-14 (2026-05-21): multi-backend entries ───────────────────

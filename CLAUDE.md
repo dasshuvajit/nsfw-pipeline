@@ -1,316 +1,129 @@
 # NSFW Content Generation Pipeline
 
 ## Project Overview
-This is a fully automated local NSFW content generation pipeline for DeviantArt/Patreon.
-The complete architecture is documented in ARCHITECTURE.md — read it fully before any implementation.
+A fully automated LOCAL pipeline generating artistic adult (NSFW) images of a
+single fictional adult female subject, sold on DeviantArt (funnel) + Fanvue
+(revenue). The production system is the **LLM-direct path** described below
+(2026-05-30 pivot; hardened by the 2026-06-10 eight-lens audit — see
+`~/.claude/plans/frolicking-toasting-elephant.md` for that master plan).
+The selling strategy lives in docs/DA_GO_TO_MARKET.md.
+
+## The active pipeline (LLM-direct)
+```
+config/niche_library.yaml ── niche/persona/aesthetic-lock selection
+        │                     (src/niche/selector.py — pure function of cursor)
+        ▼
+scripts/art_director.py ──── Gemma writes COMPLETE prose prompts (120-180 words)
+        │                     guarded by Pydantic hard gates + audit-gate v2
+        ▼
+scripts/art_series.py ────── orchestrates: Phase 1 LLM (prompts + SFW covers +
+        │                     metadata) → unload LLM → Phase 2 staged render
+        │                     (Chroma base → SDXL detailer refine) → curation →
+        │                     tier-split packaging (+ 4k_queue/ + posting templates)
+        ▼
+scripts/upscale_folder.py ── manual, selective true-4K (USDU, face-true denoise 0.05)
+```
+- **Prompt engine** (`art_director.py`): system prompt teaches optical
+  light-on-form craft, subject-first openers, anatomical-clarity/hands rules,
+  T1-T4 tier directives, T4 reveal-style rotation (11 styles), framing rotation
+  (8 targets), opener-lead (5) + craft-placement (7) structural rotations, and
+  per-image subject looks sampled from `config/creative_direction.yaml`
+  look_pools (hair/figure/face/complexion/age_look — prime strides + per-run
+  shuffle). Anti-repetition is MECHANICAL: 3-gram similarity rejects + banned
+  openers/tails enforced in the retry loop, with rejection feedback, temperature
+  escalation, and a final-attempt Cydonia fallback.
+- **Quality gate** (`scripts/audit_prompts.py::score_prompt`): defect penalties
+  + tier contracts (T4 requires explicit tokens; T3 requires nudity; T1/T2
+  reject nudity/explicit) + quality ladders (cliché density, freshness vs run
+  history, specificity). Threshold 8.5, keep-best fallback. The CLI scores a
+  run dir: `python scripts/audit_prompts.py output/art_series/<ts>`.
+  This module is also the single source of truth for the shared rule lists
+  (sad-mood, implausible-grounding, mirrors) consumed by art_director's gates.
+- **Cross-run memory**: per-run `manifest.json` files are the store (NO DB).
+  `_load_niche_history` seeds banned openers/signatures/tails from the last 4
+  runs of the same niche (+ covers), a global opener ban from the last 3 runs
+  of ANY niche, an overused-house-word budget, and the rotation offset
+  (stride count+1). `--brief` runs get a slug key. **Never delete
+  output/art_series/*/manifest.json — it is the diversity memory.**
+- **Render**: staged templates under `config/comfyui_workflows/templates/`
+  (chroma/base.json — dpmpp_2m/simple@12/cfg1; chroma/refine.json — detailers
+  ONLY hands+nipples, NO face detailer, NO global refine; refine_T4.json adds
+  the genital detailer, T4-only via content-based tier-purity guard;
+  sdxl/upscale_4k.json — USDU denoise 0.05 face-true). Per-prompt seeds;
+  extra-limb guard (hand YOLO reroll); ComfyUI pre-flight + circuit breaker.
+- **Packaging**: tier-split public/ (SFW only, watermarked) + gated/ (clean)
+  + 4k_queue/ (score ≥0.62, flag-free) + per-image posting_templates/ with
+  family-serial "Plate" titling + POSTING_CHECKLIST.md.
 
 ## Tech Stack
-- Python 3.11+
-- SQLite (single file DB)
-- ComfyUI (running separately at http://127.0.0.1:8188)
-- Ollama 0.5+ (running separately at http://localhost:11434).
-  0.5+ is required: Phase 4b adopts the `format: <schema>` API for
-  grammar-constrained JSON decoding, which lands at Ollama 0.5.
-  Multi-LLM upgrade (2026-05) replaces the single-model assumption
-  with an LLM registry at `config/llm_models.yaml` (default since
-  2026-06-04: `gemma_4_26b_a4b_heretic`, an LM Studio backend — won a
-  blind 4-lens judge A/B on creativity/sellability/framing-fidelity at
-  ~2.7x Cydonia's speed; `cydonia_heretic_24b` is now the fallback +
-  painterly-light specialist). Per-CLI `--llm <id>` is the canonical override;
-  every facet/prompt row stamps `llm_id` so multi-LLM A/B series
-  coexist on the same scenes.
-- Mac M4 Pro, 48GB unified RAM
+- Python 3.11+, Mac M4 Pro 48GB unified RAM (Apple MPS — no CUDA)
+- ComfyUI (separate, http://127.0.0.1:8188) — image model **gonzaLomo Chroma
+  v30** (Chroma = FLUX-arch, T5-prompted, flash-heun LoRA baked in → cfg 1.0
+  contract) + SDXL DMD for detailers/4K
+- LLM registry `config/llm_models.yaml` → `LLMClientPool` routes by backend:
+  Ollama / LM Studio / MLX / openai_compatible (dormant remote API).
+  **Default: `gemma_4_26b_a4b_heretic`** (26B MoE, LM Studio, 32K ctx);
+  fallback `cydonia_heretic_24b` (Ollama). `--model-tag` / `--llm` override.
 
 ## Critical Constraints
-- LLM and ComfyUI NEVER run simultaneously. Always unload LLM before rendering.
-- Never mix content levels within a set. The 4 tiers are
-  `T1_suggestive`, `T2_implied`, `T3_artnude`, `T4_explicit`
-  (enforced by DB CHECK and by `assert_level_purity()`).
-- **Single-female subject only.** Every render targets exactly
-  one adult female subject. Multi-subject mode is explicitly
-  deferred — enforced via 7-layer defence-in-depth (tier directives
-  + agent SYSTEM_PROMPTs + `solo_anchor` positive injection +
-  `subject_count` negative axis + `HARD_BLOCK_NEGATIVE` + composer
-  `_positive_subject_count_scan` + vocab `_SOLO_MODE_BANNED_TAGS`).
-  See ARCHITECTURE.md § Global single-female subject enforcement.
-- Sequential execution: LLM phase → unload → render phase.
-- **Commercial licensing:** every model YAML declares `license:` +
-  `commercial_use:`. Output from a model with `commercial_use: false`
-  (e.g. FLUX NCL-licensed checkpoints) cannot be sold on DA Premium /
-  Patreon / Fanvue. Set `pipeline.yaml::compliance.commercial_mode: true`
-  to have the registry drop NCL-licensed models at startup; this
-  protects against accidentally routing a paid-tier render through a
-  non-commercial checkpoint. (No NCL-licensed models are currently
-  registered — flux2 family has no member YAMLs at present.)
-
-## Storage split (post 2026-04 refactor; characters table removed 2026-05-20)
-- **Static config lives in YAML; SQLite is for runtime mutation only.**
-  Do not add new static-only tables. The DB holds **9 tables**:
-  series, scenes, **scene_facets**, prompts, images, sets, posts,
-  generation_memory, run_log.
-- **The scenes / scene_facets / prompts split** (per-model prompts work,
-  Phase 1–5 of the multi-model upgrade):
-  - `scenes` — model-agnostic scene core (pose / camera / lighting /
-    environment / mood / expression / composition_intent /
-    framing_hint / audience_target). Reused across every model.
-  - `scene_facets` — per-(scene, family) LLM expansion. Carries the
-    free-text family-shaped fields (`booru_tags` / `source_tag` (pony),
-    `scene_prose` (flux/chroma/illustrious/flux2), `camera_spec` /
-    `clothing` (sdxl)) **plus** the structured concept-tag enum fields
-    added in 2026-04 Phase 4a (`realism_camera`, `realism_lens`,
-    `realism_film_stock`, `art_style_reference`, `lighting_directive`,
-    `mood_aesthetic`, `nsfw_anatomy`, `nsfw_posture`). The
-    canonicalizer translates each enum tag to family-shaped phrasing
-    at compose time using `config/prompt_vocabulary.yaml`. Sibling
-    models in the same family share one facet row. Generated by
-    `SceneFacetGenerator`.
-  - `prompts` — per-(scene, target_kind, target_id, llm_id) composed text.
-    `prompts.target_kind` (added 2026-05) is `'model'` or `'family'`
-    and discriminates whether `model_id` carries an image-model id
-    (e.g. `juggernaut_ragnarok`) or a family id (e.g. `flux`); the column is
-    dual-purpose to keep the schema flat. `prompts.model_id` and
-    `prompts.llm_id` are both NOT NULL;
-    `UNIQUE(scene_id, target_kind, model_id, llm_id)` enforces "one
-    prompt per (scene, kind, target, generating-LLM)" so model-kind
-    and family-kind prompts coexist on the same scene. Re-rolling
-    for the same quad requires `--regen-prompts <model>` (model-kind)
-    or `--regen-family-prompts <family>` (family-kind), each with
-    `--llm <id>`. The multi-LLM upgrade (2026-05) added the `llm_id`
-    dimension so the same scene can be re-prompted by any LLM in the
-    registry (currently `cydonia_heretic_24b` + `qwen3_abliterated_30b`) without
-    overwriting prior LLMs' work — manual A/B comparison is the
-    canonical user workflow.
-    `scene_facets` PK extends similarly to
-    `(scene_id, family, llm_id)` and is shared between model-kind
-    and family-kind prompt prep (the expensive LLM facet hop only
-    runs once per (scene, family, llm) regardless of how many
-    target_kinds consume it).
-    `prompts.vocab_version` (2026-04 Phase 4a) records which
-    `prompt_vocabulary.yaml` version produced the prompt, so a YAML
-    bump doesn't lose audit trail for older rows.
-- Static data sources:
-  - `config/llm_models.yaml` — LLM registry (multi-LLM upgrade,
-    2026-05; multi-backend 2026-06). Maps registry ids to a
-    backend-specific tag — Ollama (`cydonia_heretic_24b` →
-    `Fermi/Cydonia-24B-v4.3-heretic-vision:Q4_K_M`), LM Studio
-    (`gemma_4_26b_a4b_heretic` → `gemma-4-26b-a4b-it-ultra-uncensored-heretic`),
-    or MLX. `LLMClientPool.backend_for_tag(tag)` routes each tag to the
-    right client. Declares `default_llm: gemma_4_26b_a4b_heretic` and
-    `fallback_llm: cydonia_heretic_24b` (different lineage + backend —
-    used by `generate_json` after two consecutive primary failures).
-    Validated at startup: `LLMRegistryLoader` rejects an inactive
-    default and any `pipeline.yaml::llm.routing.*` target that doesn't
-    resolve here. Per-CLI `--llm <id>` (structured path) / `--model-tag`
-    (art_director / art_series) overrides routing + default for that one
-    command run. Output paths include `<llm_id>` segment so two
-    LLMs A/B-rendering the same series don't overwrite each other.
-    **Routing state (2026-06-04):** `pipeline.yaml::llm.routing` is
-    intentionally empty — every role falls through to `default_llm`
-    (`gemma_4_26b_a4b_heretic`; was `cydonia_heretic_24b` until the
-    2026-06-04 blind A/B). The heretic-tuned variants' already-low
-    refusal floor obsoletes the prior per-role split. Re-enable
-    routing only if a future evaluation shows a specific role
-    benefits from a different LLM.
-  - `config/families.yaml` — 6 families (sdxl, pony, illustrious, flux,
-    chroma, flux2), each declaring prompt_style, quality prefix/suffix,
-    `structure_intro` (Pony realism: `[source_photograph, "photo (medium)",
-    realistic]`), `adult_anchor` (per-family age-anchor injection
-    keyword/prose forms), `solo_anchor` (per-family single-female
-    anchor — booru-shaped `1girl, solo` for Pony/Illustrious; default
-    single `solo` token for SDXL; prose sentence for Flux/Chroma/Flux.2),
-    `negative_axes` (8-axis taxonomy — added `subject_count` for
-    multi-subject suppression, on the `filter_conflicts` exempt
-    allowlist so positive `solo` doesn't cancel it), capabilities,
-    LLM hints. `flux2` covers FLUX.2 Klein 9B (the cfg=1.0 / steps=4 /
-    euler / simple distilled contract is now baked into your external
-    template JSON, not enforced by the pipeline).
-  - `config/models/{id}.yaml` — per-model identity (id / display_name /
-    filename / architecture / family) + resolution presets
-    (`resolution_portrait` / `resolution_square` / `resolution_landscape`)
-    + license metadata + `prompt: {extend:, override:}` hooks for
-    trigger words, negatives, `negative_embeddings:` (typed list of TI
-    tokens — see Phase 1). Workflow-tuning fields (sampler / scheduler /
-    steps / cfg / VAE / CLIP / LoRA stack) moved into external template
-    JSONs on 2026-05-20. The merged `ModelPromptGuide` flows through
-    SceneFacetGenerator (per-family LLM hints + per-model trigger /
-    avoid words) and PromptBuilder (per-model trigger / negative
-    composition / canonicalizer thread).
-  - `config/prompt_vocabulary.yaml` — versioned realism + NSFW concept
-    library (vocab_version 8 — round-22 (2026-05-22) incidental-ToD
-    strip from ATM_DUST_MOTES_IN_LIGHT to resolve env / atmosphere
-    time-of-day contradictions; supersedes v7 anti-grid / anti-mirror
-    cleanup of 2026-05-20 + v6 creative-uplift). The LLM emits abstract
-    concept tags (e.g. `LIGHT_REMBRANDT`, `CAMERA_SONY_A7RV`,
-    `FILM_PORTRA_400`, `NSFW_T4_SOLO_DISPLAY`,
-    `ENV_TUSCAN_VILLA_RENAISSANCE`, `ATM_DUST_MOTES_IN_LIGHT`,
-    `NARR_READING_LETTER_AT_DAWN`, `PALETTE_BAROQUE_CARAVAGGIO`,
-    `PHOTOG_HELMUT_NEWTON`, `ART_MOVE_FILM_NOIR_1940S`,
-    `COMP_LEADING_LINES_FLOOR`, `PROP_CHAISE_LOUNGE_VELVET`); the
-    canonicalizer in `src/prompt/vocabulary.py` translates each tag
-    into family-shaped phrasing at compose time. Vocab v7 dropped six
-    entries (`NSFW_T4_SOLO_MIRROR`, `PROP_CHEVAL_MIRROR`,
-    `PROP_VANITY_TRIPTYCH_MIRROR`, `COMP_FRAME_WITHIN_FRAME`,
-    `COMP_REFLECTION_PRIMARY`, `COMP_REFLECTION_SECONDARY`) because
-    SDXL/Chroma render mirrors as warped faces / body doubles and the
-    triptych / frame-within-frame prose was a literal polyptych
-    instruction; HARD_BLOCK_NEGATIVE + the positive-side multi-subject
-    scan were extended with grid / mirror / collage tokens to close
-    the failure mode end-to-end. Six top-level namespaces:
-      * `realism` — camera / lens / film_stock / lighting / mood /
-        art_style / angle / framing (Phase 4a + Q10/v4, ~70 tags).
-      * `nsfw` — anatomy / posture / act (tier-gated by `tier_min`).
-      * `environment` — setting / atmosphere / prop (Phase 1 + 4 v6,
-        ~95 scene-level tags). Solves "all 24 scenes look like the
-        same room" by giving the LLM 41 location archetypes + 24
-        atmospheric elements + 30 prop archetypes per scene.
-      * `narrative` — moment (Phase 2 v6, 30 tags). The #1 leverage
-        axis per market research; "she reads a letter at dawn" forces
-        window + chair + envelope + stillness in one tag. Tier-required
-        at every tier so every scene gets a narrative anchor.
-      * `aesthetic` — color_palette / photographer_ref / art_movement
-        (Phase 3 v6, 47 tags). SERIES-level inherited: chosen ONCE per
-        series, threaded into every scene's prompt via
-        `canonicalize_series_aesthetic`. This is the "signature look"
-        layer — the commercial differentiator top Patreon creators
-        have. Coherence rules in SeriesPlanner system prompt + per-
-        style-profile `compatible_*` filter lists prevent incompatible
-        combinations like Helmut-Newton + Wes-Anderson-pastel.
-      * `composition` — principle (Phase 4 v6, 18 tags). Optional
-        higher-order composition rules beyond angle + framing.
-    Bump `version:` when phrasing or concept set changes —
-    `prompts.vocab_version` records the version per row. Pony omits
-    realism.camera / lens / film_stock / art_style / angle / framing +
-    aesthetic.photographer_ref / art_movement + composition.principle
-    (booru tagging carries those implicitly or doesn't represent them
-    well); Pony participates in everything else.
-  - `config/style_profiles.yaml` — aesthetic intent profiles.
-  - `config/categories.yaml` — theme/style/niche categories +
-    content_level rules.
-- Cross-refs from DB → YAML (`series.style_profile_id`,
-  `images.model_id`, `prompts.model_id`, `scene_facets.family`) are
-  plain TEXT columns validated at startup by the YAML loaders — no
-  SQL FKs. The `scene_facets.family` CHECK constraint IS templated
-  from `config/families.yaml` at `init_db.py` time so the SQL stays
-  in sync without a separate migration step.
-
-## Prompt assembly contract
-- LLM agents output **JSON only** — system prompts forbid prose preambles
-  and markdown fences. Ollama 0.5+ `format: <schema>` enforces structural
-  validity at decode time; Pydantic post-validation (defence-in-depth)
-  validates `model_validator` per-family invariants (Pony rejects
-  `score_*`, Illustrious rejects `masterpiece`, Flux2 enforces 25–95
-  word band, FluxNatural rejects underscored tags + tag-soup heuristic).
-- **Tier-aware LLM directives** drive NSFW output at T3/T4. Each
-  T1-T4 row in `config/categories.yaml` declares an `llm_directive:`
-  field that the SceneFacetGenerator injects into its system prompt
-  alongside the active `content_level`. T1/T2 directives forbid
-  nudity; T3 requires `nsfw_anatomy` tag selection; T4 requires both
-  `nsfw_anatomy` AND `nsfw_act`. The `llm_vocabulary_block` in the
-  system prompt is also tier-aware — at T3+ it adds REQUIRED lines
-  for the NSFW namespace tags. Pre-fix (this audit), the facet
-  generator ran tier-blind and produced tasteful prose at every tier.
-- Scene facet enum-tag fields land on each SceneFacet schema as
-  `Optional[str]`. Free-form fields (`booru_tags`, `scene_prose`,
-  `camera_spec`, `clothing`) coexist with the new structured tags.
-  `nsfw_act` (T4-gated) is the 9th persistent enum-tag column on
-  `scene_facets`; canonicalizer drops it below T4_explicit.
-- Composer threads canonicalized vocab phrases between scene fields and
-  style keywords. Pony composer absorbs them into the booru body when
-  `booru_tags` is the primary input.
-- PNG output carries two tEXt chunks: `parameters` (AUTOMATIC1111 /
-  Civitai format for interop) and `nsfw_pipeline` (pipeline-native JSON
-  with vocab_version, structured facets, full reproduction set). The
-  watermarker preserves both chunks on re-save.
-- Negative prompt assembly is 5-layer (TI embeddings → HARD_BLOCK →
-  model → style → character) with per-family token-budget enforcement
-  via `fit_to_budget`. `HARD_BLOCK_NEGATIVE` carries both
-  age-ambiguity tokens (`child`, `teen`, `loli`, …) and
-  multi-subject tokens (`2girls`, `multiple_girls`,
-  `multiple_subjects`) prepended unconditionally.
-- Adult anchor (positive-side age-safety injection, conditional on
-  age-ambiguity detection) reads `family.adult_anchor.{keyword,prose}`
-  — Pony and Illustrious (booru families) override to
-  `1girl, mature_female, adult`; SDXL/Flux/Chroma/Flux.2 use the
-  prose-shaped default `adult woman, mature features` (keyword) +
-  `An adult woman with mature features.` (prose).
-- Solo anchor (positive-side single-female injection, runs
-  unconditionally) reads `family.solo_anchor.{keyword,prose}`.
-  Booru families override to `1girl, solo` (2 tokens); SDXL
-  inherits the default single `solo` token (CLIP 77-budget
-  friendly — realism finetunes still recognise booru subject
-  vocab); Flux/Chroma/Flux.2 use a prose sentence
-  (`A single adult woman alone in the scene.`). The composer
-  splits on `family.break_marker` for Pony so the anchor lands
-  in CLIP window 2 (post-BREAK) alongside the booru body.
-
-## Project Structure
-See ARCHITECTURE.md §16 for the full file structure.
-
-## Implementation Approach
-- Phase 1 first (manual scripts + core modules), Phase 2 later (automation + multi-model).
-- Every module must have error handling.
-- Always update PROJECT_GUIDE.md after implementing anything.
-- Write tests for critical components (ComfyUI client, scorer, prompt builder).
-
-## ComfyUI Location
-ComfyUI runs separately from this project. The install path varies per machine — on this dev box it lives at ~/AI/apps/ComfyUI/ with output at ~/AI/apps/ComfyUI/output/. The canonical source for the output path is `config/pipeline.yaml` → `comfyui.output_dir` (read by `src/render/comfyui_client.py`). Do not hardcode `~/ComfyUI` anywhere.
-Workflow JSON templates live in this project under config/comfyui_workflows/{family}/ (one subdir per family — sdxl/, pony/, illustrious/, flux/, flux2/, chroma/).
-External user-authored workflow templates live under config/comfyui_workflows/templates/{family}/ — see docs/COMFYUI_WORKFLOWS.md § External templates.
-
-## Dual-write prose contract (2026-05-23) — for chroma / flux / flux2
-After three rounds of incremental tag-soup patching that left avg
-prompt quality at 4.88/10 (Grok + Claude web audits on series
-_79ae3b962c8d / _753f4daae5f2), the architecture pivoted for
-prose-family prompts (chroma / flux / flux2):
-
-- **LLM emits BOTH** structured tags (for validators + analytics +
-  diversity tracking) AND a 40-350 word `scene_prose` paragraph
-  weaving subject + pose + anatomy + light + env + mood + style into
-  ONE coherent narrative. 100-250 is the target band; 40 is the
-  empirical minimum DavidAU 12B / Cydonia 24B hit; 350 is the upper
-  hard band.
-- **Composer for prose families** drops per-axis canonicalizations
-  AND series_aesthetic AND archetype style_keywords from the final
-  prompt body. The LLM's scene_prose is the body; composer adds:
-  - solo_anchor + adult_anchor prefix (safety)
-  - camera/lens shorthand tail (realism_tail_style: "period" for
-    chroma — "photographic, natural skin texture")
-  - negative stack
-- **Tier-required field set narrowed** at T3/T4 (was 11, now 3-4):
-  T3 → nsfw_anatomy + environment_setting + narrative_moment
-  T4 → adds nsfw_act
-  Demoted (no longer strict-schema-required): lighting_directive,
-  mood_aesthetic, realism_camera/lens/angle, art_style_reference,
-  environment_atmosphere — the LLM weaves these into scene_prose.
-- **SDXL / Pony / Illustrious** (CLIP encoder) keep the previous
-  keyword-stitched architecture. CLIP rewards comma-tag stacking;
-  T5 (chroma/flux/flux2) wants flowing prose.
-- **Long context is required for prose families** (the dual-write
-  system prompt is large). Both registry LLMs qualify: the default
-  **Gemma 26B-a4b (32K, LM Studio)** — preferred since the 2026-06-04
-  A/B — and **Cydonia 24B (32K, Ollama)**, the fallback + painterly-light
-  specialist. DavidAU 12B at 4K-16K can't fit the prompt reliably.
-  `--model-tag` (art_director / art_series) or `--llm cydonia_heretic_24b`
-  (structured path) to switch off the default.
-- **Sad/crying ban (vocab v12)**: MOOD_PENSIVE + MOOD_MELANCHOLIC
-  rebranded to "introspective / contemplative / quiet composure".
-  System prompt explicitly forbids tears, crying, weeping,
-  mournful, grieving in scene_prose. Commercial NSFW sells
-  confidence + sensuality, not sorrow.
-
-5-scene T4 Cydonia verification (series_010704977930): 5/5 prompts
-score 10/10 on the audit_prompts.py rubric, vs baseline 0/24
-excellent on series_753f4daae5f2.
+- **LLM and ComfyUI NEVER run simultaneously** (48GB). art_series unloads the
+  LLM (verified via `lms ps`) before Phase 2.
+- **Single adult female subject only** — enforced by the art_director system
+  prompt (ABSOLUTE SUBJECT RULE) + Pydantic banned-token validator +
+  curation's multiple_faces hard-reject. Age safety likewise (banned tokens +
+  adult anchors in prose). NOTE: the render-time negative prompt is **INERT**
+  (cfg 1.0 + ConditioningZeroOut) — positive prose + validators carry ALL
+  avoidance; do not "fix" by raising cfg.
+- **Never mix tiers in a set**: T1_suggestive / T2_implied / T3_artnude /
+  T4_explicit. Gate v2 enforces tier contracts at the prompt level; the
+  tier-purity guard blocks genital detailing below T4; **Chroma can still
+  strip clothing at T1/T2 (render drift) — VISUAL tier-truth QA of public/
+  before posting is the #1 checklist rule.**
+- **Chroma face mandate**: the refine stage never touches the face (detailers
+  only: hands/nipples); 4K runs face-true denoise 0.05. Never reintroduce a
+  global refine or face detailer.
+- **MPS limits**: RES4LYF res_* samplers crash (float64); stock samplers only.
+  Post-upscale detailers OOM at 4K (USDU-only stage 3).
+- **Word band 120-180**: flash-merged Chroma prefers ~150-word prose — the T5
+  512-token limit is a ceiling, NOT a target; do not widen toward 300.
+- Commit/push only when the user says "push it". Never embed
+  round/sprint/fix-batch labels in code identifiers.
 
 ## Key Files
-- ARCHITECTURE.md — System design; living doc, update when code drifts (last sync: 2026-05-20 — vocab v7 anti-grid / anti-mirror cleanup; supersedes v6 creative-uplift)
-- CLAUDE.md — This file (project context for Claude Code)
-- PROJECT_GUIDE.md — Living document: setup, run, test instructions (UPDATE after every implementation)
-- config/prompt_vocabulary.yaml — Versioned realism + NSFW + environment + narrative + aesthetic + composition concept library (vocab v12, 2026-05-23 — sad/crying mood softening; mood_pensive + mood_melancholic rebranded to introspective/contemplative)
-- config/llm_models.yaml — LLM registry (multi-LLM upgrade, 2026-05; multi-backend 2026-06). Per-CLI `--llm <id>` / `--model-tag` overrides routing + default; validated at startup. **Default = Gemma 26B-a4b (LM Studio)** since the 2026-06-04 blind A/B; **Cydonia 24B (Ollama)** is the fallback + painterly-light specialist. Both 32K context, sustained 100+ word coherent prose.
-- scripts/audit_prompts.py — mechanical scoring of composed prompts against Grok/Claude-web rubric (style stacking, lighting collision, camera angle contradiction, B&W vs color, tag soup, T4 anatomy, repetition). `python scripts/audit_prompts.py <series_id>`.
-- `prepare_prompts.py --scenes N` — short-series testing (N=1 for fast iteration; default 25 for production).
-- docs/COMFYUI_WORKFLOWS.md — staged render pipeline (base→refine→manual-4K) + the v12 monolith escape hatch.
-- docs/COMPETITOR_INTEL.md — living research on 13 DeviantArt AI sellers (append new creators when the user drops links).
-- docs/DA_GO_TO_MARKET.md — pricing card + shop/gallery/series design + manual upload workflow (the DA selling strategy).
-- **LLM-direct prompt path (current, 2026-05-30+):** `scripts/art_director.py` (Cydonia-24B, exemplar-driven, audit-gated) emits per-prompt prose + **orientation + shot_type + framing_rationale** (Phase 1, 2026-06-04 — kills the only-portrait problem; system prompt has FRAMING & COMPOSITION + anatomical-clarity rules). `scripts/art_series.py` orchestrates niche→gen→staged render (per-prompt orientation)→curate→tier-split package (+ per-image `posting_templates/`). 20 niches (incl. fantasy/historical/B&W). This path bypasses the structured vocab/composer pipeline.
+- CLAUDE.md — this file (project context for Claude Code sessions)
+- scripts/art_director.py · scripts/art_series.py · scripts/audit_prompts.py ·
+  scripts/upscale_folder.py — the active path (flat scripts by design; the
+  shared rule lists live in audit_prompts)
+- config/niche_library.yaml — 20 niches (5-6 sub_looks each, signature
+  materials, `family:` for the 5-family DA architecture) + persona_pool
+- config/creative_direction.yaml — tunable house-style knobs + look_pools
+- config/pipeline.yaml — comfyui/llm endpoints, render_pipeline templates,
+  watermark; `comfyui.output_dir` is the canonical ComfyUI path source
+  (~/AI/apps/ComfyUI on this box — never hardcode ~/ComfyUI)
+- config/llm_models.yaml — LLM registry (default/fallback declared here)
+- docs/COMFYUI_WORKFLOWS.md — staged render details + template contracts
+- docs/DA_GO_TO_MARKET.md — 5-family galleries, pricing, cadence, funnel
+- docs/COMPETITOR_INTEL.md — living DA-seller research (append when the user
+  drops links)
+- PROJECT_GUIDE.md — setup/run/test instructions (update after implementing)
+- tests/ — active suite (~325 tests, `pytest -q`); tests/legacy is excluded
+  via pytest.ini
+
+## Operating notes
+- Run a series: `python scripts/art_series.py --auto --count 6` (niche-cycle
+  rotation) or `--niche <id> --tier <tier>`; `--prompts-only` for prompt A/Bs
+  (does NOT consume niche-cycle state).
+- Batches: wrap in a shell loop with `caffeinate -i`; the circuit breaker +
+  pre-flight abort fast if ComfyUI dies (state is only consumed after prompts
+  exist).
+- LLM A/B harness: `art_director.py --brief <x> --tier T4_explicit --count 8
+  --model-tag <tag>` then `audit_prompts.py` + blind qualitative judging.
+
+## Legacy (frozen — do not extend)
+The pre-pivot **structured vocab/composer path** (scenes/scene_facets/prompts
+DB split, 218KB prompt_vocabulary.yaml canonicalizer, per-family composers,
+modes, 9-table SQLite) is archived under `legacy/` with its scripts, config
+and tests (`tests/legacy/`, excluded from the default pytest run). See
+legacy/README.md. The DB file stays at the repo root as historical data;
+nothing active reads it. ARCHITECTURE.md describes that legacy design and is
+retained as frozen reference with a banner.

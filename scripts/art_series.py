@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -78,8 +79,15 @@ ORIENTATIONS = {
     "landscape": (1536, 1024),  # -> 3840 x 2560  (true 4K)
 }
 
-# Self-contained default negative (age-safety + multi-subject + anatomy +
-# render-risk). Kept here so the production flow does not depend on the DB.
+# ⚠️ INERT AT RENDER TIME (2026-06 Chroma R&D): the staged Chroma base runs
+# cfg=1.0 (the gonzaLomo flash-heun contract) AND routes this through
+# ConditioningZeroOut; the refine detailers run cfg=1 lcm/DMD. At cfg=1 the
+# negative branch is never evaluated — every token below does NOTHING in the
+# staged path. Safety/avoidance is carried ENTIRELY by positive prose + the
+# art_director Pydantic gates + curation (which is the working reality).
+# Kept because the monolith escape hatch (--template) may run cfg>1, and as
+# interop metadata. Do NOT "fix" by raising cfg — that doubles base render
+# time for marginal benefit; see docs/COMFYUI_WORKFLOWS.md.
 DEFAULT_NEGATIVE = (
     "child, kid, young, minor, teen, teenager, schoolgirl, loli, underage, "
     "baby, toddler, preteen, youthful face, "
@@ -151,44 +159,87 @@ def _record_used_niche(used: list[str], niche_id: str) -> None:
 
 
 # Cross-series variety: how many prior series of the SAME niche feed the avoid
-# lists. Cap so the LLM is steered away from recent repetition without being
-# over-constrained (which would dip prose quality / slow regen).
-NICHE_HISTORY_RECENT = 2
+# lists. 2026-06 audit: at depth 2 a niche's older runs were free to be echoed
+# (several niches have 4-5 runs); 4 runs ≈ ~32 fragments — still cheap context.
+NICHE_HISTORY_RECENT = 4
+
+# House words measured saturating the corpus ("luminous" 83% of prompts,
+# "velvety" 35%, "sultry" 34% — and RISING run over run). When a word appears
+# in >40% of a niche's recent prompts it gets a one-use-per-series budget.
+_HOUSE_WORD_WATCHLIST = (
+    "luminous", "velvety", "sultry", "chiaroscuro", "exquisite",
+    "breathtaking", "unretouched", "tack-sharp", "alabaster",
+    "her expression is one of", "the fine texture of her skin",
+    "toward the lens with a", "discarded",
+)
 
 
-def _load_niche_history(niche_id: str,
-                        recent_series: int = NICHE_HISTORY_RECENT) -> "tuple[list[str], list[str], int]":
+def _load_niche_history(
+    niche_id: str, recent_series: int = NICHE_HISTORY_RECENT,
+) -> "tuple[list[str], list[str], int, list[str]]":
     """Cross-series memory from prior series of the SAME niche.
 
-    Returns ``(banned_openers, avoid_signatures, prior_series_count)``:
-    - banned_openers / avoid_signatures — first-8-words / first-40-words of each
-      prior prompt (most-recent ``recent_series`` runs), to seed the
-      art_director anti-repetition lists so a new run DIFFERS from past ones.
+    Returns ``(banned_openers, avoid_signatures, prior_series_count,
+    overused_words)``:
+    - banned_openers / avoid_signatures — first-8-words / first-40-words AND
+      last-14-words of each prior prompt (most-recent ``recent_series`` runs),
+      to seed the art_director anti-repetition lists so a new run DIFFERS from
+      past ones. Covers are included (the DA shopfront converged catalog-wide
+      because they had no memory).
     - prior_series_count — how many times this niche has been run (ALL prior
-      runs); used as the per-run rotation offset so the sub-look / framing / look
-      SEQUENCE also varies each run.
+      runs); drives the per-run rotation offset.
+    - overused_words — watchlist words present in >40% of the recent prompts;
+      the LLM gets a one-use-per-series budget for them.
 
     Reads the existing per-series ``manifest.json`` files (the prompt store — no
     DB). Robust: skips malformed/partial manifests."""
-    runs: list[tuple[str, list[dict]]] = []  # (timestamp-dirname, prompts)
+    runs: list[tuple[str, list[dict]]] = []  # (timestamp-dirname, prompts+covers)
     for mf in (ROOT / "output/art_series").glob("*/manifest.json"):
         try:
             m = json.loads(mf.read_text())
             if (m.get("niche") or {}).get("id") == niche_id:
-                runs.append((mf.parent.name, m.get("prompts") or []))
+                rows = (m.get("prompts") or []) + (m.get("covers") or [])
+                runs.append((mf.parent.name, rows))
         except Exception:  # noqa: BLE001 — skip partial/broken manifests
             continue
     runs.sort(key=lambda r: r[0])  # oldest -> newest by timestamp dirname
     prior_count = len(runs)
     recent = runs[-recent_series:] if recent_series > 0 else runs
-    banned, avoid = [], []
+    banned, avoid, texts = [], [], []
     for _, prompts in recent:
         for p in prompts:
             txt = p.get("prompt") or ""
             if txt:
                 banned.append(art_director._opener(txt))
                 avoid.append(art_director._signature(txt))
-    return banned, avoid, prior_count
+                avoid.append(art_director._tail_signature(txt))
+                texts.append(txt.lower())
+    overused = []
+    if texts:
+        for w in _HOUSE_WORD_WATCHLIST:
+            if sum(1 for t in texts if w in t) / len(texts) > 0.4:
+                overused.append(w)
+    return banned, avoid, prior_count, overused
+
+
+def _load_global_openers(recent_runs: int = 3) -> list[str]:
+    """Openers from the most recent runs of ANY niche — cross-NICHE opener
+    convergence was unguarded (the same 'A tight, intimate portrait captures…'
+    opener shipped in 3 different niches the same week). Openers are cheap to
+    ban globally; settings/poses stay niche-scoped."""
+    dirs = sorted((ROOT / "output/art_series").glob("*/manifest.json"),
+                  key=lambda p: p.parent.name)[-recent_runs:]
+    openers: list[str] = []
+    for mf in dirs:
+        try:
+            m = json.loads(mf.read_text())
+            for p in (m.get("prompts") or []) + (m.get("covers") or []):
+                txt = p.get("prompt") or ""
+                if txt:
+                    openers.append(art_director._opener(txt))
+        except Exception:  # noqa: BLE001
+            continue
+    return openers
 
 
 # This pipeline's prompts run ~5K tokens (the T4 explicit system+reveal prompt is
@@ -225,9 +276,20 @@ def _ensure_llm_loaded(model_tag: str) -> None:
         pass
     try:  # (re)load at the large context
         subprocess.run([lms, "unload", "--all"], timeout=30, capture_output=True)
-        subprocess.run([lms, "load", model_tag, "--context-length", str(LLM_LOAD_CONTEXT), "-y"],
-                       timeout=300, capture_output=True)
-        print(f"  (ensured {model_tag} resident at {LLM_LOAD_CONTEXT} context)", flush=True)
+        res = subprocess.run(
+            [lms, "load", model_tag, "--context-length", str(LLM_LOAD_CONTEXT), "-y"],
+            timeout=300, capture_output=True, text=True)
+        if res.returncode != 0:
+            # Previously this printed success unconditionally — a typoed tag /
+            # OOM then burned 4 attempts × count scenes against a 4096-ctx JIT
+            # load (the exact HTTP-400 failure this function exists to prevent).
+            print(f"  !! lms load FAILED (rc={res.returncode}) for {model_tag} — "
+                  f"generation will fall back to JIT (small context; T4 prompts "
+                  f"may 400). stderr: {(res.stderr or '')[-300:]}",
+                  file=sys.stderr, flush=True)
+        else:
+            print(f"  (ensured {model_tag} resident at {LLM_LOAD_CONTEXT} context)",
+                  flush=True)
     except Exception as exc:  # noqa: BLE001
         print(f"  (could not ensure LLM context — load it manually at "
               f"{LLM_LOAD_CONTEXT}: {exc})", file=sys.stderr, flush=True)
@@ -259,11 +321,112 @@ def _unload_llm(model_tag: str) -> None:
     except Exception:  # noqa: BLE001
         pass
     time.sleep(3)
+    # VERIFY the eviction (the documented OOM cause was exactly this gap: a
+    # resident ~16.7GB Gemma surviving "unload" and crashing ComfyUI mid-render).
+    # Poll `lms ps` for the SPECIFIC tag (the tiny embedding model legitimately
+    # stays resident). Warn loudly — the operator can abort before Phase 2.
+    if os.path.exists(lms):
+        for _ in range(3):
+            try:
+                ps = subprocess.run([lms, "ps"], timeout=20, capture_output=True,
+                                    text=True).stdout
+            except Exception:  # noqa: BLE001
+                break
+            if model_tag not in ps:
+                break
+            try:
+                subprocess.run([lms, "unload", "--all"], timeout=30,
+                               capture_output=True)
+            except Exception:  # noqa: BLE001
+                pass
+            time.sleep(3)
+        else:
+            print(f"  !! WARNING: {model_tag} STILL RESIDENT after unload — "
+                  f"rendering now risks an OOM crash. Consider aborting and "
+                  f"evicting manually (`lms unload --all`).",
+                  file=sys.stderr, flush=True)
+
+
+def _template_hashes(workflow_dir: Path, run_template) -> "dict | None":
+    """Short sha256 per template file — a template edit can no longer silently
+    change what an old manifest 'means' (manifests only recorded paths)."""
+    import hashlib
+    paths = (list(run_template.values()) if isinstance(run_template, dict)
+             else [run_template] if run_template else [])
+    out: dict = {}
+    for rel in paths:
+        try:
+            out[str(rel)] = hashlib.sha256(
+                (workflow_dir / rel).read_bytes()).hexdigest()[:16]
+        except Exception:  # noqa: BLE001
+            out[str(rel)] = None
+    return out or None
+
+
+def _comfyui_up(base_url: str, timeout: int = 5) -> bool:
+    """Cheap reachability probe — used BEFORE burning LLM hours on a run whose
+    render phase is doomed (a dead ComfyUI previously produced zero-image
+    series that still consumed prompts, seeds and niche-cycle state)."""
+    try:
+        import requests
+        return requests.get(base_url, timeout=timeout).status_code == 200
+    except Exception:  # noqa: BLE001
+        return False
+
+
+# Circuit breaker: consecutive CONNECTIVITY failures (ComfyUI unreachable —
+# not per-image render failures) before a stage aborts the run loudly instead
+# of grinding through every remaining image/series producing nothing.
+COMFYUI_BREAKER_LIMIT = 3
+
+
+def _classify_conn_failure(exc: Exception) -> bool:
+    """True if ``exc`` looks like ComfyUI-unreachable (breaker-countable)
+    rather than a single bad render."""
+    try:
+        from src.render.comfyui_client import ComfyUIError, RenderFailed, RenderTimeout
+    except Exception:  # noqa: BLE001
+        return False
+    return isinstance(exc, ComfyUIError) and not isinstance(
+        exc, (RenderFailed, RenderTimeout))
+
+
+def _embed_parameters(png: Path, *, prompt: str, seed: int, steps: int = 14,
+                      sampler: str = "euler", scheduler: str = "beta",
+                      cfg_scale: float = 1.0,
+                      model: str = "gonzalomo_chroma_v30") -> None:
+    """Add an A1111-interop ``parameters`` tEXt chunk so review/keeper PNGs are
+    self-describing (prompt + seed + sampler — previously only the base PNGs
+    carried metadata, and only as a ComfyUI graph with absolute paths).
+    Existing chunks (e.g. the ComfyUI graph) are preserved. Best-effort."""
+    try:
+        from PIL import Image
+        from PIL.PngImagePlugin import PngInfo
+        with Image.open(png) as im:
+            info = PngInfo()
+            for k, v in (getattr(im, "text", None) or {}).items():
+                if k != "parameters" and isinstance(v, str):
+                    info.add_text(k, v)
+            w, h = im.size
+            info.add_text("parameters", (
+                f"{prompt}\nSteps: {steps}, Sampler: {sampler} {scheduler}, "
+                f"CFG scale: {cfg_scale}, Seed: {seed}, Size: {w}x{h}, "
+                f"Model: {model}"))
+            im.load()
+            im.save(png, pnginfo=info)
+    except Exception as exc:  # noqa: BLE001 — metadata is never run-fatal
+        print(f"  (parameters embed skipped for {png.name}: {exc})",
+              file=sys.stderr, flush=True)
 
 
 # Curation reject flags that drop a candidate from keeper contention
 # regardless of score (composition-fatal, not taste).
 _HARD_REJECT_FLAGS = {"multiple_faces", "no_face", "scorer_error"}
+
+# 4K-queue admission: composite quality_score floor for the ~10-min manual 4K
+# pass (calibrated on recent manifests: ~top-40% of keepers; 'blurry' etc.
+# flags disqualify regardless).
+FOURK_QUEUE_MIN_SCORE = 0.62
 
 
 def _curate(
@@ -353,6 +516,32 @@ def _curate(
 _EXPLICIT_TIERS = {"T3_artnude", "T4_explicit"}
 AI_DISCLOSURE_LABEL = "Created using AI tools"
 
+# ── Plate numbering (collectability — DA_GO_TO_MARKET.md §4) ─────────
+# Family serial: "Atelier No. 014 — 'Marble Light'", with the set's gated
+# images as Plates I-VI. Gaps in a buyer's collection create completion
+# pressure (the proven competitor pattern). Counter persists per family.
+FAMILY_SERIALS_FILE = ROOT / "output/art_series/.family_serials"
+_FAMILY_DISPLAY = {
+    "atelier": "The Atelier", "gilded_glamour": "Gilded Glamour",
+    "golden_hour": "Golden Hour", "myth_crown": "Myth & Crown",
+    "nocturne": "Nocturne",
+}
+_ROMAN = ("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X",
+          "XI", "XII")
+
+
+def _next_family_serial(family: str) -> int:
+    """Advance + persist the per-family set serial (1-based)."""
+    try:
+        serials = json.loads(FAMILY_SERIALS_FILE.read_text())
+    except (FileNotFoundError, ValueError):
+        serials = {}
+    n = int(serials.get(family, 0)) + 1
+    serials[family] = n
+    FAMILY_SERIALS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    FAMILY_SERIALS_FILE.write_text(json.dumps(serials, indent=2))
+    return n
+
 
 def _render_rows(
     rows: list[dict], *, builder, client, template: str, negative: str,
@@ -368,7 +557,10 @@ def _render_rows(
         entry = {"index": idx, "look": r["look"], "prompt": r["prompt"],
                  "audit_score": r.get("audit_score"), "images": []}
         for k in range(seeds):
-            seed = base_seed + k
+            # Per-PROMPT seeds (2026-06 audit): `base_seed + k` gave every
+            # prompt in a series the same initial latent noise, correlating
+            # composition across a set meant to maximize diversity.
+            seed = base_seed + idx * seeds + k
             try:
                 wf = builder.build_external(
                     external_template=template, prompt_text=r["prompt"],
@@ -444,6 +636,7 @@ def _render_stage_base(
     dest_dir: Path, out_dir: Path, prefix: str,
     rp: dict | None = None, default_orientation: str = "portrait",
     anatomy_retries: int = 0, hand_detector_path: "str | None" = None,
+    reroll_start: "int | None" = None,
 ) -> list[dict]:
     """Stage 1 (Chroma): base gen for every (prompt × seed) into dest_dir.
 
@@ -463,7 +656,11 @@ def _render_stage_base(
     when >2 hands are found; the least-bad render is kept if all rerolls fail."""
     dest_dir.mkdir(parents=True, exist_ok=True)
     hand_det = _hand_detector(hand_detector_path) if anatomy_retries > 0 else None
-    reroll_seed = base_seed + seeds   # reroll seeds never collide with candidate seeds
+    # Reroll seeds live past the whole candidate span (callers pass a
+    # reroll_start beyond their cover range so rerolls can't collide with it).
+    reroll_seed = (reroll_start if reroll_start is not None
+                   else base_seed + len(rows) * seeds)
+    conn_failures = 0          # circuit breaker — consecutive connectivity deaths
     manifest: list[dict] = []
     for idx, r in enumerate(rows):
         look = r["look"].split()[0]
@@ -478,7 +675,9 @@ def _render_stage_base(
             kept: "tuple[str, int, int] | None" = None  # (rel_path, seed, hand_count)
             for attempt in range(anatomy_retries + 1):
                 if attempt == 0:
-                    seed = base_seed + k
+                    # Per-PROMPT seeds (2026-06 audit): `base_seed + k` gave
+                    # every prompt in a series the same initial latent noise.
+                    seed = base_seed + idx * seeds + k
                 else:
                     seed = reroll_seed
                     reroll_seed += 1
@@ -492,9 +691,18 @@ def _render_stage_base(
                     dst = dest_dir / name
                     shutil.copy(outs[-1].file_path, dst)
                 except Exception as exc:  # noqa: BLE001 — surface, continue
+                    if _classify_conn_failure(exc):
+                        conn_failures += 1
+                        if conn_failures >= COMFYUI_BREAKER_LIMIT:
+                            raise RuntimeError(
+                                f"ComfyUI unreachable ({conn_failures} consecutive "
+                                f"connectivity failures) — aborting the run instead "
+                                f"of grinding through empty renders. Restart ComfyUI "
+                                f"and re-run.") from exc
                     print(f"  [base {idx + 1}/{len(rows)}] seed {seed} FAILED: {exc}",
                           file=sys.stderr, flush=True)
                     continue
+                conn_failures = 0
                 hands = _count_hands(hand_det, dst)
                 rel = str(dst.relative_to(out_dir))
                 tag = f" (reroll {attempt})" if attempt else ""
@@ -581,6 +789,7 @@ def _render_stage_refine(
     swap win. On refine failure the base image is used as the review path so
     a usable image is never silently dropped."""
     dest_dir.mkdir(parents=True, exist_ok=True)
+    conn_failures = 0          # circuit breaker — consecutive connectivity deaths
     for entry in manifest:
         for im in entry["images"]:
             base_rel = im.get("base_path")
@@ -598,8 +807,19 @@ def _render_stage_refine(
                 shutil.copy(outs[-1].file_path, dst)
                 im["path"] = str(dst.relative_to(out_dir))
                 im["review_path"] = im["path"]
+                conn_failures = 0
+                # Self-describing review/keeper PNG (A1111-interop chunk) —
+                # these are the files that get packaged and sold.
+                _embed_parameters(dst, prompt=entry["prompt"], seed=im["seed"])
                 print(f"  [refine] {name}", flush=True)
             except Exception as exc:  # noqa: BLE001 — surface, fall back to base
+                if _classify_conn_failure(exc):
+                    conn_failures += 1
+                    if conn_failures >= COMFYUI_BREAKER_LIMIT:
+                        raise RuntimeError(
+                            f"ComfyUI unreachable ({conn_failures} consecutive "
+                            f"connectivity failures in refine) — aborting; every "
+                            f"image would silently 'fall back to base'.") from exc
                 im["path"] = base_rel  # base image is still a usable review image
                 im["review_path"] = base_rel
                 print(f"  [refine] {base_rel} FAILED ({exc}); using base as review",
@@ -686,6 +906,8 @@ def _emit_posting_templates(pkg: Path, metadata: dict, tier: str,
     persona = metadata.get("persona")
     groups = ", ".join(metadata.get("da_groups", []))
     ai = metadata["labels"]["ai_tools"]
+    fam_disp = metadata.get("family_display") or ""
+    serial = metadata.get("family_serial")
 
     def _write(images: list[str], meta: dict, is_gated: bool) -> None:
         base = meta.get("title") or folder
@@ -695,11 +917,21 @@ def _emit_posting_templates(pkg: Path, metadata: dict, tier: str,
         where = "gated" if is_gated else "public"
         note = "CLEAN file (no watermark)" if is_gated else "watermarked SFW teaser"
         for n, img in enumerate(images, 1):
+            # Plate titling (collectability): gated images are Plates of a
+            # family-serialed Set; covers stay simply titled.
+            plate = _ROMAN[n - 1] if n <= len(_ROMAN) else str(n)
+            if is_gated and serial:
+                title = f"{fam_disp} No. {serial:03d} — {base} · Plate {plate}"
+                desc_prefix = (f"Plate {plate} of Set {serial}: \"{base}\" "
+                               f"({fam_disp} collection). ")
+            else:
+                title = f"{base} {n}"
+                desc_prefix = ""
             txt = (
-                f"TITLE: {base} {n}\n"
+                f"TITLE: {title}\n"
                 f"FOLDER: {folder}"
                 f"{'  [Premium Gallery / Subscription]' if is_gated else '  [public SFW]'}\n"
-                f"DESCRIPTION: {meta.get('description', '')}\n"
+                f"DESCRIPTION: {desc_prefix}{meta.get('description', '')}\n"
                 f"TAGS: {', '.join(meta.get('tags', []))}\n"
                 f"GROUPS: {groups}\n"
                 f"MATURE: yes\n"
@@ -761,6 +993,34 @@ def _package(
 
     cover_name = public_names[0] if public_names else None  # SFW by construction
 
+    # ── 4K selection rule (the manual 4K stage finally has criteria) ────
+    # keepers/ is NOT a shortlist (with --keep-top 1 every image becomes a
+    # keeper, including 'blurry'-flagged ones). 4k_queue/ = keepers that
+    # actually earn the ~10-min 4K pass: scored ≥ threshold AND flag-free.
+    # Operator vetoes by deleting files, then runs
+    #   python scripts/upscale_folder.py <run>/4k_queue
+    queue: list[Path] = []
+    for e in main_manifest:
+        for im in e["images"]:
+            if not im.get("keeper"):
+                continue
+            score = im.get("quality_score") or 0.0
+            try:
+                flags = set(json.loads(im.get("quality_flags") or "[]"))
+            except (ValueError, TypeError):
+                flags = set()
+            if score >= FOURK_QUEUE_MIN_SCORE and not flags:
+                p = out_dir / im["path"]
+                if p.exists():
+                    queue.append(p)
+    if queue:
+        qdir = out_dir / "4k_queue"
+        qdir.mkdir(exist_ok=True)
+        for p in queue:
+            shutil.copy(p, qdir / p.name)
+        print(f"  4k_queue: {len(queue)} image(s) earned the 4K pass "
+              f"(score ≥ {FOURK_QUEUE_MIN_SCORE}, no flags)", flush=True)
+
     # Watermark the PUBLIC teasers (branding/funnel); gated stays clean for buyers.
     try:
         from src.postprocess.watermarker import Watermarker
@@ -770,10 +1030,20 @@ def _package(
     except Exception as exc:  # noqa: BLE001
         print(f"  (watermark skipped: {exc})", file=sys.stderr, flush=True)
 
+    # Plate numbering: per-family set serial for collectability (§4 of the
+    # go-to-market doc). Falls back to a "series" family for --brief runs.
+    family = (selection.niche.family if (selection and selection.niche.family)
+              else "series")
+    family_serial = _next_family_serial(family)
+    family_display = _FAMILY_DISPLAY.get(family, family.title())
+
     metadata = {
         "da_folder": folder,
         "tier": tier,
         "niche": selection.niche.id if selection else None,
+        "family": family,
+        "family_display": family_display,
+        "family_serial": family_serial,
         "persona": selection.persona.name if (selection and selection.persona) else None,
         "labels": {"ai_tools": AI_DISCLOSURE_LABEL, "mature": True},
         "price_by_tier": _PRICE_BY_TIER.get(tier),
@@ -808,10 +1078,17 @@ def _posting_checklist(meta: dict, is_explicit: bool) -> str:
         "",
         f"**Price:** {meta.get('price_by_tier', 'see DA_GO_TO_MARKET.md')}  ·  "
         f"**Groups:** {', '.join(meta.get('da_groups', []))}  ·  "
-        f"**4K-finish heroes:** `python scripts/upscale_folder.py <selected folder>`  ·  "
+        f"**4K-finish heroes:** review `4k_queue/` (auto-picked: score ≥ "
+        f"{FOURK_QUEUE_MIN_SCORE}, flag-free), delete any you veto, then "
+        f"`python scripts/upscale_folder.py <run>/4k_queue`  ·  "
         "**Per-image copy-paste:** `posting_templates/`",
         "",
         "## Hard rules (verified ToS, do not skip)",
+        "- [ ] **VISUALLY verify every `public/` image is tier-true** — Chroma "
+        "sometimes strips clothing despite a clean T1/T2 prompt (render drift; "
+        "two fully-nude 'T2' images were caught in public folders on "
+        "2026-06-10). A nude image posted public is the ToS breach that kills "
+        "the account.",
         f"- [ ] Apply the **\"{meta['labels']['ai_tools']}\"** label on EVERY "
         "for-sale piece (DA AI-disclosure requirement).",
         "- [ ] Set **Mature Content** on every piece.",
@@ -888,8 +1165,9 @@ def main() -> int:
                          "Default = registry default_llm (Gemma, LM Studio). "
                          "Pass art_director.CYDONIA_TAG for the Ollama/Cydonia path.")
     ap.add_argument("--temperature", type=float, default=0.85)
-    ap.add_argument("--word-band", default="110-160",
-                    help="prose word band 'lo-hi' (A/B: try 200-300)")
+    ap.add_argument("--word-band", default="120-180",
+                    help="prose word band 'lo-hi' (flash-merged Chroma prefers "
+                         "~150-word prose; do not exceed ~250)")
     ap.add_argument("--no-audit-gate", action="store_true",
                     help="disable the inline audit_prompts quality gate")
     ap.add_argument("--no-curate", action="store_true",
@@ -923,6 +1201,12 @@ def main() -> int:
     cfg = yaml.safe_load((ROOT / "config/pipeline.yaml").read_text())
     cu = cfg["comfyui"]
     workflow_dir = ROOT / cu.get("workflow_dir", "config/comfyui_workflows")
+
+    # Pre-flight: a render run with a dead ComfyUI previously burned the whole
+    # LLM phase (and consumed niche-cycle state) to produce zero images.
+    if not args.prompts_only and not _comfyui_up(cu["base_url"]):
+        sys.exit(f"PRE-FLIGHT ABORT: ComfyUI unreachable at {cu['base_url']} — "
+                 f"start it (or use --prompts-only) and re-run.")
 
     # Staged pipeline is the default; --template pins the monolith escape hatch.
     staged = args.template is None
@@ -968,9 +1252,9 @@ def main() -> int:
             ap.error(f"niche selection failed: {exc}")
         brief = build_brief(selection)
         sub_looks = selection.sub_looks
-        _advance_niche_cursor(niche_cursor)
-        if auto_niche:  # only --auto tracks the used-niche cycle
-            _record_used_niche(used_niches, selection.niche.id)
+        # NOTE: cursor/used-niche state is committed AFTER prompts exist (below)
+        # — previously a run that failed in Phase 1 still consumed its
+        # niche-cycle slot and produced nothing.
         print(f"=== niche: {selection.niche.id} ({selection.niche.niche_class}) "
               f"| folder={selection.niche.da_folder!r} "
               f"| persona={selection.persona.name if selection.persona else 'none'} "
@@ -979,12 +1263,19 @@ def main() -> int:
     is_explicit = args.tier in _EXPLICIT_TIERS
     n_covers = args.covers if (is_explicit and not args.no_package) else 0
     cover_seeds = 1
+    # Seed layout (per-prompt seeds, 2026-06): [main: count*seeds][covers]
+    # [main anatomy-rerolls][cover anatomy-rerolls]. The counter records the
+    # full reserved span so rerolls can never collide with the next run.
     main_span = args.count * args.seeds
     cover_base = base_seed + main_span         # covers use non-overlapping seeds
-    max_seed = cover_base + (n_covers * cover_seeds) - 1 if n_covers else \
-        base_seed + args.seeds - 1
-    print(f"=== base_seed {base_seed} (main seeds {base_seed}..{base_seed + args.seeds - 1}"
-          f"{f'; cover seeds {cover_base}..{cover_base + n_covers - 1}' if n_covers else ''}) ===",
+    cover_end = cover_base + n_covers * cover_seeds
+    main_reroll_start = cover_end
+    cover_reroll_start = cover_end + main_span * args.anatomy_retries
+    max_seed = (cover_reroll_start + n_covers * cover_seeds * args.anatomy_retries - 1
+                if n_covers else
+                main_reroll_start + main_span * args.anatomy_retries - 1)
+    print(f"=== base_seed {base_seed} (main seeds {base_seed}..{cover_base - 1}"
+          f"{f'; cover seeds {cover_base}..{cover_end - 1}' if n_covers else ''}) ===",
           flush=True)
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1004,20 +1295,32 @@ def main() -> int:
     _ensure_llm_loaded(args.model_tag)   # large context — JIT default 4096 truncates T4 prompts
     # Cross-series variety: seed the anti-repetition lists with prior same-niche
     # prompts + offset the per-run rotations, so re-running a niche yields a
-    # DISTINCT series instead of reproducing it.
+    # DISTINCT series instead of reproducing it. --brief runs use a slug of the
+    # brief as the memory key (previously they had NO memory and shipped
+    # near-duplicate series three runs in a row).
     _niche_id = selection.niche.id if selection else None
-    seed_banned, seed_avoid, run_offset = ([], [], 0)
+    if _niche_id is None and args.brief:
+        _niche_id = ("brief-"
+                     + re.sub(r"[^a-z0-9]+", "-", args.brief.lower()).strip("-")[:40])
+    seed_banned, seed_avoid, prior_count, overused = [], [], 0, []
     if _niche_id:
-        seed_banned, seed_avoid, run_offset = _load_niche_history(_niche_id)
-        if run_offset:
-            print(f"  (cross-series variety: run #{run_offset + 1} of '{_niche_id}'"
-                  f" — steering away from {len(seed_avoid)} prior prompts, "
-                  f"sequence offset {run_offset})", flush=True)
+        seed_banned, seed_avoid, prior_count, overused = _load_niche_history(_niche_id)
+        if prior_count:
+            print(f"  (cross-series variety: run #{prior_count + 1} of '{_niche_id}'"
+                  f" — steering away from {len(seed_avoid)} prior fragments"
+                  f"{f'; overused: {overused}' if overused else ''})", flush=True)
+    # Cross-NICHE opener ban: openers from the last few runs of ANY niche
+    # (the same opener template was shipping across 3 niches the same week).
+    seed_banned = list(dict.fromkeys(seed_banned + _load_global_openers()))
+    # Rotation offset strides past the whole previous run (count+1, not 1):
+    # stride-1 re-issued 5/6 of the assignment tuples on every consecutive run.
+    run_offset = prior_count * (args.count + 1)
     rows = art_director.generate_series(
         brief=brief, tier=args.tier, count=args.count, model_tag=args.model_tag,
         temperature=args.temperature, sub_looks=sub_looks, word_band=word_band,
         audit_gate=not args.no_audit_gate,
         seed_avoid=seed_avoid, seed_banned_openers=seed_banned, run_offset=run_offset,
+        seed_overused=overused,
     )
     if not rows:
         print("No prompts generated — aborting.", file=sys.stderr)
@@ -1043,16 +1346,54 @@ def main() -> int:
               flush=True)
         return 0
 
+    # ── State commit (post-prompts): the run has real output now, so the
+    # niche-cycle slot may be consumed. prompts-only runs returned above and
+    # never mutate rotation state.
+    if not args.brief and selection is not None:
+        _advance_niche_cursor(niche_cursor)
+        if auto_niche:  # only --auto tracks the used-niche cycle
+            _record_used_niche(used_niches, selection.niche.id)
+
+    # niche_meta built early so the post-render manifest checkpoint has it.
+    niche_meta = None
+    if selection is not None:
+        niche_meta = {
+            "id": selection.niche.id, "class": selection.niche.niche_class,
+            "da_folder": selection.niche.da_folder, "tags": selection.niche.tags,
+            "family": selection.niche.family or None,
+            "aesthetic_lock": {
+                "palette": selection.aesthetic_lock.palette,
+                "lighting": selection.aesthetic_lock.lighting,
+                "photographer": selection.aesthetic_lock.photographer,
+            },
+            "persona": selection.persona.name if selection.persona else None,
+        }
+    elif _niche_id:
+        # --brief run: the slug is the cross-run memory key so future runs of
+        # the same brief inherit banned openers / signatures / rotation offset.
+        niche_meta = {"id": _niche_id, "kind": "brief"}
+
     cover_rows: list[dict] = []
     if n_covers:
         print(f"\n=== Phase 1b (LLM): {n_covers} SFW (T1) cover prompts ===",
               flush=True)
+        # Covers are the DA shopfront — they previously got NO memory and
+        # cloned main scenes 0-1's assignments (cycle-wide, every niche's first
+        # cover converged on the same look+framing). They now inherit the full
+        # avoid lists EXTENDED with this run's accepted prompts, and rotate
+        # from a window past the main scenes.
+        cover_banned = seed_banned + [art_director._opener(r["prompt"]) for r in rows]
+        cover_avoid = (seed_avoid
+                       + [art_director._signature(r["prompt"]) for r in rows]
+                       + [art_director._tail_signature(r["prompt"]) for r in rows])
         cover_rows = art_director.generate_series(
             brief=brief, tier="T1_suggestive", count=n_covers,
             model_tag=args.model_tag, temperature=args.temperature,
             sub_looks=sub_looks, word_band=word_band,
             audit_gate=not args.no_audit_gate,
-            run_offset=run_offset,
+            seed_avoid=cover_avoid, seed_banned_openers=cover_banned,
+            run_offset=run_offset + args.count,
+            seed_overused=overused,
             require_sfw=True,
             extra_directive=art_director.SFW_COVER_DIRECTIVE,
         )
@@ -1114,7 +1455,8 @@ def main() -> int:
             negative=DEFAULT_NEGATIVE, resolution=resolution, base_seed=base_seed,
             seeds=args.seeds, dest_dir=base_dir, out_dir=out_dir, prefix="ad",
             rp=rp, default_orientation=args.orientation,
-            anatomy_retries=args.anatomy_retries, hand_detector_path=hand_det_path)
+            anatomy_retries=args.anatomy_retries, hand_detector_path=hand_det_path,
+            reroll_start=main_reroll_start)
         if cover_rows:
             cover_manifest = _render_stage_base(
                 cover_rows, builder=builder, client=client, base_template=base_tmpl,
@@ -1122,7 +1464,8 @@ def main() -> int:
                 base_seed=cover_base, seeds=cover_seeds,
                 dest_dir=base_dir, out_dir=out_dir, prefix="cover",
                 rp=rp, default_orientation=args.orientation,
-                anatomy_retries=args.anatomy_retries, hand_detector_path=hand_det_path)
+                anatomy_retries=args.anatomy_retries, hand_detector_path=hand_det_path,
+                reroll_start=cover_reroll_start)
         if enable_refine:
             print(f"\n=== Phase 2b (refine, SDXL): {Path(refine_tmpl_main).name} "
                   f"→ review images ===", flush=True)
@@ -1166,6 +1509,26 @@ def main() -> int:
                 base_seed=cover_base, seeds=cover_seeds,
                 dest_dir=cover_dir, out_dir=out_dir, prefix="cover")
 
+    # ── Post-render checkpoint ──────────────────────────────────────────
+    # Manifest + seed counter commit RIGHT AFTER rendering: a crash in
+    # curation/packaging previously lost manifest.json (the cross-run
+    # anti-repetition memory!) and never advanced the seed counter even
+    # though every image existed on disk.
+    def _write_manifest(pkg_path: "Path | None" = None) -> None:
+        (out_dir / "manifest.json").write_text(json.dumps({
+            "brief": brief, "tier": args.tier, "template": run_template,
+            "template_sha256": _template_hashes(workflow_dir, run_template),
+            "model_tag": args.model_tag, "orientation": args.orientation,
+            "resolution": resolution, "seeds_per_prompt": args.seeds,
+            "base_seed": base_seed, "word_band": list(word_band),
+            "niche": niche_meta,
+            "package": str(pkg_path.relative_to(out_dir)) if pkg_path else None,
+            "prompts": manifest, "covers": cover_manifest,
+        }, indent=2))
+
+    _write_manifest()
+    _record_max_seed(max_seed)
+
     # ── Phase 3: curation (ImageScorer triage) ─────────────────────────
     scoring_cfg = cfg.get("scoring", {})
     use_hps = bool(scoring_cfg.get("use_hps_v2", False))
@@ -1186,37 +1549,21 @@ def main() -> int:
                 for im in e["images"]:
                     im["keeper"] = True
 
-    # ── Phase 4: tier-split packaging ──────────────────────────────────
+    # ── Phase 4: tier-split packaging (wrapped — every sibling phase is;
+    # a packaging OSError previously killed the run post-render) ────────
     pkg_dir = None
     if not args.no_package:
         print("\n=== Phase 4: packaging ===", flush=True)
-        pkg_dir = _package(out_dir, selection, args.tier, manifest,
-                           cover_manifest, gated_meta, public_meta,
-                           cfg.get("watermark", {}))
+        try:
+            pkg_dir = _package(out_dir, selection, args.tier, manifest,
+                               cover_manifest, gated_meta, public_meta,
+                               cfg.get("watermark", {}))
+        except Exception as exc:  # noqa: BLE001 — images + manifest are safe
+            print(f"  !! packaging FAILED ({exc}) — images + manifest are intact; "
+                  f"re-package manually from {out_dir}", file=sys.stderr, flush=True)
 
-    niche_meta = None
-    if selection is not None:
-        niche_meta = {
-            "id": selection.niche.id, "class": selection.niche.niche_class,
-            "da_folder": selection.niche.da_folder, "tags": selection.niche.tags,
-            "aesthetic_lock": {
-                "palette": selection.aesthetic_lock.palette,
-                "lighting": selection.aesthetic_lock.lighting,
-                "photographer": selection.aesthetic_lock.photographer,
-            },
-            "persona": selection.persona.name if selection.persona else None,
-        }
-    (out_dir / "manifest.json").write_text(json.dumps({
-        "brief": brief, "tier": args.tier, "template": run_template,
-        "model_tag": args.model_tag, "orientation": args.orientation,
-        "resolution": resolution, "seeds_per_prompt": args.seeds,
-        "base_seed": base_seed, "word_band": list(word_band),
-        "niche": niche_meta,
-        "package": str(pkg_dir.relative_to(out_dir)) if pkg_dir else None,
-        "prompts": manifest, "covers": cover_manifest,
-    }, indent=2))
-
-    _record_max_seed(max_seed)
+    # Final manifest rewrite — now carries curation + packaging results.
+    _write_manifest(pkg_dir)
 
     n_img = sum(len(e["images"]) for e in manifest) + \
         sum(len(e["images"]) for e in cover_manifest)

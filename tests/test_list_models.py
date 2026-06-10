@@ -1,8 +1,10 @@
-"""Tests for ``scripts/list_models.py`` (F2 extension).
+"""Tests for ``scripts/list_models.py``.
 
-Exercises the new flags: ``--llms-only``, ``--models-only``, ``--routing``.
-Uses subprocess to invoke main() against the real on-disk registries
-so the smoke covers actual command-line behaviour.
+LLM-registry-only since 2026-06-10 — the image-model registry half was
+archived with the legacy structured path (``legacy/config/models/``); the
+active render path hardcodes its checkpoint in the workflow templates.
+Uses subprocess against the real on-disk registry so the smoke covers actual
+command-line behaviour.
 """
 
 from __future__ import annotations
@@ -10,8 +12,6 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
-
-import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -26,25 +26,18 @@ def _run(*flags: str) -> subprocess.CompletedProcess[str]:
 
 
 class TestDefaultOutput:
-    def test_default_prints_both_registries(self):
+    def test_default_prints_llm_registry(self):
         result = _run()
         assert result.returncode == 0
-        assert "Image models" in result.stdout
         assert "LLM registry" in result.stdout
         assert "cydonia_heretic_24b" in result.stdout
+        # The archived image-model section is gone.
+        assert "Image models" not in result.stdout
         # Default should NOT print routing table.
         assert "Resolved LLMs by role" not in result.stdout
 
-
-class TestLlmsOnly:
-    def test_skips_image_models(self):
-        result = _run("--llms-only")
-        assert result.returncode == 0
-        assert "LLM registry" in result.stdout
-        assert "Image models" not in result.stdout
-
     def test_includes_default_marker(self):
-        result = _run("--llms-only")
+        result = _run()
         # default column shows 'Y' for the configured default_llm
         # (2026-05-24 swap — Gemma 4 26B A4B Heretic replaced DavidAU
         # thinking-heretic as default after the 5-LLM audit; Cydonia is
@@ -52,18 +45,10 @@ class TestLlmsOnly:
         assert "gemma_4_26b_a4b_heretic" in result.stdout
         assert "default = 'gemma_4_26b_a4b_heretic'" in result.stdout
 
-
-class TestModelsOnly:
-    def test_skips_llm_registry(self):
-        result = _run("--models-only")
+    def test_llms_only_is_retained_noop(self):
+        result = _run("--llms-only")
         assert result.returncode == 0
-        assert "Image models" in result.stdout
-        assert "LLM registry" not in result.stdout
-
-    def test_mutex_with_llms_only(self):
-        result = _run("--models-only", "--llms-only")
-        assert result.returncode == 2
-        assert "mutually exclusive" in result.stderr
+        assert "LLM registry" in result.stdout
 
 
 class TestRouting:
@@ -87,24 +72,8 @@ class TestRouting:
         result = _run("--routing")
         assert result.returncode == 0
         assert "Reverse mapping" in result.stdout
-        # The default LLM should appear in reverse mapping with annotations
-        assert "cydonia_heretic_24b" in result.stdout
+        # The fallback LLM should appear in reverse mapping with annotations
+        assert "cydonia_heretic_24b" in result.stdout or \
+            "gemma_4_26b_a4b_heretic" in result.stdout
         # Default annotation visible somewhere
         assert "default" in result.stdout
-
-    def test_routing_with_llms_only(self):
-        # --llms-only + --routing: should still print routing
-        result = _run("--llms-only", "--routing")
-        assert result.returncode == 0
-        assert "Resolved LLMs by role" in result.stdout
-        assert "Image models" not in result.stdout
-
-
-class TestFamilyFilter:
-    def test_family_filter_works(self):
-        result = _run("--family", "sdxl")
-        assert result.returncode == 0
-        assert "Image models" in result.stdout
-        # SDXL models present, non-SDXL absent
-        assert "gonzalomo_photo_v70" in result.stdout
-        assert "chroma_v10HD" not in result.stdout

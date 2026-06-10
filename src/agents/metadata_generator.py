@@ -22,10 +22,41 @@ from __future__ import annotations
 
 import logging
 
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
 from src.agents.llm_client import OllamaClient, OllamaJSONParseError
-from src.agents.schemas import MetadataSchema
 
 logger = logging.getLogger(__name__)
+
+
+class MetadataSchema(BaseModel):
+    """LLM-generated post metadata for a finished image set.
+
+    Lifted from the (now archived) ``src.agents.schemas`` 2026-06-10 — it was
+    the ONLY class the active path used from that 1.1K-line facet-schema
+    module. Bound to ``REQUIRED_FIELDS = {title, description, tags}``.
+    Constrained decoding enforces the shape at the wire; Pydantic
+    post-validation catches per-field constraints. The bands are deliberately
+    wide so the LLM has room — reject obvious failures (single-word title,
+    empty description, no tags) without rejecting reasonable creative output.
+    """
+
+    model_config = ConfigDict(extra="allow", str_strip_whitespace=True)
+
+    title: str = Field(min_length=4, max_length=120)
+    description: str = Field(min_length=20, max_length=600)
+    tags: list[str] = Field(min_length=3, max_length=25)
+
+    @field_validator("tags")
+    @classmethod
+    def _filter_blank_tags(cls, v: list[str]) -> list[str]:
+        cleaned = [t.strip() for t in v if isinstance(t, str) and t.strip()]
+        if len(cleaned) < 3:
+            raise ValueError(
+                "tags must contain at least 3 non-empty strings after "
+                "stripping"
+            )
+        return cleaned
 
 REQUIRED_FIELDS = {"title", "description", "tags"}
 

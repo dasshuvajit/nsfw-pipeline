@@ -115,10 +115,10 @@
   "ksampler": {
     "inputs": {
       "seed": 0,
-      "steps": 14,
+      "steps": 12,
       "cfg": 1,
-      "sampler_name": "euler",
-      "scheduler": "beta",
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "simple",
       "denoise": 1,
       "model": [
         "153",

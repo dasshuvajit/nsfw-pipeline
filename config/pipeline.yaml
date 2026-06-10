@@ -265,7 +265,6 @@ render_pipeline:
   refine_template:     "templates/chroma/refine.json"    # stage 2 (SDXL refine: hands+nipples)
   refine_template_t4:  "templates/chroma/refine_T4.json" # stage 2 T4 variant (+ vagina detailer); main images only
   upscale_template:    "templates/sdxl/upscale_4k.json"  # stage 3 (manual; SFW)
-  upscale_template_t4: "templates/sdxl/upscale_4k_T4.json"  # stage 3 T4 variant
   # false -> skip stage 2; review images are the raw base (the 4K stage's USDU
   # tiled diffusion then serves as the refine). true matches base+refine review.
   enable_refine: true

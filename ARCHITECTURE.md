@@ -1,5 +1,13 @@
 # NSFW Content Generation Pipeline — System Architecture
 
+> ⚠️ **FROZEN LEGACY REFERENCE (banner added 2026-06-10).** This document
+> describes the pre-pivot STRUCTURED vocab/composer pipeline, which was
+> archived under `legacy/` and replaced in production by the **LLM-direct
+> path** (scripts/art_director.py + scripts/art_series.py). For the current
+> architecture read **CLAUDE.md** (authoritative) and docs/COMFYUI_WORKFLOWS.md.
+> Everything below is retained as design history — do not implement against it.
+
+
 > **Platform:** Mac M4 Pro, 48 GB unified RAM  
 > **Target:** DeviantArt, Patreon  
 > **Stack:** Python 3.11, SQLite, ComfyUI, Ollama 0.5+

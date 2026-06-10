@@ -118,7 +118,11 @@ def test_creative_direction_house_style(monkeypatch):
     degrades gracefully when the config is absent."""
     block = AD._creative_system_block()
     assert "CREATIVE DIRECTION" in block
-    assert "DOMINATE" in block.upper()                 # subject-focus fix
+    # subject-dominance + photoreal LOOK live ONLY in the system prompt since
+    # the 2026-06-10 dedup (the YAML used to duplicate them verbatim and the
+    # LLM received both copies); the YAML keeps the tunable knobs.
+    assert "DOMINATES" in AD.ART_DIRECTOR_SYSTEM_PROMPT
+    assert "DOMINATE" not in block.upper()             # dedup held
     assert "young adult" in block.lower()              # the look lean
     assert "ADULT only" in block                       # age-safety reinforcement
     assert "VARIED" in block.upper()                   # variety preserved
@@ -285,7 +289,10 @@ def test_generate_series_seeds_avoid_and_offsets_rotation(monkeypatch):
                       "sub_look": kw["sub_look"],
                       "framing_target": kw["framing_target"],
                       "look_target": kw["look_target"]})
-        return {"prompt": f"scene {len(calls)} " + "word " * 80,
+        n = len(calls)
+        filler = " ".join(chr(110 + n % 12) + chr(97 + j % 26) + chr(97 + (j // 26) % 26)
+                          for j in range(80))
+        return {"prompt": f"scene {filler}",
                 "orientation": "portrait", "shot_type": "medium",
                 "framing_rationale": "r"}
 
@@ -302,13 +309,14 @@ def test_generate_series_seeds_avoid_and_offsets_rotation(monkeypatch):
     assert calls[0]["avoid"] == ["PRIOR SIG …"]
     assert calls[0]["banned_openers"] == ["prior opener words"]
     # the seed persists and the lists grow within-series as scenes commit
-    assert calls[1]["avoid"][0] == "PRIOR SIG …" and len(calls[1]["avoid"]) == 2
+    # (each accept adds a head signature AND a tail signature since 2026-06)
+    assert calls[1]["avoid"][0] == "PRIOR SIG …" and len(calls[1]["avoid"]) == 3
     # (2) run_offset=2 rotates the sub-look sequence: looks[(i+2)%4]
     assert [c["sub_look"] for c in calls] == [looks[2], looks[3], looks[0]]
     # framing + look rotations are offset by the same amount
     assert [c["framing_target"] for c in calls] == \
         [AD.FRAMING_TARGETS[(i + 2) % len(AD.FRAMING_TARGETS)] for i in range(3)]
-    assert [c["look_target"] for c in calls] == [AD._creative_look(i + 2) for i in range(3)]
+    assert [c["look_target"] for c in calls] == [AD._creative_look(i, 2) for i in range(3)]
 
 
 def test_load_niche_history_reads_prior_same_niche_manifests(tmp_path, monkeypatch):
@@ -330,16 +338,18 @@ def test_load_niche_history_reads_prior_same_niche_manifests(tmp_path, monkeypat
     (base / "broken" / "manifest.json").write_text("{ not json")
 
     monkeypatch.setattr(A, "ROOT", tmp_path)
-    banned, avoid, count = A._load_niche_history("bohemian_naturallight")
+    banned, avoid, count, overused = A._load_niche_history("bohemian_naturallight")
     assert count == 2                       # two prior bohemian runs (goth excluded)
-    assert len(banned) == 3 and len(avoid) == 3   # 1 + 2 prompts across the 2 runs
+    # 3 prompts across the 2 runs: 1 opener each; head + TAIL signature each
+    assert len(banned) == 3 and len(avoid) == 6
     # the seeds are derived via the shared art_director helpers
     assert banned[0] == AD._opener("Warm honey light over X " * 6)
     assert avoid[0] == AD._signature("Warm honey light over X " * 6)
+    assert avoid[1] == AD._tail_signature("Warm honey light over X " * 6)
     # a never-run niche → empty seeds + zero offset (graceful)
-    assert A._load_niche_history("does_not_exist_niche") == ([], [], 0)
+    assert A._load_niche_history("does_not_exist_niche") == ([], [], 0, [])
     # recent_series cap limits how many prior runs feed the seeds
-    b2, a2, c2 = A._load_niche_history("bohemian_naturallight", recent_series=1)
+    b2, a2, c2, _ = A._load_niche_history("bohemian_naturallight", recent_series=1)
     assert c2 == 2 and len(b2) == 2         # count = all runs; seeds = newest run only
 
 
@@ -558,7 +568,13 @@ def test_t4_explicit_reveal_rotation_only_at_t4(monkeypatch):
     def rec(client, **kw):
         seen.append({"reveal": kw.get("reveal_target"), "grooming": kw.get("grooming"),
                      "framing": kw.get("framing_target")})
-        return {"prompt": "word " * 80, "orientation": "portrait",
+        n = len(seen)
+        # distinct ALPHA-ONLY filler per call — the similarity rejector
+        # (2026-06) refuses candidates that 3-gram-match an accepted prompt,
+        # and its tokenizer drops digits
+        filler = " ".join(chr(97 + n % 26) + chr(97 + j % 26) + chr(97 + (j // 26) % 26)
+                          for j in range(80))
+        return {"prompt": filler, "orientation": "portrait",
                 "shot_type": "medium", "framing_rationale": "r"}
 
     monkeypatch.setattr(AD, "generate_one", rec)

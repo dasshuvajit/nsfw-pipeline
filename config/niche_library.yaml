@@ -15,7 +15,9 @@
 #   class         — core | trend
 #   weight        — relative selection weight within its class
 #   tier_band     — tiers this niche supports (run --tier must be one)
-#   da_folder     — DeviantArt gallery / Premium-Gallery folder name
+#   da_folder     — DeviantArt gallery folder name (subfolder of its family)
+#   family        — one of the 5 top-level DA families (atelier / gilded_glamour /
+#                   golden_hour / myth_crown / nocturne) — see docs/DA_GO_TO_MARKET.md §3
 #   source        — config/categories.yaml id this lane corresponds to (breadcrumb only)
 #   tags          — 5-axis DA tag seed (genre / era / subject / mood / discovery); 12-15
 #   sub_looks     — 2-4 niche-tuned "label — description" target looks (replace the
@@ -38,6 +40,7 @@ niches:
     weight: 1.2
     tier_band: [T2_implied, T3_artnude, T4_explicit]
     da_folder: "Fine-Art Figure Study"
+    family: atelier
     source: fine_art_figurative
     tags: [fineartnude, figurestudy, figure, artnude, chiaroscuro, blackandwhite,
            monochrome, classical, form, sculptural, aiart, digitalart, portrait]
@@ -45,6 +48,9 @@ niches:
       - "studio chiaroscuro figure study — single hard key against a black seamless backdrop, the body sculpted by light and deep shadow, gallery figure-study framing, B&W or near-monochrome"
       - "north-light atelier — soft directional daylight from a tall studio window across a plinth or stool, classical sculptural pose, muted neutral tones, fine-art nude tradition"
       - "low-key rim study — a single rim light tracing the edge of the form out of darkness, the silhouette and contour as the subject, restrained and reverent"
+      - "raw atelier with plaster casts — soft skylight from above in a working sculptor's studio, plaster dust and unfinished white casts around the living model, the body posed among fragments"
+      - "draped-canvas abstraction — the figure half-wrapped in heavy raw canvas against a grey seamless, one hard side light, folds and flesh composed as a single sculptural form"
+      - "contact-shadow study — the body close against a textured plaster wall, a hard raking key throwing her crisp shadow beside her as a second graphic form"
     aesthetics:
       palettes: ["high-contrast black-and-white", "warm sepia monochrome", "muted charcoal-and-ivory neutrals"]
       lighting: ["single hard key, Caravaggio chiaroscuro", "soft north-window daylight", "split lighting, half the face in shadow"]
@@ -56,6 +62,7 @@ niches:
     weight: 1.1
     tier_band: [T1_suggestive, T2_implied, T3_artnude]
     da_folder: "Old Hollywood Glamour"
+    family: gilded_glamour
     source: old_hollywood
     tags: [oldhollywood, glamour, boudoir, satin, vintageglamour, goldenage,
            elegant, noir, blackandwhite, sensual, aiart, digitalart, portrait]
@@ -63,6 +70,9 @@ niches:
       - "1940s studio glamour — butterfly/paramount key + a soft fill, lacquered marcel waves, satin and fur, silver-grey tonal range, classic Hollywood-portrait elegance"
       - "boudoir vanity — warm practical lamplight at an Art-Deco dressing table (no mirror — perfume bottles, powder compact, lamp), silk robe slipping, dressing-room intimacy"
       - "noir-tinged glamour — a single hard key and deep studio shadow tail, smoke and satin, dramatic but elegant, half-light on the face"
+      - "premiere-night satin — a floor-length bias-cut satin gown and elbow-length gloves under one hard key, a fur stole slipping off the shoulder, star-arrival poise"
+      - "silver-screen bath — a deco clawfoot tub piled with foam, marcel waves pinned high, a champagne coupe on the side table, playful starlet luxury"
+      - "dressing-gown window — a silk dressing gown loose at a tall hotel window, smoke curling from a cigarette resting in a crystal ashtray on the sill, slatted city light"
     aesthetics:
       palettes: ["silver-grey monochrome", "champagne-and-ivory with soft sepia", "deep oxblood and gold"]
       lighting: ["butterfly/paramount glamour key + fill", "single hard key with a long shadow tail", "warm low practical lamplight"]
@@ -76,6 +86,7 @@ niches:
     weight: 1.0
     tier_band: [T1_suggestive, T2_implied]
     da_folder: "1950s Pin-Up"
+    family: gilded_glamour
     source: vintage_pinup
     tags: [pinup, 1950s, retro, vintage, glamour, victoryrolls, redlips, corset,
            garter, classicpinup, cheesecake, aiart, digitalart]
@@ -83,6 +94,9 @@ niches:
       - "studio cheesecake pin-up — warm saturated key with strong catchlight-heavy fill, polka-dot or retro swimwear, victory rolls and red lips, playful hand-on-hip confidence"
       - "retro domestic pin-up — a sunlit 1950s kitchen/bedroom set, gingham and garters, mid-action playful pose, kodachrome warmth"
       - "vintage poolside pin-up — bright sunny day, retro one-piece, beach ball or parasol, jet-set cheesecake glamour"
+      - "soda-fountain stool — a chrome diner counter and red vinyl stool, a tall milkshake with a striped straw, crossed legs and a wink, saturated kodachrome cheer"
+      - "garage glamour — a polished cherry-red fender under a hung work-light, tied gingham blouse and denim shorts, a playful smudge of grease on one cheek"
+      - "stocking-check boudoir — perched on a tufted powder-pink stool fastening a seamed stocking to its garter, the classic caught-mid-dressing Elvgren situation"
     aesthetics:
       palettes: ["kodachrome red-teal-cream", "warm jewel tones", "pink-and-gold pastel"]
       lighting: ["warm studio key + strong fill, heavy catchlights", "bright sunny daylight", "soft glamour key"]
@@ -94,6 +108,7 @@ niches:
     weight: 1.1
     tier_band: [T2_implied, T3_artnude]
     da_folder: "Fantasy Glamour"
+    family: nocturne
     source: fantasy_castlecore
     tags: [fantasy, fantasygirl, elf, fae, sorceress, fantasyart, glamour, sensual,
            characterart, ethereal, aiart, digitalart, conceptart]
@@ -101,6 +116,9 @@ niches:
       - "ethereal elf in an enchanted forest — dappled god-rays through a mossy canopy, delicate adornments and sheer drapery as set dressing, luminous skin, dreamy and otherworldly"
       - "candlelit sorceress chamber — warm practical candlelight and a hazed shaft of light in a stone-and-velvet interior, jewelled adornments, regal composed presence"
       - "fae by moonlit water — cool blue-hour light on a mossy rock or bank at the edge of a still forest pool; she rests on solid ground with the water beside her (never on the water), wet luminous skin, flowers and vines, mythic stillness"
+      - "antlered crown at twilight — a bone-and-branch crown over loose wild hair, furs laid over moss, violet dusk rim light, feral regal presence"
+      - "standing stones storm-light — wind-blown gossamer among ancient lichened monoliths under a storm-green sky, a faintly glowing orb cradled at her hip as the light source"
+      - "spring of the petals — she rests on a smooth stone shelf at the rim of a shallow crystal spring, blossom petals drifting on the water BESIDE her, dawn mist between dark trunks"
     aesthetics:
       palettes: ["deep emerald and gold", "jewel-toned twilight", "cool moonlit cyan-and-indigo"]
       lighting: ["dappled god-rays through canopy", "warm practical candlelight", "cool blue-hour ambient glow"]
@@ -112,6 +130,7 @@ niches:
     weight: 1.0
     tier_band: [T1_suggestive, T2_implied, T3_artnude]
     da_folder: "Modern Boudoir"
+    family: golden_hour
     source: boudoir_lingerie
     tags: [boudoir, lingerie, sensual, intimate, bedroom, softlight, feminine,
            elegant, mature, lace, aiart, digitalart, portrait]
@@ -119,11 +138,14 @@ niches:
       - "soft window-light boudoir — diffuse overcast daylight through a sheer curtain across rumpled white linen, delicate lace or a thin slip slipping, true skin with faint freckles, low-contrast and tender"
       - "warm intimate bedroom — a single warm bedside lamp, silk and lace, a quiet unguarded moment, soft golden glow"
       - "morning-after intimacy — bright soft morning light, tangled sheets, bare shoulders and a loose camisole, candid and natural"
+      - "knit-throw window seat — a deep window seat under a chunky cream knit throw, rain streaking the glass beyond, a steaming mug on the sill, bare legs tucked, hygge intimacy"
+      - "afternoon shutter light — low slatted sun through half-open shutters banding across a linen-dressed platform bed, drowsy warm haze, unhurried ease"
+      - "slow dressing — stepping into a slip dress beside an open wardrobe, soft bounced daylight, caught candid mid-motion, quiet grace"
     aesthetics:
       palettes: ["soft faded warm neutrals", "cream and dusty rose", "muted cool morning tones"]
       lighting: ["soft diffuse window daylight", "single warm bedside lamp", "bright overcast morning"]
       photographers: ["natural-light boudoir editorial", "Sarah Moon soft grain", "Petra Collins dreamy film"]
-    brief_seed: "Modern boudoir — one woman in an intimate bedroom in soft natural light, lace and linen, tender and sensual."
+    brief_seed: "Modern boudoir — one woman in an intimate bedroom in soft natural light, lace and linen, tender and sensual. SIGNATURE MATERIALS: washed linen, soft cotton, sheer curtain, chunky knit — never velvet or opulent silk (those belong to other collections)."
     avoid_motifs:
       - "mirrors or reflective glass showing the subject — keep the bedroom mirror-free"
 
@@ -132,6 +154,7 @@ niches:
     weight: 0.9
     tier_band: [T2_implied, T3_artnude]
     da_folder: "Film-Noir Boudoir"
+    family: gilded_glamour
     source: dark_boudoir_neonoir
     tags: [filmnoir, noir, blackandwhite, moody, shadow, vintage, boudoir,
            cinematic, dramatic, sensual, aiart, digitalart]
@@ -139,6 +162,9 @@ niches:
       - "venetian-blind noir — hard slatted light striping across the body in a dim hotel room, deep black shadow, smoke and a glint of light, high-contrast B&W mystery"
       - "single-lamp noir boudoir — one hard practical light carving the form out of darkness, satin and shadow, cinematic 1940s mood"
       - "rain-window noir — cool light through a rain-streaked window at night, wet glass caustics, brooding cinematic stillness"
+      - "stairwell shadows — one hard light down a wrought-iron stairwell, a long coat open over a satin slip, smoke curling from a cigarette in an ashtray on the step"
+      - "interrogation lamp — a single bare bulb low over a scarred wooden table, she leans into the cone of light out of darkness, femme-fatale composure"
+      - "fire-escape midnight — slatted shadow from the iron escape above, brick and drifting steam from a vent, a trench over satin, city-night tension"
     aesthetics:
       palettes: ["high-contrast black-and-white", "cool desaturated night", "amber-tungsten in deep shadow"]
       lighting: ["hard venetian-blind slats", "single hard key, low-key noir", "cool rain-window night light"]
@@ -152,6 +178,7 @@ niches:
     weight: 0.9
     tier_band: [T1_suggestive, T2_implied, T3_artnude]
     da_folder: "Art Deco Boudoir"
+    family: gilded_glamour
     source: luxury_editorial
     tags: [artdeco, 1920s, flapper, gatsby, pearls, vintage, elegant, glamour,
            boudoir, luxury, aiart, digitalart, portrait]
@@ -159,11 +186,14 @@ niches:
       - "1920s flapper boudoir — warm lamplight in an opulent Art-Deco suite, pearls and beaded drapery as set dressing, marcel waves, Gatsby-era luxury"
       - "deco hotel glamour — geometric gilt interiors, champagne and satin, a hazed shaft of warm light, elegant reclining poise"
       - "jazz-age vanity — warm practical light at a lacquered deco dressing table, feathers and pearls, refined intimacy"
+      - "beaded-fringe dance — mid-motion fringe flaring under a warm stage-side lamp, t-strap heels and a jewelled headband, champagne-sparkle energy"
+      - "lacquer-screen lounge — a black-lacquer folding screen behind a chaise, a marabou-trimmed robe pooling off her, a gilt cigarette case catching lamplight"
+      - "penthouse dawn — first gold light through a geometric deco window, a beaded gown half-undone, the dark city silhouetted beyond, after-the-party stillness"
     aesthetics:
       palettes: ["champagne, gold and black", "jewel-toned Gatsby palette", "warm sepia-and-gold"]
       lighting: ["warm opulent lamplight", "hazed warm shaft through tall windows", "soft glamour key"]
       photographers: ["Art-Deco era studio glamour", "Edward Steichen Vogue elegance", "George Hurrell deco portrait"]
-    brief_seed: "Art-Deco boudoir — one woman in 1920s Gatsby-era luxury, pearls and gilt, opulent warm light, jazz-age elegance."
+    brief_seed: "Art-Deco boudoir — one woman in 1920s Gatsby-era luxury, pearls and gilt, opulent warm light, jazz-age elegance. SIGNATURE MATERIALS: black lacquer, beaded fringe, gilt geometry, marabou feathers, chrome — lean on these over generic velvet."
     avoid_motifs:
       - "mirrors or mirrored vanities — use a gilt console or lacquered dressing table with deco objets (no mirror)"
 
@@ -173,6 +203,7 @@ niches:
     weight: 1.0
     tier_band: [T2_implied, T3_artnude]
     da_folder: "Dark Romantic"
+    family: nocturne
     source: dark_moody
     tags: [goth, gothic, darkart, sensual, moody, candlelight, romantic, glamour,
            alternative, dramatic, aiart, digitalart]
@@ -193,6 +224,7 @@ niches:
     weight: 1.0
     tier_band: [T1_suggestive, T2_implied, T3_artnude]
     da_folder: "Bohemian Natural Light"
+    family: golden_hour
     source: soft_aesthetic
     tags: [boho, bohemian, naturallight, sunlit, sensual, earthy, dreamy,
            softfocus, freespirit, aiart, digitalart, portrait]
@@ -213,6 +245,7 @@ niches:
     weight: 1.0
     tier_band: [T1_suggestive, T2_implied]
     da_folder: "Poolside Golden Hour"
+    family: golden_hour
     source: poolside_golden_hour
     tags: [beach, poolside, summer, swimsuit, glamour, sunkissed, sensual,
            goldenhour, riviera, aiart, digitalart, portrait]
@@ -233,6 +266,7 @@ niches:
     weight: 0.8
     tier_band: [T1_suggestive, T2_implied]
     da_folder: "Burlesque & Cabaret"
+    family: gilded_glamour
     source: vintage_pinup
     tags: [burlesque, cabaret, showgirl, feathers, glamour, vintage, sensual,
            performance, rhinestones, aiart, digitalart]
@@ -255,6 +289,7 @@ niches:
     weight: 0.8
     tier_band: [T1_suggestive, T2_implied, T3_artnude]
     da_folder: "Cyberpunk Pin-Up"
+    family: nocturne
     source: wet_set_cinematic
     tags: [cyberpunk, scifi, neon, futuristic, pinup, glamour, sensual,
            conceptart, neonnoir, aiart, digitalart]
@@ -275,6 +310,7 @@ niches:
     weight: 0.8
     tier_band: [T1_suggestive, T2_implied]
     da_folder: "Cottagecore Pastoral"
+    family: golden_hour
     source: soft_aesthetic
     tags: [cottagecore, pastoral, rustic, dreamy, soft, feminine, naturallight,
            sensual, countryside, aiart, digitalart, portrait]
@@ -300,6 +336,7 @@ niches:
     weight: 1.0
     tier_band: [T1_suggestive, T2_implied, T3_artnude, T4_explicit]
     da_folder: "Renaissance Portrait"
+    family: myth_crown
     source: classical_fineart
     tags: [renaissance, baroque, classical, fineart, chiaroscuro, oldmaster,
            portrait, elegant, sensual, painterly, aiart, digitalart]
@@ -307,17 +344,21 @@ niches:
       - "old-master chiaroscuro — a single warm candle or window key carving the figure out of deep shadow, rich oxblood and gold drapery as set dressing, the sculptural modelling of Caravaggio rendered as photography"
       - "Vermeer window light — soft cool north light across pale skin in a quiet panelled chamber, a pearl, a fall of velvet, serene composure, true fine-grain photographic skin"
       - "baroque opulence — gilt and damask, a hazed shaft through tall leaded glass, jewel-toned palette, regal three-quarter poise"
+      - "anatomist's studio — a heavy oak table with brass dividers and indistinct sepia sketches, the model resting between poses in a rough wool wrap, candle-lit Leonardo-era scholarship"
+      - "venetian loggia twilight — dusk over a stone balustrade, a brocade gown loosened at the lacing, pearls wound through her hair, La Serenissima opulence"
+      - "tenebrist still-life — copper pots, grapes and bread in Caravaggio darkness, one raking candle carving the model out of the same gloom, earthy and sacred"
     aesthetics:
       palettes: ["oxblood, gold and deep shadow", "Vermeer cool-and-cream", "jewel-toned baroque"]
       lighting: ["single candle chiaroscuro", "soft north-window light", "hazed shaft through leaded glass"]
       photographers: ["Caravaggio chiaroscuro (as photography)", "Vermeer window light", "old-master portrait lighting"]
-    brief_seed: "Renaissance / baroque fine-art portrait — one woman as an old-master study in chiaroscuro and rich period drapery, photographed, sculptural and timeless."
+    brief_seed: "Renaissance / baroque fine-art portrait — one woman as an old-master study in chiaroscuro and rich period drapery, photographed, sculptural and timeless. SIGNATURE MATERIALS: oxblood velvet, damask, brocade, aged gilt, pewter — this collection OWNS the velvet-and-gold register."
 
   - id: mythology_goddess
     class: core
     weight: 1.0
     tier_band: [T2_implied, T3_artnude, T4_explicit]
     da_folder: "Mythic Goddess"
+    family: myth_crown
     source: classical_fantasy
     tags: [mythology, goddess, greek, roman, classical, marble, divine, fantasy,
            elegant, sensual, fineart, aiart, digitalart, portrait]
@@ -325,11 +366,14 @@ niches:
       - "marble temple goddess — diffused daylight in a sunlit colonnade, white marble and laurel, a fall of translucent chiton slipped from the shoulder, serene divine composure"
       - "Aphrodite at the shore — warm low light, sea-spray and shell, gilded skin, classical contrapposto, the body as idealized form"
       - "moonlit Artemis — cool silver light in a sacred grove, a drawn bow at rest, athletic poise, distant cool gaze"
+      - "Danae in the golden rain — she reclines on white linen as a shaft of golden dust-laden light pours over her from a high opening, bronze bowls glinting, the myth told purely in light"
+      - "nereid on the storm rocks — dark wet rocks and kelp, sea-foam bursting BESIDE her perch, silver storm-light on salt-wet skin, elemental and unafraid"
+      - "oracle at the brazier — a bronze brazier's ember glow in a dark sanctum, laurel leaves in her hair, thin smoke rising from the coals, prophetic intensity"
     aesthetics:
       palettes: ["marble white and gold", "warm Aegean light", "cool silver moonlight"]
       lighting: ["diffused colonnade daylight", "warm shoreline low sun", "cool moonlit grove"]
       photographers: ["classical sculpture lighting", "Helmut Newton statuesque", "fine-art figure study"]
-    brief_seed: "Mythic goddess — one woman as a classical deity (Aphrodite, Artemis) in marble-and-light, idealized form, serene and divine."
+    brief_seed: "Mythic goddess — one woman as a classical deity (Aphrodite, Artemis) in marble-and-light, idealized form, serene and divine. SIGNATURE MATERIALS: white marble, linen chiton, laurel, bronze, sea-foam — classical, never boudoir fabrics."
     avoid_motifs:
       - "actual stone-statue skin — she is a living woman AS a goddess, true warm skin, not carved marble"
 
@@ -338,6 +382,7 @@ niches:
     weight: 0.9
     tier_band: [T1_suggestive, T2_implied, T3_artnude, T4_explicit]
     da_folder: "Lady of the Castle"
+    family: myth_crown
     source: medieval_fantasy
     tags: [medieval, castle, noblewoman, fantasy, historical, candlelit, gown,
            elegant, sensual, fineart, aiart, digitalart, portrait]
@@ -345,11 +390,14 @@ niches:
       - "candlelit stone chamber — warm flame light across a noblewoman in a velvet-and-brocade gown slipping from one shoulder, tapestries and a four-poster behind, intimate and regal"
       - "tower window dawn — cool first light through a narrow arched window onto pale skin, loose laced chemise, quiet self-possession"
       - "great-hall firelight — flickering hearth glow, fur and candle, confident lady-of-the-house composure"
+      - "armory by torchlight — unlacing a quilted gambeson among racked steel and oak, torch flame on strong shoulders, warrior-lady confidence"
+      - "solar window needlework — diamond-paned daylight in the private solar, a fur-lined mantle slipping while embroidery lies forgotten in her lap, noble idleness"
+      - "bathing barrel — a steaming oak bathing barrel strewn with herbs, iron sconce candlelight, wet hair over the rim, rough-hewn medieval comfort"
     aesthetics:
       palettes: ["warm candle-and-velvet", "cool stone dawn", "amber hearth glow"]
       lighting: ["warm candle flame", "cool arched-window dawn", "flickering hearth fire"]
       photographers: ["candlelit period portrait", "fine-art historical editorial", "chiaroscuro figure"]
-    brief_seed: "Lady of the castle — one medieval noblewoman, confident and self-possessed, in candlelit stone interiors and period dress."
+    brief_seed: "Lady of the castle — one medieval noblewoman, confident and self-possessed, in candlelit stone interiors and period dress. SIGNATURE MATERIALS: rough wool, fur, hammered iron, oak, woven tapestry — period-true, not silk-boudoir."
     avoid_motifs:
       - "damsel/captive/victim framing — she is the confident lady of the house, never a prisoner"
 
@@ -358,6 +406,7 @@ niches:
     weight: 0.9
     tier_band: [T1_suggestive, T2_implied, T3_artnude]
     da_folder: "Angelic & Divine"
+    family: myth_crown
     source: ethereal_fantasy
     tags: [angel, divine, ethereal, celestial, heavenly, soft, luminous, fantasy,
            fineart, elegant, aiart, digitalart, portrait]
@@ -365,17 +414,21 @@ niches:
       - "shaft of heavenly light — soft volumetric beams through cloud or cathedral glass, luminous pale skin, sheer drifting fabric, large soft feathered wings half-furled behind, serene transcendence"
       - "dawn cloud reverie — warm gold sunrise on a figure among soft cloud, gauze and gold light, weightless calm"
       - "candlelit chapel — quiet warm glow, a fall of white linen, downcast contemplative grace"
+      - "ruined chapel wings — soft beams through a collapsed roof over feathered wings and wildflowers among the rubble, hope-amid-ruins serenity"
+      - "annunciation light — one golden beam across a humble whitewashed room, a lily in a clay jug on the sill, awed luminous stillness"
+      - "marble ledge under stars — a moonlit figure resting on a pale marble ledge against night cloud and starfield, cool silver rim light, cosmic calm"
     aesthetics:
       palettes: ["luminous white and gold", "soft heavenly pastel", "warm sunrise gold"]
       lighting: ["volumetric heavenly beams", "soft golden sunrise", "warm chapel candlelight"]
       photographers: ["ethereal high-key editorial", "soft-light fine-art nude", "luminous beauty"]
-    brief_seed: "Angelic & divine — one woman as a luminous celestial figure, soft wings and heavenly light, serene and transcendent (tasteful, fine-art)."
+    brief_seed: "Angelic & divine — one woman as a luminous celestial figure, soft wings and heavenly light, serene and transcendent (tasteful, fine-art). SIGNATURE MATERIALS: white gauze, soft feathers, gold leaf, alabaster, cloud and beam — weightless, never heavy fabrics."
 
   - id: arabian_nights
     class: trend
     weight: 0.8
     tier_band: [T2_implied, T3_artnude, T4_explicit]
     da_folder: "Desert Palace Reverie"
+    family: myth_crown
     source: orientalist_fantasy
     tags: [arabiannights, desertpalace, orientalist, opulent, silk, lantern, jewels,
            fantasy, sensual, fineart, aiart, digitalart]
@@ -383,11 +436,14 @@ niches:
       - "lantern-lit palace alcove — warm filigree lantern light across a reclining figure on jewel-toned cushions and silk, gold jewellery and incense smoke, opulent and serene"
       - "desert dawn terrace — cool first light over dunes through carved arches, sheer drifting silk, calm distant gaze"
       - "bathhouse steam — warm diffused light through steam and mosaic, water and gold, languid composure"
+      - "rooftop under the stars — a lantern-ringed rooftop bed beneath the desert night sky, cool indigo dark against warm flame, sheer canopies stirring in the wind"
+      - "private silk stall — bolts of jewel-toned silk draped across her among brass scales and pyramids of saffron, golden light through slatted shade, no other figure present"
+      - "oasis palm shade — dappled palm light over a woven rug at the edge of a clear pool, a brass ewer and dates at hand, languid desert ease on solid ground"
     aesthetics:
       palettes: ["jewel-toned silk and gold", "cool desert dawn", "warm mosaic amber"]
       lighting: ["warm filigree lantern light", "cool desert sunrise", "diffused steam light"]
       photographers: ["opulent orientalist editorial", "warm jewel-tone fine-art", "Helmut Newton opulence"]
-    brief_seed: "Desert-palace reverie — one woman amid opulent silks, lanterns and jewels in an Arabian-Nights palace, confident and serene."
+    brief_seed: "Desert-palace reverie — one woman amid opulent silks, lanterns and jewels in an Arabian-Nights palace, confident and serene. SIGNATURE MATERIALS: jewel-toned silk, brass filigree, mosaic tile, carved cedar, incense smoke — this collection OWNS the silk register."
     avoid_motifs:
       - "harem / slave / concubine / captive framing — she is the confident mistress of the palace, never owned"
 
@@ -396,6 +452,7 @@ niches:
     weight: 0.8
     tier_band: [T2_implied, T3_artnude, T4_explicit]
     da_folder: "Dark Fantasy Vampire"
+    family: nocturne
     source: gothic_fantasy
     tags: [vampire, darkfantasy, gothic, moonlit, castle, sensual, dramatic, fantasy,
            nocturnal, fineart, aiart, digitalart]
@@ -403,11 +460,14 @@ niches:
       - "moonlit gothic hall — cool blue moonlight through tall arched windows across pale luminous skin, dark crimson velvet and a fall of black hair, regal predatory calm"
       - "candle-and-blood-red boudoir — warm low candle against deep crimson drapery, a goblet, languid confident poise"
       - "crypt dawn — first cold light in a vaulted stone crypt, pale skin and dark lace, still composure"
+      - "throne of the night court — a carved obsidian throne in a ruined great hall, a black lace train spilling down the dais steps, moon shafts through broken vaulting, predatory queen composure"
+      - "wine-cellar candle — one candle among dusty casks and tarnished goblets, crimson velvet thrown over cold stone, conspiratorial closeness"
+      - "bell-tower midnight — moonlight through the louvres beside a great bronze bell, wind-stirred black chiffon, the sleeping city far below, vertiginous gothic romance"
     aesthetics:
       palettes: ["cool moonlit blue and crimson", "deep crimson and candle", "cold stone and black lace"]
       lighting: ["cool blue moonlight", "warm low candle", "cold crypt dawn"]
       photographers: ["gothic cinematic chiaroscuro", "dark-romantic fine-art", "Bill Henson twilight"]
-    brief_seed: "Dark-fantasy vampire — one woman as a regal nocturnal predator, pale skin and crimson velvet in moonlit gothic interiors, confident (never a victim)."
+    brief_seed: "Dark-fantasy vampire — one woman as a regal nocturnal predator, pale skin and crimson velvet in moonlit gothic interiors, confident (never a victim). SIGNATURE MATERIALS: black lace, tarnished silver, bone-pale wax, cold stone, crimson velvet only in deep blood tones."
     avoid_motifs:
       - "gore / blood pooling / wounds / victim framing — sensual and regal, not horror; she is the predator, composed"
 
@@ -416,6 +476,7 @@ niches:
     weight: 1.0
     tier_band: [T2_implied, T3_artnude, T4_explicit]
     da_folder: "Fine-Art Black & White"
+    family: atelier
     source: fineart_bw
     tags: [blackandwhite, monochrome, fineart, figurestudy, chiaroscuro, filmnoir,
            sculptural, elegant, sensual, analog, aiart, digitalart]
@@ -423,6 +484,9 @@ niches:
       - "black-and-white studio chiaroscuro — a single hard key against deep black, the body sculpted in light and shadow, rich silver-gelatin tonal range, grain, the form as pure abstraction"
       - "high-key B&W beauty — soft even white light, luminous pale tones, minimal shadow, delicate monochrome skin texture"
       - "film-noir window light — hard slatted light striping the figure in a dim room, deep blacks, smoke and grain, dramatic monochrome stillness"
+      - "bodyscape dunes — an extreme close crop turning hip, waist and shoulder into dune-like landscape forms, hard side light, pure tonal abstraction"
+      - "dancer's chalk study — a dark rehearsal studio, chalk dust hanging in one hard key, the figure caught sharp mid-extension, kinetic monochrome energy"
+      - "wet-skin contrast — water beaded on skin under a single hard key against black, every droplet a specular point, graphic and stark"
     aesthetics:
       palettes: ["high-contrast silver-gelatin black-and-white", "soft high-key monochrome", "deep film-noir black-and-white"]
       lighting: ["single hard studio key", "soft even high-key", "hard venetian-blind slats"]
