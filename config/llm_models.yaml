@@ -536,8 +536,10 @@ llms:
 # churn events — at ~96s/prompt vs 27s (~3.5x slower LLM phase, still
 # under the 2-min/prompt bar). skyfall_31b_heretic_clear was ELIMINATED
 # (7.14 audit, 7/8 shortfall, ~3min/prompt, one literal refusal shipped —
-# which exposed + fixed the gate's missing refusal detector). Default
-# switch pending the user's call (quality vs 3.5x LLM-phase latency).
+# which exposed + fixed the gate's missing refusal detector). User
+# confirmed the switch 2026-06-11: DECKARD is the default; Gemma 26B-A4B
+# stays registered as the fast iteration option (--model-tag), Cydonia
+# stays fallback_llm.
 #
 # 2026-05-24 — switched from davidau_nemo_thinking_heretic_claude_opus to
 # gemma_4_26b_a4b_heretic after a 5-LLM A/B audit (Gemma 1B, DavidAU 12B,
@@ -548,7 +550,7 @@ llms:
 # (4B active per token across 26B total) gives near-DavidAU wall-clock
 # despite the larger total footprint. Trade: 16 GB RAM resident vs
 # DavidAU's 7.5 GB — acceptable on the 48 GB Mac M4 Pro target.
-default_llm: gemma_4_26b_a4b_heretic
+default_llm: deckard_gemma4_31b_heretic
 
 # Fallback LLM — used by ``OllamaClient.generate_json(fallback_model=...)``
 # when the primary model fails twice in a row (constrained-decoding +

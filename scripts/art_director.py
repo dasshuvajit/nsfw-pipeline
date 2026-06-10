@@ -46,11 +46,12 @@ CYDONIA_TAG = "Fermi/Cydonia-24B-v4.3-heretic-vision:Q4_K_M"
 
 def _default_llm_tag() -> str:
     """Backend tag of the registry's default_llm (config/llm_models.yaml).
-    As of 2026-06-04 that's gemma_4_26b_a4b_heretic (LM Studio) — made the main
-    prompt LLM after a blind 4-lens judge panel (wins creativity/sellability/
-    render-fidelity) + ~2.7x speed. Falls back to Cydonia if the registry is
-    unreadable. NOTE: the Gemma default needs LM Studio running with the model
-    loaded; otherwise pass --model-tag for the Ollama/Cydonia path."""
+    As of 2026-06-11 that's deckard_gemma4_31b_heretic (LM Studio) — the dense
+    Gemma-4 31B creative-heretic that swept the W5 blind A/B (audit 9.31,
+    blind 7.42, ~96s/prompt). The 26B-A4B MoE remains registered as the fast
+    iteration option. Falls back to Cydonia if the registry is unreadable.
+    NOTE: the default needs LM Studio running; otherwise pass --model-tag for
+    the Ollama/Cydonia path."""
     try:
         from src.memory.llm_registry import LLMRegistryLoader
         reg = LLMRegistryLoader()
@@ -1213,7 +1214,7 @@ def main() -> int:
     ap.add_argument("--count", type=int, default=6)
     ap.add_argument("--model-tag", default=DEFAULT_LLM_TAG,
                     help="backend model tag (default: registry default_llm — "
-                         "currently Gemma 26B via LM Studio)")
+                         "currently DECKARD Gemma-4 31B via LM Studio)")
     ap.add_argument("--temperature", type=float, default=0.85)
     ap.add_argument("--word-band", default="120-180",
                     help="target prose word band 'lo-hi' (flash-merged Chroma "

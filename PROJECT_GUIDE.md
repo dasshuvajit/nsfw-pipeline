@@ -12,7 +12,8 @@
 pip install -r requirements.txt
 
 # 2. LM Studio running with the default LLM downloaded
-#    (gemma-4-26b-a4b-it-ultra-uncensored-heretic; server on :1234).
+#    (gemma-4-31b-it-the-deckard-heretic-uncensored-thinking-i1 — the
+#    2026-06-11 A/B winner; server on :1234).
 #    Ollama running with the fallback (Cydonia 24B heretic) pulled.
 python scripts/list_models.py          # shows the registry + default marker
 

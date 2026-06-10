@@ -288,7 +288,7 @@ class TestRealRegistry:
         default = loader.get_default_llm()
         assert default.active is True
 
-    def test_real_default_is_gemma_4_26b_a4b_heretic(self):
+    def test_real_default_is_deckard_gemma4_31b_heretic(self):
         """2026-05-24 default swap — Gemma 4 26B A4B Heretic replaced
         DavidAU Mistral-Nemo 12B as the project default after the
         5-LLM audit (Gemma 1B / DavidAU 12B / Cydonia 24B / Gemma 4
@@ -299,7 +299,7 @@ class TestRealRegistry:
         DavidAU 12B despite the 26B total. Cydonia stays as the
         registered fallback."""
         loader = LLMRegistryLoader()
-        assert loader.default_llm_id == "gemma_4_26b_a4b_heretic"
+        assert loader.default_llm_id == "deckard_gemma4_31b_heretic"
 
     def test_real_fallback_is_cydonia_heretic(self):
         """2026-05-22 — Cydonia 24B is the fallback (was qwen3_abliterated_30b).
@@ -583,7 +583,7 @@ class TestOpenAICompatibleBackend:
         """The shipped registry's default + fallback stay on the local backends
         (no remote-API entry is shipped; the live local path is untouched)."""
         loader = LLMRegistryLoader()
-        assert loader.default_llm_id == "gemma_4_26b_a4b_heretic"
+        assert loader.default_llm_id == "deckard_gemma4_31b_heretic"
         assert loader.fallback_llm_id == "cydonia_heretic_24b"
         # The OpenAI-compatible backend is supported but DORMANT by default —
         # no shipped entry uses it (it's opt-in via --llm once a provider is set).
