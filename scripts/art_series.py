@@ -951,16 +951,89 @@ def _keepers_of(manifest: list[dict], out_dir: Path) -> list[Path]:
             if im.get("keeper")]
 
 
+# Secondary-screen YOLO floors (the detailer detectors — weak as scene-level
+# classifiers: a clear color nude scored only 0.36 and B&W nudes 0.00, so
+# these are belt-and-braces behind NudeNet, not the primary gate).
+_NUDITY_DETECTOR_CONF = {"nipples": 0.30, "vagina": 0.45}
+
+# Primary screen: NudeNet (dedicated NSFW-region classifier). Calibrated
+# 2026-06-12 on 15 labeled production images from two nights: flagged 9/9
+# nudes INCLUDING every B&W frame the YOLOs missed (scores 0.44-0.83) and
+# passed 6/6 cleans incl. lingerie/draped edge cases (zero detections).
+_NUDENET_EXPOSED = frozenset({
+    "FEMALE_BREAST_EXPOSED", "FEMALE_GENITALIA_EXPOSED",
+    "BUTTOCKS_EXPOSED", "ANUS_EXPOSED",
+})
+_NUDENET_CONF = 0.35
+_NUDENET_CACHE: dict = {"det": None, "tried": False}
+
+
+def _nudenet_detector():
+    """Lazy singleton NudeDetector; None when nudenet isn't installed."""
+    if not _NUDENET_CACHE["tried"]:
+        _NUDENET_CACHE["tried"] = True
+        try:
+            from nudenet import NudeDetector
+            _NUDENET_CACHE["det"] = NudeDetector()
+        except Exception as exc:  # noqa: BLE001
+            print(f"  (NudeNet unavailable — tier-drift screen falls back to "
+                  f"the weaker YOLO pair: {exc})", file=sys.stderr, flush=True)
+    return _NUDENET_CACHE["det"]
+
+
+def _nudity_hit(image_path: Path, detector_paths: "tuple | list") -> bool:
+    """True when a PUBLIC-bound image contains exposed nudity. Chroma render
+    drift put fully-nude frames in public packages on two consecutive nights
+    despite clean prompts — prompt-side gates cannot see the RENDER, so the
+    public folder gets a vision gate. PRIMARY: NudeNet (handles color AND
+    B&W). SECONDARY: the refine-stage nipple/vagina YOLOs. Conservative
+    direction: a false positive merely quarantines to _tier_drift/ for the
+    operator to restore. No detectors available → False (graceful)."""
+    nd = _nudenet_detector()
+    if nd is not None:
+        try:
+            for d in nd.detect(str(image_path)):
+                if (d.get("class") in _NUDENET_EXPOSED
+                        and d.get("score", 0) >= _NUDENET_CONF):
+                    return True
+            # NudeNet's verdict is FINAL when it loaded: a 112-image catalog
+            # sweep (2026-06-12) showed the YOLO secondary contributes only
+            # false positives on full scenes (15/16 of its flags had zero
+            # NudeNet detections) while NudeNet alone went 9/9 nudes + 6/6
+            # cleans on the labeled set. YOLOs below = fallback-only.
+            return False
+        except Exception as exc:  # noqa: BLE001 — screening is best-effort
+            print(f"  (NudeNet screen error on {image_path.name}: {exc})",
+                  file=sys.stderr, flush=True)
+    for dp in (detector_paths or []):
+        det = _hand_detector(dp)        # generic lazy YOLO loader/cache
+        if det is None:
+            continue
+        conf = next((c for k, c in _NUDITY_DETECTOR_CONF.items()
+                     if k in str(dp).lower()), 0.45)
+        try:
+            res = det(str(image_path), conf=conf, device="cpu", verbose=False)[0]
+            if len(res.boxes):
+                return True
+        except Exception as exc:  # noqa: BLE001 — screening is best-effort
+            print(f"  (tier-drift screen error on {image_path.name}: {exc})",
+                  file=sys.stderr, flush=True)
+    return False
+
+
 def _package(
     out_dir: Path, selection, tier: str,
     main_manifest: list[dict], cover_manifest: list[dict],
     gated_meta: dict, public_meta: dict, watermark_cfg: dict,
+    nudity_detector_paths: "tuple | list" = (),
 ) -> Path:
     """Assemble a publish-ready package with a tier-split public/gated layout.
 
     HARD RULE (DA SFW-shopfront ToS): the public folder + cover NEVER contain a
     T3/T4 image. For explicit runs the public set is sourced ONLY from the
-    dedicated SFW (T1) cover renders; the explicit keepers go to gated/."""
+    dedicated SFW (T1) cover renders; the explicit keepers go to gated/.
+    Every PUBLIC-bound image additionally passes the render-level nudity
+    screen (``_nudity_hit``) — drifted frames land in ``_tier_drift/``."""
     is_explicit = tier in _EXPLICIT_TIERS
     folder = (selection.niche.da_folder if selection else "Series").replace("/", "-")
     if selection and selection.persona:
@@ -974,20 +1047,30 @@ def _package(
     main_keepers = _keepers_of(main_manifest, out_dir)
     cover_keepers = _keepers_of(cover_manifest, out_dir)
 
-    def _copy_into(paths: list[Path], dest: Path) -> list[str]:
+    def _copy_into(paths: list[Path], dest: Path, *, screen: bool = False) -> list[str]:
         names = []
         for p in paths:
-            if p.exists():
-                shutil.copy(p, dest / p.name)
-                names.append(p.name)
+            if not p.exists():
+                continue
+            if screen and _nudity_hit(p, nudity_detector_paths):
+                drift = pkg / "_tier_drift"
+                drift.mkdir(exist_ok=True)
+                shutil.copy(p, drift / p.name)
+                print(f"  !! TIER DRIFT: {p.name} rendered NUDE despite a "
+                      f"clean {tier} prompt — quarantined to _tier_drift/ "
+                      f"(NEVER post publicly; restore manually only if the "
+                      f"detector is wrong).", file=sys.stderr, flush=True)
+                continue
+            shutil.copy(p, dest / p.name)
+            names.append(p.name)
         return names
 
     if is_explicit:
         gated_names = _copy_into(main_keepers, gated_dir)
-        public_names = _copy_into(cover_keepers, public_dir)
+        public_names = _copy_into(cover_keepers, public_dir, screen=True)
         public_tier = "T1_suggestive"
     else:
-        public_names = _copy_into(main_keepers, public_dir)
+        public_names = _copy_into(main_keepers, public_dir, screen=True)
         gated_names = []
         public_tier = tier
 
@@ -1427,6 +1510,11 @@ def main() -> int:
     # <comfyui_root>/output, so its parent is the root.
     hand_det_path = str(Path(os.path.expanduser(cu["output_dir"])).parent
                         / "models/ultralytics/bbox/hand_yolov9c.pt")
+    # Render-level tier-drift screen for PUBLIC-bound images (same detectors
+    # the refine detailers use; missing files → graceful no-op).
+    _ultra = Path(os.path.expanduser(cu["output_dir"])).parent / "models/ultralytics/bbox"
+    nudity_det_paths = tuple(str(_ultra / f) for f in
+                             ("nipples_yolov8s.pt", "vagina-v3.2.pt"))
     base_dir = out_dir / "base"
     cover_dir = out_dir / "covers"
     cover_manifest: list[dict] = []
@@ -1557,7 +1645,8 @@ def main() -> int:
         try:
             pkg_dir = _package(out_dir, selection, args.tier, manifest,
                                cover_manifest, gated_meta, public_meta,
-                               cfg.get("watermark", {}))
+                               cfg.get("watermark", {}),
+                               nudity_detector_paths=nudity_det_paths)
         except Exception as exc:  # noqa: BLE001 — images + manifest are safe
             print(f"  !! packaging FAILED ({exc}) — images + manifest are intact; "
                   f"re-package manually from {out_dir}", file=sys.stderr, flush=True)

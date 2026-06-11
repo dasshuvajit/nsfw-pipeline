@@ -819,8 +819,45 @@ def _containment(a: set[str], b: set[str]) -> float:
 # Candidate-vs-accepted full prompts: healthy same-look rewrites measure well
 # under 0.15 on 3-gram containment; the near-duplicate candle pair was ~0.5+.
 _SIMILARITY_REJECT = 0.22
-# Candidate opener vs banned openers: ≥6 of 8 tokens shared = the same opener.
-_OPENER_TOKEN_REJECT = 6
+
+# Opener comparison ignores these: subject-first prompts ALL open
+# "A [look] woman with ..." — generic subject scaffolding carries no
+# creative information and must never trigger a ban.
+_OPENER_STOPWORDS = frozenset({
+    "a", "an", "the", "woman", "with", "her", "his", "and", "of",
+    "in", "on", "at", "is", "as", "to",
+})
+
+
+def _recover_lm_studio(model_tag: str) -> None:
+    """Best-effort engine recovery from LM Studio 'Compute error' storms:
+    full unload + reload at 32K context. (2026-06-11 night batch: 24
+    consecutive Compute errors burned every scene of a series before the
+    engine self-recovered hours later — a reload clears it immediately.)
+    No-op when the lms CLI is absent or the tag isn't LM-Studio-backed."""
+    import os
+    import shutil as _sh
+    import subprocess as _sp
+    import time as _t
+    try:
+        from src.memory.llm_registry import LLMRegistryLoader, BACKEND_LM_STUDIO
+        if LLMRegistryLoader().backend_for_tag(model_tag) != BACKEND_LM_STUDIO:
+            return
+    except Exception:  # noqa: BLE001 — registry unreadable → still try the CLI
+        pass
+    lms = _sh.which("lms") or os.path.expanduser("~/.lmstudio/bin/lms")
+    if not os.path.exists(lms):
+        return
+    try:
+        _sp.run([lms, "unload", "--all"], timeout=60, capture_output=True)
+        _t.sleep(2)
+        _sp.run([lms, "load", model_tag, "--context-length", "32768", "-y"],
+                timeout=300, capture_output=True)
+        _t.sleep(2)
+        print(f"  (LM Studio engine recovery: reloaded {model_tag} @32K)",
+              file=sys.stderr, flush=True)
+    except Exception:  # noqa: BLE001 — recovery is best-effort
+        pass
 
 
 def _too_similar(
@@ -828,15 +865,35 @@ def _too_similar(
     accepted_ngrams: "list[tuple[str, set[str]]]",
     ref_sigs: "list[tuple[str, set[str]]]",
     banned_openers: "list[str]",
+    look_tokens: "frozenset[str] | set[str]" = frozenset(),
 ) -> "str | None":
     """Reason string when the candidate mechanically repeats prior work, else
-    None. Checks: (1) opener token overlap vs every banned opener; (2) 3-gram
-    containment vs accepted prompts this run; (3) 3-gram containment vs seeded
-    history signatures (openers/40-word heads/tails of prior runs)."""
-    cand_opener = set(re.findall(r"[a-z']+", " ".join(text.split()[:8]).lower()))
+    None. Checks: (1) DISTINCTIVE opener-token overlap vs every banned opener;
+    (2) 3-gram containment vs accepted prompts this run; (3) 3-gram
+    containment vs seeded history signatures of prior runs.
+
+    ``look_tokens`` (2026-06-11 night-batch fix): the per-image assigned LOOK
+    is woven into every opener by the subject-first rule, so its tokens are
+    EXCLUDED from the comparison — otherwise the opener ban ends up banning
+    the assigned look itself (a whole series died overnight: 3 straight
+    rejects on 'A warm honey-blonde woman with deep brown skin', because that
+    hair+complexion combination was both banned-from-history AND assigned to
+    the scene). The ban now fires only when the candidate's DISTINCTIVE
+    opener content (scene words — pose/place/prop) is nearly all contained
+    in a banned opener."""
+    drop = _OPENER_STOPWORDS | set(look_tokens)
+    # Candidate window is wider (12 words) than the stored 8-word bans so the
+    # distinctive scene content isn't pushed out by subject scaffolding.
+    cand_window = {t for t in re.findall(
+        r"[a-z']+", " ".join(text.split()[:12]).lower()) if t not in drop}
     for b in banned_openers:
-        b_toks = set(re.findall(r"[a-z']+", b.lower()))
-        if b_toks and len(cand_opener & b_toks) >= _OPENER_TOKEN_REJECT:
+        b_toks = {t for t in re.findall(r"[a-z']+", b.lower())
+                  if t not in drop}
+        if len(b_toks) < 3:
+            # A ban that is pure look/scaffolding can never fire — by design.
+            continue
+        need = max(3, (len(b_toks) * 7 + 9) // 10)   # ≥70% of the ban's tokens
+        if len(b_toks & cand_window) >= need:
             return f"opener nearly identical to a banned opener: {b!r}"
     cand = _ngrams3(text)
     for label, ref in accepted_ngrams:
@@ -1096,10 +1153,20 @@ def generate_series(
             pin = REVEAL_SHOT_PIN.get(reveal_target[0])
             if pin:
                 framing = (framing[0], pin)
+        # Per-scene look HOISTED: the LLM call and the opener-similarity check
+        # must agree on which tokens are the ASSIGNED look (excluded from bans
+        # — the 2026-06-11 night-batch collision fix).
+        scene_look = _creative_look(i, run_offset)
+        scene_look_tokens = frozenset(
+            re.findall(r"[a-z']+", scene_look.lower()))
         best: tuple[dict, float, list[str]] | None = None  # (candidate, score, issues)
         last_err = None
         feedback = ""           # rejection reason fed into the NEXT attempt
-        for attempt in range(max_attempts):
+        attempt = 0
+        infra_retries = 0       # LM Studio compute-error budget (separate from
+                                # the creative attempt budget — an engine error
+                                # is not the prompt's fault)
+        while attempt < max_attempts:
             # Blind-retry fix: escalate temperature on later attempts to escape
             # deterministic failure basins; final attempt of an otherwise-failed
             # scene switches to the Cydonia fallback (different lineage+backend —
@@ -1130,28 +1197,44 @@ def generate_series(
                     word_band=word_band,
                     extra_directive=attempt_directive,
                     framing_target=framing,
-                    look_target=_creative_look(i, run_offset),
+                    look_target=scene_look,
                     reveal_target=reveal_target,
                     grooming=grooming or "",
                     opener_lead=opener_lead,
                     craft_placement=craft_placement,
                 )
             except Exception as exc:  # noqa: BLE001 — Pydantic/safety reject → retry
+                msg = str(exc)
+                # LM Studio engine instability ("Compute error" storms burned
+                # 24 attempts overnight): retry on a SEPARATE budget — an
+                # infrastructure error is not the prompt's fault — and force
+                # an engine reload on the 2nd consecutive hit.
+                if "compute error" in msg.lower() and infra_retries < 4:
+                    infra_retries += 1
+                    print(f"  (scene {i + 1}: LM Studio compute error — infra "
+                          f"retry {infra_retries}/4, attempt budget preserved)",
+                          file=sys.stderr, flush=True)
+                    if infra_retries >= 2:
+                        _recover_lm_studio(cur_tag)
+                    continue
                 last_err = exc
-                feedback = str(exc)[:400]
+                feedback = msg[:400]
                 print(f"  (scene {i + 1} attempt {attempt + 1} rejected: {exc})",
                       file=sys.stderr, flush=True)
+                attempt += 1
                 continue
 
             # Mechanical anti-repetition — the avoid/banned lists are ENFORCED,
             # not advisory: a too-similar candidate re-rolls like a hard reject.
             sim_reason = _too_similar(cand["prompt"], accepted_ngrams,
-                                      ref_sigs, banned_openers)
+                                      ref_sigs, banned_openers,
+                                      look_tokens=scene_look_tokens)
             if sim_reason:
                 feedback = (f"too similar to prior work — {sim_reason}. Write a "
                             f"VISIBLY different opening, setting and phrasing.")
                 print(f"  (scene {i + 1} attempt {attempt + 1} similarity-reject: "
                       f"{sim_reason})", file=sys.stderr, flush=True)
+                attempt += 1
                 continue
 
             if score_fn:
@@ -1171,6 +1254,7 @@ def generate_series(
             print(f"  (scene {i + 1} attempt {attempt + 1} audit {score:.1f}"
                   f"<{audit_threshold} — regenerating; issues={issues[:2]})",
                   file=sys.stderr, flush=True)
+            attempt += 1
 
         if best is None:
             print(f"  !! scene {i + 1} failed after {max_attempts} attempts: "

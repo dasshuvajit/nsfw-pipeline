@@ -481,7 +481,7 @@ llms:
     refusal_rate: 1.0            # heretic-abliterated
     strengths: ["vivid word choice", "dense 31B capacity per token", "Drummer/Mistral lineage"]
     families_recommended: ["all"]
-    active: true
+    active: false  # 2026-06-11: ELIMINATED in the W5 A/B (shortfall, ~3min/prompt, shipped a refusal); GGUF deleted from disk
 
   deckard_gemma4_31b_heretic:
     backend: lm_studio

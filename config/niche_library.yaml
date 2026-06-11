@@ -38,7 +38,10 @@ niches:
   - id: fine_art_figure_study
     class: core
     weight: 1.2
-    tier_band: [T2_implied, T3_artnude, T4_explicit]
+    # T2 dropped 2026-06-12: the niche's scene DNA IS nudity — at T2 4/6
+    # frames rendered fully nude despite implied-only prompts (render drift).
+    # Figure study runs T3+ where nudity is the contract, not a violation.
+    tier_band: [T3_artnude, T4_explicit]
     da_folder: "Fine-Art Figure Study"
     family: atelier
     source: fine_art_figurative

@@ -56,3 +56,4 @@ onnxruntime>=1.17.0
 
 # ----- Dev / Test ------------------------------------------------------------
 pytest>=8.0.0
+nudenet  # render-level tier-drift gate on public-bound images (2026-06-12)

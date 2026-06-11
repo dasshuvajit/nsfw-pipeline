@@ -707,3 +707,49 @@ def test_audit_gate_keeps_best_when_all_below(monkeypatch):
                               audit_threshold=7.5, max_attempts=4)
     assert len(rows) == 1
     assert rows[0]["audit_score"] == 6.5    # the best of the 4 attempts
+
+
+def test_opener_ban_ignores_assigned_look_tokens():
+    """2026-06-11 night-batch regression: subject-first prompts all open
+    'A [look] woman with ...', so a banned opener that matches via the
+    ASSIGNED look's tokens must NOT fire — only distinctive scene content
+    (pose/place/prop) counts."""
+    look = "warm honey-blonde hair, deep brown skin"
+    look_toks = frozenset(
+        __import__("re").findall(r"[a-z']+", look.lower()))
+    banned = ["A warm honey-blonde woman with deep brown skin"]
+    # Same look, DIFFERENT scene content -> must pass
+    cand = ("A warm honey-blonde woman with deep brown skin kneels at the "
+            "marble fountain, trailing one hand in the spray of water.")
+    assert AD._too_similar(cand, [], [], banned, look_tokens=look_toks) is None
+    # Same DISTINCTIVE scene words as a banned opener -> must still reject
+    banned2 = ["A woman stands at the lip of a villa pool in golden light"]
+    cand2 = ("A woman stands at the lip of the villa pool, "
+             "golden light raking across her shoulders and hair.")
+    assert AD._too_similar(cand2, [], [], banned2) is not None
+
+
+def test_compute_error_uses_infra_budget_not_attempts(monkeypatch):
+    """2026-06-11 regression: LM Studio 'Compute error' storms must NOT
+    consume the creative attempt budget — they retry on a separate infra
+    budget (with engine recovery) and the scene still succeeds."""
+    calls = {"n": 0}
+
+    def flaky(client, **kw):
+        calls["n"] += 1
+        if calls["n"] <= 3:   # three straight engine errors...
+            raise RuntimeError(
+                'LM Studio returned HTTP 400: {"error":"Compute error."}')
+        filler = " ".join(chr(97 + j % 26) + chr(98 + j % 25) for j in range(80))
+        return {"prompt": filler, "orientation": "portrait",
+                "shot_type": "medium", "framing_rationale": "r"}
+
+    recovered = []
+    monkeypatch.setattr(AD, "generate_one", flaky)
+    monkeypatch.setattr(AD, "_recover_lm_studio", lambda tag: recovered.append(tag))
+    rows = AD.generate_series(brief="b", tier="T3_artnude", count=1,
+                              model_tag="m", temperature=0.8,
+                              audit_gate=False, client=object())
+    assert len(rows) == 1, "scene must survive an engine-error storm"
+    assert calls["n"] == 4          # 3 infra retries + 1 success
+    assert recovered, "engine recovery should fire on the 2nd consecutive error"
