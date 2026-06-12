@@ -132,16 +132,31 @@ AUDIT_GATE_THRESHOLD_DEFAULT = 8.5
 
 TIER_DIRECTIVES = {
     "T1_suggestive": (
-        "T1 — SUGGESTIVE. Fully clothed or lingerie; sensual but no nudity. "
-        "Tease through wardrobe, pose and gaze."
+        "T1 — SUGGESTIVE (clothed, but HOT). She is dressed — elegant outfit, "
+        "lingerie, swimwear, a robe — and NO nudity shows, but the image is "
+        "unmistakably SEXY and desirable: confident, magnetic, come-hither "
+        "sensuality through a wardrobe that flatters and reveals shape and skin "
+        "(bare shoulders, long legs, an open back, décolletage), a knowing pose "
+        "and an inviting gaze. Glamour and want, never prim or catalogue-stiff."
     ),
     "T2_implied": (
-        "T2 — IMPLIED. Implied nudity only: strategic cover by fabric, shadow, "
-        "limbs or props. Nothing explicit shown."
+        "T2 — IMPLIED (the sweet spot: she reads NUDE, nothing explicit shows). "
+        "She is bare or nearly bare, but breasts and groin are JUST hidden — by a "
+        "slipping fabric, her own arm or hand, a fall of hair, deep shadow, a prop, "
+        "the crop, or backlight. The TEASE is the product: maximally sensual and "
+        "suggestive, the viewer's eye finishing what's withheld. Show a lot — bare "
+        "shoulders, back, the side and underside of a breast, hip, the long legs, "
+        "the inner line of the chest — and reveal nothing explicit. Hot, not coy."
     ),
     "T3_artnude": (
-        "T3 — FINE-ART NUDE. Tasteful full nudity (bare breasts, body) in the "
-        "fine-art tradition — the body as form and light, sensual and elegant."
+        "T3 — FINE-ART NUDE with SEX APPEAL. Tasteful full nudity — bare breasts "
+        "and body shown — but SENSUAL and desirable, glamour-nude / boudoir-nude, "
+        "NOT cold gallery restraint: warm, alluring, confident eroticism, the body "
+        "beautiful and HOT, a gaze that connects. The explicit sex (the vulva) is "
+        "NOT the subject and is NOT shown frontally or centred — keep it natural "
+        "and soft, turned, closed, shadowed or out of view (that frank reveal is "
+        "T4's job, not this). The register is 'stunning sensual nude,' never "
+        "'clinical figure study.'"
     ),
     "T4_explicit": (
         "T4 — EXPLICIT. Full nudity with the vulva bare and visible — but as "
@@ -242,6 +257,17 @@ WHAT MAKES YOUR PROMPTS EXCELLENT — study the exemplars and match their depth:
    and phrasing image to image; never close every prompt with the same \
    "Shot on …" sentence. A lens is glass, not film: write "an 85mm at f/1.8 \
    on Portra 400", never "85mm film". Never a tag-list.
+7. A CREATIVE CONCEPT — every image is about an IDEA, not just a body. Start \
+   from the assigned concept/hook (a moment, a feeling, a story: "the morning \
+   after", "caught mid-undress", "quiet power") and let it drive her pose, \
+   gaze, expression and the moment you freeze. EXPRESS the concept through what \
+   you SHOW — never write the label or name the emotion; make the viewer FEEL \
+   it. A concept turns a generic nude into a photograph someone wants to own.
+8. SENSUAL APPEAL — this is commercial GLAMOUR / BOUDOIR art, made to be \
+   desired and BOUGHT. She must read as genuinely SEXY, attractive and \
+   alluring — confident eroticism, heat, magnetism — within the assigned \
+   tier's exact limits. Warm and inviting, never cold, clinical, prim or \
+   gallery-detached. Beautiful AND hot, both at once.
 
 HARD RULES:
 - SENTENCE 1 ESTABLISHES HER. The first sentence names the woman, her pose or \
@@ -661,6 +687,66 @@ GROOMING_OPTIONS: tuple[str, ...] = (
 )
 
 
+# ── Creative-axis rotations (2026-06-12) — the artistry layer ────────────
+# Three per-image axes that give each shot a creative SPINE instead of just
+# light+pose. Cycle lengths are PRIME / mutually coprime (11 / 13 / 9) and
+# coprime with framing(8), opener(5), craft(7) so no two axes lock together
+# across a series. Each injects ONE tight directive into the user prompt.
+
+# WHAT the image is ABOUT — the editorial hook / emotional beat / story.
+# A photographer shoots an IDEA, not a body; this is the single biggest
+# creativity lever. The LLM expresses the concept through pose, gaze,
+# moment and styling — never by writing the label literally.
+EDITORIAL_CONCEPTS: tuple[str, ...] = (
+    "a stolen private moment she didn't pose for — intimate, candid, real",
+    "the languid morning after — warm, unhurried, half-awake, content",
+    "anticipation — a held breath, on the edge of a moment about to happen",
+    "quiet power — she owns the frame, self-possessed, unbothered, commanding",
+    "flirtation — a secret half-smile, mischief, caught mid-laugh, playful heat",
+    "a sensual ritual — bathing, undressing, brushing out her hair, scenting her skin",
+    "golden reverie — lost in warm light, eyes half-closed, drifting and serene",
+    "the invitation — a direct, knowing, come-hither gaze that draws the viewer in",
+    "smouldering tension — sultry, charged stillness, slow heat under control",
+    "decadent luxury — pampered, expensive ease, opulence she's entirely at home in",
+    "wild and free — untamed, sun and wind and water, joy in her own skin",
+)
+
+# HOW she is sexy / revealed in the TEASE register (T1-T3 ONLY — T4 has its
+# own explicit REVEAL_STYLES). This is the user's commercial sweet spot:
+# "half-nude, hot, attractive" — show a lot, the explicit stays implied or
+# tasteful. The tier directive still governs exactly how much actually shows;
+# this sets the SITUATION / wardrobe-state / kind-of-reveal.
+SENSUAL_REVEALS: tuple[str, ...] = (
+    "a thin strap slipping off one shoulder, fabric sliding low on the chest",
+    "an unbuttoned shirt / open blouse falling open down the front",
+    "an oversized men's shirt and nothing on the long bare legs beneath",
+    "wet fabric or wet skin clinging — fresh from water, translucent and bright",
+    "wrapped in only a loose bedsheet or linen she holds to herself",
+    "turned away — the long bare line of her back, hip and the side of a breast",
+    "side-on so a breast is glimpsed past her arm / through an open side seam",
+    "a beautifully styled lingerie set — the tease as deliberate glamour",
+    "caught mid-undress — stepping out of a dress, peeling down a stocking",
+    "sheer or backlit so her silhouette reads clearly through the fabric",
+    "fresh from the bath in a towel slipping loose, damp hair, glowing skin",
+    "bare beneath an open robe / kimono that frames rather than covers her",
+    "an arm, a knee, a fall of hair the only thing covering what it covers",
+)
+
+# COMPOSITIONAL principle — the picture's underlying geometry. Lifts images
+# from 'centred subject' to deliberately ART-DIRECTED frames.
+COMPOSITION_PRINCIPLES: tuple[str, ...] = (
+    "LEADING LINES — a limb, a fold of fabric or a shaft of light guides the eye to her",
+    "NEGATIVE SPACE — she sits small but dominant against a large, simple, quiet field",
+    "STRONG DIAGONAL — her body laid on a bold diagonal across the frame, dynamic and alive",
+    "INTIMATE FRAGMENT — fill the frame, crop tight, let the edges cut the body",
+    "LAYERED DEPTH — a soft foreground element she is seen past / through, deep background",
+    "RULE OF THIRDS — place her off-centre, her gaze leading into open space",
+    "CHIAROSCURO MASS — a large dark and a small bright; her lit form against deep shadow",
+    "FRAME WITHIN FRAME — a doorway, drape, arch or window edge brackets her (NO mirror)",
+    "GOLDEN SPIRAL — the composition curls inward, the eye spiralling to her face or gaze",
+)
+
+
 class _PromptOut(BaseModel):
     prompt: str
     orientation: str = "portrait"      # portrait | square | landscape
@@ -926,6 +1012,9 @@ def generate_one(
     grooming: str = "",
     opener_lead: str = "",
     craft_placement: str = "",
+    concept: str = "",
+    sensual_reveal: str = "",
+    composition: str = "",
 ) -> dict:
     tier_directive = TIER_DIRECTIVES.get(tier, TIER_DIRECTIVES["T3_artnude"])
     if extra_directive:
@@ -990,6 +1079,27 @@ def generate_one(
         directive = _CRAFT_DIRECTIVES.get(craft_placement, "")
         if directive:
             structure_variety += f"\n\nCRAFT NOTE for THIS image: {directive}"
+    # Creative-axis nudges (2026-06-12): the concept/hook, the sensual-reveal
+    # situation (T1-T3 tease register), and the compositional principle. Each
+    # is the per-image creative spine that lifts a competent nude into a
+    # sellable photograph.
+    creative_variety = ""
+    if concept:
+        creative_variety += (
+            f"\n\nCREATIVE CONCEPT for THIS image (the IDEA the photo is about — "
+            f"express it through pose/gaze/moment, NEVER write the label): {concept}."
+        )
+    if sensual_reveal:
+        creative_variety += (
+            f"\n\nSENSUAL STYLING for THIS image (HOW she is sexy/revealed in the "
+            f"tease — stay within the TIER's undress limit above; the tier governs "
+            f"exactly how much shows): {sensual_reveal}."
+        )
+    if composition:
+        creative_variety += (
+            f"\n\nCOMPOSITION for THIS image (the picture's underlying geometry): "
+            f"{composition}."
+        )
     # T4-only explicit-reveal nudge — rotates HOW the bare anatomy is revealed so a
     # set spans many tasteful angles/poses/degrees instead of one centred splay.
     reveal_variety = ""
@@ -1019,7 +1129,8 @@ def generate_one(
         f"TIER — STATE OF UNDRESS (this OVERRIDES any wardrobe language in "
         f"the look above; fabric in the look is SET DRESSING only):\n"
         f"  {tier_directive}\n"
-        f"{variety}{framing_variety}{look_variety}{structure_variety}{reveal_variety}\n\n"
+        f"{variety}{framing_variety}{look_variety}{structure_variety}"
+        f"{creative_variety}{reveal_variety}\n\n"
         'Write ONE excellent photograph-prompt at the level of the exemplars, '
         'in the target look above, honoring the TIER above EXACTLY. The TIER '
         'wins over the look\'s wardrobe descriptors — at T3+, the body is '
@@ -1145,6 +1256,14 @@ def generate_series(
         # an explicit REVEAL STYLE + grooming alongside the framing so the set
         # spans many tasteful reveals (not one centred splay). Two
         # distance-bound styles pin a compatible shot_type (keep the orientation).
+        # Creative axes (2026-06-12) — concept + composition every tier;
+        # the sensual-styling tease is T1-T3 only (T4 has its own explicit
+        # REVEAL_STYLES). Prime cycle lengths (11/13/9) keep them out of
+        # lockstep with each other and the framing/structural rotations.
+        concept = EDITORIAL_CONCEPTS[(i + run_offset) % len(EDITORIAL_CONCEPTS)]
+        composition = COMPOSITION_PRINCIPLES[(i + run_offset) % len(COMPOSITION_PRINCIPLES)]
+        sensual_reveal = ("" if tier == "T4_explicit"
+                          else SENSUAL_REVEALS[(i + run_offset) % len(SENSUAL_REVEALS)])
         reveal_target = grooming = None
         if tier == "T4_explicit":
             framing = (framing[0], _T4_SHOT_REMAP.get(framing[1], framing[1]))
@@ -1202,6 +1321,9 @@ def generate_series(
                     grooming=grooming or "",
                     opener_lead=opener_lead,
                     craft_placement=craft_placement,
+                    concept=concept,
+                    sensual_reveal=sensual_reveal,
+                    composition=composition,
                 )
             except Exception as exc:  # noqa: BLE001 — Pydantic/safety reject → retry
                 msg = str(exc)

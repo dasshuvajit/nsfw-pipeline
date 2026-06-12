@@ -753,3 +753,56 @@ def test_compute_error_uses_infra_budget_not_attempts(monkeypatch):
     assert len(rows) == 1, "scene must survive an engine-error storm"
     assert calls["n"] == 4          # 3 infra retries + 1 success
     assert recovered, "engine recovery should fire on the 2nd consecutive error"
+
+
+def test_creative_axes_assigned_and_injected(monkeypatch):
+    """2026-06-12 creativity upgrade: every image gets a rotating editorial
+    CONCEPT + COMPOSITION (all tiers) and a SENSUAL STYLING reveal (T1-T3 only;
+    T4 uses its own explicit REVEAL_STYLES), each injected into the prompt."""
+    seen = []
+
+    def rec(client, **kw):
+        seen.append({"concept": kw.get("concept"),
+                     "sensual_reveal": kw.get("sensual_reveal"),
+                     "composition": kw.get("composition")})
+        n = len(seen)
+        filler = " ".join(chr(97 + n % 26) + chr(98 + j % 25) + chr(99 + (j // 25) % 24)
+                          for j in range(80))
+        return {"prompt": filler, "orientation": "portrait",
+                "shot_type": "medium", "framing_rationale": "r"}
+
+    monkeypatch.setattr(AD, "generate_one", rec)
+    AD.generate_series(brief="b", tier="T3_artnude", count=4, model_tag="m",
+                       temperature=0.8, audit_gate=False, client=object())
+    assert all(s["concept"] in AD.EDITORIAL_CONCEPTS for s in seen)
+    assert all(s["composition"] in AD.COMPOSITION_PRINCIPLES for s in seen)
+    assert all(s["sensual_reveal"] in AD.SENSUAL_REVEALS for s in seen)  # T1-T3
+    assert len({s["concept"] for s in seen}) == 4, "concept must vary per image"
+
+    seen.clear()
+    AD.generate_series(brief="b", tier="T4_explicit", count=3, model_tag="m",
+                       temperature=0.8, audit_gate=False, client=object())
+    assert all(s["sensual_reveal"] == "" for s in seen)  # T4 excluded
+    assert all(s["concept"] in AD.EDITORIAL_CONCEPTS for s in seen)
+
+
+def test_generate_one_injects_creative_axes():
+    """generate_one weaves the concept / sensual-styling / composition
+    directives into the user prompt."""
+    captured = {}
+
+    class _Client:
+        def generate_json(self, system, user, **kw):
+            captured["user"] = user
+            return {"prompt": "p " * 80, "orientation": "portrait",
+                    "shot_type": "medium", "framing_rationale": "r"}
+
+    AD.generate_one(_Client(), brief="b", tier="T2_implied", sub_look="x — y",
+                    avoid=[], banned_openers=[], model_tag="m", temperature=0.8,
+                    concept="quiet power — she owns the frame",
+                    sensual_reveal="a thin strap slipping off one shoulder",
+                    composition="LEADING LINES — a fold guides the eye to her")
+    u = captured["user"]
+    assert "CREATIVE CONCEPT" in u and "quiet power" in u
+    assert "SENSUAL STYLING" in u and "slipping off one shoulder" in u
+    assert "COMPOSITION" in u and "LEADING LINES" in u
