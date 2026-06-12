@@ -785,6 +785,13 @@ def test_creative_axes_assigned_and_injected(monkeypatch):
     assert all(s["sensual_reveal"] == "" for s in seen)  # T4 excluded
     assert all(s["concept"] in AD.EDITORIAL_CONCEPTS for s in seen)
 
+    seen.clear()  # T1 is "fully clothed" — the undress reveal axis is excluded
+    AD.generate_series(brief="b", tier="T1_suggestive", count=3, model_tag="m",
+                       temperature=0.8, audit_gate=False, client=object())
+    assert all(s["sensual_reveal"] == "" for s in seen)  # T1 excluded
+    assert all(s["concept"] in AD.EDITORIAL_CONCEPTS for s in seen)  # concept stays
+    assert all(s["composition"] in AD.COMPOSITION_PRINCIPLES for s in seen)
+
 
 def test_generate_one_injects_creative_axes():
     """generate_one weaves the concept / sensual-styling / composition

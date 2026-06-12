@@ -711,8 +711,9 @@ EDITORIAL_CONCEPTS: tuple[str, ...] = (
     "wild and free — untamed, sun and wind and water, joy in her own skin",
 )
 
-# HOW she is sexy / revealed in the TEASE register (T1-T3 ONLY — T4 has its
-# own explicit REVEAL_STYLES). This is the user's commercial sweet spot:
+# HOW she is sexy / revealed in the TEASE register (T2-T3 ONLY — it is an
+# UNDRESS axis, so T1 "fully clothed" excludes it and T4 has its own explicit
+# REVEAL_STYLES). This is the user's commercial sweet spot:
 # "half-nude, hot, attractive" — show a lot, the explicit stays implied or
 # tasteful. The tier directive still governs exactly how much actually shows;
 # this sets the SITUATION / wardrobe-state / kind-of-reveal.
@@ -1262,7 +1263,13 @@ def generate_series(
         # lockstep with each other and the framing/structural rotations.
         concept = EDITORIAL_CONCEPTS[(i + run_offset) % len(EDITORIAL_CONCEPTS)]
         composition = COMPOSITION_PRINCIPLES[(i + run_offset) % len(COMPOSITION_PRINCIPLES)]
-        sensual_reveal = ("" if tier == "T4_explicit"
+        # The sensual-reveal axis is an UNDRESS/partial-bare axis — it belongs
+        # to T2 (implied) and T3 (art-nude) only. At T1 ("fully clothed") it
+        # pushed Chroma to render nude (2026-06-12 batch: art_deco T1 drifted
+        # 5/6, all caught by the gate but wasted renders); T4 has its own
+        # explicit REVEAL_STYLES. T1 gets its heat from the enriched tier
+        # directive + concept + composition instead.
+        sensual_reveal = ("" if tier in ("T4_explicit", "T1_suggestive")
                           else SENSUAL_REVEALS[(i + run_offset) % len(SENSUAL_REVEALS)])
         reveal_target = grooming = None
         if tier == "T4_explicit":
