@@ -37,70 +37,15 @@ pointer at the missing field.
 > `stage_ksampler` / `upscale`; see `refine.json` / `refine_T4.json` /
 > `upscale_4k.json`), not by a refiner baked into the base graph.
 
-## Production Chroma graph — `gonzaLomo_Chroma_4K_v12.json` (true 4K)
+## Staged pipeline (the `art_series` render path, 2026-06-02)
 
-The default `art_series` template (`scripts/art_series.py::DEFAULT_TEMPLATE`).
-End-to-end single-pass chain that turns one prompt + seed + base
-resolution into a finished true-4K image. Authored 2026-06-02 from an
-RnD pass (refiner architecture / 4K method / detailer chain / refiner
-prompt, adversarially integrated). Pixel-verified on M4 Pro 48GB.
-
-**Stage order** (and measured share of an ~859s portrait render):
-
-| Stage | Nodes | What | Time |
-| ----- | ----- | ---- | ---- |
-| Base Chroma | `195`/`186`/`188`/`183`/`153` → `positive_prompt`/`negative_prompt`/`130` → `empty_latent` → `ksampler` → `13` | gonzaLomo Chroma, euler/beta/12/cfg1, ae VAE, full T5 prose | 291s (34%) |
-| Bridge | `143` (ImageScaleBy 1.25 lanczos) → `132` (VAEEncode into SDXL VAE) | hand pixels into the SDXL arch | ~4s |
-| SDXL refine | `refiner_checkpoint_loader` (gonzalomoXLFluxPony_v60PhotoXLDMD) → `refiner_ksampler_local` (lcm/karras/4/cfg1/**denoise 0.15**) → `133` | low-denoise skin/detail pass, NO Deep Shrink | 36s |
-| **True 4K** | `skin_upscale_model` (4x Remacri) → `ultimate_upscale` (UltimateSDUpscale, lcm/karras/**6 steps**/denoise 0.18, **tile 1280**, Half-Tile seam fix) | ESRGAN lift + tiled diffusion polish → 2560×3840 | 492s (57%) |
-| Detailers | `det_face_detector`(face_yolov8m) → `detailer_face` → `det_eye_detector`(Eyeful_v2) → `detailer_eyes` → `det_hand_detector`(hand_yolov8s) → `detailer_hands`, all on the SDXL model w/ `sam_loader` | face → eyes → hands, serial, lcm/karras | ~50s |
-| Save | `171` | final 4K PNG | <1s |
-
-**Resolution math:** base long-edge × 1.25 (bridge) × 2.0 (USDU) → 3840.
-`art_series` ORIENTATIONS portrait `(1024,1536)` and landscape
-`(1536,1024)` hit true 4K; square `(1024,1024)` → 2560² (raise the
-square base to 1536 for a true-4K square at higher base cost).
-
-**Key design decisions (from the RnD):**
-- *Keep* the cross-arch SDXL DMD refiner — it must be resident anyway for
-  the detailers + USDU polish, so a same-model Chroma refine buys no
-  memory and the DMD finetune is the skin engine. (R1's same-model refine
-  is the documented fallback if SDXL over-smooths — drop refine denoise
-  to 0.12 first.)
-- *Generic, content-neutral* refiner/USDU/detailer prompt (`det_pos` /
-  `det_neg`) — short, SDXL-77-token-safe, no garment/artist/scene tokens
-  (so it never re-dresses a nude base). The base Chroma **prose is never
-  routed through SDXL's CLIP** (T5 has no 77-token ceiling; SDXL would
-  truncate it). The SDXL refine KSampler is a template-owned node
-  (`refiner_ksampler_local`) — the pipeline never patches a prompt or
-  seed into it; the base graph's prose + seed are the only thing
-  `build_external` writes.
-- *Dropped* PatchModelAddDownscale (Deep Shrink) — harmful at low denoise
-  and conflicts with tiled USDU.
-- *Face detector fix* — v11 used `Eyeful_v2-Paired.pt` (an EYE detector)
-  as the face pass; v12 uses `face_yolov8m.pt` for the face and demotes
-  Eyeful to a dedicated eyes pass.
-- *MPS-safe only* — every sampler is euler/lcm, every scheduler
-  beta/karras. No RES4LYF `res_*` samplers (they crash on Apple MPS).
-
-**Render time:** ~14.3 min/portrait-4K on M4 Pro 48GB (USDU optimized
-from tile-1024/8-step ≈ 19 min). Co-resident Chroma+SDXL+T5 swaps a few
-GB on the 48GB box but it is compute-bound, not swap-bound (an explicit
-model-unload node gave no wall-time win and was removed).
-
-(The monolith `gonzaLomo_Chroma_4K_v12.json` is the `--template` escape hatch
-only; the staged pipeline below is the default. The old monolith T4 variant
-`gonzaLomo_Chroma_4K_v12_T4.json` was removed 2026-06-13 — the staged path
-handles T4 via `refine_T4.json`, so the monolith T4 auto-select no longer exists.)
-
-## Staged pipeline (default for `art_series`, 2026-06-02)
-
-`art_series` now renders in **separate per-model-domain stages** instead of
-the v12 monolith. The monolith co-resided Chroma (17G) + T5 (9G) + SDXL DMD
-(6.5G) every render → ~21 GB swap on the 48 GB M4 Pro, and spent the 4K
-UltimateSDUpscale (≈66 % of render time) on every image including culls.
-Staged execution splits at the only real model boundary — **Chroma (base) ↔
-SDXL (everything after)** — and gates 4K behind manual selection.
+`art_series` renders in **separate per-model-domain stages**. (This replaced
+an earlier single-pass monolith — `gonzaLomo_Chroma_4K_v12.json`, retired
+2026-06-13 — which co-resided Chroma 17G + T5 9G + SDXL DMD 6.5G on every
+render → ~21 GB swap on the 48 GB M4 Pro, and spent the 4K UltimateSDUpscale
+(≈66 % of render time) on every image including culls.) Staged execution
+splits at the only real model boundary — **Chroma (base) ↔ SDXL (everything
+after)** — and gates 4K behind manual selection.
 
 | Stage | Template | Model | Run by | Output |
 |-------|----------|-------|--------|--------|
@@ -166,13 +111,12 @@ Stages 2 and 3 consume an INPUT IMAGE (no `empty_latent`), so they use
 | `prelift` | optional — `inputs.largest_size` | `ImageScaleToMaxDimension` |
 
 ### Config — `pipeline.yaml::render_pipeline`
-`base_template` / `refine_template` / `upscale_template` / `upscale_template_t4`,
+`base_template` / `refine_template` / `refine_template_t4` / `upscale_template`,
 `enable_refine` (false → review = raw base), `target_4k_long_edge`, and
 `base_resolution` per orientation (portrait reverted to native **896×1152**
 — 4K is reached in stage 3 so the base no longer needs 1024×1536). Per-model
 override + CLI (`--base-template` / `--refine-template` / `--no-refine`) layer
-over it. `--template <monolith>` is the back-compat escape hatch to the old
-single-pass v12 render.
+over it.
 
 ### Refine = Chroma-face preserved (2026-06-09)
 The refine stage runs **NO SDXL over the image**. The global img2img refine
@@ -218,22 +162,6 @@ engine — `scripts/art_director.py` has a STABLE GROUNDING system-prompt block 
 hard-reject validator (`_IMPLAUSIBLE_GROUNDING_RE`), `scripts/audit_prompts.py`
 penalises it, and water sub-looks in `config/niche_library.yaml` were grounded on
 a solid bank.
-
-## Per-family default
-
-`config/families.yaml::<family>::default_template` is the path
-`render_prompts.py` falls back to when `--templates` is omitted.
-Chroma's default is set to the gonzaLomo refiner. Other families
-default to `null` — set yours after authoring.
-
-```yaml
-chroma:
-  default_render_model: gonzalomo_chroma_v30
-  default_template: templates/chroma/gonzaLomo_Chroma_4K_v12.json
-```
-
-`null` means "no default; `--templates` required at render time" — the
-engine raises a clear error.
 
 ## Authoring a new template
 

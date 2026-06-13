@@ -182,8 +182,9 @@ def _assert_image_stage_inputs(
 def _resolve_template_path(
     raw: str, workflow_dir: Path, project_root: Path,
 ) -> str:
-    """Canonicalize a ``--template`` CLI value (or a `default_template`
-    YAML value) into a string that ``WorkflowBuilder._load`` accepts.
+    """Canonicalize a template CLI value (e.g. ``--base-template`` /
+    ``--refine-template``, or a `render_pipeline` YAML value) into a
+    string that ``WorkflowBuilder._load`` accepts.
 
     ``_load`` joins its argument with ``workflow_dir`` via pathlib, and
     Python's ``Path("rel") / "/abs"`` already returns the absolute path

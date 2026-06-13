@@ -46,10 +46,6 @@ from src.niche.selector import (  # noqa: E402
     select_niche_cycle,
 )
 
-DEFAULT_TEMPLATE = "templates/chroma/gonzaLomo_Chroma_4K_v12.json"
-# (The staged pipeline routes the T4 refine variant via _select_refine_template +
-#  render_pipeline.refine_template_t4 — there is no monolith-level T4 auto-select.)
-
 # Persistent seed counter — guarantees every render across runs gets a
 # never-before-used seed, defeating ComfyUI's per-node cache collisions
 # (which hit us on the seed-9 retry: cache key matched a prior submission).
@@ -68,16 +64,10 @@ NICHE_CURSOR_FILE = ROOT / "output/art_series/.niche_cursor"
 # completes (select_niche_cycle signals the reset).
 USED_NICHES_FILE = ROOT / "output/art_series/.used_niches"
 
-# gonzalomo_chroma_v30 base resolution presets. These feed the v12 4K
-# template, whose chain is base ->(ImageScaleBy 1.25)-> SDXL refine
-# ->(UltimateSDUpscale 2.0)-> detailers. Final long edge = base * 1.25 * 2.0.
-# Portrait/landscape bases give a TRUE-4K (>=3840px) long edge; square at
-# 1024 yields 2560px (raise to 1536 for a true-4K square at higher base cost).
-ORIENTATIONS = {
-    "portrait": (1024, 1536),   # -> 2560 x 3840  (true 4K)
-    "square": (1024, 1024),     # -> 2560 x 2560  (2.5K; see note above)
-    "landscape": (1536, 1024),  # -> 3840 x 2560  (true 4K)
-}
+# Valid --orientation choices. The actual base render resolution per orientation
+# comes from render_pipeline.base_resolution (config/pipeline.yaml); 4K is reached
+# only in the separate manual upscale stage (scripts/upscale_folder.py).
+ORIENTATIONS = ("portrait", "square", "landscape")
 
 # ⚠️ INERT AT RENDER TIME (2026-06 Chroma R&D): the staged Chroma base runs
 # cfg=1.0 (the gonzaLomo flash-heun contract) AND routes this through
@@ -85,9 +75,9 @@ ORIENTATIONS = {
 # negative branch is never evaluated — every token below does NOTHING in the
 # staged path. Safety/avoidance is carried ENTIRELY by positive prose + the
 # art_director Pydantic gates + curation (which is the working reality).
-# Kept because the monolith escape hatch (--template) may run cfg>1, and as
-# interop metadata. Do NOT "fix" by raising cfg — that doubles base render
-# time for marginal benefit; see docs/COMFYUI_WORKFLOWS.md.
+# Kept as interop metadata (recorded in the manifest). Do NOT "fix" by raising
+# cfg — that doubles base render time for marginal benefit; see
+# docs/COMFYUI_WORKFLOWS.md.
 DEFAULT_NEGATIVE = (
     "child, kid, young, minor, teen, teenager, schoolgirl, loli, underage, "
     "baby, toddler, preteen, youthful face, "
@@ -543,47 +533,6 @@ def _next_family_serial(family: str) -> int:
     return n
 
 
-def _render_rows(
-    rows: list[dict], *, builder, client, template: str, negative: str,
-    resolution: tuple[int, int], base_seed: int, seeds: int,
-    dest_dir: Path, out_dir: Path, prefix: str,
-) -> list[dict]:
-    """Render every (prompt × seed) into dest_dir; return a manifest list
-    of {index, look, prompt, audit_score, images:[{path, seed}]}."""
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    manifest: list[dict] = []
-    for idx, r in enumerate(rows):
-        look = r["look"].split()[0]
-        entry = {"index": idx, "look": r["look"], "prompt": r["prompt"],
-                 "audit_score": r.get("audit_score"), "images": []}
-        for k in range(seeds):
-            # Per-PROMPT seeds (2026-06 audit): `base_seed + k` gave every
-            # prompt in a series the same initial latent noise, correlating
-            # composition across a set meant to maximize diversity.
-            seed = base_seed + idx * seeds + k
-            try:
-                wf = builder.build_external(
-                    external_template=template, prompt_text=r["prompt"],
-                    negative_prompt=negative, resolution=resolution, seed=seed)
-                # v12 4K chain (base + SDXL refine + UltimateSDUpscale to
-                # 3840px + 3 detailers) runs ~8-15 min/img on the M4 Pro;
-                # 1800s leaves headroom so a slow render is not killed mid-pass.
-                images = client.render_single_with_retry(wf, timeout=1800)
-                outs = [im for im in images if im.type == "output"] or images
-                name = f"{prefix}{idx + 1:02d}_{look}_s{seed}.png"
-                dst = dest_dir / name
-                shutil.copy(outs[-1].file_path, dst)
-                entry["images"].append(
-                    {"path": str(dst.relative_to(out_dir)), "seed": seed})
-                print(f"  [{prefix} {idx + 1}/{len(rows)}] seed {seed} -> {name}",
-                      flush=True)
-            except Exception as exc:  # noqa: BLE001 — surface, continue
-                print(f"  [{prefix} {idx + 1}/{len(rows)}] seed {seed} FAILED: {exc}",
-                      file=sys.stderr, flush=True)
-        manifest.append(entry)
-    return manifest
-
-
 # Anatomy guard (auto-retry): a single female has at most TWO hands, so the hand
 # detector counting >2 is a reliable EXTRA-LIMB signal a detailer CAN'T fix (it
 # refines every hand it finds). We reroll the base seed until the render is clean
@@ -648,8 +597,8 @@ def _render_stage_base(
     Manifest images carry ``{base_path, seed}``; ``path`` (what curation +
     packaging read) is set later by the refine stage. Chroma is loaded ONCE
     by ComfyUI and stays resident across all base submissions — SDXL is not
-    touched here, so this whole batch runs without the monolith's Chroma+SDXL
-    co-residence (and its swap).
+    touched here, so this whole batch runs without co-residing Chroma+SDXL
+    in VRAM (and the swap that caused).
 
     ``anatomy_retries`` > 0 enables the extra-limb guard: each base render is
     checked with the hand detector and rerolled (new seed) up to that many times
@@ -1230,10 +1179,6 @@ def main() -> int:
                          "the hand detector finds >2 hands (0 = off; default 2)")
     ap.add_argument("--orientation", default="portrait",
                     choices=list(ORIENTATIONS))
-    ap.add_argument("--template", default=None,
-                    help="MONOLITH escape hatch: run a single-pass v12-style "
-                    "template (e.g. gonzaLomo_Chroma_4K_v12.json) instead of the "
-                    "default staged base+refine pipeline")
     ap.add_argument("--base-template", default=None,
                     help="staged stage-1 base template (default: pipeline.yaml "
                     "render_pipeline.base_template)")
@@ -1291,18 +1236,15 @@ def main() -> int:
         sys.exit(f"PRE-FLIGHT ABORT: ComfyUI unreachable at {cu['base_url']} — "
                  f"start it (or use --prompts-only) and re-run.")
 
-    # Staged pipeline is the default; --template pins the monolith escape hatch.
-    staged = args.template is None
     rp_cli = {"base_template": args.base_template,
               "refine_template": args.refine_template}
     if args.no_refine:
         rp_cli["enable_refine"] = False
     rp = resolve_render_pipeline(cfg.get("render_pipeline"), None, rp_cli)
-    # Monolith expects its 4K-tuned ORIENTATIONS (portrait 1024×1536); staged
-    # uses render_pipeline.base_resolution (portrait reverted to native 896×1152,
-    # 4K reached in the separate manual upscale stage).
-    resolution = (ORIENTATIONS[args.orientation] if not staged
-                  else base_resolution_for(rp, args.orientation))
+    # Base renders at the model's native resolution (render_pipeline.base_resolution
+    # — portrait 896×1152); true 4K is reached only in the separate manual upscale
+    # stage (scripts/upscale_folder.py).
+    resolution = base_resolution_for(rp, args.orientation)
 
     # ── Resolve brief + sub-looks via the niche selector (unless --brief) ──
     selection = None
@@ -1502,7 +1444,7 @@ def main() -> int:
     # (no swap). 4K is NEVER auto-run here — it is a manual keepers-only step
     # via scripts/upscale_folder.py. Detailers + 4K live in the upscale stage
     # (proven detail-after-upscale ordering), so the series render is
-    # tier-NEUTRAL. --template pins the old monolith single-pass escape hatch.
+    # tier-NEUTRAL.
     builder = WorkflowBuilder(workflow_dir)
     client = ComfyUIClient(base_url=cu["base_url"], output_dir=cu["output_dir"])
     # Anatomy guard: the hand detector lives under the ComfyUI models dir
@@ -1518,84 +1460,58 @@ def main() -> int:
     base_dir = out_dir / "base"
     cover_dir = out_dir / "covers"
     cover_manifest: list[dict] = []
-    run_template = args.template  # for the manifest record
 
-    if staged:
-        base_tmpl = rp["base_template"]
-        # T4-ONLY: explicit main images get the refine variant with the vagina
-        # detailer; SFW covers (and T1/T2/T3) use the base refine so a tasteful
-        # nude (or a public teaser) never has its genitals detailed (tier purity).
-        refine_tmpl_main, refine_cover_tmpl = _refine_templates_for(args.tier, rp)
-        # Tier-purity guard (content-based): refuse to render explicit genital
-        # detailing below T4 — catches a --refine-template override that injects a
-        # T4 template into a lower tier. Covers always use the base refine (safe).
-        if _violates_tier_purity(args.tier, refine_tmpl_main, workflow_dir):
-            sys.exit(f"TIER-PURITY ABORT: refine template '{refine_tmpl_main}' has a "
-                     f"genital detailer but --tier {args.tier} (not T4_explicit). "
-                     f"Explicit detailing is T4-only.")
-        enable_refine = rp.get("enable_refine", True)
-        run_template = {"base": base_tmpl, "refine": refine_tmpl_main,
-                        "upscale": rp["upscale_template"]}
-        print(f"\n=== Phase 2a (base, Chroma): {Path(base_tmpl).name} ===",
-              flush=True)
-        manifest = _render_stage_base(
-            rows, builder=builder, client=client, base_template=base_tmpl,
-            negative=DEFAULT_NEGATIVE, resolution=resolution, base_seed=base_seed,
-            seeds=args.seeds, dest_dir=base_dir, out_dir=out_dir, prefix="ad",
+    base_tmpl = rp["base_template"]
+    # T4-ONLY: explicit main images get the refine variant with the vagina
+    # detailer; SFW covers (and T1/T2/T3) use the base refine so a tasteful
+    # nude (or a public teaser) never has its genitals detailed (tier purity).
+    refine_tmpl_main, refine_cover_tmpl = _refine_templates_for(args.tier, rp)
+    # Tier-purity guard (content-based): refuse to render explicit genital
+    # detailing below T4 — catches a --refine-template override that injects a
+    # T4 template into a lower tier. Covers always use the base refine (safe).
+    if _violates_tier_purity(args.tier, refine_tmpl_main, workflow_dir):
+        sys.exit(f"TIER-PURITY ABORT: refine template '{refine_tmpl_main}' has a "
+                 f"genital detailer but --tier {args.tier} (not T4_explicit). "
+                 f"Explicit detailing is T4-only.")
+    enable_refine = rp.get("enable_refine", True)
+    run_template = {"base": base_tmpl, "refine": refine_tmpl_main,
+                    "upscale": rp["upscale_template"]}
+    print(f"\n=== Phase 2a (base, Chroma): {Path(base_tmpl).name} ===",
+          flush=True)
+    manifest = _render_stage_base(
+        rows, builder=builder, client=client, base_template=base_tmpl,
+        negative=DEFAULT_NEGATIVE, resolution=resolution, base_seed=base_seed,
+        seeds=args.seeds, dest_dir=base_dir, out_dir=out_dir, prefix="ad",
+        rp=rp, default_orientation=args.orientation,
+        anatomy_retries=args.anatomy_retries, hand_detector_path=hand_det_path,
+        reroll_start=main_reroll_start)
+    if cover_rows:
+        cover_manifest = _render_stage_base(
+            cover_rows, builder=builder, client=client, base_template=base_tmpl,
+            negative=DEFAULT_NEGATIVE, resolution=resolution,
+            base_seed=cover_base, seeds=cover_seeds,
+            dest_dir=base_dir, out_dir=out_dir, prefix="cover",
             rp=rp, default_orientation=args.orientation,
             anatomy_retries=args.anatomy_retries, hand_detector_path=hand_det_path,
-            reroll_start=main_reroll_start)
-        if cover_rows:
-            cover_manifest = _render_stage_base(
-                cover_rows, builder=builder, client=client, base_template=base_tmpl,
-                negative=DEFAULT_NEGATIVE, resolution=resolution,
-                base_seed=cover_base, seeds=cover_seeds,
-                dest_dir=base_dir, out_dir=out_dir, prefix="cover",
-                rp=rp, default_orientation=args.orientation,
-                anatomy_retries=args.anatomy_retries, hand_detector_path=hand_det_path,
-                reroll_start=cover_reroll_start)
-        if enable_refine:
-            print(f"\n=== Phase 2b (refine, SDXL): {Path(refine_tmpl_main).name} "
-                  f"→ review images ===", flush=True)
-            _render_stage_refine(manifest, builder=builder, client=client,
-                                 refine_template=refine_tmpl_main, dest_dir=img_dir,
+            reroll_start=cover_reroll_start)
+    if enable_refine:
+        print(f"\n=== Phase 2b (refine, SDXL): {Path(refine_tmpl_main).name} "
+              f"→ review images ===", flush=True)
+        _render_stage_refine(manifest, builder=builder, client=client,
+                             refine_template=refine_tmpl_main, dest_dir=img_dir,
+                             out_dir=out_dir)
+        if cover_manifest:   # covers are SFW → always the base refine
+            _render_stage_refine(cover_manifest, builder=builder, client=client,
+                                 refine_template=refine_cover_tmpl, dest_dir=cover_dir,
                                  out_dir=out_dir)
-            if cover_manifest:   # covers are SFW → always the base refine
-                _render_stage_refine(cover_manifest, builder=builder, client=client,
-                                     refine_template=refine_cover_tmpl, dest_dir=cover_dir,
-                                     out_dir=out_dir)
-        else:
-            print("\n=== Phase 2b skipped (--no-refine): review = raw base ===",
-                  flush=True)
-            for m in (manifest, cover_manifest):
-                for e in m:
-                    for im in e["images"]:
-                        im["path"] = im.get("base_path")
-                        im["review_path"] = im["path"]
     else:
-        # Monolith escape hatch — old single-pass via _render_rows. Tier purity is
-        # NOT enforced here (the single template renders main AND covers); warn if a
-        # genital-detailer template is used below T4 or for covers (it is a no-op on
-        # SFW/clothed cover prompts, but the operator should know).
-        if _template_has_genital_detailer(workflow_dir, args.template) and \
-                (args.tier != "T4_explicit" or cover_rows):
-            print(f"  !! WARNING: monolith template '{Path(args.template).name}' has a "
-                  f"genital detailer; tier purity is NOT enforced in monolith mode "
-                  f"(tier={args.tier}, covers={'yes' if cover_rows else 'no'}).",
-                  file=sys.stderr, flush=True)
-        mono_res = ORIENTATIONS[args.orientation]
-        print(f"\n=== Phase 2 (monolith): {Path(args.template).name} ===",
+        print("\n=== Phase 2b skipped (--no-refine): review = raw base ===",
               flush=True)
-        manifest = _render_rows(
-            rows, builder=builder, client=client, template=args.template,
-            negative=DEFAULT_NEGATIVE, resolution=mono_res, base_seed=base_seed,
-            seeds=args.seeds, dest_dir=img_dir, out_dir=out_dir, prefix="ad")
-        if cover_rows:
-            cover_manifest = _render_rows(
-                cover_rows, builder=builder, client=client, template=args.template,
-                negative=DEFAULT_NEGATIVE, resolution=mono_res,
-                base_seed=cover_base, seeds=cover_seeds,
-                dest_dir=cover_dir, out_dir=out_dir, prefix="cover")
+        for m in (manifest, cover_manifest):
+            for e in m:
+                for im in e["images"]:
+                    im["path"] = im.get("base_path")
+                    im["review_path"] = im["path"]
 
     # ── Post-render checkpoint ──────────────────────────────────────────
     # Manifest + seed counter commit RIGHT AFTER rendering: a crash in

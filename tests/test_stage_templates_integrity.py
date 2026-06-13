@@ -1,7 +1,7 @@
 """Integrity of the staged production templates (base / refine / 4K).
 
-The monolith `gonzaLomo_Chroma_4K_v12.json` is split by model domain into
-three stage templates (+ a T4 variant). These tests pin: MPS-safe
+The render path is split by model domain into three stage templates
+(base / refine / 4K, + a T4 refine variant). These tests pin: MPS-safe
 samplers/schedulers (no RES4LYF res_* which crash on Apple MPS), acyclic
 graphs with a single `save` sink, model-domain purity (base has no SDXL
 nodes), the staged contracts (base = build_external 4-field; refine/4K =
@@ -199,8 +199,8 @@ def test_upscale_contract_and_values():
     assert u["inputs"]["denoise"] == 0.05
     assert u["inputs"]["seam_fix_denoise"] == 0.10
     # tile 1536 (6 tiles for a ~3000x3848 4K): the staged 4K stage is SDXL-only
-    # with ~40GB free, so larger tiles than the monolith's 1280 are memory-safe
-    # and ~halve the tile count.
+    # with ~40GB free, so a larger tile (vs the earlier 1280) is memory-safe
+    # and ~halves the tile count.
     assert u["inputs"]["tile_width"] == 1536
     assert u["inputs"]["seam_fix_mode"] == "Half Tile + Intersections"  # v35: corner seam fix
     assert wf["skin_upscale_model"]["inputs"]["model_name"] == "4x_foolhardy_Remacri.pth"
