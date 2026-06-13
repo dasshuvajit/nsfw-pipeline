@@ -132,12 +132,16 @@ AUDIT_GATE_THRESHOLD_DEFAULT = 8.5
 
 TIER_DIRECTIVES = {
     "T1_suggestive": (
-        "T1 — SUGGESTIVE (clothed, but HOT). She is dressed — elegant outfit, "
-        "lingerie, swimwear, a robe — and NO nudity shows, but the image is "
-        "unmistakably SEXY and desirable: confident, magnetic, come-hither "
-        "sensuality through a wardrobe that flatters and reveals shape and skin "
-        "(bare shoulders, long legs, an open back, décolletage), a knowing pose "
-        "and an inviting gaze. Glamour and want, never prim or catalogue-stiff."
+        "T1 — SUGGESTIVE (fully CLOTHED, but HOT). She wears an actual garment "
+        "that COVERS the breasts and groin and STAYS in place — a dress, gown, "
+        "blouse-and-skirt, a closed belted robe, a full lingerie or swimwear "
+        "SET. NEVER an open/falling robe, a slipping strap, a sheer-only top, "
+        "feathers-as-cover, or a held sheet — the breasts and groin stay covered "
+        "by fabric at ALL times. NO nudity, NO bare breast, NO topless, NO "
+        "implied-nude. The heat comes from the wardrobe FLATTERING her shape, a "
+        "little leg / shoulder / back, a knowing pose and an inviting gaze — "
+        "confident, magnetic, come-hither glamour, never prim. Sexy through "
+        "STYLING, not skin."
     ),
     "T2_implied": (
         "T2 — IMPLIED (the sweet spot: she reads NUDE, nothing explicit shows). "
