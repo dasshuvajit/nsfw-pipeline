@@ -228,6 +228,30 @@ def test_package_emits_per_image_posting_templates(tmp):
     assert meta["price_by_tier"] and meta["da_groups"]
 
 
+def test_package_persona_numbers_title_and_metadata(tmp, monkeypatch):
+    """A bound persona stamps a body-of-work serial into metadata and numbers the
+    posting-template title ('Clara — <title> No. 01'). Serial files are redirected
+    to tmp so the test is deterministic and doesn't touch real run-state."""
+    monkeypatch.setattr(A, "PERSONA_SERIALS_FILE", tmp / ".persona_serials")
+    monkeypatch.setattr(A, "FAMILY_SERIALS_FILE", tmp / ".family_serials")
+    sel = build_selection(NicheLibrary.from_yaml(), 0, tier="T3_artnude",
+                          force_niche="old_hollywood_glamour",
+                          persona=True, persona_name="Clara")
+    main = [{"index": 0, "prompt": "x", "images": [
+        {"path": "images/ad01_a_s1.png", "seed": 1, "keeper": True}]}]
+    covers = [{"index": 0, "prompt": "c", "images": [
+        {"path": "covers/cover01_a_s9.png", "seed": 9, "keeper": True}]}]
+    for e in main + covers:
+        for im in e["images"]:
+            _mk(tmp, im["path"])
+    pkg = A._package(tmp, sel, "T3_artnude", main, covers, _META, _META, _WM_OFF)
+    meta = json.loads((pkg / "metadata.json").read_text())
+    assert meta["persona"] == "Clara"
+    assert meta["persona_serial"] == 1          # first appearance
+    titles = " ".join(f.read_text() for f in (pkg / "posting_templates").glob("*.txt"))
+    assert "Clara — T No. 01" in titles         # numbered persona body-of-work title
+
+
 # ── art_director inline audit gate ─────────────────────────────────
 
 def test_audit_gate_regenerates_below_threshold(monkeypatch):
@@ -317,6 +341,54 @@ def test_generate_series_seeds_avoid_and_offsets_rotation(monkeypatch):
     assert [c["framing_target"] for c in calls] == \
         [AD.FRAMING_TARGETS[(i + 2) % len(AD.FRAMING_TARGETS)] for i in range(3)]
     assert [c["look_target"] for c in calls] == [AD._creative_look(i, 2) for i in range(3)]
+
+
+def test_generate_series_locked_look_overrides_rotation(monkeypatch):
+    """A bound persona (locked_look) makes EVERY image the same woman: look_target
+    is the locked string for all scenes and look_locked is True — while sub_look /
+    framing STILL rotate by run_offset (scene/pose vary, identity does not)."""
+    calls: list[dict] = []
+
+    def rec(client, **kw):
+        calls.append({"sub_look": kw["sub_look"],
+                      "framing_target": kw["framing_target"],
+                      "look_target": kw["look_target"],
+                      "look_locked": kw.get("look_locked")})
+        n = len(calls)
+        filler = " ".join(chr(110 + n % 12) + chr(97 + j % 26) + chr(97 + (j // 26) % 26)
+                          for j in range(80))
+        return {"prompt": f"scene {filler}",
+                "orientation": "portrait", "shot_type": "medium",
+                "framing_rationale": "r"}
+
+    monkeypatch.setattr(AD, "generate_one", rec)
+    looks = ["a — x", "b — y", "c — z", "d — w"]
+    rows = AD.generate_series(
+        brief="b", tier="T3_artnude", count=3, model_tag="m", temperature=0.8,
+        sub_looks=looks, audit_gate=False, client=object(),
+        run_offset=2, locked_look="LOCKED-CLARA-LOOK",
+    )
+    assert len(rows) == 3
+    # identity LOCKED — same look every image, flagged locked
+    assert [c["look_target"] for c in calls] == ["LOCKED-CLARA-LOOK"] * 3
+    assert all(c["look_locked"] is True for c in calls)
+    # scene/pose STILL vary — sub_look + framing rotate by run_offset as usual
+    assert [c["sub_look"] for c in calls] == [looks[2], looks[3], looks[0]]
+    assert [c["framing_target"] for c in calls] == \
+        [AD.FRAMING_TARGETS[(i + 2) % len(AD.FRAMING_TARGETS)] for i in range(3)]
+
+
+def test_next_persona_serial_increments_and_persists(tmp_path, monkeypatch):
+    """Per-persona appearance serial: 1-based, persists, independent per persona,
+    case-insensitive key (matches select_persona's lookup)."""
+    monkeypatch.setattr(A, "PERSONA_SERIALS_FILE", tmp_path / ".persona_serials")
+    assert A._next_persona_serial("Clara") == 1
+    assert A._next_persona_serial("Clara") == 2
+    assert A._next_persona_serial("Sable") == 1          # independent counter
+    assert A._next_persona_serial("clara") == 3          # case-insensitive
+    # persisted to disk
+    data = json.loads((tmp_path / ".persona_serials").read_text())
+    assert data == {"clara": 3, "sable": 1}
 
 
 def test_load_niche_history_reads_prior_same_niche_manifests(tmp_path, monkeypatch):

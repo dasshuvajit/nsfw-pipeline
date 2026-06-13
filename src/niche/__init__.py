@@ -14,6 +14,7 @@ from src.niche.selector import (
     Selection,
     build_brief,
     build_selection,
+    persona_locked_look,
 )
 
 __all__ = [
@@ -25,4 +26,5 @@ __all__ = [
     "Selection",
     "build_brief",
     "build_selection",
+    "persona_locked_look",
 ]

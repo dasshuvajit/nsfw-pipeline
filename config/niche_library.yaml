@@ -500,26 +500,53 @@ niches:
       photographers: ["Helmut Newton B&W", "Ansel Adams tonal range (figure)", "film-noir cinematography"]
     brief_seed: "Fine-art black-and-white figure study — one woman sculpted in monochrome light and shadow, rich silver-gelatin tones and grain; the image is BLACK-AND-WHITE, not colour."
 
-# Optional recurring personas (Q5: persona-brief now, visual face-lock deferred).
-# When bound, the persona's traits are held constant across a series as a stable
-# subject prefix; the scene/light/wardrobe/mood vary per image. Face will still
-# vary per image until the Phase-2 face-lock (IPAdapter/LoRA) ships.
+# Optional recurring personas (prose-level identity-lock; pixel face-lock deferred).
+# When bound via --persona-name, the persona's full appearance (hair/build/face/
+# complexion/age) REPLACES the per-image look-pool rotation, so every image in the
+# series is the SAME described woman; only scene/light/wardrobe/mood vary. The
+# rendered FACE will still drift somewhat until a Phase-2 pixel face-lock ships —
+# research (2026-06-14) found PuLID-FLUX / IPAdapter-FLUX / ReActor not safely
+# shippable on Chroma (FLUX-arch, cfg 1.0) + Apple MPS without breaking the cfg-1
+# flash contract or the Chroma-face mandate, so it stays deferred.
+# face + complexion mirror the config/creative_direction.yaml look_pools axes.
 persona_pool:
   - name: Clara
     hair: "long dark wavy chestnut hair"
     build: "slender, mid-twenties, mature delicate features"
+    face: "warm brown doe eyes and softly rounded cheeks with a dimple"
+    complexion: "fair, cool-toned skin that flushes easily"
     age_anchor: "an adult woman in her mid-twenties"
     wardrobe_vibe: "vintage silk, lace and pearls"
     arc: "a recurring muse drifting through European interiors and golden landscapes"
   - name: Sable
     hair: "long jet-black straight hair"
     build: "statuesque, late-twenties, striking strong features"
+    face: "dark almond eyes and a small beauty mark above her lip"
+    complexion: "warm caramel skin with cool undertones"
     age_anchor: "an adult woman in her late twenties"
     wardrobe_vibe: "dark lace, leather and silver"
     arc: "a dark-romantic figure at home in candlelit shadow and gothic interiors"
   - name: Margot
     hair: "shoulder-length honey-blonde waves"
     build: "soft hourglass, early-thirties, warm radiant features"
+    face: "grey-blue eyes, high cheekbones and full lips"
+    complexion: "sun-warmed olive Mediterranean skin"
     age_anchor: "an adult woman in her early thirties"
     wardrobe_vibe: "satin, fur and old-Hollywood glamour"
     arc: "a 1940s starlet across studio sets and deco suites"
+  - name: Imani
+    hair: "voluminous black natural curls"
+    build: "tall with a curvy hourglass figure and a generous natural bust"
+    face: "dark almond eyes, high cheekbones and a wide warm smile"
+    complexion: "deep brown skin with a warm, even glow"
+    age_anchor: "an adult woman in her late twenties"
+    wardrobe_vibe: "rich jewel-toned silk and gold"
+    arc: "a regal recurring muse across goddess, baroque and golden-hour settings"
+  - name: Mei
+    hair: "long raven poker-straight hair"
+    build: "petite and shapely, delicate features"
+    face: "warm amber, gently upturned almond eyes and a small soft mouth"
+    complexion: "light golden East-Asian skin, smooth and luminous at the cheekbones"
+    age_anchor: "an adult woman in her mid-twenties"
+    wardrobe_vibe: "sheer silk, soft pastels and minimalist elegance"
+    arc: "a serene recurring muse across boudoir, fine-art and ethereal settings"

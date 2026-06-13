@@ -11,8 +11,10 @@ from src.niche.selector import (
     AestheticLock,
     NicheLibrary,
     NicheLibraryError,
+    Persona,
     build_brief,
     build_selection,
+    persona_locked_look,
     select_aesthetic_lock,
     select_niche,
     select_niche_cycle,
@@ -149,6 +151,40 @@ def test_persona_by_name(lib):
         select_persona(lib, 0, name="Nobody")
 
 
+def test_persona_carries_face_and_complexion(lib):
+    # The identity axes that let a persona fully replace the look-pool rotation.
+    for name in ("Clara", "Sable", "Margot", "Imani", "Mei"):
+        p = select_persona(lib, 0, name=name)
+        assert p.face, f"{name} missing face"
+        assert p.complexion, f"{name} missing complexion"
+
+
+def test_persona_pool_has_complexion_diversity(lib):
+    # G6: the roster should span skin tones, not skew light/European.
+    comps = " ".join(p.complexion.lower() for p in lib.personas)
+    assert "deep brown" in comps          # Imani
+    assert "east-asian" in comps          # Mei
+    assert "olive" in comps               # Margot
+
+
+def test_persona_locked_look_orders_axes():
+    p = Persona(name="X", hair="raven bob", build="petite",
+                age_anchor="in her late twenties", wardrobe_vibe="silk",
+                arc="muse", face="green eyes", complexion="olive skin")
+    # hair, build, face, complexion, age — the _creative_look axis order.
+    assert persona_locked_look(p) == (
+        "raven bob, petite, green eyes, olive skin, in her late twenties")
+    # wardrobe is set-dressing, never part of the locked identity.
+    assert "silk" not in persona_locked_look(p)
+
+
+def test_persona_locked_look_drops_empty_axes():
+    # A legacy/partial persona (no face/complexion) still locks gracefully.
+    p = Persona(name="Old", hair="blonde waves", build="slender",
+                age_anchor="in her thirties", wardrobe_vibe="", arc="")
+    assert persona_locked_look(p) == "blonde waves, slender, in her thirties"
+
+
 # ── full selection + brief ─────────────────────────────────────────
 
 def test_build_brief_contains_seed_and_lock(lib):
@@ -167,6 +203,9 @@ def test_build_brief_includes_persona_when_bound(lib):
     brief = build_brief(sel)
     assert "RECURRING SUBJECT" in brief
     assert "Margot" in brief
+    # Asserts the same-woman CONTRACT and defers appearance to the per-image
+    # SUBJECT LOOK (the contradiction fix) rather than re-listing hair/build.
+    assert "SAME" in brief and "SUBJECT LOOK" in brief
 
 
 def test_build_brief_no_persona_clause_when_unbound(lib):

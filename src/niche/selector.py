@@ -81,6 +81,12 @@ class Persona:
     age_anchor: str
     wardrobe_vibe: str
     arc: str
+    # Identity axes mirroring config/creative_direction.yaml look_pools — so a
+    # bound persona can fully REPLACE the per-image look rotation (face + skin
+    # were the missing axes that let the rotation contradict the persona).
+    # Defaulted (must follow the non-default fields) → legacy personas still load.
+    face: str = ""
+    complexion: str = ""
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "Persona":
@@ -91,7 +97,20 @@ class Persona:
             age_anchor=str(d.get("age_anchor", "an adult woman")),
             wardrobe_vibe=str(d.get("wardrobe_vibe", "")),
             arc=str(d.get("arc", "")),
+            face=str(d.get("face", "")),
+            complexion=str(d.get("complexion", "")),
         )
+
+
+def persona_locked_look(p: Persona) -> str:
+    """A persona's fixed appearance as ONE look string, in the same axis order
+    ``art_director._creative_look`` emits (hair, build/figure, face, complexion,
+    age) so it drops straight in as a locked ``look_target`` for every image of
+    the series. Empties are skipped so partial/legacy personas degrade
+    gracefully. Wardrobe is intentionally EXCLUDED — it is set-dressing the tier
+    overrides per image, not identity."""
+    parts = [p.hair, p.build, p.face, p.complexion, p.age_anchor]
+    return ", ".join(s for s in (x.strip() for x in parts) if s)
 
 
 @dataclass(frozen=True)
@@ -317,11 +336,16 @@ def build_brief(selection: Selection) -> str:
 
     p = selection.persona
     if p:
+        # The persona's APPEARANCE is delivered per image as the locked SUBJECT
+        # LOOK (art_director uses persona_locked_look as look_target); the brief
+        # only asserts the same-woman CONTRACT — re-listing hair/build here would
+        # re-introduce the contradiction the lock exists to remove.
         parts.append(
-            f"RECURRING SUBJECT — keep her identity consistent across the "
-            f"series: {p.name}, {p.age_anchor}, {p.hair}, {p.build}, styled in "
-            f"{p.wardrobe_vibe} ({p.arc}). Vary scene, light, wardrobe and mood "
-            f"per image, but she is the same woman throughout."
+            f"RECURRING SUBJECT — every image in this series depicts the SAME "
+            f"named woman, {p.name} ({p.arc}); her appearance is held IDENTICAL "
+            f"across the set (given per image as the SUBJECT LOOK). Vary only "
+            f"scene, light, wardrobe and mood. Her wardrobe leans "
+            f"{p.wardrobe_vibe} where it suits the scene."
         )
 
     # Per-niche avoidances (e.g. mirror-prone niches: vanities WITHOUT a

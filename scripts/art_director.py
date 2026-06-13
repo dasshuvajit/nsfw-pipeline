@@ -1013,6 +1013,7 @@ def generate_one(
     extra_directive: str = "",
     framing_target: tuple[str, str] | None = None,
     look_target: str = "",
+    look_locked: bool = False,
     reveal_target: "tuple[str, str] | None" = None,
     grooming: str = "",
     opener_lead: str = "",
@@ -1061,15 +1062,26 @@ def generate_one(
             f"this specific shot, and if so explain why in framing_rationale. A "
             f"sellable series MUST vary — never portrait/medium every time."
         )
-    # Per-image subject look (sampled from the creative-direction look pools) so
-    # the series shows wide variety rather than the same woman every time.
+    # Per-image subject look. Two modes: rotated (sampled from the look pools so
+    # the series shows wide variety) OR locked (a bound persona's fixed identity —
+    # the SAME woman every image). look_locked flips the contract wording.
     look_variety = ""
     if look_target:
-        look_variety = (
-            f"\n\nSUBJECT LOOK for THIS image (vary her across the series): she has "
-            f"{look_target}. She is a striking, sexy young ADULT woman — describe her "
-            f"beauty, allure and figure attractively and explicitly within the tier."
-        )
+        if look_locked:
+            look_variety = (
+                f"\n\nRECURRING SUBJECT for THIS image — she is the SAME woman in "
+                f"EVERY image of this series: she has {look_target}. Keep her "
+                f"identity IDENTICAL across the set (hair, face, eyes, complexion, "
+                f"build, age); vary ONLY scene, pose, wardrobe, light and mood. She "
+                f"is a striking, sexy ADULT woman — describe her beauty, allure and "
+                f"figure attractively and explicitly within the tier."
+            )
+        else:
+            look_variety = (
+                f"\n\nSUBJECT LOOK for THIS image (vary her across the series): she has "
+                f"{look_target}. She is a striking, sexy young ADULT woman — describe her "
+                f"beauty, allure and figure attractively and explicitly within the tier."
+            )
     # Structural rotation — sentence-1 lead + craft-note placement. Breaks the
     # measured corpus templates (75-80% light openers, 93% camera tails) by
     # rotating the prompt's SKELETON the same way framing already rotates.
@@ -1191,6 +1203,7 @@ def generate_series(
     seed_banned_openers: "list[str] | None" = None,
     run_offset: int = 0,
     seed_overused: "list[str] | None" = None,
+    locked_look: str = "",
 ) -> list[dict]:
     """Generate ``count`` prompts. ``sub_looks`` (from the niche selector)
     overrides the default 3; the per-scene look rotates through them.
@@ -1285,8 +1298,9 @@ def generate_series(
                 framing = (framing[0], pin)
         # Per-scene look HOISTED: the LLM call and the opener-similarity check
         # must agree on which tokens are the ASSIGNED look (excluded from bans
-        # — the 2026-06-11 night-batch collision fix).
-        scene_look = _creative_look(i, run_offset)
+        # — the 2026-06-11 night-batch collision fix). A bound persona LOCKS the
+        # look (same woman every image); otherwise it rotates from the look pools.
+        scene_look = locked_look or _creative_look(i, run_offset)
         scene_look_tokens = frozenset(
             re.findall(r"[a-z']+", scene_look.lower()))
         best: tuple[dict, float, list[str]] | None = None  # (candidate, score, issues)
@@ -1328,6 +1342,7 @@ def generate_series(
                     extra_directive=attempt_directive,
                     framing_target=framing,
                     look_target=scene_look,
+                    look_locked=bool(locked_look),
                     reveal_target=reveal_target,
                     grooming=grooming or "",
                     opener_lead=opener_lead,

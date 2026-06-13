@@ -43,7 +43,7 @@ from src.render.render_pipeline import (  # noqa: E402
 )
 from src.niche.selector import (  # noqa: E402
     NicheLibrary, NicheLibraryError, build_selection, build_brief,
-    select_niche_cycle,
+    select_niche_cycle, persona_locked_look,
 )
 
 # Persistent seed counter — guarantees every render across runs gets a
@@ -533,6 +533,28 @@ def _next_family_serial(family: str) -> int:
     return n
 
 
+# Per-persona appearance serial — a recurring persona's body-of-work index
+# ("Clara — Golden Hour No. 07"), the collectability hook for a future per-
+# persona "Room". Distinct from the family/Plate numbering above: this counts a
+# persona's SETS across all niches. Keyed by lowercased name (matches the
+# case-insensitive persona lookup in select_persona).
+PERSONA_SERIALS_FILE = ROOT / "output/art_series/.persona_serials"
+
+
+def _next_persona_serial(name: str) -> int:
+    """Advance + persist the per-persona appearance serial (1-based)."""
+    try:
+        serials = json.loads(PERSONA_SERIALS_FILE.read_text())
+    except (FileNotFoundError, ValueError):
+        serials = {}
+    key = name.lower()
+    n = int(serials.get(key, 0)) + 1
+    serials[key] = n
+    PERSONA_SERIALS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    PERSONA_SERIALS_FILE.write_text(json.dumps(serials, indent=2))
+    return n
+
+
 # Anatomy guard (auto-retry): a single female has at most TWO hands, so the hand
 # detector counting >2 is a reliable EXTRA-LIMB signal a detailer CAN'T fix (it
 # refines every hand it finds). We reroll the base seed until the render is clean
@@ -853,6 +875,7 @@ def _emit_posting_templates(pkg: Path, metadata: dict, tier: str,
     tdir.mkdir(exist_ok=True)
     folder = metadata["da_folder"]
     persona = metadata.get("persona")
+    persona_serial = metadata.get("persona_serial")
     groups = ", ".join(metadata.get("da_groups", []))
     ai = metadata["labels"]["ai_tools"]
     fam_disp = metadata.get("family_display") or ""
@@ -861,7 +884,10 @@ def _emit_posting_templates(pkg: Path, metadata: dict, tier: str,
     def _write(images: list[str], meta: dict, is_gated: bool) -> None:
         base = meta.get("title") or folder
         if persona:
-            base = f"{persona} — {base}"
+            # Persona body-of-work index ("Clara — <title> No. 07"). ARABIC so it
+            # never visually collides with the Roman per-Plate numerals below.
+            base = (f"{persona} — {base} No. {persona_serial:02d}"
+                    if persona_serial else f"{persona} — {base}")
         price = _PRICE_BY_TIER.get(tier if is_gated else "T1_suggestive", "$2-3")
         where = "gated" if is_gated else "public"
         note = "CLEAN file (no watermark)" if is_gated else "watermarked SFW teaser"
@@ -1068,6 +1094,11 @@ def _package(
               else "series")
     family_serial = _next_family_serial(family)
     family_display = _FAMILY_DISPLAY.get(family, family.title())
+    # Per-persona appearance serial — incremented HERE only (packaging runs once
+    # per series; --prompts-only returns before _package, so prompt A/Bs never
+    # mint a number). Re-running a packaged series mints the next index by design.
+    persona_serial = (_next_persona_serial(selection.persona.name)
+                      if (selection and selection.persona) else None)
 
     metadata = {
         "da_folder": folder,
@@ -1077,6 +1108,7 @@ def _package(
         "family_display": family_display,
         "family_serial": family_serial,
         "persona": selection.persona.name if (selection and selection.persona) else None,
+        "persona_serial": persona_serial,
         "labels": {"ai_tools": AI_DISCLOSURE_LABEL, "mature": True},
         "price_by_tier": _PRICE_BY_TIER.get(tier),
         "da_groups": _suggested_groups(selection.niche.tags if selection else []),
@@ -1340,12 +1372,17 @@ def main() -> int:
     # Rotation offset strides past the whole previous run (count+1, not 1):
     # stride-1 re-issued 5/6 of the assignment tuples on every consecutive run.
     run_offset = prior_count * (args.count + 1)
+    # A bound persona LOCKS the per-image look to one identity (the same woman in
+    # every image of the series, replacing the look-pool rotation); non-persona
+    # runs pass "" → rotation as before. None-safe for the --brief path.
+    locked_look = (persona_locked_look(selection.persona)
+                   if (selection and selection.persona) else "")
     rows = art_director.generate_series(
         brief=brief, tier=args.tier, count=args.count, model_tag=args.model_tag,
         temperature=args.temperature, sub_looks=sub_looks, word_band=word_band,
         audit_gate=not args.no_audit_gate,
         seed_avoid=seed_avoid, seed_banned_openers=seed_banned, run_offset=run_offset,
-        seed_overused=overused,
+        seed_overused=overused, locked_look=locked_look,
     )
     if not rows:
         print("No prompts generated — aborting.", file=sys.stderr)
@@ -1418,7 +1455,7 @@ def main() -> int:
             audit_gate=not args.no_audit_gate,
             seed_avoid=cover_avoid, seed_banned_openers=cover_banned,
             run_offset=run_offset + args.count,
-            seed_overused=overused,
+            seed_overused=overused, locked_look=locked_look,
             require_sfw=True,
             extra_directive=art_director.SFW_COVER_DIRECTIVE,
         )
