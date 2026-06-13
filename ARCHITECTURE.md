@@ -1679,7 +1679,6 @@ nsfw-pipeline/
 │   ├── render_prompts.py                  # Phase B+C — DB → render per model
 │   ├── dry_run.py                         # Phase A only (LLM, no render)
 │   ├── list_models.py                     # registry dump
-│   └── test_scorer.py                     # smoke image scorer
 ├── src/
 │   ├── main.py                            # supervised/automated scheduler entry
 │   ├── core/

@@ -96,16 +96,10 @@ from tile-1024/8-step ≈ 19 min). Co-resident Chroma+SDXL+T5 swaps a few
 GB on the 48GB box but it is compute-bound, not swap-bound (an explicit
 model-unload node gave no wall-time win and was removed).
 
-### T4 NSFW variant — `gonzaLomo_Chroma_4K_v12_T4.json`
-
-Base v12 chain + two tier-gated NSFW-region detailers appended before
-SaveImage: `det_nipple_detector`(nipples_yolov8s) → `detailer_nipples`
-→ `det_vagina_detector`(vagina-v3.2) → `detailer_vagina` (both
-lcm/karras/6/denoise 0.25, crop_factor 2.0). `art_series` auto-selects
-this for `--tier T4_explicit` **main images only**; SFW covers and
-T3-and-below stay on the base v12 template (their detectors would not
-fire and NSFW-region inpainting is unwanted there). Pin `--template` to
-override.
+(The monolith `gonzaLomo_Chroma_4K_v12.json` is the `--template` escape hatch
+only; the staged pipeline below is the default. The old monolith T4 variant
+`gonzaLomo_Chroma_4K_v12_T4.json` was removed 2026-06-13 — the staged path
+handles T4 via `refine_T4.json`, so the monolith T4 auto-select no longer exists.)
 
 ## Staged pipeline (default for `art_series`, 2026-06-02)
 
