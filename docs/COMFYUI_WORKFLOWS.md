@@ -29,22 +29,13 @@ Each must carry the listed input field.
 Failures here raise `WorkflowTemplateError` at preflight with a
 pointer at the missing field.
 
-## Optional refiner contract
-
-Two-stage workflows (e.g. Chroma base + SDXL refiner) declare these
-extra IDs. Pair rule: if `refiner_positive_prompt` OR `refiner_ksampler`
-is present, BOTH must be.
-
-| Semantic ID                | Patched? | Notes |
-| -------------------------- | -------- | ----- |
-| `refiner_positive_prompt`  | yes — `inputs.text` ← SAME prompt as base | CLIPTextEncode using the refiner CLIP |
-| `refiner_negative_prompt`  | no       | Template-owned; usually empty for denoise ≤ 0.25 |
-| `refiner_ksampler`         | yes — `inputs.seed` ← SAME seed as base | Refiner KSampler |
-| `refiner_checkpoint_loader`| no — metadata only | Pipeline reads `inputs.ckpt_name` OR `inputs.unet_name` for the PNG `refiner_checkpoint` field |
-
-`gonzaLomo_Chroma_Refiner_v11.json` is the reference example for the
-refiner-pair contract. The current production template
-(`gonzaLomo_Chroma_4K_v12.json`, below) deliberately OMITS the pair.
+> **Retired (2026-06-13):** the optional single-pass *embedded-refiner*
+> contract (`refiner_positive_prompt` / `refiner_negative_prompt` /
+> `refiner_ksampler` / `refiner_checkpoint_loader`) was removed with the
+> v11-era workflow it served. Two-pass refinement is now done by the
+> separate image-stage contract (`load_image` / `save` +
+> `stage_ksampler` / `upscale`; see `refine.json` / `refine_T4.json` /
+> `upscale_4k.json`), not by a refiner baked into the base graph.
 
 ## Production Chroma graph — `gonzaLomo_Chroma_4K_v12.json` (true 4K)
 
@@ -80,9 +71,10 @@ square base to 1536 for a true-4K square at higher base cost).
   `det_neg`) — short, SDXL-77-token-safe, no garment/artist/scene tokens
   (so it never re-dresses a nude base). The base Chroma **prose is never
   routed through SDXL's CLIP** (T5 has no 77-token ceiling; SDXL would
-  truncate it). This is why the optional `refiner_positive_prompt` /
-  `refiner_ksampler` pair is OMITTED — the refine KSampler is named
-  `refiner_ksampler_local` so the pair rule is a no-op.
+  truncate it). The SDXL refine KSampler is a template-owned node
+  (`refiner_ksampler_local`) — the pipeline never patches a prompt or
+  seed into it; the base graph's prose + seed are the only thing
+  `build_external` writes.
 - *Dropped* PatchModelAddDownscale (Deep Shrink) — harmful at low denoise
   and conflicts with tiled USDU.
 - *Face detector fix* — v11 used `Eyeful_v2-Paired.pt` (an EYE detector)
@@ -259,11 +251,10 @@ engine raises a clear error.
 ## Verify
 
 ```bash
-python -m pytest tests/test_workflow_builder_external_template.py \
-                  tests/test_workflow_builder_refiner.py -q
+python -m pytest tests/test_workflow_builder_external_template.py -q
 ```
 
-A successful run confirms the 4-node contract + refiner-pair rule fire
+A successful run confirms the 4-node external contract fires
 correctly. To smoke-test against ComfyUI, run a small render:
 
 ```bash

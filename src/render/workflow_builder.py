@@ -18,15 +18,12 @@ Required semantic node IDs (raise WorkflowTemplateError if missing):
     empty_latent      inputs.width    EmptyLatentImage / EmptySD3LatentImage /
                       inputs.height   EmptyHunyuanLatentVideo / …
 
-Optional refiner-stage IDs (2026-05-15) — validated only when present
-in the workflow JSON. Templates without these IDs (single-stage
-renders) pass the optional-loop as a no-op.
-
-    refiner_positive_prompt    inputs.text   SDXL-CLIP-encoded copy of base text
-    refiner_negative_prompt    (not patched) Template-owned; usually empty
-    refiner_ksampler           inputs.seed   Same seed as base ksampler
-    refiner_checkpoint_loader  (metadata-only) Pipeline reads inputs.ckpt_name
-                                              OR inputs.unet_name for PNG meta
+(The single-pass embedded-refiner contract — refiner_positive_prompt /
+refiner_ksampler / refiner_checkpoint_loader — was retired 2026-06-13 with
+the v11-era workflow it served; the production pipeline does base→refine as
+SEPARATE staged templates via ``build_image_stage``, so no live template wires
+the embedded refiner. The two-pass image stages use the image-stage contract
+below, not this.)
 """
 
 from __future__ import annotations
@@ -57,28 +54,6 @@ _REQUIRED_EXTERNAL_INPUTS: dict[str, tuple[str, ...]] = {
     "negative_prompt": ("text",),
     "ksampler":        ("seed",),
     "empty_latent":    ("width", "height"),
-}
-
-# Optional refiner-stage IDs (2026-05-15 — added for two-pass workflows
-# like Chroma-base + SDXL-refiner). Validated only when present in the
-# workflow JSON. Backward-compatible — templates without these IDs (the
-# user's single-stage chroma_done_properly.json) pass the optional-loop
-# as a no-op.
-_OPTIONAL_NODES_EXTERNAL: tuple[str, ...] = (
-    "refiner_positive_prompt",
-    "refiner_negative_prompt",
-    "refiner_ksampler",
-    "refiner_checkpoint_loader",
-)
-
-_OPTIONAL_EXTERNAL_INPUTS: dict[str, tuple[str, ...]] = {
-    "refiner_positive_prompt":     ("text",),
-    # refiner_negative_prompt — no required fields (not patched).
-    "refiner_ksampler":            ("seed",),
-    # refiner_checkpoint_loader — neither field is REQUIRED (different
-    # loader classes use different field names); presence-of-node is
-    # the only check. Field lookup at metadata-extraction time is
-    # tolerant of either ckpt_name or unet_name.
 }
 
 # ── Image-stage contract (2026-06-02 — staged render pipeline) ──────────
@@ -131,39 +106,13 @@ def _assert_external_template_inputs(
     missing ``width`` or ``height`` (which would raise a KeyError
     mid-inject).
 
-    Three passes:
-
-    1. **Required-field pass** — every node in `_REQUIRED_EXTERNAL_INPUTS`
-       must expose every listed field.
-    2. **Optional-field pass** — for each node in
-       `_OPTIONAL_NODES_EXTERNAL` that is present in the workflow,
-       validate any required fields. Absent nodes are skipped silently.
-    3. **Refiner-pair-consistency pass** — if either
-       ``refiner_positive_prompt`` or ``refiner_ksampler`` is present,
-       both must be. (``refiner_negative_prompt`` and
-       ``refiner_checkpoint_loader`` are fully optional and don't
-       participate in the pair check.) This rule catches a half-renamed
-       template — the kind of bug where the user changes one ID and
-       forgets the other, getting silent broken renders.
+    Required-field pass — every node in `_REQUIRED_EXTERNAL_INPUTS` must
+    expose every listed field.
     """
     missing: list[str] = []
 
-    # Pass 1 — required fields on required nodes.
     for node_id, field_keys in _REQUIRED_EXTERNAL_INPUTS.items():
         node = workflow.get(node_id, {})
-        inputs = node.get("inputs") if isinstance(node, dict) else None
-        if not isinstance(inputs, dict):
-            missing.append(f"{node_id}.inputs (missing or not an object)")
-            continue
-        for field in field_keys:
-            if field not in inputs:
-                missing.append(f"{node_id}.inputs.{field}")
-
-    # Pass 2 — required fields on present optional nodes.
-    for node_id, field_keys in _OPTIONAL_EXTERNAL_INPUTS.items():
-        if node_id not in workflow:
-            continue
-        node = workflow[node_id]
         inputs = node.get("inputs") if isinstance(node, dict) else None
         if not isinstance(inputs, dict):
             missing.append(f"{node_id}.inputs (missing or not an object)")
@@ -178,22 +127,6 @@ def _assert_external_template_inputs(
             f"but is missing input fields: {missing}. Each required "
             f"node must expose these keys (see docs/COMFYUI_WORKFLOWS.md "
             f"§ External templates)."
-        )
-
-    # Pass 3 — refiner-pair consistency.
-    has_refiner_pos = "refiner_positive_prompt" in workflow
-    has_refiner_ks = "refiner_ksampler" in workflow
-    if has_refiner_pos != has_refiner_ks:
-        present, missing_id = (
-            ("refiner_positive_prompt", "refiner_ksampler")
-            if has_refiner_pos
-            else ("refiner_ksampler", "refiner_positive_prompt")
-        )
-        raise WorkflowTemplateError(
-            f"External template {template_name} has '{present}' but is "
-            f"missing '{missing_id}'. The refiner pair must be present "
-            f"together (refiner stage wired) or both absent (no-refiner "
-            f"template). See docs/COMFYUI_WORKFLOWS.md § Refiner pipelines."
         )
 
 
@@ -312,13 +245,6 @@ class WorkflowBuilder:
         ``config/comfyui_workflows/templates/{family}/``, renames four
         nodes to the semantic IDs, and the pipeline honors that choice.
 
-        Optional refiner stage: when the template wires
-        ``refiner_positive_prompt`` + ``refiner_ksampler`` (the pair
-        rule), they're patched with the SAME prompt text + SAME seed as
-        the base nodes. ``refiner_negative_prompt`` is template-owned
-        (NOT patched). ``refiner_checkpoint_loader`` is metadata-only
-        (read for PNG `refiner_checkpoint` field, never written).
-
         Preflight (before injection):
           - File exists + is valid JSON (via ``_load``).
           - Top-level keys present: ``positive_prompt``, ``negative_prompt``,
@@ -326,8 +252,6 @@ class WorkflowBuilder:
           - Each of those nodes carries the required input fields
             (``inputs.text``, ``inputs.seed``, ``inputs.width``,
             ``inputs.height``).
-          - Refiner-pair consistency (if any refiner node present, both
-            ``refiner_positive_prompt`` and ``refiner_ksampler`` must be).
 
         Any preflight failure raises ``WorkflowTemplateError`` with a
         specific message. There is no fallback.
@@ -347,17 +271,6 @@ class WorkflowBuilder:
         workflow["ksampler"]["inputs"]["seed"] = chosen_seed
         workflow["empty_latent"]["inputs"]["width"] = int(resolution[0])
         workflow["empty_latent"]["inputs"]["height"] = int(resolution[1])
-
-        # Optional refiner stage — same prompt + same seed as base.
-        # Patched only when the template wired in the refiner pair.
-        # `refiner_negative_prompt` is fully template-owned (not
-        # patched); `refiner_checkpoint_loader` is metadata-only.
-        # The pair-rule check in _assert_external_template_inputs
-        # already guarantees that if either side is present, both are.
-        if "refiner_positive_prompt" in workflow:
-            workflow["refiner_positive_prompt"]["inputs"]["text"] = prompt_text
-        if "refiner_ksampler" in workflow:
-            workflow["refiner_ksampler"]["inputs"]["seed"] = chosen_seed
 
         return workflow
 

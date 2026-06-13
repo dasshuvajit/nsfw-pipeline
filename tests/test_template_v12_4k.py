@@ -2,14 +2,15 @@
 
 v12 is the default ``art_series`` template: gonzaLomo Chroma base ->
 1.25x lanczos -> SDXL DMD low-denoise refine -> UltimateSDUpscale true-4K
--> face/eyes/hands detailers -> SaveImage. It is a NO-PAIR external
-template (the optional ``refiner_positive_prompt`` / ``refiner_ksampler``
-contract pair is intentionally omitted — every SDXL pass uses one
+-> face/eyes/hands detailers -> SaveImage. Every SDXL pass uses one
 template-owned generic detail prompt, and the base Chroma prose is never
-re-encoded through SDXL's 77-token CLIP).
+re-encoded through SDXL's 77-token CLIP. (The embedded-refiner contract
+that an earlier two-stage template used — ``refiner_positive_prompt`` /
+``refiner_ksampler`` — was retired 2026-06-13; ``build_external`` no
+longer recognises those IDs at all.)
 
 These tests pin: (1) build_external patches only the four contracted
-fields and leaves the refiner pair absent; (2) every sampler/scheduler is
+fields and injects no refiner nodes; (2) every sampler/scheduler is
 MPS-safe (no RES4LYF res_* samplers, which crash on Apple MPS); (3) the
 graph is acyclic with SaveImage as the sink; (4) the resolution math
 yields a true-4K (>=3840px) long edge for the portrait base preset.
@@ -64,7 +65,7 @@ def test_v12_build_external_patches_four_fields_and_omits_pair(v12_dir: Path) ->
     assert wf["ksampler"]["inputs"]["seed"] == 4242
     assert wf["empty_latent"]["inputs"]["width"] == 1024
     assert wf["empty_latent"]["inputs"]["height"] == 1536
-    # No-pair template: neither optional refiner node exists.
+    # build_external introduces no embedded-refiner nodes (contract retired).
     assert "refiner_positive_prompt" not in wf
     assert "refiner_ksampler" not in wf
     # The SDXL passes keep their own template-owned seeds (NOT patched).

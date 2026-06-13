@@ -10,7 +10,7 @@ exactly four fields: prompt text, negative prompt text, seed, and
 (width, height).
 
 Fixtures copy the user's verified
-``config/comfyui_workflows/templates/chroma/chroma_done_properly.json``
+``tests/fixtures/chroma_done_properly.json`` (a dedicated fixture)
 into the tmp workflow_dir so tests stay pinned to the real canonical
 shape. Negative-path variants are derived by mutating the loaded
 dict before writing — no hand-rolled synthetic JSON.
@@ -36,14 +36,11 @@ from src.render.workflow_builder import (
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-_CANONICAL_TEMPLATE = (
-    PROJECT_ROOT
-    / "config"
-    / "comfyui_workflows"
-    / "templates"
-    / "chroma"
-    / "chroma_done_properly.json"
-)
+# A stable, dedicated TEST FIXTURE (a real ComfyUI API-format chroma graph)
+# — lives under tests/fixtures/, NOT in the production templates/ dir, so the
+# external-contract test isn't coupled to a live-tuned production template.
+# (Relocated 2026-06-13 when the production workflows folder was pruned.)
+_CANONICAL_TEMPLATE = PROJECT_ROOT / "tests" / "fixtures" / "chroma_done_properly.json"
 
 
 @pytest.fixture
