@@ -109,7 +109,7 @@ niches:
   - id: fantasy_glamour
     class: core
     weight: 1.1
-    tier_band: [T2_implied, T3_artnude]
+    tier_band: [T2_implied, T3_artnude, T4_explicit]
     da_folder: "Fantasy Glamour"
     family: nocturne
     source: fantasy_castlecore
@@ -126,7 +126,7 @@ niches:
       palettes: ["deep emerald and gold", "jewel-toned twilight", "cool moonlit cyan-and-indigo"]
       lighting: ["dappled god-rays through canopy", "warm practical candlelight", "cool blue-hour ambient glow"]
       photographers: ["pre-Raphaelite painterly light", "Brooke Shaden conceptual fine-art", "Bella Kotak ethereal fantasy"]
-    brief_seed: "Fantasy glamour — one ethereal woman (elf/fae/sorceress) in an enchanted setting, adornments and drapery as styling, mythic and luminous; reads as fantasy art."
+    brief_seed: "Fantasy glamour — one ethereal woman (elf/fae/sorceress) in an enchanted setting, adornments and drapery as styling, mythic and luminous; reads as fantasy art. SIGNATURE MATERIALS: gossamer, antler, moss, lichened stone, jewelled adornment, fur-lined cloak — fae/Celtic, never marble/chiton/laurel (those belong to mythology_goddess)."
 
   - id: modern_boudoir
     class: core
@@ -142,6 +142,7 @@ niches:
       - "warm intimate bedroom — a single warm bedside lamp, silk and lace, a quiet unguarded moment, soft golden glow"
       - "morning-after intimacy — bright soft morning light, tangled sheets, bare shoulders and a loose camisole, candid and natural"
       - "knit-throw window seat — a deep window seat under a chunky cream knit throw, rain streaking the glass beyond, a steaming mug on the sill, bare legs tucked, hygge intimacy"
+      - "snowfall at the lodge window — soft grey-blue daylight, fat snowflakes falling beyond the glass, a chunky cream knit slipping from a bare shoulder, a steaming mug on the sill, hygge winter calm"
       - "afternoon shutter light — low slatted sun through half-open shutters banding across a linen-dressed platform bed, drowsy warm haze, unhurried ease"
       - "slow dressing — stepping into a slip dress beside an open wardrobe, soft bounced daylight, caught candid mid-motion, quiet grace"
     aesthetics:
@@ -278,7 +279,7 @@ niches:
       - "backstage dressing room — warm bulb-lit vanity (no mirror in frame), corset and stockings, feathers, intimate pre-show glamour"
       - "champagne speakeasy booth — a velvet banquette in smoky low light, a coupe of champagne, gloves and garters, conspiratorial after-hours glamour"
       - "spotlight feather reveal — a single hard spotlight catching ostrich plumes mid-gesture on a dark stage, rhinestones glinting, theatrical tease"
-      - "art-deco lounge — gilded geometric panelling and a chaise, a beaded gown slipping, warm gold lamplight, jazz-age opulence"
+      - "masquerade soiree — a single feathered or filigree half-mask catching warm candelabra light in a shadowed ballroom alcove, beaded gown, conspiratorial after-the-ball intimacy"
     aesthetics:
       palettes: ["deep red velvet and gold", "warm theatrical amber", "black-and-rhinestone sparkle"]
       lighting: ["warm theatrical spotlight", "warm vanity-bulb light", "single dramatic stage key"]
@@ -323,6 +324,8 @@ niches:
       - "wheat field at golden hour — warm low sun across swaying golden wheat, a linen dress slipping from a shoulder, barefoot and dreamy"
       - "misty herb garden at dawn — soft grey-gold morning light among lavender and climbing roses, dewy gentle sensuality"
       - "reedy lakeside meadow — soft afternoon light by a still lake, a picnic blanket and scattered wildflowers, languid countryside calm"
+      - "amber orchard at harvest — low gold afternoon sun through turning amber-and-russet leaves, windfall apples and a woven basket, a linen dress slipping from one shoulder, warm harvest calm"
+      - "harvest-moon field — a huge low amber harvest moon over cut golden stubble, woodsmoke haze, a knit shawl loose over bare skin, dreamy late-September warmth"
     aesthetics:
       palettes: ["soft sage, cream and wildflower", "warm pastoral daylight", "faded pastel countryside"]
       lighting: ["soft window daylight", "dappled orchard sunlight", "warm overcast morning"]
@@ -396,6 +399,7 @@ niches:
       - "armory by torchlight — unlacing a quilted gambeson among racked steel and oak, torch flame on strong shoulders, warrior-lady confidence"
       - "solar window needlework — diamond-paned daylight in the private solar, a fur-lined mantle slipping while embroidery lies forgotten in her lap, noble idleness"
       - "bathing barrel — a steaming oak bathing barrel strewn with herbs, iron sconce candlelight, wet hair over the rim, rough-hewn medieval comfort"
+      - "frost on the tower glass — fat snow falling beyond a narrow arched window, frost-breath misting in a cold stone chamber, a fur-lined wool mantle drawn over pale skin, regal-composed midwinter stillness"
     aesthetics:
       palettes: ["warm candle-and-velvet", "cool stone dawn", "amber hearth glow"]
       lighting: ["warm candle flame", "cool arched-window dawn", "flickering hearth fire"]
