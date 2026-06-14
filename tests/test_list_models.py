@@ -39,10 +39,11 @@ class TestDefaultOutput:
     def test_includes_default_marker(self):
         result = _run()
         # default column shows 'Y' for the configured default_llm
-        # (2026-06-11 — DECKARD Gemma-4 31B dense replaced the 26B-A4B MoE
-        # after the W5 blind A/B; Cydonia is still the registered fallback).
-        assert "deckard_gemma4_31b_heretic" in result.stdout
-        assert "default = 'deckard_gemma4_31b_heretic'" in result.stdout
+        # (2026-06-15 — user set Gemma-4 26B-A4B MoE as default for speed + T4
+        # compliance, reversing the 31B's 2026-06-11 prose-quality A/B win;
+        # Cydonia is still the registered fallback).
+        assert "gemma_4_26b_a4b_heretic" in result.stdout
+        assert "default = 'gemma_4_26b_a4b_heretic'" in result.stdout
 
     def test_llms_only_is_retained_noop(self):
         result = _run("--llms-only")
