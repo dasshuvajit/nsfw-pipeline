@@ -1270,6 +1270,18 @@ def main() -> int:
     if not (args.auto or args.niche or args.brief):
         ap.error("provide one of --auto, --niche <id>, or --brief <text>")
 
+    # Resolve --model-tag: accept a registry key OR a backend model id, and FAIL
+    # LOUDLY on an unknown value instead of silently routing to Ollama → all-
+    # Cydonia output (the 2026-06-15 canary footgun). Registry-unreadable is
+    # tolerated (DEFAULT_LLM_TAG already degrades gracefully there).
+    from src.memory.llm_registry import LLMRegistryLoader, LLMNotFound
+    try:
+        args.model_tag = LLMRegistryLoader().resolve_model_tag(args.model_tag)
+    except LLMNotFound as exc:
+        ap.error(str(exc))          # wrong tag → loud CLI fail, not silent fallback
+    except Exception:               # registry unreadable/malformed → graceful pass-through
+        pass
+
     try:
         lo_s, hi_s = args.word_band.split("-")
         word_band = (int(lo_s), int(hi_s))

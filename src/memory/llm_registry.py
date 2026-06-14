@@ -294,6 +294,29 @@ class LLMRegistryLoader:
                 return entry.backend
         return BACKEND_OLLAMA
 
+    def resolve_model_tag(self, value: str) -> str:
+        """Resolve a ``--model-tag`` / ``--llm`` CLI value to a canonical backend
+        model_tag. Accepts EITHER a backend model_tag (lm_studio_id / ollama_id —
+        what :attr:`LLMRegistryEntry.model_tag` and ``DEFAULT_LLM_TAG`` provide) OR
+        a registry KEY (the ``llms:`` entry id, e.g. ``gemma_4_26b_a4b_heretic``),
+        returning the canonical model_tag.
+
+        Raises :class:`LLMNotFound` (with the available list) when ``value`` matches
+        neither active form — so a typo or a key/tag mix-up fails LOUDLY at the CLI
+        instead of silently routing to Ollama (``backend_for_tag`` defaults there)
+        and degrading every prompt to the fallback model. 2026-06-15: passing the
+        registry KEY to ``--model-tag`` quietly produced an all-Cydonia canary."""
+        for entry in self.list_llms(include_inactive=False):
+            if entry.model_tag == value:
+                return value                       # already a valid active model_tag
+        if self.has_llm(value, include_inactive=False):
+            return self.get_llm(value).model_tag   # a registry key → its model_tag
+        raise LLMNotFound(
+            f"--model-tag {value!r} is neither a known model id nor an active "
+            f"registry key. If it is a new model, add it to "
+            f"{self.config_path.name} first.\n{self._format_available()}"
+        )
+
     def is_reasoning_model(self, model_tag: str) -> bool:
         """Round-18 — return True iff ``model_tag`` matches a registry
         entry flagged ``is_reasoning_model: true``. Used by the pool

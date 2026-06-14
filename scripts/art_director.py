@@ -1456,6 +1456,16 @@ def main() -> int:
     ap.add_argument("--out", default="", help="optional JSON output path")
     args = ap.parse_args()
 
+    # Resolve --model-tag (registry key OR backend model id); fail loudly on an
+    # unknown value instead of silently degrading to the Ollama fallback.
+    from src.memory.llm_registry import LLMRegistryLoader, LLMNotFound
+    try:
+        args.model_tag = LLMRegistryLoader().resolve_model_tag(args.model_tag)
+    except LLMNotFound as exc:
+        ap.error(str(exc))
+    except Exception:
+        pass
+
     try:
         lo_s, hi_s = args.word_band.split("-")
         word_band = (int(lo_s), int(hi_s))

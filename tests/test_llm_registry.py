@@ -30,6 +30,28 @@ def _write(path: Path, text: str) -> Path:
     return path
 
 
+# ── resolve_model_tag (the --model-tag CLI footgun guard) ────────────
+class TestResolveModelTag:
+    def test_passes_through_a_valid_backend_model_tag(self, llm_registry_yaml):
+        loader = LLMRegistryLoader(llm_registry_yaml)
+        assert loader.resolve_model_tag("test/llm-a:latest") == "test/llm-a:latest"
+
+    def test_resolves_a_registry_key_to_its_model_tag(self, llm_registry_yaml):
+        loader = LLMRegistryLoader(llm_registry_yaml)
+        assert loader.resolve_model_tag("test_llm_a") == "test/llm-a:latest"
+
+    def test_unknown_value_fails_loudly(self, llm_registry_yaml):
+        loader = LLMRegistryLoader(llm_registry_yaml)
+        with pytest.raises(LLMNotFound):
+            loader.resolve_model_tag("not_a_real_model")
+
+    def test_inactive_key_fails_loudly(self, llm_registry_yaml):
+        # an inactive entry's key must NOT silently resolve — fail loudly.
+        loader = LLMRegistryLoader(llm_registry_yaml)
+        with pytest.raises(LLMNotFound):
+            loader.resolve_model_tag("test_llm_inactive")
+
+
 # ── basic loading ────────────────────────────────────────────────────
 class TestLoad:
     def test_load_minimal_valid(self, llm_registry_yaml):
@@ -287,6 +309,15 @@ class TestRealRegistry:
         loader = LLMRegistryLoader()
         default = loader.get_default_llm()
         assert default.active is True
+
+    def test_real_registry_resolves_default_key_and_tag(self):
+        """The 2026-06-15 footgun fix: --model-tag must accept the registry KEY
+        (gemma_4_26b_a4b_heretic) AND the backend model_tag, both resolving to the
+        canonical model_tag — instead of the key silently routing to Ollama."""
+        loader = LLMRegistryLoader()
+        tag = loader.get_default_llm().model_tag
+        assert loader.resolve_model_tag("gemma_4_26b_a4b_heretic") == tag   # key
+        assert loader.resolve_model_tag(tag) == tag                         # tag passthrough
 
     def test_real_default_is_gemma4_26b_a4b_heretic(self):
         """2026-06-15 default — user set Gemma 4 26B A4B Heretic (MoE-A4B,
