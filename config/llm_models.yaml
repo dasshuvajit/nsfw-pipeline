@@ -550,7 +550,13 @@ llms:
 # (4B active per token across 26B total) gives near-DavidAU wall-clock
 # despite the larger total footprint. Trade: 16 GB RAM resident vs
 # DavidAU's 7.5 GB — acceptable on the 48 GB Mac M4 Pro target.
-default_llm: deckard_gemma4_31b_heretic
+# 2026-06-15 — user set the default to gemma_4_26b_a4b_heretic (26B MoE-A4B,
+# ~27s/prompt, lowest refusal_rate in the registry). This REVERSES the 2026-06-11
+# verdict above by choice: it trades the dense 31B's prose-quality edge (+0.5 audit,
+# +0.63 blind) for ~3.5x faster generation + better explicit (T4) compliance.
+# deckard_gemma4_31b_heretic stays registered — reach it via --model-tag when the
+# prose-quality edge is wanted for headline sellable sets.
+default_llm: gemma_4_26b_a4b_heretic
 
 # Fallback LLM — used by ``OllamaClient.generate_json(fallback_model=...)``
 # when the primary model fails twice in a row (constrained-decoding +

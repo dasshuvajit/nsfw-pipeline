@@ -62,11 +62,12 @@ scripts/upscale_folder.py ── manual, selective true-4K (USDU, face-true deno
   contract) + SDXL DMD for detailers/4K
 - LLM registry `config/llm_models.yaml` → `LLMClientPool` routes by backend:
   Ollama / LM Studio / MLX / openai_compatible (dormant remote API).
-  **Default: `deckard_gemma4_31b_heretic`** (Gemma-4 31B dense creative-
-  heretic, LM Studio, 32K ctx — won the 2026-06-11 blind dense-vs-MoE A/B,
-  ~96s/prompt); `gemma_4_26b_a4b_heretic` (26B MoE, ~27s/prompt) stays the
-  fast iteration option; fallback `cydonia_heretic_24b` (Ollama).
-  `--model-tag` / `--llm` override.
+  **Default: `gemma_4_26b_a4b_heretic`** (Gemma-4 26B MoE-A4B ultra-uncensored
+  heretic, LM Studio, ~27s/prompt, lowest refusal rate — set as default
+  2026-06-15 for speed + explicit/T4 compliance). `deckard_gemma4_31b_heretic`
+  (dense 31B; won the 2026-06-11 blind prose-quality A/B but ~3.5x slower at
+  ~96s/prompt) stays registered for headline sellable sets via `--model-tag`;
+  fallback `cydonia_heretic_24b` (Ollama). `--model-tag` / `--llm` override.
 
 ## Critical Constraints
 - **LLM and ComfyUI NEVER run simultaneously** (48GB). art_series unloads the
