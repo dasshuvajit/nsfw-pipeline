@@ -364,6 +364,24 @@ def _comfyui_up(base_url: str, timeout: int = 5) -> bool:
         return False
 
 
+def _comfyui_free(base_url: str, timeout: int = 30) -> bool:
+    """Best-effort: ask ComfyUI to unload its models + free memory before Phase 1
+    loads the LLM. ComfyUI keeps Chroma+T5+SDXL (~32 GB) RESIDENT after a render,
+    so a back-to-back series whose Phase-1 LLM (~17 GB) loads on top blows past
+    the 48 GB box and the OS kills ComfyUI (cause of three crashes 2026-06-15:
+    `unload LLM before Phase 2` handles the within-series direction, but nothing
+    freed ComfyUI BETWEEN series). Freeing here gives each series a clean slate.
+    Never raises — a failure just means we proceed without the free."""
+    try:
+        import requests
+        r = requests.post(f"{base_url.rstrip('/')}/free",
+                          json={"unload_models": True, "free_memory": True},
+                          timeout=timeout)
+        return r.status_code == 200
+    except Exception:  # noqa: BLE001
+        return False
+
+
 # Circuit breaker: consecutive CONNECTIVITY failures (ComfyUI unreachable —
 # not per-image render failures) before a stage aborts the run loudly instead
 # of grinding through every remaining image/series producing nothing.
@@ -1267,6 +1285,13 @@ def main() -> int:
     if not args.prompts_only and not _comfyui_up(cu["base_url"]):
         sys.exit(f"PRE-FLIGHT ABORT: ComfyUI unreachable at {cu['base_url']} — "
                  f"start it (or use --prompts-only) and re-run.")
+    # Release ComfyUI's resident models (~32 GB) BEFORE Phase 1 loads the LLM, so
+    # back-to-back series start with a clean slate and the LLM never OOM-kills
+    # ComfyUI by stacking on top of the previous render's models (2026-06-15).
+    if not args.prompts_only:
+        freed = _comfyui_free(cu["base_url"])
+        print(f"  (pre-flight: ComfyUI memory {'freed' if freed else 'free request failed — proceeding'})",
+              flush=True)
 
     rp_cli = {"base_template": args.base_template,
               "refine_template": args.refine_template}

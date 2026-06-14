@@ -391,6 +391,37 @@ def test_next_persona_serial_increments_and_persists(tmp_path, monkeypatch):
     assert data == {"clara": 3, "sable": 1}
 
 
+def test_comfyui_free_posts_unload_and_free(monkeypatch):
+    """Pre-flight ComfyUI free: POSTs to /free with unload_models + free_memory so
+    each series releases ComfyUI's ~32GB before the Phase-1 LLM load (OOM fix)."""
+    captured = {}
+
+    class _Resp:
+        status_code = 200
+
+    def _fake_post(url, json=None, timeout=None):
+        captured["url"] = url
+        captured["json"] = json
+        return _Resp()
+
+    import requests
+    monkeypatch.setattr(requests, "post", _fake_post)
+    assert A._comfyui_free("http://127.0.0.1:8188/") is True
+    assert captured["url"] == "http://127.0.0.1:8188/free"   # trailing slash stripped
+    assert captured["json"] == {"unload_models": True, "free_memory": True}
+
+
+def test_comfyui_free_never_raises(monkeypatch):
+    """A free failure must NOT abort the run — best-effort, returns False."""
+    import requests
+
+    def _boom(*a, **k):
+        raise ConnectionError("ComfyUI dropped")
+
+    monkeypatch.setattr(requests, "post", _boom)
+    assert A._comfyui_free("http://127.0.0.1:8188") is False
+
+
 def test_load_niche_history_reads_prior_same_niche_manifests(tmp_path, monkeypatch):
     """art_series._load_niche_history mines prior same-niche manifests for the
     avoid/banned seeds + the prior-run count, ignoring other niches and
