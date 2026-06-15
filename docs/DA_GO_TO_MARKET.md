@@ -19,10 +19,17 @@
 > to earn much.
 
 ## 0. One-time setup (do this before go-live)
-1. **Paid Core membership** (required to sell USD). Mid-tier ≈ $9.95/mo drops the
-   platform fee from 20% → ~10%; top tier → as low as 2.5%. Worth it once you sell.
-2. Payout = **PayPal/Stripe** in DA settings (NOT Points — purchased Points don't
-   cash out). 18+ / ID verification for mature selling.
+> **Corrected 2026-06-15 — see [DA_OPERATOR_GUIDE.md](DA_OPERATOR_GUIDE.md) for the
+> full account/identity/payout layer.** Two fixes to the steps below: (a) **Core is
+> NOT required to sell** — a free account sells at a 20% fee; Core only *lowers* it
+> (buy it later, once sales clear ~$60/mo). (b) **PayPal/Stripe payout does NOT work
+> from Bangladesh** — treat DA as the (largely unbanked) SFW discovery funnel and make
+> **Fanvue** the real money rail (Bank Transfer / Payoneer / crypto-USDT).
+1. **(Later, not required) Paid Core membership** — Core Pro (yearly, on a 50% promo)
+   drops the sub/gallery fee 20% → ~5%; break-even ≈ $60–80/mo. Free account sells now.
+2. Payout: attempt **Stripe Express** from DA's Earnings page once (may reject BD);
+   the dependable rail is **Fanvue** (see DA_OPERATOR_GUIDE §6). 18+ self-report on DA;
+   real KYC happens at the payout processor.
 3. Set your handle in `config/pipeline.yaml::watermark.text` ("@YourHandle").
 4. Build the **5-family gallery tree** (§3) + write a 1–2 sentence description per
    folder (helps DA search).

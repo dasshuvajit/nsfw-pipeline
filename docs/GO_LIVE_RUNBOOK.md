@@ -12,11 +12,16 @@
 > frames) + a few older non-persona sets.
 
 ## Phase 0 — Account + config (BLOCKER — nothing posts until this is done)
-1. **Create the DeviantArt account** + buy **Paid Core membership** (drops the sale
-   fee 20% → ~10%, lower at higher tiers). Complete **18+ / ID verification** (required
-   to sell mature content).
-2. **Set payout** = PayPal/Stripe in DA settings (**NOT** Points — purchased Points
-   don't cash out).
+> **Corrected 2026-06-15 — see [DA_OPERATOR_GUIDE.md](DA_OPERATOR_GUIDE.md) (the full
+> account/identity/payout layer).** Core is **NOT** required to sell (free = 20% fee;
+> Core just lowers it — buy later), and **PayPal/Stripe payout does NOT work from
+> Bangladesh** — DA is the discovery funnel; **Fanvue** is the real payout rail.
+1. **Create the DeviantArt account (FREE)** — selling works on a free account at a 20%
+   fee. Set birthdate **18+** (DA's only age gate; no DA ID upload — KYC is at the payout
+   processor). Buy **Core Pro (yearly, 50% promo)** *later* per §0 of DA_OPERATOR_GUIDE.
+2. **Payout:** DA's native rails (PayPal/Stripe/BitPay) are dead-or-fragile for Bangladesh
+   — make **Fanvue** the money rail (Bank Transfer / Payoneer / crypto-USDT). Attempt DA's
+   **Stripe Express** once as a bonus. (See DA_OPERATOR_GUIDE §6.)
 3. **Set your real handle** → `config/pipeline.yaml::watermark.text` (currently the
    placeholder `@YourDAHandle`). Then **re-watermark** the packages you intend to post.
    - This is a **cheap re-watermark, NOT a re-render**: the `images/` review frames are
