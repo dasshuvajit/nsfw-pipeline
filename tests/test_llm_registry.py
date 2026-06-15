@@ -311,23 +311,24 @@ class TestRealRegistry:
         assert default.active is True
 
     def test_real_registry_resolves_default_key_and_tag(self):
-        """The 2026-06-15 footgun fix: --model-tag must accept the registry KEY
-        (gemma_4_26b_a4b_heretic) AND the backend model_tag, both resolving to the
-        canonical model_tag — instead of the key silently routing to Ollama."""
+        """The 2026-06-15 footgun fix: --model-tag must accept a registry KEY AND
+        the backend model_tag, both resolving to the canonical model_tag — instead
+        of the key silently routing to Ollama. Default-agnostic (uses the live
+        default) so it survives a default change."""
         loader = LLMRegistryLoader()
-        tag = loader.get_default_llm().model_tag
-        assert loader.resolve_model_tag("gemma_4_26b_a4b_heretic") == tag   # key
-        assert loader.resolve_model_tag(tag) == tag                         # tag passthrough
+        d = loader.get_default_llm()
+        assert loader.resolve_model_tag(d.id) == d.model_tag             # key → tag
+        assert loader.resolve_model_tag(d.model_tag) == d.model_tag      # tag passthrough
 
-    def test_real_default_is_gemma4_26b_a4b_heretic(self):
-        """2026-06-15 default — user set Gemma 4 26B A4B Heretic (MoE-A4B,
-        ~27s/prompt, lowest refusal rate) as the project default, for speed +
-        explicit/T4 compliance. This deliberately reverses the 2026-06-11 A/B
-        verdict in which deckard_gemma4_31b_heretic (dense 31B) won prose
-        quality; the 31B stays registered, reachable via --model-tag. Cydonia
-        stays the registered fallback."""
+    def test_real_default_is_hauhaucs_balanced(self):
+        """2026-06-15 (evening) default — HauhauCS Gemma4 26B-A4B Balanced won the
+        overnight 3-way A/B (audit 9.12, the only model with all 8 prompts >=8.5,
+        fastest at 15.3s/prompt) vs the prior 26B default (8.94 @ 21.8s) and the new
+        llmfan46 31B (9.12 but ~8x slower at 125.3s). All three stay registered,
+        reachable via --model-tag (the 31B = prose fallback). Cydonia stays the
+        registered fallback."""
         loader = LLMRegistryLoader()
-        assert loader.default_llm_id == "gemma_4_26b_a4b_heretic"
+        assert loader.default_llm_id == "gemma4_26b_a4b_uncensored_hauhaucs_balanced"
 
     def test_real_fallback_is_cydonia_heretic(self):
         """2026-05-22 — Cydonia 24B is the fallback (was qwen3_abliterated_30b).
@@ -611,7 +612,7 @@ class TestOpenAICompatibleBackend:
         """The shipped registry's default + fallback stay on the local backends
         (no remote-API entry is shipped; the live local path is untouched)."""
         loader = LLMRegistryLoader()
-        assert loader.default_llm_id == "gemma_4_26b_a4b_heretic"
+        assert loader.default_llm_id == "gemma4_26b_a4b_uncensored_hauhaucs_balanced"
         assert loader.fallback_llm_id == "cydonia_heretic_24b"
         # The OpenAI-compatible backend is supported but DORMANT by default —
         # no shipped entry uses it (it's opt-in via --llm once a provider is set).

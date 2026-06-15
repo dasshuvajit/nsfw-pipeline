@@ -39,11 +39,10 @@ class TestDefaultOutput:
     def test_includes_default_marker(self):
         result = _run()
         # default column shows 'Y' for the configured default_llm
-        # (2026-06-15 — user set Gemma-4 26B-A4B MoE as default for speed + T4
-        # compliance, reversing the 31B's 2026-06-11 prose-quality A/B win;
-        # Cydonia is still the registered fallback).
-        assert "gemma_4_26b_a4b_heretic" in result.stdout
-        assert "default = 'gemma_4_26b_a4b_heretic'" in result.stdout
+        # (2026-06-15 evening — HauhauCS Gemma4 26B-A4B Balanced won the overnight
+        # 3-way A/B and is the default; Cydonia is still the registered fallback).
+        assert "gemma4_26b_a4b_uncensored_hauhaucs_balanced" in result.stdout
+        assert "default = 'gemma4_26b_a4b_uncensored_hauhaucs_balanced'" in result.stdout
 
     def test_llms_only_is_retained_noop(self):
         result = _run("--llms-only")

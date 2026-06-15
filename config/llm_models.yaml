@@ -269,6 +269,38 @@ llms:
     families_recommended: ["all"]
     active: true
 
+  gemma_4_31b_it_uncensored_heretic:
+    backend: lm_studio
+    lm_studio_id: "gemma-4-31b-it-uncensored-heretic"
+    display_name: "Gemma 4 31B Instruct Uncensored Heretic"
+    description: >-
+      Auto-registered 2026-06-15 for the overnight 3-way A/B (31B, llmfan46).
+    quant: "gguf"
+    context_tokens: 32768
+    active: true
+
+  gemma4_26b_a4b_uncensored_hauhaucs_balanced:
+    backend: lm_studio
+    lm_studio_id: "gemma4-26b-a4b-uncensored-hauhaucs-balanced"
+    display_name: "Gemma4 26B A4B Uncensored HauhauCS Balanced"
+    description: >-
+      Gemma 4 26B MoE-A4B (HauhauCS "Balanced" uncensored finetune). PROJECT
+      DEFAULT since 2026-06-15: won the overnight 3-way A/B (fixed T4 brief,
+      count 8, temp 0.85) — audit mean 9.12 (only model with all 8 prompts
+      >=8.5) at 15.3s/prompt, the FASTEST of the three. Beats the prior 26B
+      default (8.94 @ 21.8s) on quality AND speed, and matches the llmfan46 31B
+      (9.12) at ~8x its speed (125.3s/prompt).
+    quant: "gguf"
+    size_gb: 18
+    context_tokens: 32768
+    refusal_rate: 1.5           # uncensored, fully T4-explicit, zero refusals in the A/B
+    strengths:
+      - "MoE A4B — 4B active, 26B total quality; fastest in the 3-way A/B"
+      - "highest + most consistent audit (all 8 prompts cleared the 8.5 gate)"
+      - "uncensored, fully T4-explicit compliant"
+    families_recommended: ["all"]
+    active: true
+
   gemma_3_1b_glm_heretic:
     backend: lm_studio
     lm_studio_id: "gemma-3-1b-it-glm-4.7-flash-heretic-uncensored-thinking_gguf"
@@ -550,13 +582,17 @@ llms:
 # (4B active per token across 26B total) gives near-DavidAU wall-clock
 # despite the larger total footprint. Trade: 16 GB RAM resident vs
 # DavidAU's 7.5 GB — acceptable on the 48 GB Mac M4 Pro target.
-# 2026-06-15 — user set the default to gemma_4_26b_a4b_heretic (26B MoE-A4B,
-# ~27s/prompt, lowest refusal_rate in the registry). This REVERSES the 2026-06-11
-# verdict above by choice: it trades the dense 31B's prose-quality edge (+0.5 audit,
-# +0.63 blind) for ~3.5x faster generation + better explicit (T4) compliance.
-# deckard_gemma4_31b_heretic stays registered — reach it via --model-tag when the
-# prose-quality edge is wanted for headline sellable sets.
-default_llm: gemma_4_26b_a4b_heretic
+# 2026-06-15 (evening) — default set to gemma4_26b_a4b_uncensored_hauhaucs_balanced
+# after the overnight 3-way A/B vs the two new downloads (fixed T4 brief, count 8,
+# temp 0.85, timed): HauhauCS 26B won — audit 9.12 (only model with ALL 8 prompts
+# >=8.5) at 15.3s/prompt, the FASTEST of the three. It beats the prior default
+# gemma_4_26b_a4b_heretic (8.94 @ 21.8s) on quality AND speed, and matches the new
+# llmfan46 31B (gemma_4_31b_it_uncensored_heretic, 9.12) at ~8x its speed (125.3s).
+# All three stay registered (--model-tag); the 31B is the prose-quality fallback.
+#
+# (Earlier 2026-06-15 — default had been gemma_4_26b_a4b_heretic, itself reversing
+#  the 2026-06-11 dense-31B prose-quality win for speed; superseded by this A/B.)
+default_llm: gemma4_26b_a4b_uncensored_hauhaucs_balanced
 
 # Fallback LLM — used by ``OllamaClient.generate_json(fallback_model=...)``
 # when the primary model fails twice in a row (constrained-decoding +
