@@ -285,7 +285,7 @@ render_pipeline:
 
 watermark:
   enabled: true
-  text: "@YourDAHandle"
+  text: "@MaisonLumiere"
   position: "bottom-right"         # bottom-right|bottom-left|top-right|top-left
   opacity: 0.3                     # 0.0 = invisible, 1.0 = fully opaque
 
