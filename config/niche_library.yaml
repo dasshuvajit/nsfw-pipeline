@@ -71,9 +71,9 @@ niches:
            elegant, noir, blackandwhite, sensual, aiart, digitalart, portrait]
     sub_looks:
       - "1940s studio glamour — butterfly/paramount key + a soft fill, lacquered marcel waves, satin and fur, silver-grey tonal range, classic Hollywood-portrait elegance"
-      - "boudoir vanity — warm practical lamplight at an Art-Deco dressing table (no mirror — perfume bottles, powder compact, lamp), silk robe slipping, dressing-room intimacy"
+      - "boudoir vanity — warm practical lamplight at an Art-Deco dressing table (no mirror — perfume bottles, powder compact, lamp), a belted silk robe, dressing-room intimacy"
       - "noir-tinged glamour — a single hard key and deep studio shadow tail, smoke and satin, dramatic but elegant, half-light on the face"
-      - "premiere-night satin — a floor-length bias-cut satin gown and elbow-length gloves under one hard key, a fur stole slipping off the shoulder, star-arrival poise"
+      - "premiere-night satin — a floor-length bias-cut satin gown and elbow-length gloves under one hard key, a fur stole draped over one arm, star-arrival poise"
       - "silver-screen bath — a deco clawfoot tub piled with foam, marcel waves pinned high, a champagne coupe on the side table, playful starlet luxury"
       - "dressing-gown window — a silk dressing gown loose at a tall hotel window, smoke curling from a cigarette resting in a crystal ashtray on the sill, slatted city light"
     aesthetics:
@@ -141,11 +141,11 @@ niches:
     tags: [boudoir, lingerie, sensual, intimate, bedroom, softlight, feminine,
            elegant, mature, lace, aiart, digitalart, portrait]
     sub_looks:
-      - "soft window-light boudoir — diffuse overcast daylight through a sheer curtain across rumpled white linen, delicate lace or a thin slip slipping, true skin with faint freckles, low-contrast and tender"
+      - "soft window-light boudoir — diffuse overcast daylight through a sheer curtain across rumpled white linen, a delicate lace-edged slip, true skin with faint freckles, low-contrast and tender"
       - "warm intimate bedroom — a single warm bedside lamp, silk and lace, a quiet unguarded moment, soft golden glow"
       - "morning-after intimacy — bright soft morning light, tangled sheets, bare shoulders and a loose camisole, candid and natural"
       - "knit-throw window seat — a deep window seat under a chunky cream knit throw, rain streaking the glass beyond, a steaming mug on the sill, bare legs tucked, hygge intimacy"
-      - "snowfall at the lodge window — soft grey-blue daylight, fat snowflakes falling beyond the glass, a chunky cream knit slipping from a bare shoulder, a steaming mug on the sill, hygge winter calm"
+      - "snowfall at the lodge window — soft grey-blue daylight, fat snowflakes falling beyond the glass, a chunky cream knit worn off one shoulder, a steaming mug on the sill, hygge winter calm"
       - "afternoon shutter light — low slatted sun through half-open shutters banding across a linen-dressed platform bed, drowsy warm haze, unhurried ease"
       - "slow dressing — stepping into a slip dress beside an open wardrobe, soft bounced daylight, caught candid mid-motion, quiet grace"
     aesthetics:
@@ -221,7 +221,7 @@ niches:
     sub_looks:
       - "candlelit gothic chamber — warm flickering candlelight in a dark velvet-and-stone interior, dark lace and silver jewellery, pale luminous skin, romantic and brooding"
       - "moonlit gothic window — cool moonlight through a leaded window in a shadowed room, dark drapery, melancholy-free composed intensity"
-      - "cathedral ruin at dusk — fading violet light through a shattered rose window, ivy over broken stone, dark velvet pooled on the flagstones, solemn romantic stillness"
+      - "cathedral ruin at dusk — fading violet light through a shattered rose window, ivy over broken stone, a dark velvet cloak draped over a fallen column, solemn romantic stillness"
       - "candlelit dark bath — a black marble tub by guttering tapers, rose petals on still dark water, wet pale skin, decadent gothic intimacy"
       - "raven's library — towering shadowed bookshelves and a single oil lamp, a fall of black lace and antique pearls, brooding scholarly sensuality"
       - "candlelit conservatory at midnight — moon-pale light and warm taper-glow among black roses and wrought iron, dark velvet and antique lace, a brooding composed stillness"
@@ -335,11 +335,11 @@ niches:
     sub_looks:
       - "rustic cottage morning — soft window daylight in a wood-and-linen cottage interior, wildflowers and a soft cotton slip, gentle and pastoral"
       - "sunlit orchard — dappled warm light under blossoming trees, flowing natural fabric, a woven basket, dreamy countryside serenity"
-      - "wheat field at golden hour — warm low sun across swaying golden wheat, a linen dress slipping from a shoulder, barefoot and dreamy"
+      - "wheat field at golden hour — warm low sun across swaying golden wheat, a linen dress worn off one shoulder, barefoot and dreamy"
       - "misty herb garden at dawn — soft grey-gold morning light among lavender and climbing roses, dewy gentle sensuality"
       - "reedy lakeside meadow — soft afternoon light by a still lake, a picnic blanket and scattered wildflowers, languid countryside calm"
-      - "amber orchard at harvest — low gold afternoon sun through turning amber-and-russet leaves, windfall apples and a woven basket, a linen dress slipping from one shoulder, warm harvest calm"
-      - "harvest-moon field — a huge low amber harvest moon over cut golden stubble, woodsmoke haze, a knit shawl loose over bare skin, dreamy late-September warmth"
+      - "amber orchard at harvest — low gold afternoon sun through turning amber-and-russet leaves, windfall apples and a woven basket, a linen dress worn off one shoulder, warm harvest calm"
+      - "harvest-moon field — a huge low amber harvest moon over cut golden stubble, woodsmoke haze, a knit shawl wrapped close, dreamy late-September warmth"
     aesthetics:
       palettes: ["soft sage, cream and wildflower", "warm pastoral daylight", "faded pastel countryside"]
       lighting: ["soft window daylight", "dappled orchard sunlight", "warm overcast morning"]
@@ -398,7 +398,7 @@ niches:
       - "Vermeer window light — soft cool north light across pale skin in a quiet panelled chamber, a pearl, a fall of velvet, serene composure, true fine-grain photographic skin"
       - "baroque opulence — gilt and damask, a hazed shaft through tall leaded glass, jewel-toned palette, regal three-quarter poise"
       - "anatomist's studio — a heavy oak table with brass dividers and indistinct sepia sketches, the model resting between poses in a rough wool wrap, candle-lit Leonardo-era scholarship"
-      - "venetian loggia twilight — dusk over a stone balustrade, a brocade gown loosened at the lacing, pearls wound through her hair, La Serenissima opulence"
+      - "venetian loggia twilight — dusk over a stone balustrade, a brocade gown laced close, pearls wound through her hair, La Serenissima opulence"
       - "tenebrist still-life — copper pots, grapes and bread in Caravaggio darkness, one raking candle carving the model out of the same gloom, earthy and sacred"
     aesthetics:
       palettes: ["oxblood, gold and deep shadow", "Vermeer cool-and-cream", "jewel-toned baroque"]
@@ -440,11 +440,11 @@ niches:
     tags: [medieval, castle, noblewoman, fantasy, historical, candlelit, gown,
            elegant, sensual, fineart, aiart, digitalart, portrait]
     sub_looks:
-      - "candlelit stone chamber — warm flame light across a noblewoman in a velvet-and-brocade gown slipping from one shoulder, tapestries and a four-poster behind, intimate and regal"
+      - "candlelit stone chamber — warm flame light across a noblewoman in a velvet-and-brocade gown worn off one shoulder, tapestries and a four-poster behind, intimate and regal"
       - "tower window dawn — cool first light through a narrow arched window onto pale skin, loose laced chemise, quiet self-possession"
       - "great-hall firelight — flickering hearth glow, fur and candle, confident lady-of-the-house composure"
       - "armory by torchlight — unlacing a quilted gambeson among racked steel and oak, torch flame on strong shoulders, warrior-lady confidence"
-      - "solar window needlework — diamond-paned daylight in the private solar, a fur-lined mantle slipping while embroidery lies forgotten in her lap, noble idleness"
+      - "solar window needlework — diamond-paned daylight in the private solar, a fur-lined mantle about her shoulders while embroidery lies forgotten in her lap, noble idleness"
       - "bathing barrel — a steaming oak bathing barrel strewn with herbs, iron sconce candlelight, wet hair over the rim, rough-hewn medieval comfort"
       - "frost on the tower glass — fat snow falling beyond a narrow arched window, frost-breath misting in a cold stone chamber, a fur-lined wool mantle drawn over pale skin, regal-composed midwinter stillness"
     aesthetics:

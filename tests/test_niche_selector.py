@@ -345,6 +345,24 @@ def test_drift_prone_funnel_niches_are_t1_public(lib):
     assert "pooling off" not in looks and "half-undone" not in looks
 
 
+def test_no_sublook_pre_undresses_the_subject(lib):
+    """Catalog-wide invariant: a sub_look describes scene + INTACT wardrobe; the
+    TIER governs undress. Sub_looks that pre-undress ('robe slipping', 'gown
+    loosened at the lacing', 'velvet pooled', 'knit loose over bare skin') fight
+    the T1 covered directive and drove render-drift (art_deco 44%, old_hollywood
+    25% T1 strip). These verbs are banned from sub_looks."""
+    BANNED = ("slipping", "pooled", "loosened at", "loose over bare",
+              "half-undone", "discarded", "falling open", "pooling off")
+    offenders = []
+    for n in lib.niches:
+        for s in n.sub_looks:
+            low = s.lower()
+            hits = [b for b in BANNED if b in low]
+            if hits:
+                offenders.append((n.id, hits, s[:60]))
+    assert not offenders, f"sub_looks pre-undress (let the tier govern): {offenders}"
+
+
 def test_aspirational_luxe_sub_looks_clear_audit_specificity(lib):
     """Each sub_look front-loads the optical craft the audit gate rewards — a
     named light DIRECTION, ≥2 whitelisted MATERIAL nouns, ≥1 MICRO-TEXTURE token,
