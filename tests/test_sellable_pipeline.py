@@ -448,6 +448,52 @@ def test_register_dial_graceful_when_absent(monkeypatch):
     assert "REGISTER for THIS tier" not in _one("T3_artnude")
 
 
+# ── tier-truth visual-QA advisory (2026-06-17) ─────────────────────
+
+class _FakeNudeDet:
+    """Returns canned NudeNet detections keyed by file name."""
+    def __init__(self, mapping):
+        self.mapping = mapping
+
+    def detect(self, path):
+        return self.mapping.get(Path(path).name, [])
+
+
+def test_tier_truth_advisory_flags_skinforward_only(monkeypatch):
+    """Fires on a skin-forward frame (covered chest + bare armpits), stays quiet
+    on a modest frame and on a hard-exposed frame (that goes to quarantine, not
+    advisory), and degrades gracefully with no detector."""
+    det = _FakeNudeDet({
+        "skin.png":    [{"class": "FEMALE_BREAST_COVERED", "score": 0.6},
+                        {"class": "ARMPITS_EXPOSED", "score": 0.55}],
+        "modest.png":  [{"class": "FEMALE_BREAST_COVERED", "score": 0.5}],
+        "exposed.png": [{"class": "FEMALE_BREAST_EXPOSED", "score": 0.7},
+                        {"class": "ARMPITS_EXPOSED", "score": 0.55}],
+    })
+    monkeypatch.setattr(A, "_nudenet_detector", lambda: det)
+    assert "skin-forward" in A._tier_truth_advisory(Path("skin.png"))
+    assert A._tier_truth_advisory(Path("modest.png")) == ""    # no bare-skin context
+    assert A._tier_truth_advisory(Path("exposed.png")) == ""   # hard-exposed → quarantine, not advisory
+    monkeypatch.setattr(A, "_nudenet_detector", lambda: None)  # graceful without detector
+    assert A._tier_truth_advisory(Path("skin.png")) == ""
+
+
+def test_posting_checklist_surfaces_advisories():
+    """Advisories render a dedicated double-check section listing the frames;
+    absent advisories render no such section."""
+    base = {"da_folder": "X", "labels": {"ai_tools": "AI"}, "cover_image": "a.png",
+            "price_by_tier": "$2", "da_groups": [],
+            "gated": {"count": 0, "images": [], "metadata": {}},
+            "public": {"count": 2, "images": ["a.png", "b.png"],
+                       "metadata": {"title": "t"},
+                       "advisories": {"b.png": "skin-forward (bare armpits) — verify by eye"}}}
+    md = A._posting_checklist(base, is_explicit=False)
+    assert "Double-check these skin-forward frames" in md
+    assert "`b.png`" in md and "ADVISORY" in md
+    base["public"]["advisories"] = {}
+    assert "Double-check these skin-forward frames" not in A._posting_checklist(base, is_explicit=False)
+
+
 def test_next_persona_serial_increments_and_persists(tmp_path, monkeypatch):
     """Per-persona appearance serial: 1-based, persists, independent per persona,
     case-insensitive key (matches select_persona's lookup)."""

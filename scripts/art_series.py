@@ -898,6 +898,7 @@ def _emit_posting_templates(pkg: Path, metadata: dict, tier: str,
     ai = metadata["labels"]["ai_tools"]
     fam_disp = metadata.get("family_display") or ""
     serial = metadata.get("family_serial")
+    pub_advisories = metadata["public"].get("advisories") or {}
 
     def _write(images: list[str], meta: dict, is_gated: bool) -> None:
         base = meta.get("title") or folder
@@ -932,6 +933,8 @@ def _emit_posting_templates(pkg: Path, metadata: dict, tier: str,
                 f"PRICE: {price}\n"
                 f"FILE: {where}/{img}  ({note})\n"
             )
+            if not is_gated and pub_advisories.get(img):
+                txt += f"REVIEW: ⚠ {pub_advisories[img]}\n"
             (tdir / f"{Path(img).stem}.txt").write_text(txt)
 
     _write(metadata["public"]["images"], metadata["public"]["metadata"], False)
@@ -1014,6 +1017,49 @@ def _nudity_hit(image_path: Path, detector_paths: "tuple | list") -> bool:
     return False
 
 
+# Advisory nudge (NOT a gate). Calibrated 2026-06-17 on the aspirational_luxe T2
+# render: NudeNet CANNOT separate a topless draped-shirt frame from a clean
+# bare-shouldered dress — both score FEMALE_BREAST_COVERED ~0.55-0.66 + armpits
+# exposed (the clean dress scored HIGHER on both). So no threshold catches the
+# topless without also catching the clean frame. Rather than quarantine good
+# frames (useless) or do nothing, we flag SKIN-FORWARD public frames for the
+# operator's mandatory visual QA — a "look harder at these" triage, honestly not
+# a topless detector. Floor matched to the calibration (armpits 0.53-0.76).
+_ADVISORY_SKIN_CONF = 0.40
+_ADVISORY_SKIN_CTX = ("ARMPITS_EXPOSED", "BELLY_EXPOSED")
+
+
+def _tier_truth_advisory(image_path: Path) -> str:
+    """Non-blocking advisory for a public-bound frame that PASSED ``_nudity_hit``
+    but is skin-forward (bare shoulders/torso while the chest reads only
+    'covered') — the exact configuration where NudeNet's covered-vs-exposed call
+    is unreliable. Returns a short reason for the operator to eyeball, or '' (no
+    detector / hard-exposed-and-already-quarantined / modest frame). Never
+    quarantines and never claims a problem."""
+    nd = _nudenet_detector()
+    if nd is None:
+        return ""
+    try:
+        dets = nd.detect(str(image_path))
+    except Exception:  # noqa: BLE001 — advisory is best-effort
+        return ""
+    # Hard exposed → _nudity_hit already quarantined it; no advisory needed.
+    if any(d.get("class") in _NUDENET_EXPOSED and d.get("score", 0) >= _NUDENET_CONF
+           for d in dets):
+        return ""
+    covered = any(d.get("class") == "FEMALE_BREAST_COVERED"
+                  and d.get("score", 0) >= _ADVISORY_SKIN_CONF for d in dets)
+    skin = sorted({d["class"] for d in dets
+                   if d.get("class") in _ADVISORY_SKIN_CTX
+                   and d.get("score", 0) >= _ADVISORY_SKIN_CONF})
+    if covered and skin:
+        where = ", ".join(c.replace("_EXPOSED", "").lower() for c in skin)
+        return (f"skin-forward (bare {where}, chest read as merely covered) — "
+                f"verify by eye the top isn't open/sheer; NudeNet's covered-vs-"
+                f"exposed call is unreliable on draped or dim frames")
+    return ""
+
+
 def _package(
     out_dir: Path, selection, tier: str,
     main_manifest: list[dict], cover_manifest: list[dict],
@@ -1040,6 +1086,8 @@ def _package(
     main_keepers = _keepers_of(main_manifest, out_dir)
     cover_keepers = _keepers_of(cover_manifest, out_dir)
 
+    public_advisories: dict[str, str] = {}
+
     def _copy_into(paths: list[Path], dest: Path, *, screen: bool = False) -> list[str]:
         names = []
         for p in paths:
@@ -1054,6 +1102,10 @@ def _package(
                       f"(NEVER post publicly; restore manually only if the "
                       f"detector is wrong).", file=sys.stderr, flush=True)
                 continue
+            if screen:  # passed the gate — flag skin-forward frames for visual QA
+                adv = _tier_truth_advisory(p)
+                if adv:
+                    public_advisories[p.name] = adv
             shutil.copy(p, dest / p.name)
             names.append(p.name)
         return names
@@ -1135,7 +1187,7 @@ def _package(
         "watermark_status": "public watermarked; gated clean",
         "cover_image": cover_name,
         "public": {"count": len(public_names), "images": public_names,
-                   "metadata": public_meta},
+                   "metadata": public_meta, "advisories": public_advisories},
         "gated": {"count": len(gated_names), "images": gated_names,
                   "metadata": gated_meta},
     }
@@ -1144,6 +1196,10 @@ def _package(
     _emit_posting_templates(pkg, metadata, tier, is_explicit)
     print(f"  packaged: {pkg}  (public={len(public_names)}, gated={len(gated_names)}, "
           f"cover={cover_name}, +posting_templates/)", flush=True)
+    if public_advisories:
+        print(f"  ⚠ visual-QA advisory: {len(public_advisories)} skin-forward "
+              f"public frame(s) flagged for a double-check (see POSTING_CHECKLIST.md) "
+              f"— {', '.join(public_advisories)}", flush=True)
     return pkg
 
 
@@ -1188,6 +1244,18 @@ def _posting_checklist(meta: dict, is_explicit: bool) -> str:
         f"- Tags: {', '.join(pub['metadata'].get('tags', []))}",
         "",
     ]
+    advisories = pub.get("advisories") or {}
+    if advisories:
+        lines += [
+            "### ⚠ Double-check these skin-forward frames (ADVISORY, not a block)",
+            "> They passed the nudity screen but show bare shoulders/torso where "
+            "NudeNet's covered-vs-exposed call is unreliable. The detector cannot "
+            "tell a clean bare-shouldered dress from an open/draped top — so "
+            "**eyeball each by hand** before posting (it does NOT mean they're "
+            "nude).",
+        ]
+        lines += [f"- [ ] `{img}` — {reason}" for img, reason in advisories.items()]
+        lines.append("")
     if is_explicit:
         lines += [
             f"## GATED set (Subscription / Premium Gallery) — {gat['count']} "
