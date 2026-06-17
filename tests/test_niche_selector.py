@@ -347,9 +347,10 @@ def test_drift_prone_funnel_niches_are_t1_public(lib):
 
 def test_aspirational_luxe_sub_looks_clear_audit_specificity(lib):
     """Each sub_look front-loads the optical craft the audit gate rewards — a
-    named light DIRECTION, ≥3 whitelisted MATERIAL nouns, ≥2 MICRO-TEXTURE
-    tokens, and ZERO cliché phrases — so the seed gives the LLM the raw material
-    to clear the 8.5 specificity ladder before it elaborates."""
+    named light DIRECTION, ≥2 whitelisted MATERIAL nouns, ≥1 MICRO-TEXTURE token,
+    and ZERO cliché phrases — so the seed clears the (2026-06-17 softened)
+    specificity ladder. The materials must also VARY across scenes (the sameness
+    fix): no single material appears in every sub_look."""
     from scripts.audit_prompts import (
         _CLICHE_PHRASES,
         _LIGHT_DIRECTION_TOKENS,
@@ -357,9 +358,16 @@ def test_aspirational_luxe_sub_looks_clear_audit_specificity(lib):
         _MICRO_TEXTURE_TOKENS,
     )
     n = lib.by_id("aspirational_luxe")
+    per_look_materials = []
     for s in n.sub_looks:
         low = s.lower()
+        mats = {t for t in _MATERIAL_NOUNS if t in low}
+        per_look_materials.append(mats)
         assert any(t in low for t in _LIGHT_DIRECTION_TOKENS), f"no light direction: {s!r}"
-        assert len({t for t in _MATERIAL_NOUNS if t in low}) >= 3, f"thin materials: {s!r}"
-        assert len({t for t in _MICRO_TEXTURE_TOKENS if t in low}) >= 2, f"thin micro-texture: {s!r}"
+        assert len(mats) >= 2, f"thin materials: {s!r}"
+        assert len({t for t in _MICRO_TEXTURE_TOKENS if t in low}) >= 1, f"thin micro-texture: {s!r}"
         assert not [c for c in _CLICHE_PHRASES if c in low], f"cliché in sub_look: {s!r}"
+    # diversity: no material is shared by ALL sub_looks (the brass/satin/stone
+    # cramming that made every render look alike).
+    shared = set.intersection(*per_look_materials)
+    assert not shared, f"material(s) in EVERY sub_look (sameness): {shared}"

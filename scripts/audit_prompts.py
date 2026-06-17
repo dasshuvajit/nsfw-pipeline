@@ -143,6 +143,13 @@ _MATERIAL_NOUNS = (
     "terracotta", "ceramic", "pearl", "chrome", "latex", "cotton",
     "fur", "gilt", "gilded", "bronze", "obsidian", "damask", "tulle",
     "chiffon", "rattan", "wicker", "burlap", "denim", "glass",
+    # Scene/architectural materials (2026-06-17): broadened so a prompt can vary
+    # its materials BY SCENE rather than cramming the same luxe trio (brass/
+    # satin/stone) into every image to hit a quota — the cause of catalog
+    # sameness. Paired with a lowered threshold (>=2) below.
+    "stucco", "travertine", "teak", "concrete", "canvas", "plaster",
+    "granite", "slate", "bamboo", "jute", "sisal", "terrazzo", "suede",
+    "steel", "driftwood", "raffia", "cashmere", "organza", "tweed", "sand",
 )
 _MICRO_TEXTURE_TOKENS = (
     "pores", "vellus", "freckle", "mole", "catchlight", "sheen",
@@ -555,14 +562,18 @@ def score_prompt(
     if not any(t in text_lower for t in _LIGHT_DIRECTION_TOKENS):
         score -= 0.5
         issues.append("NO_LIGHT_DIRECTION: light has no named direction")
+    # Lowered 2026-06-17 (was >=3 materials / >=2 micro). The old quotas forced
+    # the LLM to stuff the same whitelisted nouns into every prompt → catalog
+    # sameness + a noun-pile reading. >=2 materials / >=1 micro still rewards
+    # concreteness over vague AI mush without dictating WHICH details.
     n_materials = sum(1 for m in _MATERIAL_NOUNS if m in text_lower)
-    if n_materials < 3:
+    if n_materials < 2:
         score -= 0.5
         issues.append(f"THIN_MATERIALS: only {n_materials} concrete material nouns")
     n_micro = sum(1 for m in _MICRO_TEXTURE_TOKENS if m in text_lower)
-    if n_micro < 2:
+    if n_micro < 1:
         score -= 0.5
-        issues.append(f"THIN_MICRO_TEXTURE: only {n_micro} micro-texture tokens")
+        issues.append(f"THIN_MICRO_TEXTURE: no micro-texture token")
 
     # Trailing period
     if not text.rstrip().endswith((".", "!", "?")):

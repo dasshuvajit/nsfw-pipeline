@@ -280,16 +280,26 @@ WHAT MAKES YOUR PROMPTS EXCELLENT — study the exemplars and match their depth:
    gallery-detached. Beautiful AND hot, both at once.
 
 HARD RULES:
-- SENTENCE 1 ESTABLISHES HER. The first sentence names the woman, her pose or \
-  action, and where she is — the SUBJECT leads the prompt; light and setting \
-  develop from sentence 2 onward. Vary WHAT carries that first sentence (her \
-  action, her placement, a prop she touches, the light striking her body) — \
-  but she appears in it, every time. Never open on an empty room or a light \
-  source alone.
-- 110-160 words of DENSE, flowing natural prose — AIM for the lower-to-middle of \
-  that band (~150 words); brevity sharpens Chroma's adherence and overlong prose \
-  blurs it, so do NOT crowd the top. Every phrase earns its place. No padding, \
-  no repetition.
+- WRITE FOR A HUMAN FIRST. The prompt must read like a photographer describing \
+  a real photo to a person — clear, natural sentences, ONE idea each, in plain \
+  order: who she is and what she is doing, then where, then the light, then the \
+  fine details. No clause-piles, no riddles, no cramming nouns to hit a quota. \
+  If you cannot follow it on a single read, rewrite it simpler.
+- SENTENCE 1 IS ABOUT HER. The woman is the GRAMMATICAL SUBJECT of the opening \
+  sentence — it opens ON HER (her pose, action or presence), says who she is and \
+  what she is doing, and where she is. NEVER open on a prop, a hand, an object \
+  or a light source — they come later. Opening on "a hand brushes…" or "light \
+  rakes across…" makes the image model render a stray disembodied hand or lose \
+  her entirely; always lead with the woman herself.
+- 110-160 words of flowing, READABLE natural prose — aim for ~150; brevity \
+  sharpens Chroma's adherence and overlong or convoluted prose blurs it. Every \
+  phrase earns its place; no padding, no repetition, no noun-stuffing.
+- VARY THE SPECIFICS image to image. Each scene gets its OWN objects, surfaces, \
+  materials and wardrobe that FIT that particular place — do NOT reach for the \
+  same brass lantern, satin slip and stone bench every time. Pick details the \
+  way a real location would actually have them, so consecutive images read as \
+  DIFFERENT photographs, never one set redressed. Avoid pet phrases ("creamy \
+  bokeh", "salt sheen") repeating across the series. \
 - NO tag-soup (no long comma-runs of keywords). NO "masterpiece, best quality, \
   8k, ultra-detailed" boosters. NO weighting syntax like (word:1.3). NO lists.
 - Honor the requested TIER's state of undress exactly, and the TARGET LOOK given.
@@ -614,12 +624,16 @@ _T4_SHOT_REMAP = {"close_up": "medium", "bust": "full_body"}
 # light source — one structural template catalog-wide). The woman appears in
 # sentence 1 EVERY time (Chroma front-loads subject adherence); what varies is
 # what carries the clause. Length 5 — coprime with the 8 framing targets.
+# SUBJECT-FIRST ONLY (2026-06-17). Every lead keeps the WOMAN as the subject of
+# sentence 1. The old prop-first / light-first leads were removed: a same-seed
+# Chroma A/B proved "a hand brushes a bottle… leading to a woman" made the model
+# render a stray disembodied hand and shrink the subject. Lead with her, always.
 OPENER_LEADS: tuple[str, ...] = (
     "her ACTION leads — open mid-gesture on what she is doing",
-    "her PLACEMENT leads — open on where she is in the space",
-    "a PROP or material she touches leads, then her",
-    "the LIGHT STRIKING HER leads — light landing on her body, not the room",
-    "her GAZE/PRESENCE leads — open on her meeting the lens",
+    "her PLACEMENT leads — open on where she sits, stands or reclines in the space",
+    "her GAZE leads — open on her eyes meeting (or softly avoiding) the lens",
+    "her MOOD leads — open on the feeling she carries (calm, playful, lost in thought)",
+    "her FORM leads — open on her pose and the line of her body",
 )
 
 # Craft-note placement rotation (audit: 93% of prompts ended in the same
@@ -627,12 +641,12 @@ OPENER_LEADS: tuple[str, ...] = (
 # coprime with framing(8) and leads(5). "omit" prompts carry the look purely
 # through described light/texture.
 CRAFT_PLACEMENTS: tuple[str, ...] = (
-    "mid", "tail", "omit", "mid", "tail", "omit", "mid",
+    "omit", "tail", "omit", "mid", "tail", "omit", "tail",
 )
 _CRAFT_DIRECTIVES = {
-    "mid": ("Weave the lens/film craft note INTO THE MIDDLE of the prose "
-            "(e.g. while describing what the glass does to the background) — "
-            "do NOT end on a camera sentence."),
+    "mid": ("If you mention a lens or film at all, fold it in as a brief, "
+            "NATURAL aside mid-prose — never a jammed technical clause, and "
+            "never a closing 'Shot on …mm' formula."),
     "tail": ("You may close with a brief craft note, but phrase it freshly — "
              "NEVER the formula 'Shot on …mm'. A lens is glass, not film: "
              "'an 85mm at f/1.8 on Portra 400', never '85mm film'."),
@@ -1104,9 +1118,10 @@ def generate_one(
     structure_variety = ""
     if opener_lead:
         structure_variety += (
-            f"\n\nSENTENCE-1 LEAD for THIS image: {opener_lead}. She appears IN "
-            f"sentence 1 regardless — the woman and her pose are established "
-            f"first; the light and setting develop from there."
+            f"\n\nSENTENCE-1 LEAD for THIS image: {opener_lead}. The woman is the "
+            f"GRAMMATICAL SUBJECT of sentence 1 — it opens ON HER and is ABOUT "
+            f"her; NEVER open on a prop, hand, object or light source. Light and "
+            f"setting develop from sentence 2."
         )
     if craft_placement:
         directive = _CRAFT_DIRECTIVES.get(craft_placement, "")
