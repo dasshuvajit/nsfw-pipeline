@@ -115,7 +115,7 @@
   "ksampler": {
     "inputs": {
       "seed": 0,
-      "steps": 12,
+      "steps": 14,
       "cfg": 1,
       "sampler_name": "dpmpp_2m",
       "scheduler": "simple",
