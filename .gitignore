@@ -58,5 +58,6 @@ reference_images/*
 *.log
 logs/
 
-# Runtime lock file
+# Runtime lock files
 /tmp/nsfw_pipeline.lock
+.claude/*.lock
