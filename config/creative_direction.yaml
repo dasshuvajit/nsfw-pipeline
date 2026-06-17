@@ -34,6 +34,32 @@ content_lean: >-
   explicit and confident and the body and anatomy are presented attractively,
   never coy or demure
 
+# Tier-split sensual REGISTER dial. Consumed by art_director.generate_one,
+# which appends the matching tier's line as the LAST (most-weighted) line of the
+# tier directive. Public tiers (T1/T2) stay tasteful / aspirational / fine-art-
+# lifestyle framed so DeviantArt's hyperrealism clause is respected; gated tiers
+# (T3/T4) lean overtly aspirational-sexy for Fanvue/Premium. `content_lean` above
+# stays the base HEAT lean; this refines it PER TIER and is the dial to retune
+# how hot each tier reads. KEEP these free of audit-cliché adjectives
+# ("luminous/sultry/breathtaking/strikingly beautiful") — they describe a lean,
+# they are NOT copy for the LLM to echo. Absent → generate_one falls back to the
+# base content_lean only (no per-tier register), so deleting this is safe.
+sensual_register:
+  T1_suggestive: >-
+    tasteful and aspirational — confident come-hither glamour through styling,
+    pose and gaze, never crude; clearly fine-art / lifestyle-framed for a public
+    gallery
+  T2_implied: >-
+    flirtatious and tease-forward — cleavage-forward styling with the explicit
+    just hidden; desirable and a little dangerous, the withheld reveal doing the
+    work, still public-safe
+  T3_artnude: >-
+    overtly sensual, aspirational-sexy — warm confident eroticism, the bare body
+    desirable and inviting, glamour-nude heat, not cool gallery restraint
+  T4_explicit: >-
+    overtly sensual at full candor — confident heat throughout, the explicit one
+    beautiful element of a flowing, gorgeously-lit figure, never crude or clinical
+
 # WIDE look variety — sampled per image so the series isn't clones. Every entry
 # is a young-adult, attractive look. 2026-06 audit overhaul: the old 8-hair/
 # 6-figure pools were all long-hair colorways with one busty entry and NO

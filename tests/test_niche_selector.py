@@ -301,3 +301,52 @@ def test_risky_theme_niches_block_problematic_tropes(lib):
 def test_monochrome_niche_specifies_black_and_white(lib):
     n = lib.by_id("monochrome_fine_art")
     assert "black-and-white" in n.brief_seed.lower() or "black and white" in n.brief_seed.lower()
+
+
+# ── aspirational-luxe lifestyle lane (2026-06-17) ──────────────────
+
+def test_aspirational_luxe_lifestyle_niche_present(lib):
+    """The modern aspirational-luxe lifestyle lane. PUBLIC lane is T1 only —
+    a T2 validation render drifted to bare breasts on the undress-coded scenes
+    (NudeNet false-negatived the topless), so T2 is dropped like poolside; T1
+    forces covered wardrobe for DA, T3/T4 are gated/Fanvue."""
+    n = lib.by_id("aspirational_luxe")
+    assert n.family == "golden_hour"
+    assert n.tier_band == ["T1_suggestive", "T3_artnude", "T4_explicit"]
+    assert "T2_implied" not in n.tier_band      # the drift-prone public tier is excluded
+    assert len(n.sub_looks) >= 6
+    assert n.aesthetics.get("palettes") and n.aesthetics.get("lighting") \
+        and n.aesthetics.get("photographers")
+
+
+def test_aspirational_luxe_is_modern_lifestyle_not_fantasy(lib):
+    """It must read as contemporary lifestyle editorial — NOT a period/fantasy
+    costume piece — so it stays a distinct lane and respects the DA hyperrealism
+    posture (modern-lifestyle framing, not 'real person' claims)."""
+    n = lib.by_id("aspirational_luxe")
+    bs = n.brief_seed.lower()
+    assert "lifestyle" in bs and "not" in bs and ("period" in bs or "fantasy" in bs)
+    for s in n.sub_looks:
+        low = s.lower()
+        assert not any(w in low for w in ("velvet", "marble", "chiton", "laurel")), \
+            f"lifestyle sub_look drifts to a fantasy/period material: {s!r}"
+
+
+def test_aspirational_luxe_sub_looks_clear_audit_specificity(lib):
+    """Each sub_look front-loads the optical craft the audit gate rewards — a
+    named light DIRECTION, ≥3 whitelisted MATERIAL nouns, ≥2 MICRO-TEXTURE
+    tokens, and ZERO cliché phrases — so the seed gives the LLM the raw material
+    to clear the 8.5 specificity ladder before it elaborates."""
+    from scripts.audit_prompts import (
+        _CLICHE_PHRASES,
+        _LIGHT_DIRECTION_TOKENS,
+        _MATERIAL_NOUNS,
+        _MICRO_TEXTURE_TOKENS,
+    )
+    n = lib.by_id("aspirational_luxe")
+    for s in n.sub_looks:
+        low = s.lower()
+        assert any(t in low for t in _LIGHT_DIRECTION_TOKENS), f"no light direction: {s!r}"
+        assert len({t for t in _MATERIAL_NOUNS if t in low}) >= 3, f"thin materials: {s!r}"
+        assert len({t for t in _MICRO_TEXTURE_TOKENS if t in low}) >= 2, f"thin micro-texture: {s!r}"
+        assert not [c for c in _CLICHE_PHRASES if c in low], f"cliché in sub_look: {s!r}"

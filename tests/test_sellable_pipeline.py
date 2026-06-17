@@ -378,6 +378,76 @@ def test_generate_series_locked_look_overrides_rotation(monkeypatch):
         [AD.FRAMING_TARGETS[(i + 2) % len(AD.FRAMING_TARGETS)] for i in range(3)]
 
 
+# ── influencer-substance prompt-engine knobs (2026-06-17) ──────────
+
+def test_tier_directives_carry_wardrobe_cut_vocab():
+    """T1-T3 directives name the garment's CUT/exposure (the specificity the
+    reference style had and we lacked); no directive smuggles in an audit cliché
+    adjective the LLM would echo. T4 omits cut vocab by design — wardrobe is off
+    and the REVEAL_STYLES axis governs the bare reveal."""
+    from scripts.audit_prompts import _CLICHE_PHRASES
+    assert any(w in AD.TIER_DIRECTIVES["T1_suggestive"].lower()
+               for w in ("cut", "neckline", "slit"))
+    assert any(w in AD.TIER_DIRECTIVES["T2_implied"].lower()
+               for w in ("bikini", "sheer", "cut"))
+    assert "cut to frame" in AD.TIER_DIRECTIVES["T3_artnude"].lower()
+    for tier, d in AD.TIER_DIRECTIVES.items():
+        assert not [c for c in _CLICHE_PHRASES if c in d.lower()], \
+            f"{tier} directive contains an audit cliché phrase"
+
+
+def test_sensual_register_dial_is_tier_split_and_cliche_free():
+    """The dial exists for all four tiers, splits public-vs-gated register
+    (T1/T2 tasteful/fine-art-framed, T3/T4 overt), and is free of audit-cliché
+    adjectives (it describes a lean, it is not copy for the LLM to echo)."""
+    from scripts.audit_prompts import _CLICHE_PHRASES
+    sr = AD._CREATIVE.get("sensual_register") or {}
+    assert set(sr) == {"T1_suggestive", "T2_implied", "T3_artnude", "T4_explicit"}
+    for tier, text in sr.items():
+        low = text.lower()
+        assert not [c for c in _CLICHE_PHRASES if c in low], f"{tier} register has a cliché"
+        if tier in ("T1_suggestive", "T2_implied"):
+            assert any(w in low for w in ("tasteful", "public-safe", "fine-art", "public"))
+        else:
+            assert "overt" in low
+
+
+class _RecordingClient:
+    """Captures the user prompt generate_one assembles so we can assert the
+    tier-split register lands in the directive."""
+    def __init__(self):
+        self.user_prompts: list[str] = []
+
+    def generate_json(self, system, user, **kw):  # noqa: D401, ARG002
+        self.user_prompts.append(user)
+        return {"prompt": "x", "orientation": "portrait",
+                "shot_type": "medium", "framing_rationale": ""}
+
+
+def _one(tier):
+    c = _RecordingClient()
+    AD.generate_one(c, brief="b", tier=tier, sub_look="s — x", avoid=[],
+                    banned_openers=[], model_tag="m", temperature=0.8)
+    return c.user_prompts[0]
+
+
+def test_generate_one_appends_tier_split_register():
+    """generate_one appends the matching tier's register as the last-weighted
+    'REGISTER for THIS tier' line — public text for T1, overt text for T3."""
+    t1 = _one("T1_suggestive")
+    t3 = _one("T3_artnude")
+    assert "REGISTER for THIS tier" in t1 and "REGISTER for THIS tier" in t3
+    assert "public gallery" in t1            # the T1 register text
+    assert "glamour-nude heat" in t3         # the T3 register text
+    assert "public gallery" not in t3        # tiers don't bleed
+
+
+def test_register_dial_graceful_when_absent(monkeypatch):
+    """No sensual_register config → no REGISTER line, prompt engine unchanged."""
+    monkeypatch.setattr(AD, "_CREATIVE", {})
+    assert "REGISTER for THIS tier" not in _one("T3_artnude")
+
+
 def test_next_persona_serial_increments_and_persists(tmp_path, monkeypatch):
     """Per-persona appearance serial: 1-based, persists, independent per persona,
     case-insensitive key (matches select_persona's lookup)."""

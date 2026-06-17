@@ -332,6 +332,39 @@ niches:
       photographers: ["pastoral lifestyle film", "Tim Walker whimsical editorial", "natural-light countryside"]
     brief_seed: "Cottagecore pastoral — one woman in soft rustic countryside light, wildflowers and linen, gentle and dreamy."
 
+  # Modern aspirational-luxe LIFESTYLE lane (2026-06-17). Adopts the SUBSTANCE of
+  # the influencer-glamour reference style (specific present-day luxe locations +
+  # candid micro-moments) in our Chroma flowing-prose craft — NOT the SDXL
+  # booster format. PUBLIC lane is T1 ONLY: a 2026-06-17 T2 validation render
+  # drifted to bare breasts on the undress-coded scenes (open shirt in bed / at
+  # the pool) and NudeNet false-negatived the topless frame as "covered" — so
+  # T2 is dropped (same render-drift class as poolside_goldenhour). T1 forces a
+  # covering garment for DA public; T3/T4 are gated/Fanvue where nudity is fine.
+  # Sub_looks front-load named light + whitelisted materials + micro-texture to
+  # clear the audit specificity ladder. Caveat: the overt-influencer lane is
+  # DA-saturated + hyperrealism-clause-risky — keep camera-real T3/T4 Fanvue-primary.
+  - id: aspirational_luxe
+    class: trend
+    weight: 1.0
+    tier_band: [T1_suggestive, T3_artnude, T4_explicit]
+    da_folder: "Aspirational Luxe"
+    family: golden_hour
+    source: poolside_golden_hour
+    tags: [lifestyle, luxury, glamour, riviera, goldenhour, resort, sensual,
+           editorial, aspirational, summer, aiart, digitalart, portrait]
+    sub_looks:
+      - "sun-warmed terrace at golden hour — low gold light rakes in from camera-left across her bare shoulders, catching a faint sheen of salt on her skin and the dew on a sweating glass; a brass tray, a linen wrap and a ceramic bowl of figs rest on the warm stone ledge, the cerulean sea soft behind, candid resort ease"
+      - "infinity-pool bar at dusk — the last warm sun skims across from the right, lighting the beaded dew on a chilled glass and a soft flush high on her cheek as she leans over the teak-and-brass bar; rattan stools, a linen sarong and pale satin catch the glow, the still water holding a peach-and-amber sky"
+      - "candlelit penthouse, the morning after — warm lamp-and-candle glow pools from camera-right, grazing fine down at her temple and a catchlight in her eye as she half-reclines on rumpled linen; brass, pale satin cushions and a ceramic cup sit close, sun-bleached oak and the dark city beyond the glass, a private unposed hush"
+      - "wisteria garden under soft overcast — even silver-gold daylight from above settles over trailing blooms as she sits on a weathered stone bench, a sheer linen wrap slipping at the shoulder; a brass lantern, a rattan chair and a pearl-pale satin cushion nearby, dew beading on petals and a gentle flush across her chest, lush unhurried calm"
+      - "golden-hour rooftop lounge — warm low sun rakes from camera-left over the skyline, throwing a soft sheen along her arms and a catchlight in her eye; she curls on a rattan daybed with linen cushions, a brass side-table and a sweating glass of wine beside her, the city haze gilding the air, easy cocktail-hour glamour"
+      - "lazy morning in bed — soft window daylight from the left washes over rumpled linen and her bare shoulder, picking out fine down along her arm and a warm flush on her cheek; she lies on her stomach with a phone, a ceramic mug and a brass lamp on the oak nightstand, a creased satin pillowcase beneath her, intimate unhurried ease"
+    aesthetics:
+      palettes: ["sun-bleached white-and-cerulean", "warm terracotta-and-gold", "soft blush-and-cream resort tones"]
+      lighting: ["low warm golden-hour sun", "soft poolside sky-bounce fill", "warm candle-and-lamp interior glow"]
+      photographers: ["Slim Aarons jet-set lifestyle", "Gray Malin aerial-resort palette", "soft natural-light travel editorial"]
+    brief_seed: "Aspirational modern-luxe lifestyle — one woman living an enviable present-day moment: a whitewashed Mediterranean terrace, an infinity pool, a candlelit penthouse, a wisteria garden. Candid micro-moments, not posed fantasy; this is contemporary lifestyle editorial, NOT a costume, period or fantasy piece. SIGNATURE MATERIALS: linen, rattan, brushed brass, beaded glass, pale satin, ceramic, sun-bleached oak and warm stone — clean modern resort textures, never heavy period drapery."
+
   # ──────── FANTASY / HISTORICAL / FINE-ART (2026-06-04, competitor-proven) ────────
   # The DeviantArt field thrives on fantasy/historical framing (see
   # docs/COMPETITOR_INTEL.md): it reads as ART (dodges the hyperrealism clause),

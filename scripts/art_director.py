@@ -141,7 +141,9 @@ TIER_DIRECTIVES = {
         "implied-nude. The heat comes from the wardrobe FLATTERING her shape, a "
         "little leg / shoulder / back, a knowing pose and an inviting gaze — "
         "confident, magnetic, come-hither glamour, never prim. Sexy through "
-        "STYLING, not skin."
+        "STYLING, not skin. Name ONE specific flattering CUT — a deep-but-"
+        "anchored neckline, off-shoulder, a high slit, a body-skimming bias "
+        "line — but the fabric still fully COVERS breasts and groin and stays put."
     ),
     "T2_implied": (
         "T2 — IMPLIED (the sweet spot: she reads NUDE, nothing explicit shows). "
@@ -150,7 +152,9 @@ TIER_DIRECTIVES = {
         "the crop, or backlight. The TEASE is the product: maximally sensual and "
         "suggestive, the viewer's eye finishing what's withheld. Show a lot — bare "
         "shoulders, back, the side and underside of a breast, hip, the long legs, "
-        "the inner line of the chest — and reveal nothing explicit. Hot, not coy."
+        "the inner line of the chest — and reveal nothing explicit. Hot, not coy. "
+        "Lean on ONE revealing CUT as the tease — a micro bikini, a sheer cover-up, "
+        "a barely-there slip — while breasts and groin stay JUST hidden."
     ),
     "T3_artnude": (
         "T3 — FINE-ART NUDE with SEX APPEAL. Tasteful full nudity — bare breasts "
@@ -160,7 +164,8 @@ TIER_DIRECTIVES = {
         "NOT the subject and is NOT shown frontally or centred — keep it natural "
         "and soft, turned, closed, shadowed or out of view (that frank reveal is "
         "T4's job, not this). The register is 'stunning sensual nude,' never "
-        "'clinical figure study.'"
+        "'clinical figure study.' Any wardrobe is a sheer cover-up falling open "
+        "or a slip off the shoulders — cut to frame the bare body, never conceal it."
     ),
     "T4_explicit": (
         "T4 — EXPLICIT. Full nudity with the vulva bare and visible — but as "
@@ -179,7 +184,8 @@ TIER_DIRECTIVES = {
         "lost to deep shadow): revealed artistically and off-centre, but "
         "unmistakably visible. NEVER legs-splayed-flat-to-camera with the vulva "
         "dead-centred under even light, and NEVER concealed either — relaxed-open, "
-        "soft-lit and shown. Confident and sensual, never crude."
+        "soft-lit and shown. Confident and sensual, never crude. Any fabric is "
+        "fallen or pooled, never a covering garment."
     ),
 }
 
@@ -280,8 +286,10 @@ HARD RULES:
   action, her placement, a prop she touches, the light striking her body) — \
   but she appears in it, every time. Never open on an empty room or a light \
   source alone.
-- 110-160 words of DENSE, flowing natural prose. Every phrase earns its place. \
-  No padding, no repetition.
+- 110-160 words of DENSE, flowing natural prose — AIM for the lower-to-middle of \
+  that band (~150 words); brevity sharpens Chroma's adherence and overlong prose \
+  blurs it, so do NOT crowd the top. Every phrase earns its place. No padding, \
+  no repetition.
 - NO tag-soup (no long comma-runs of keywords). NO "masterpiece, best quality, \
   8k, ultra-detailed" boosters. NO weighting syntax like (word:1.3). NO lists.
 - Honor the requested TIER's state of undress exactly, and the TARGET LOOK given.
@@ -1025,6 +1033,14 @@ def generate_one(
     tier_directive = TIER_DIRECTIVES.get(tier, TIER_DIRECTIVES["T3_artnude"])
     if extra_directive:
         tier_directive = f"{tier_directive}\n{extra_directive}"
+    # Tier-split sensual REGISTER dial (config/creative_direction.yaml::
+    # sensual_register). Public tiers (T1/T2) stay tasteful / fine-art-lifestyle
+    # framed for DA; gated tiers (T3/T4) lean overtly aspirational-sexy for
+    # Fanvue/Premium. Appended LAST so it sits in the most-weighted position;
+    # absent key → byte-identical old behavior.
+    register = (_CREATIVE.get("sensual_register") or {}).get(tier, "")
+    if register:
+        tier_directive = f"{tier_directive}\nREGISTER for THIS tier: {register.strip()}"
     variety = ""
     if avoid or banned_openers:
         parts: list[str] = [
