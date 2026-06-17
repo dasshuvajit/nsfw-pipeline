@@ -42,16 +42,17 @@ def test_library_loads_with_core_and_trend(lib):
 
 def test_every_niche_has_enough_sub_looks(lib):
     """Cross-series variety needs scene room: ≥3 sub-looks per niche so the
-    per-run rotation offset lands on a different scene each run. The 6 niches
-    that were thin (2 sub-looks → near-identical re-runs) are expanded to ≥5."""
+    per-run rotation offset lands on a different scene each run. The niches that
+    were thin (near-identical re-runs) are expanded to ≥6 (2026-06-17 content
+    pass)."""
     EXPANDED = {"goth_romantic", "bohemian_naturallight", "poolside_goldenhour",
                 "burlesque_cabaret", "cyberpunk_pinup", "cottagecore_pastoral"}
     for n in lib.niches:
         assert len(n.sub_looks) >= 3, f"{n.id} has only {len(n.sub_looks)} sub_looks"
     for n in lib.niches:
         if n.id in EXPANDED:
-            assert len(n.sub_looks) >= 5, \
-                f"{n.id} expected ≥5 sub_looks, has {len(n.sub_looks)}"
+            assert len(n.sub_looks) >= 6, \
+                f"{n.id} expected ≥6 sub_looks, has {len(n.sub_looks)}"
     # the expanded sub-looks must not reintroduce a mirror motif (the validator
     # bans literal mirrors — only a negated "no mirror" instruction is allowed).
     for n in lib.niches:
@@ -81,7 +82,7 @@ def test_force_id_overrides(lib):
 
 
 def test_force_id_rejects_unsupported_tier(lib):
-    # pinup_1950s supports only T1/T2 — forcing it at T4 must raise
+    # pinup_1950s supports only T1 (T2 dropped after the drift audit) — T4 must raise
     with pytest.raises(NicheLibraryError):
         select_niche(lib, 0, tier="T4_explicit", force_id="pinup_1950s")
 
@@ -330,6 +331,18 @@ def test_aspirational_luxe_is_modern_lifestyle_not_fantasy(lib):
         low = s.lower()
         assert not any(w in low for w in ("velvet", "marble", "chiton", "laurel")), \
             f"lifestyle sub_look drifts to a fantasy/period material: {s!r}"
+
+
+def test_drift_prone_funnel_niches_are_t1_public(lib):
+    """2026-06-17 drift audit: niches that strip clothing at the implied tier are
+    pinned to a T1-only public lane (T2 dropped). Pinup/poolside become T1-only;
+    art_deco keeps T1 public + T3 gated but drops the strip-prone T2, and its
+    sub_looks no longer pre-undress (the self-inflicted 44% T1 strip)."""
+    assert lib.by_id("pinup_1950s").tier_band == ["T1_suggestive"]
+    assert lib.by_id("poolside_goldenhour").tier_band == ["T1_suggestive"]
+    assert lib.by_id("art_deco_boudoir").tier_band == ["T1_suggestive", "T3_artnude"]
+    looks = " ".join(lib.by_id("art_deco_boudoir").sub_looks).lower()
+    assert "pooling off" not in looks and "half-undone" not in looks
 
 
 def test_aspirational_luxe_sub_looks_clear_audit_specificity(lib):

@@ -87,7 +87,10 @@ niches:
   - id: pinup_1950s
     class: core
     weight: 1.0
-    tier_band: [T1_suggestive, T2_implied]
+    # PUBLIC lane T1 only: all three T2 runs in the 2026-06-17 drift audit
+    # stripped (~29% of public-bound frames quarantined). Pinup is an SFW funnel
+    # niche — T2 dropped; T1 forces covered swimwear/wardrobe.
+    tier_band: [T1_suggestive]
     da_folder: "1950s Pin-Up"
     family: gilded_glamour
     source: vintage_pinup
@@ -180,7 +183,11 @@ niches:
   - id: art_deco_boudoir
     class: core
     weight: 0.9
-    tier_band: [T1_suggestive, T2_implied, T3_artnude]
+    # T2 dropped (2026-06-17 audit: 44% public-bound drift — the worst). The T1
+    # strip was self-inflicted by sub_looks that pre-undressed ("robe pooling
+    # off", "gown half-undone"), fighting the T1 covered directive; reworded to
+    # intact garments so the TIER governs undress. T1 public + T3 gated artnude.
+    tier_band: [T1_suggestive, T3_artnude]
     da_folder: "Art Deco Boudoir"
     family: gilded_glamour
     source: luxury_editorial
@@ -191,8 +198,8 @@ niches:
       - "deco hotel glamour — geometric gilt interiors, champagne and satin, a hazed shaft of warm light, elegant reclining poise"
       - "jazz-age vanity — warm practical light at a lacquered deco dressing table, feathers and pearls, refined intimacy"
       - "beaded-fringe dance — mid-motion fringe flaring under a warm stage-side lamp, t-strap heels and a jewelled headband, champagne-sparkle energy"
-      - "lacquer-screen lounge — a black-lacquer folding screen behind a chaise, a marabou-trimmed robe pooling off her, a gilt cigarette case catching lamplight"
-      - "penthouse dawn — first gold light through a geometric deco window, a beaded gown half-undone, the dark city silhouetted beyond, after-the-party stillness"
+      - "lacquer-screen lounge — a black-lacquer folding screen behind a chaise, a marabou-trimmed robe and a gilt cigarette case catching lamplight, languid deco poise"
+      - "penthouse dawn — first gold light through a geometric deco window, a beaded gown and the dark city silhouetted beyond, after-the-party stillness"
     aesthetics:
       palettes: ["champagne, gold and black", "jewel-toned Gatsby palette", "warm sepia-and-gold"]
       lighting: ["warm opulent lamplight", "hazed warm shaft through tall windows", "soft glamour key"]
@@ -217,6 +224,7 @@ niches:
       - "cathedral ruin at dusk — fading violet light through a shattered rose window, ivy over broken stone, dark velvet pooled on the flagstones, solemn romantic stillness"
       - "candlelit dark bath — a black marble tub by guttering tapers, rose petals on still dark water, wet pale skin, decadent gothic intimacy"
       - "raven's library — towering shadowed bookshelves and a single oil lamp, a fall of black lace and antique pearls, brooding scholarly sensuality"
+      - "candlelit conservatory at midnight — moon-pale light and warm taper-glow among black roses and wrought iron, dark velvet and antique lace, a brooding composed stillness"
     aesthetics:
       palettes: ["deep black, oxblood and silver", "cool moonlit monochrome", "candlelit amber in deep shadow"]
       lighting: ["warm flickering candlelight", "cool moonlight through a window", "single low key in darkness"]
@@ -238,6 +246,7 @@ niches:
       - "wildflower riverbank — dappled light on a grassy, mossy bank at the river's edge; she rests on the solid bank with the water beside or behind her (never sitting or kneeling on the water), reeds and wild blossoms framing, sun-warmed skin, free and untamed"
       - "canvas tent at dawn — soft pink first light glowing through sun-bleached canvas, woven rugs and brass lanterns, sleepy bohemian intimacy"
       - "desert bloom at golden hour — warm low sun across pale sand and flowering cactus, a gauzy wrap lifting in the breeze, wild and serene"
+      - "olive-grove hammock at golden hour — warm low sun through silver-green leaves, a woven hammock and trailing linen, a strummed guitar resting nearby, drowsy free-spirited ease"
     aesthetics:
       palettes: ["warm earthy ochres and cream", "golden honey light", "sun-faded pastel"]
       lighting: ["warm afternoon sun through gauze", "low golden-hour backlight", "soft diffuse daylight"]
@@ -247,7 +256,9 @@ niches:
   - id: poolside_goldenhour
     class: trend
     weight: 1.0
-    tier_band: [T1_suggestive, T2_implied]
+    # PUBLIC lane T1 only: T2 strips ~18% (2026-06-17 audit; long flagged in
+    # GO_LIVE_RUNBOOK). Swimwear funnel niche — T2 dropped; T1 forces covered.
+    tier_band: [T1_suggestive]
     da_folder: "Poolside Golden Hour"
     family: golden_hour
     source: poolside_golden_hour
@@ -259,6 +270,7 @@ niches:
       - "infinity pool over the sea — bronzed skin against the horizon, glassy water catching the sunset, minimal swimwear, serene luxury"
       - "shaded sun-lounger siesta — a striped lounger under a palm's dappled gold shade, a sweating cocktail beside her, languid jet-set ease"
       - "outdoor villa shower — warm water and low sun on bare skin against terracotta tile, bougainvillea overhead, fresh sensual glow"
+      - "rooftop plunge pool at dusk — warm low sun skimming the water's edge, a sheer kaftan thrown over swimwear, a city skyline hazed gold beyond the glass rail, languid jet-set calm"
     aesthetics:
       palettes: ["honey, peach and sky-blue", "warm golden-hour saturation", "sun-bleached Riviera tones"]
       lighting: ["low warm golden-hour sun", "bright backlit sunset", "warm rim-light + sky-bounce fill"]
@@ -280,6 +292,7 @@ niches:
       - "champagne speakeasy booth — a velvet banquette in smoky low light, a coupe of champagne, gloves and garters, conspiratorial after-hours glamour"
       - "spotlight feather reveal — a single hard spotlight catching ostrich plumes mid-gesture on a dark stage, rhinestones glinting, theatrical tease"
       - "masquerade soiree — a single feathered or filigree half-mask catching warm candelabra light in a shadowed ballroom alcove, beaded gown, conspiratorial after-the-ball intimacy"
+      - "after-hours piano lounge — a single warm lamp over a black grand piano in an empty club, a beaded gown and long gloves, a forgotten champagne coupe, intimate post-show hush"
     aesthetics:
       palettes: ["deep red velvet and gold", "warm theatrical amber", "black-and-rhinestone sparkle"]
       lighting: ["warm theatrical spotlight", "warm vanity-bulb light", "single dramatic stage key"]
@@ -303,6 +316,7 @@ niches:
       - "holographic nightclub — pulsing cyan-and-magenta holograms over a dark floor, latex and chrome accents, electric sensual energy"
       - "rooftop above the megacity — neon haze and traffic light-trails far below a high parapet, windswept sleek styling, vertiginous night glamour"
       - "rain-soaked noodle stall — warm sign-glow and steam in a cramped neon alley, wet skin and neon-slick puddles, intimate street-level cool"
+      - "monorail platform at night — cold fluorescent strip-light and magenta signage glow on a rain-damp elevated platform, sleek techwear and chrome, distant neon towers, lonely future-city cool"
     aesthetics:
       palettes: ["magenta-and-cyan neon", "teal-and-orange blockbuster", "blade-runner neon-noir"]
       lighting: ["magenta key + cyan rim, neon night", "saturated neon window spill", "wet-specular neon reflections"]

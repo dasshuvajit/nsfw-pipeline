@@ -180,7 +180,7 @@ def test_package_sfw_tier_routes_keepers_to_public(tmp):
         {"path": "images/ad01_a_s1.png", "seed": 1, "keeper": True}]}]
     for im in main[0]["images"]:
         _mk(tmp, im["path"])
-    pkg = A._package(tmp, _selection("T2_implied", "pinup_1950s"), "T2_implied",
+    pkg = A._package(tmp, _selection("T2_implied", "modern_boudoir"), "T2_implied",
                      main, [], _META, _META, _WM_OFF)
     public = [p.name for p in (pkg / "public").glob("*.png")]
     gated = [p.name for p in (pkg / "gated").glob("*.png")]
