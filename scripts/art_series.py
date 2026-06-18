@@ -1305,6 +1305,11 @@ def main() -> int:
                     "render_pipeline.refine_template)")
     ap.add_argument("--no-refine", action="store_true",
                     help="skip stage-2 refine; review images = raw base render")
+    ap.add_argument("--engine", choices=["chroma", "zimage"], default="chroma",
+                    help="render engine: chroma (gonzaLomo Chroma v30, default) or "
+                         "zimage (Z-Image Turbo / gonzaLomo ZPop). Swaps the base + "
+                         "refine + refine_T4 templates as a set; explicit "
+                         "--base-template / --refine-template still override.")
     ap.add_argument("--model-tag", default=art_director.DEFAULT_LLM_TAG,
                     help="LLM tag for prompt generation; routed to its backend "
                          "(LM Studio / Ollama / MLX) by config/llm_models.yaml. "
@@ -1373,8 +1378,24 @@ def main() -> int:
         print(f"  (pre-flight: ComfyUI memory {'freed' if freed else 'free request failed — proceeding'})",
               flush=True)
 
-    rp_cli = {"base_template": args.base_template,
-              "refine_template": args.refine_template}
+    # Engine selection: a convenience that swaps the base + refine + refine_T4
+    # templates as a SET so --engine zimage carries its own detailer stage (incl.
+    # the T4 genital detailer). Explicit --base-template / --refine-template still
+    # win (None is ignored by resolve_render_pipeline, so chroma falls through to
+    # the pipeline.yaml defaults).
+    _ENGINE_TEMPLATES = {
+        "zimage": {
+            "base_template": "templates/zimage/base.json",
+            "refine_template": "templates/zimage/refine.json",
+            "refine_template_t4": "templates/zimage/refine_T4.json",
+        },
+    }
+    eng = _ENGINE_TEMPLATES.get(args.engine, {})
+    rp_cli = {
+        "base_template": args.base_template or eng.get("base_template"),
+        "refine_template": args.refine_template or eng.get("refine_template"),
+        "refine_template_t4": eng.get("refine_template_t4"),
+    }
     if args.no_refine:
         rp_cli["enable_refine"] = False
     rp = resolve_render_pipeline(cfg.get("render_pipeline"), None, rp_cli)
@@ -1618,7 +1639,7 @@ def main() -> int:
     enable_refine = rp.get("enable_refine", True)
     run_template = {"base": base_tmpl, "refine": refine_tmpl_main,
                     "upscale": rp["upscale_template"]}
-    print(f"\n=== Phase 2a (base, Chroma): {Path(base_tmpl).name} ===",
+    print(f"\n=== Phase 2a (base, {args.engine}): {Path(base_tmpl).name} ===",
           flush=True)
     manifest = _render_stage_base(
         rows, builder=builder, client=client, base_template=base_tmpl,

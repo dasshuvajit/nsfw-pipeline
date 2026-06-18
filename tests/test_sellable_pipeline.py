@@ -378,6 +378,38 @@ def test_generate_series_locked_look_overrides_rotation(monkeypatch):
         [AD.FRAMING_TARGETS[(i + 2) % len(AD.FRAMING_TARGETS)] for i in range(3)]
 
 
+# ── Z-Image engine + detailer wiring (2026-06-18) ──────────────────
+
+def test_zimage_engine_templates_exist_and_tier_pure():
+    """The --engine zimage template set exists; its base satisfies the 4-node
+    external contract; and the genital detailer is gated to T4 — refine_T4.json
+    carries the vagina detailer, the T3-and-below refine.json does NOT."""
+    base = Path("config/comfyui_workflows/templates/zimage")
+    for f in ("base.json", "refine.json", "refine_T4.json"):
+        assert (base / f).exists(), f"missing zimage/{f}"
+    b = json.loads((base / "base.json").read_text())
+    for nid in ("positive_prompt", "negative_prompt", "ksampler", "empty_latent", "save"):
+        assert nid in b, f"zimage/base.json missing contract node {nid}"
+
+    def has_genital(d):
+        return any("vagina" in n.get("inputs", {}).get("model_name", "")
+                   for n in d.values())
+    assert not has_genital(json.loads((base / "refine.json").read_text())), \
+        "zimage/refine.json must NOT detail genitals (tier purity for T3-and-below)"
+    assert has_genital(json.loads((base / "refine_T4.json").read_text())), \
+        "zimage/refine_T4.json must carry the genital detailer (T4)"
+
+
+def test_zimage_refine_t4_honored_by_tier_purity_guard():
+    """The tier-purity guard treats the zimage T4 detailer like chroma's: a
+    genital detailer is allowed ONLY at T4_explicit."""
+    wd = Path("config/comfyui_workflows")
+    assert A._template_has_genital_detailer(wd, "templates/zimage/refine_T4.json")
+    assert not A._template_has_genital_detailer(wd, "templates/zimage/refine.json")
+    assert A._violates_tier_purity("T3_artnude", "templates/zimage/refine_T4.json", wd)
+    assert not A._violates_tier_purity("T4_explicit", "templates/zimage/refine_T4.json", wd)
+
+
 # ── influencer-substance prompt-engine knobs (2026-06-17) ──────────
 
 def test_tier_directives_carry_wardrobe_cut_vocab():

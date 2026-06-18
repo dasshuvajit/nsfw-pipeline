@@ -144,19 +144,28 @@ prompt-engine retune required). Recommendation:
   T4 on Chroma+`refine_T4`. ZPop base genitals are too soft for one-shot T4.
 - Keep Chroma as the default until the T4 detailer + a wider A/B are in; promote ZPop per-niche.
 
-## How to run it (works today)
+## How to run it — `--engine zimage` (shipped)
 ```
-python scripts/art_series.py --niche aspirational_luxe --tier T1_suggestive \
-  --base-template templates/zimage/base.json --no-refine
+# T1/T2/T3 — base ZPop + hands/nipples detailer:
+python scripts/art_series.py --engine zimage --niche aspirational_luxe --tier T1_suggestive
+# T4 explicit — adds the gonzaLomo genital detailer (tier-gated to T4):
+python scripts/art_series.py --engine zimage --niche aspirational_luxe --tier T4_explicit
+# base-only (skip the detailer):
+python scripts/art_series.py --engine zimage --niche <id> --tier T1_suggestive --no-refine
 ```
-(ComfyUI needs no special flags on the current torch 2.13 build. LLM auto-unloads before render.)
-ZPop base render is validated end-to-end; ad-hoc A/B harness: `output/ab_tests/zimage_ab.py`.
+`--engine zimage` swaps the base + refine + refine_T4 templates as a set (explicit
+`--base-template`/`--refine-template` still override). ComfyUI needs no special flags on the
+current torch 2.13 build; the LLM auto-unloads before render. Ad-hoc A/B harness:
+`output/ab_tests/zimage_ab.py`.
 
 ## Integration status
-- **DONE:** native ComfyUI Z-Image support confirmed; `gonzalomoZpop_v40.safetensors` (BF16) +
-  `qwen_3_4b.safetensors` TE downloaded & verified; `ae` VAE reused; `templates/zimage/base.json`
-  authored to the pipeline contract; base render validated (T1 + T3); 12-frame A/B vs Chroma;
-  full audit; NudeNet tier-truth; this report.
-- **PENDING (next):** (1) a `--engine zimage` convenience flag; (2) the Z-Image SDXL-detailer
-  stage for T3 nipple polish + T4 genitals; (3) optional Realistic-Snapshot LoRA if skin reads
-  waxy on a wider set; (4) optional 4K USDU pass; (5) wider A/B across more niches/tiers.
+- **DONE:** native ComfyUI Z-Image support; `gonzalomoZpop_v40.safetensors` (BF16) +
+  `qwen_3_4b.safetensors` TE + `ae` VAE in place; `templates/zimage/{base,refine,refine_T4}.json`
+  authored to the pipeline contract; **`--engine zimage` flag** wired (selects base+refine+
+  refine_T4 as a set); **SDXL detailer stage** (hands/nipples for T3-and-below; +gonzaLomo
+  `vagina-v3.2` genital detailer for T4 only, tier-purity-gated). Validated end-to-end: base
+  render (T1+T3), 12-frame A/B vs Chroma, **T4 base→detailer render (genitals rebuilt, nipples
+  cleaned, face untouched)**, NudeNet tier-truth, tier-purity guard, full suite (342 tests).
+- **PENDING (optional next):** Realistic-Snapshot realism LoRA if skin reads waxy on a wider
+  set; 4K USDU pass for Z-Image; per-niche detailer-denoise tuning; wider A/B across niches/tiers;
+  decide whether to flip the pipeline DEFAULT engine to zimage (currently chroma).

@@ -1,0 +1,340 @@
+{
+  "load_image": {
+    "inputs": {
+      "image": "",
+      "custom_width": 0,
+      "custom_height": 0
+    },
+    "class_type": "VHS_LoadImagePath",
+    "_meta": {
+      "title": "Load base image (stage 1 output)"
+    }
+  },
+  "refiner_checkpoint_loader": {
+    "inputs": {
+      "ckpt_name": "gonzalomoXLFluxPony_v70PhotoXLDMD.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load SDXL DMD refiner (model+CLIP+VAE) \u2014 detailer crops only"
+    }
+  },
+  "det_pos": {
+    "inputs": {
+      "text": "raw photo, photographic, natural untouched skin, visible freckles, skin pores, fine film grain, soft warm light, no makeup, natural color, true to life",
+      "clip": [
+        "refiner_checkpoint_loader",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Detail prompt (generic, content-neutral) \u2014 detailer crops"
+    }
+  },
+  "det_neg": {
+    "inputs": {
+      "text": "blurry, out of focus, plastic skin, waxy skin, oversharpened, jpeg artifacts, deformed, extra fingers, extra limbs, watermark, text, lowres, oversmoothed, airbrushed",
+      "clip": [
+        "refiner_checkpoint_loader",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Detail negative (generic)"
+    }
+  },
+  "143": {
+    "inputs": {
+      "upscale_method": "lanczos",
+      "scale_by": 1.25,
+      "image": [
+        "load_image",
+        0
+      ]
+    },
+    "class_type": "ImageScaleBy",
+    "_meta": {
+      "title": "Upscale 1.25x (lanczos) \u2014 the Chroma base IS the body+face; no SDXL repaint"
+    }
+  },
+  "save": {
+    "inputs": {
+      "filename_prefix": "stage2_review",
+      "images": [
+        "detailer_vagina",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image \u2014 stage 2 review"
+    }
+  },
+  "sam_loader": {
+    "inputs": {
+      "model_name": "sam_vit_b_01ec64.pth",
+      "device_mode": "Prefer GPU"
+    },
+    "class_type": "SAMLoader",
+    "_meta": {
+      "title": "SAMLoader (Impact)"
+    }
+  },
+  "diffdiff_model": {
+    "inputs": {
+      "model": [
+        "refiner_checkpoint_loader",
+        0
+      ]
+    },
+    "class_type": "DifferentialDiffusion",
+    "_meta": {
+      "title": "DifferentialDiffusion (soft-edge detailer mask blend)"
+    }
+  },
+  "det_hand_detector": {
+    "inputs": {
+      "model_name": "bbox/hand_yolov9c.pt"
+    },
+    "class_type": "UltralyticsDetectorProvider",
+    "_meta": {
+      "title": "Detector \u2014 HANDS (hand_yolov9c)"
+    }
+  },
+  "detailer_hands": {
+    "inputs": {
+      "image": [
+        "143",
+        0
+      ],
+      "model": [
+        "diffdiff_model",
+        0
+      ],
+      "clip": [
+        "refiner_checkpoint_loader",
+        1
+      ],
+      "vae": [
+        "refiner_checkpoint_loader",
+        2
+      ],
+      "positive": [
+        "det_pos",
+        0
+      ],
+      "negative": [
+        "det_neg",
+        0
+      ],
+      "bbox_detector": [
+        "det_hand_detector",
+        0
+      ],
+      "sam_model_opt": [
+        "sam_loader",
+        0
+      ],
+      "segm_detector_opt": [
+        "det_hand_detector",
+        1
+      ],
+      "guide_size": 512,
+      "guide_size_for": true,
+      "max_size": 768,
+      "seed": 20003,
+      "steps": 8,
+      "cfg": 1,
+      "sampler_name": "lcm",
+      "scheduler": "karras",
+      "denoise": 0.45,
+      "feather": 6,
+      "noise_mask": true,
+      "force_inpaint": true,
+      "bbox_threshold": 0.5,
+      "bbox_dilation": 8,
+      "bbox_crop_factor": 3.0,
+      "sam_detection_hint": "center-1",
+      "sam_dilation": 0,
+      "sam_threshold": 0.93,
+      "sam_bbox_expansion": 0,
+      "sam_mask_hint_threshold": 0.7,
+      "sam_mask_hint_use_negative": "False",
+      "drop_size": 10,
+      "wildcard": "perfect hands, exactly five fingers, correct natural finger anatomy, fingers cleanly separated and aligned, detailed fingers, no extra fingers, no fused fingers",
+      "cycle": 2,
+      "inpaint_model": false,
+      "noise_mask_feather": 20,
+      "tiled_encode": false,
+      "tiled_decode": false
+    },
+    "class_type": "FaceDetailer",
+    "_meta": {
+      "title": "Review detailer \u2014 HANDS (hand_yolov9c, denoise 0.45 \u00d72 \u2014 restructures bad fingers) \u2014 crop only, face untouched"
+    }
+  },
+  "det_nipple_detector": {
+    "inputs": {
+      "model_name": "bbox/nipples_yolov8s.pt"
+    },
+    "class_type": "UltralyticsDetectorProvider",
+    "_meta": {
+      "title": "Detector \u2014 NIPPLES (nipples_yolov8s)"
+    }
+  },
+  "detailer_nipples": {
+    "inputs": {
+      "image": [
+        "detailer_hands",
+        0
+      ],
+      "model": [
+        "diffdiff_model",
+        0
+      ],
+      "clip": [
+        "refiner_checkpoint_loader",
+        1
+      ],
+      "vae": [
+        "refiner_checkpoint_loader",
+        2
+      ],
+      "positive": [
+        "det_pos",
+        0
+      ],
+      "negative": [
+        "det_neg",
+        0
+      ],
+      "bbox_detector": [
+        "det_nipple_detector",
+        0
+      ],
+      "sam_model_opt": [
+        "sam_loader",
+        0
+      ],
+      "segm_detector_opt": [
+        "det_nipple_detector",
+        1
+      ],
+      "guide_size": 384,
+      "guide_size_for": true,
+      "max_size": 640,
+      "seed": 20007,
+      "steps": 6,
+      "cfg": 1,
+      "sampler_name": "lcm",
+      "scheduler": "karras",
+      "denoise": 0.25,
+      "feather": 6,
+      "noise_mask": true,
+      "force_inpaint": true,
+      "bbox_threshold": 0.5,
+      "bbox_dilation": 6,
+      "bbox_crop_factor": 3.0,
+      "sam_detection_hint": "center-1",
+      "sam_dilation": 0,
+      "sam_threshold": 0.93,
+      "sam_bbox_expansion": 0,
+      "sam_mask_hint_threshold": 0.7,
+      "sam_mask_hint_use_negative": "False",
+      "drop_size": 10,
+      "wildcard": "natural soft areola and nipple, realistic skin, symmetric, anatomically correct",
+      "cycle": 1,
+      "inpaint_model": false,
+      "noise_mask_feather": 20,
+      "tiled_encode": false,
+      "tiled_decode": false
+    },
+    "class_type": "FaceDetailer",
+    "_meta": {
+      "title": "Review detailer \u2014 NIPPLES (nipples_yolov8s, light 0.25; no-op when none detected)"
+    }
+  },
+  "det_vagina_detector": {
+    "inputs": {
+      "model_name": "bbox/vagina-v3.2.pt"
+    },
+    "class_type": "UltralyticsDetectorProvider",
+    "_meta": {
+      "title": "Detector \u2014 VAGINA (vagina-v3.2)"
+    }
+  },
+  "detailer_vagina": {
+    "inputs": {
+      "image": [
+        "detailer_nipples",
+        0
+      ],
+      "model": [
+        "diffdiff_model",
+        0
+      ],
+      "clip": [
+        "refiner_checkpoint_loader",
+        1
+      ],
+      "vae": [
+        "refiner_checkpoint_loader",
+        2
+      ],
+      "positive": [
+        "det_pos",
+        0
+      ],
+      "negative": [
+        "det_neg",
+        0
+      ],
+      "bbox_detector": [
+        "det_vagina_detector",
+        0
+      ],
+      "sam_model_opt": [
+        "sam_loader",
+        0
+      ],
+      "segm_detector_opt": [
+        "det_vagina_detector",
+        1
+      ],
+      "guide_size": 384,
+      "guide_size_for": true,
+      "max_size": 640,
+      "seed": 20009,
+      "steps": 6,
+      "cfg": 1,
+      "sampler_name": "lcm",
+      "scheduler": "karras",
+      "denoise": 0.25,
+      "feather": 6,
+      "noise_mask": true,
+      "force_inpaint": true,
+      "bbox_threshold": 0.5,
+      "bbox_dilation": 6,
+      "bbox_crop_factor": 3.0,
+      "sam_detection_hint": "center-1",
+      "sam_dilation": 0,
+      "sam_threshold": 0.93,
+      "sam_bbox_expansion": 0,
+      "sam_mask_hint_threshold": 0.7,
+      "sam_mask_hint_use_negative": "False",
+      "drop_size": 10,
+      "wildcard": "natural labia and vulva, realistic soft skin detail, anatomically correct",
+      "cycle": 1,
+      "inpaint_model": false,
+      "noise_mask_feather": 20,
+      "tiled_encode": false,
+      "tiled_decode": false
+    },
+    "class_type": "FaceDetailer",
+    "_meta": {
+      "title": "Review detailer \u2014 VAGINA (vagina-v3.2, light 0.25; T4 only, no-op when none detected)"
+    }
+  }
+}
