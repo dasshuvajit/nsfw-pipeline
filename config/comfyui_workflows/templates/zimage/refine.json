@@ -16,7 +16,7 @@
     },
     "class_type": "CheckpointLoaderSimple",
     "_meta": {
-      "title": "Load SDXL DMD refiner (model+CLIP+VAE) — detailer crops only"
+      "title": "Load SDXL DMD refiner (model+CLIP+VAE) \u2014 detailer crops only"
     }
   },
   "det_pos": {
@@ -29,7 +29,7 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "Detail prompt (generic, content-neutral) — detailer crops"
+      "title": "Detail prompt (generic, content-neutral) \u2014 detailer crops"
     }
   },
   "det_neg": {
@@ -56,7 +56,7 @@
     },
     "class_type": "ImageScaleBy",
     "_meta": {
-      "title": "Upscale 1.25x (lanczos) — the Chroma base IS the body+face; no SDXL repaint"
+      "title": "Upscale 1.25x (lanczos) \u2014 the Chroma base IS the body+face; no SDXL repaint"
     }
   },
   "save": {
@@ -69,7 +69,7 @@
     },
     "class_type": "SaveImage",
     "_meta": {
-      "title": "Save Image — stage 2 review"
+      "title": "Save Image \u2014 stage 2 review"
     }
   },
   "sam_loader": {
@@ -100,7 +100,7 @@
     },
     "class_type": "UltralyticsDetectorProvider",
     "_meta": {
-      "title": "Detector — HANDS (hand_yolov9c)"
+      "title": "Detector \u2014 HANDS (hand_yolov9c)"
     }
   },
   "detailer_hands": {
@@ -172,7 +172,7 @@
     },
     "class_type": "FaceDetailer",
     "_meta": {
-      "title": "Review detailer — HANDS (hand_yolov9c, denoise 0.45 ×2 — restructures bad fingers) — crop only, face untouched"
+      "title": "Review detailer \u2014 HANDS (hand_yolov9c, denoise 0.45 \u00d72 \u2014 restructures bad fingers) \u2014 crop only, face untouched"
     }
   },
   "det_nipple_detector": {
@@ -181,7 +181,7 @@
     },
     "class_type": "UltralyticsDetectorProvider",
     "_meta": {
-      "title": "Detector — NIPPLES (nipples_yolov8s)"
+      "title": "Detector \u2014 NIPPLES (nipples_yolov8s)"
     }
   },
   "detailer_nipples": {
@@ -230,7 +230,7 @@
       "cfg": 1,
       "sampler_name": "lcm",
       "scheduler": "karras",
-      "denoise": 0.25,
+      "denoise": 0.45,
       "feather": 6,
       "noise_mask": true,
       "force_inpaint": true,
@@ -253,7 +253,7 @@
     },
     "class_type": "FaceDetailer",
     "_meta": {
-      "title": "Review detailer — NIPPLES (nipples_yolov8s, light 0.25; no-op when none detected)"
+      "title": "Review detailer \u2014 NIPPLES (nipples_yolov8s, light 0.25; no-op when none detected)"
     }
   }
 }
