@@ -127,6 +127,34 @@ _CLICHE_PHRASES = (
 )
 _CLICHE_REGEXES = (re.compile(r"\bshot on \d+\s?mm", re.IGNORECASE),)
 
+# SDXL/MidJourney "quality booster" + camera-tag soup. MODEL-WRONG for our
+# T5/Qwen-prompted cfg-1 engines (Chroma/Z-Image): the art_director system prompt
+# bans them, but they were INVISIBLE to this score-side gate, so a pasted SDXL
+# prompt shipped at 9.5 (2026-06-18 R&D). Penalized here too. NOTE: a lens woven
+# into PROSE ("a short telephoto at f/2 keeps her crisp") is house craft and is NOT
+# a booster — only the tag-soup forms below are: bare resolution/quality tags, the
+# "shot on …" formula, the "<NN>mm f/<N>" lens-spec adjacency, and named camera
+# bodies. All matched on word boundaries (so "18k gold"/"24k" never trip "8k"/"4k").
+# DELIBERATELY NOT penalized (regression-checked vs 143 shipped prompts): a lens woven
+# into prose, even with a numeric focal length ("an 85mm f/1.4 lens melts the
+# background"), and figurative "a masterpiece of …" — both are tolerated house voice.
+_BOOSTER_TOKENS = (
+    "best quality", "8k", "4k", "uhd", "raw photo",
+    "ultra-detailed", "ultra detailed", "ultradetailed", "hyperdetailed",
+    "hyper-detailed", "highly detailed", "photorealistic", "hyperrealistic",
+    "hyper-realistic", "ultrarealistic", "ultra-realistic", "ultra realistic",
+    "trending on artstation", "octane render", "unreal engine",
+)
+# "masterpiece" is INTENTIONALLY absent: it's common figurative house voice ("a
+# jazz-age masterpiece", "a masterpiece of shadow and gold"), and in a real SDXL
+# paste it always rides with best-quality/8k/raw-photo/shot-on (caught below), so
+# detecting it adds only false positives with zero gain.
+_BOOSTER_REGEXES = (
+    re.compile(r"\bshot on\b", re.IGNORECASE),                       # "shot on Sony A7R V" / "shot on 85mm"
+    re.compile(r"\b(sony\s+a7|canon\s+eos|nikon\s+z|hasselblad|fujifilm|leica\s+m)\b",
+               re.IGNORECASE),                                       # named camera bodies
+)
+
 # Specificity ladder (excellence-presence, not defect-absence): the audit found
 # 10.0 meant only "no defects". These reward the concrete optical/material
 # precision the house doctrine demands — absence now costs.
@@ -150,6 +178,11 @@ _MATERIAL_NOUNS = (
     "stucco", "travertine", "teak", "concrete", "canvas", "plaster",
     "granite", "slate", "bamboo", "jute", "sisal", "terrazzo", "suede",
     "steel", "driftwood", "raffia", "cashmere", "organza", "tweed", "sand",
+    # Surface-ornament nouns (2026-06-18): stitched/metallic-thread dress detail
+    # ("navy lace with gold-thread embroidery") rendered fine but earned no
+    # specificity credit. These let couture surface-work count toward the ladder.
+    "embroider", "goldwork", "beadwork", "sequin", "filigree", "brocade",
+    "applique",
 )
 _MICRO_TEXTURE_TOKENS = (
     "pores", "vellus", "freckle", "mole", "catchlight", "sheen",
@@ -426,6 +459,8 @@ def score_prompt(
     - B&W + color contradiction: -1.5
     - Mirror dangling / prose, grounding, sad tokens: as before
     - Tag-soup sentences (>3): -1 · Repeated 4-grams: -0.5 each
+    - SDXL/MJ boosters + camera-tag soup (masterpiece/8k/raw photo/"shot on
+      …"/"<NN>mm f/<N>"): -2 each, cap -6 (a lens woven in prose is NOT a hit)
     Tier contracts:
     - T4 without a strong explicit token (vulva/labia/her sex/...): -4
     - T3 without any nudity token: -3
@@ -539,9 +574,21 @@ def score_prompt(
         score -= 0.5 * min(len(repeats), 4)
         issues.append(f"REPETITION: {len(repeats)} repeated 4-grams: {repeats[:3]}")
 
+    # SDXL/MidJourney booster + camera-tag soup — model-wrong for our engines.
+    # A hard defect (not a ladder): even one costs, the full pasted tail craters.
+    booster_hits = [t for t in _BOOSTER_TOKENS
+                    if re.search(r"\b" + re.escape(t) + r"\b", text_lower)]
+    booster_hits += [rx.pattern for rx in _BOOSTER_REGEXES if rx.search(text)]
+    if booster_hits:
+        score -= min(6.0, 2.0 * len(booster_hits))
+        issues.append(f"SDXL_BOOSTERS: {len(booster_hits)} model-wrong tags: "
+                      f"{booster_hits[:5]}")
+
     # ── Quality ladders (excellence presence) ─────────────────────────
     # Cliché density: a few house words are voice; a pile is fossilization.
-    cliche_hits = [p for p in _CLICHE_PHRASES if p in text_lower]
+    # Word-boundary match so "luminous" no longer phantom-fires on "voluminous".
+    cliche_hits = [p for p in _CLICHE_PHRASES
+                   if re.search(r"\b" + re.escape(p) + r"\b", text_lower)]
     cliche_hits += [rx.pattern for rx in _CLICHE_REGEXES if rx.search(text)]
     if len(cliche_hits) >= 3:
         pen = min(2.0, 0.5 * (len(cliche_hits) - 2))

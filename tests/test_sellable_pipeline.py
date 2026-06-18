@@ -682,6 +682,71 @@ def test_audit_flags_implausible_grounding():
     assert any("IMPLAUSIBLE_GROUNDING" in i for i in issues)
 
 
+def test_audit_penalizes_sdxl_boosters_not_prose_lens():
+    """The score-side gate penalizes SDXL/MJ booster + camera-tag soup (model-wrong
+    for our T5/Qwen cfg-1 engines) — a pasted SDXL prompt no longer ships at 9.5
+    (2026-06-18 R&D blind spot). A lens woven into PROSE ('at f/2') is house craft,
+    NOT a booster, and must stay clean."""
+    from scripts.audit_prompts import score_prompt
+    boosted = ("She leans at a whitewashed plaster railing in navy lace and organza "
+               "as low gold light rakes from camera-left, a sheen on her collarbone "
+               "and a catchlight in her eye. Photorealistic, ultra-detailed, "
+               "masterpiece, best quality, 8k raw photo, shot on Sony A7R V, "
+               "85mm f/1.4 lens, shallow depth of field.")
+    score, issues = score_prompt(boosted, "T1_suggestive")
+    assert any("SDXL_BOOSTERS" in i for i in issues)
+    assert score < 8.5, f"booster-laden prompt must not ship, got {score}"
+    craft = ("She leans at a whitewashed plaster railing in a navy lace dress with "
+             "gold-thread embroidery and organza sleeves as low gold light rakes from "
+             "camera-left, a warm sheen on her collarbone and a catchlight in her eye. "
+             "A short telephoto at f/2 keeps her crisp against the soft distance.")
+    score2, issues2 = score_prompt(craft, "T1_suggestive")
+    assert not any("SDXL_BOOSTERS" in i for i in issues2), issues2
+    assert score2 >= 9.5, f"clean craft prose should score high, got {score2}"
+
+
+def test_audit_cliche_is_word_boundary_not_substring():
+    """'luminous' must not phantom-fire inside 'voluminous'; '18k/24k gold' must not
+    trip the 8k/4k booster (both 2026-06-18 R&D substring-match defects)."""
+    from scripts.audit_prompts import score_prompt
+    _, issues = score_prompt(
+        "A woman with long voluminous dark wavy hair leans at a plaster railing in "
+        "navy lace and organza as gold light rakes from camera-left, a sheen on her "
+        "collarbone and a catchlight in her eye, an 18k gold cuff at her wrist.",
+        "T1_suggestive")
+    assert not any("CLICHE" in i for i in issues), issues
+    assert not any("BOOSTER" in i for i in issues), issues
+
+
+def test_audit_booster_spares_house_voice():
+    """Booster gate must NOT false-fire on legitimate house voice (regression vs
+    shipped production prompts): figurative 'a masterpiece of …' (vs the SDXL
+    'masterpiece,' tag) and a lens woven into prose even with a numeric focal length
+    ('an 85mm f/1.4 lens melts the background')."""
+    from scripts.audit_prompts import score_prompt
+    for txt in [
+        "Low warm light rakes from camera-left across her shoulder, the marble and "
+        "lace catching a soft sheen, the scene a masterpiece of shadow and gold, a "
+        "catchlight in her eye and fine down on her arm.",
+        "She reclines on linen as side light grazes her skin, an 85mm f/1.4 lens melts "
+        "the background to soft amber, a catchlight in her eye and a flush on her cheek.",
+    ]:
+        _, issues = score_prompt(txt, "T1_suggestive")
+        assert not any("BOOSTER" in i for i in issues), (txt, issues)
+
+
+def test_audit_surface_ornament_counts_as_material():
+    """Couture surface-work (embroidery/goldwork/beadwork/filigree/brocade) now earns
+    specificity credit so 'navy lace with gold-thread embroidery' reads as concrete."""
+    from scripts.audit_prompts import _MATERIAL_NOUNS
+    for noun, sample in [("embroider", "fine gold-thread embroidery"),
+                         ("goldwork", "ornate goldwork"),
+                         ("beadwork", "delicate beadwork"),
+                         ("filigree", "silver filigree"),
+                         ("brocade", "stiff brocade")]:
+        assert any(m in sample.lower() for m in _MATERIAL_NOUNS), noun
+
+
 def _fake_render_env(tmp_path):
     """A builder + client that 'render' by copying a tiny real PNG, for
     _render_stage_base anatomy-guard tests."""

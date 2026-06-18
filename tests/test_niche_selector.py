@@ -333,6 +333,21 @@ def test_aspirational_luxe_is_modern_lifestyle_not_fantasy(lib):
             f"lifestyle sub_look drifts to a fantasy/period material: {s!r}"
 
 
+def test_aspirational_luxe_has_santorini_sublook(lib):
+    """The 2026-06-18 Santorini caldera sub_look adds the influencer-glamour
+    reference iconography (blue domes / Aegean / Cyclades) the generic Mediterranean
+    terrace lacked — present, modern-lifestyle (plaster not marble), gate-clean."""
+    from scripts.audit_prompts import score_prompt
+    n = lib.by_id("aspirational_luxe")
+    santorini = [s for s in n.sub_looks if "santorini" in s.lower()]
+    assert santorini, "Santorini sub_look missing from aspirational_luxe"
+    s = santorini[0].lower()
+    assert "blue-domed" in s and "aegean" in s and "cyclades" in s
+    assert "marble" not in s          # period-material ban — whitewashed plaster instead
+    score, issues = score_prompt(santorini[0], "T1_suggestive")
+    assert score >= 9.0, f"Santorini sub_look should pass the gate, got {score} {issues}"
+
+
 def test_drift_prone_funnel_niches_are_t1_public(lib):
     """2026-06-17 drift audit: niches that strip clothing at the implied tier are
     pinned to a T1-only public lane (T2 dropped). Pinup/poolside become T1-only;
