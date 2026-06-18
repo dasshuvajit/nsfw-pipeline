@@ -289,6 +289,22 @@ watermark:
   position: "bottom-right"         # bottom-right|bottom-left|top-right|top-left
   opacity: 0.3                     # 0.0 = invisible, 1.0 = fully opaque
 
+# Cinematic post-grade (src/postprocess/grader.py) — the deterministic finishing
+# layer that adds the filmic look Z-Image/Chroma under-render (warm high-contrast
+# grade + highlight bloom/halation + vignette + grain). Runs in _package() on the
+# public AND gated sets, AFTER render and BEFORE watermark. Pure CPU. Disable per
+# run with --no-postgrade. 4K is graded post-USDU, never here (2026-06-18 R&D).
+postgrade:
+  enabled: true
+  strength: 0.6          # 0..1 blend with the ungraded render (R&D sweet spot 0.5-0.7)
+  warmth: 0.06           # warm-highlight / teal-shadow split-tone amount
+  contrast: 0.12         # filmic S-curve strength
+  shadow_lift: 0.02      # gentle filmic shadow lift
+  bloom: 0.18            # warm highlight halation/bloom amount
+  bloom_threshold: 0.72  # luma above which highlights bloom
+  vignette: 0.18         # corner darkening
+  grain: 0.015           # film-grain sigma (0 = off)
+
 # postprocess block deleted 2026-05-20 with the Upscaler + FaceRefiner
 # modules. Post-processing (upscale, face-detailer) goes inside external
 # templates from now on — gonzaLomo_Chroma_Refiner_v11.json already does

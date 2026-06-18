@@ -1065,6 +1065,7 @@ def _package(
     main_manifest: list[dict], cover_manifest: list[dict],
     gated_meta: dict, public_meta: dict, watermark_cfg: dict,
     nudity_detector_paths: "tuple | list" = (),
+    postgrade_cfg: "dict | None" = None,
 ) -> Path:
     """Assemble a publish-ready package with a tier-split public/gated layout.
 
@@ -1148,6 +1149,24 @@ def _package(
             shutil.copy(p, qdir / p.name)
         print(f"  4k_queue: {len(queue)} image(s) earned the 4K pass "
               f"(score ≥ {FOURK_QUEUE_MIN_SCORE}, no flags)", flush=True)
+
+    # Cinematic post-grade (filmic colour/bloom/vignette) — the finishing layer
+    # that adds the look Z-Image/Chroma under-render. Runs on public AND gated,
+    # AFTER render and BEFORE watermark (so branding sits on the graded frame); 4K
+    # is graded post-USDU in upscale_folder, never here (2026-06-18 R&D).
+    if postgrade_cfg and postgrade_cfg.get("enabled", True):
+        try:
+            from src.postprocess.grader import Grader
+            grader = Grader(postgrade_cfg)
+            n_graded = 0
+            for d in (public_dir, gated_dir):
+                for p in sorted(d.glob("*.png")):
+                    grader.apply(p, p)
+                    n_graded += 1
+            print(f"  post-grade: {n_graded} image(s) graded "
+                  f"(strength {grader.strength})", flush=True)
+        except Exception as exc:  # noqa: BLE001 — images are safe; grade is optional polish
+            print(f"  (post-grade skipped: {exc})", file=sys.stderr, flush=True)
 
     # Watermark the PUBLIC teasers (branding/funnel); gated stays clean for buyers.
     try:
@@ -1305,6 +1324,8 @@ def main() -> int:
                     "render_pipeline.refine_template)")
     ap.add_argument("--no-refine", action="store_true",
                     help="skip stage-2 refine; review images = raw base render")
+    ap.add_argument("--no-postgrade", action="store_true",
+                    help="skip the cinematic post-grade pass (pipeline.yaml postgrade)")
     ap.add_argument("--engine", choices=["chroma", "zimage"], default="chroma",
                     help="render engine: chroma (gonzaLomo Chroma v30, default) or "
                          "zimage (Z-Image Turbo / gonzaLomo ZPop). Swaps the base + "
@@ -1740,10 +1761,14 @@ def main() -> int:
     if not args.no_package:
         print("\n=== Phase 4: packaging ===", flush=True)
         try:
+            pg_cfg = dict(cfg.get("postgrade", {}) or {})
+            if args.no_postgrade:
+                pg_cfg["enabled"] = False
             pkg_dir = _package(out_dir, selection, args.tier, manifest,
                                cover_manifest, gated_meta, public_meta,
                                cfg.get("watermark", {}),
-                               nudity_detector_paths=nudity_det_paths)
+                               nudity_detector_paths=nudity_det_paths,
+                               postgrade_cfg=pg_cfg)
         except Exception as exc:  # noqa: BLE001 — images + manifest are safe
             print(f"  !! packaging FAILED ({exc}) — images + manifest are intact; "
                   f"re-package manually from {out_dir}", file=sys.stderr, flush=True)

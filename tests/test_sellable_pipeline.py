@@ -747,6 +747,80 @@ def test_audit_surface_ornament_counts_as_material():
         assert any(m in sample.lower() for m in _MATERIAL_NOUNS), noun
 
 
+def test_generate_one_injects_camera_angle():
+    """The new camera-elevation axis (2026-06-18) is injected as a per-image
+    directive when assigned."""
+    c = _RecordingClient()
+    AD.generate_one(c, brief="b", tier="T1_suggestive", sub_look="s — x", avoid=[],
+                    banned_openers=[], model_tag="m", temperature=0.8,
+                    camera_angle="a LOW, HEROIC ANGLE — the camera below her looking up")
+    up = c.user_prompts[0]
+    assert "CAMERA ANGLE for THIS image" in up and "LOW, HEROIC ANGLE" in up
+
+
+def test_camera_angle_axis_rotates(monkeypatch):
+    """generate_series assigns a rotating camera angle from CAMERA_ANGLES to every
+    image so a set is not all eye-level — and the low-heroic directive is gate-safe."""
+    seen = []
+
+    def rec(client, **kw):
+        seen.append(kw.get("camera_angle"))
+        filler = " ".join(chr(97 + j % 26) + chr(98 + j % 25) for j in range(80))
+        return {"prompt": filler, "orientation": "portrait",
+                "shot_type": "medium", "framing_rationale": "r"}
+
+    monkeypatch.setattr(AD, "generate_one", rec)
+    AD.generate_series(brief="b", tier="T3_artnude", count=3, model_tag="m",
+                       temperature=0.8, audit_gate=False, client=object())
+    assert all(a in AD.CAMERA_ANGLES for a in seen)
+    assert len(set(seen)) == 3, "camera angle must vary across a 3-image set"
+    from scripts.audit_prompts import detect_camera_angle_contradiction
+    assert not any(detect_camera_angle_contradiction(a) for a in AD.CAMERA_ANGLES)
+
+
+def test_system_prompt_carries_cinematic_drama_and_register():
+    """The 2026-06-18 cinematic levers live in the system prompt: a drama token kit
+    (backlight/rim-halo/chiaroscuro/cinematic grade) on the LIGHT rule, a register
+    nudge, and SELF-GATING so it doesn't over-apply drama catalog-wide."""
+    sp = AD._build_system_prompt()
+    assert "rim-halo" in sp and "chiaroscuro" in sp and "cinematic colour grade" in sp
+    assert "STATE THE BIG VISUAL FACTS FIRST" in sp
+    assert "not every" in sp.lower() and "stays soft" in sp.lower()
+
+
+def test_grader_strength_zero_is_identity(tmp_path):
+    """At strength 0 the grade is an exact no-op (the blend invariant)."""
+    from PIL import Image
+    import numpy as np
+    from src.postprocess.grader import Grader
+    src, out = tmp_path / "s.png", tmp_path / "o.png"
+    Image.fromarray(np.full((48, 48, 3), 130, "uint8")).save(src)
+    Grader({"strength": 0.0}).apply(src, out)
+    assert np.array_equal(np.asarray(Image.open(src)), np.asarray(Image.open(out)))
+
+
+def test_grader_grades_preserves_size_text_and_is_deterministic(tmp_path):
+    """The grade keeps size/mode, preserves PNG text chunks (render params), is
+    deterministic, and actually changes pixels at a normal strength."""
+    from PIL import Image
+    from PIL.PngImagePlugin import PngInfo
+    import numpy as np
+    from src.postprocess.grader import Grader
+    src = tmp_path / "s.png"
+    info = PngInfo(); info.add_text("parameters", "seed=42 model=zimage")
+    Image.fromarray(np.random.default_rng(7).integers(0, 256, (60, 90, 3)).astype("uint8")
+                    ).save(src, pnginfo=info)
+    o1, o2 = tmp_path / "o1.png", tmp_path / "o2.png"
+    g = Grader({"strength": 0.6})
+    g.apply(src, o1); g.apply(src, o2)
+    im1 = Image.open(o1)
+    assert im1.size == (90, 60) and im1.mode == "RGB"
+    assert im1.text.get("parameters") == "seed=42 model=zimage"          # chunk preserved
+    assert np.array_equal(np.asarray(im1), np.asarray(Image.open(o2)))   # deterministic
+    assert not np.array_equal(np.asarray(im1),
+                              np.asarray(Image.open(src).convert("RGB")))  # actually graded
+
+
 def _fake_render_env(tmp_path):
     """A builder + client that 'render' by copying a tiny real PNG, for
     _render_stage_base anatomy-guard tests."""

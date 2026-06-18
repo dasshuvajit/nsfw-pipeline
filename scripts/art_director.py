@@ -244,7 +244,15 @@ WHAT MAKES YOUR PROMPTS EXCELLENT — study the exemplars and match their depth:
    along a collarbone or the rise of a hip, the warm translucency at the edge of \
    an ear, grazing light making pores and fine vellus down legible at the \
    terminator, a soft rim separating her from the background. This optical \
-   precision — light on form — is your single top lever.
+   precision — light on form — is your single top lever. \
+   When the scene WANTS drama (golden hour, sunset, night, a bold editorial \
+   mood), do not render it timid: place a strong light low and BEHIND her so her \
+   hair and the edge of her shoulders blaze into a bright rim-halo, let the low \
+   sun flare in the frame, and push deep shadow hard against bright highlight for \
+   true chiaroscuro — then name a warm, high-contrast cinematic colour grade. \
+   State these as plain facts. But MATCH the drama to the scene: a soft \
+   natural-light boudoir or an overcast morning stays soft and gentle — not every \
+   image is a contre-jour blaze.
 3. A RICH, SPECIFIC SETTING with real materials and a prop or two that tells a \
    story (a plate of cut fruit by the pool, a tarnished candelabra, an oil \
    lamp, tangled white linen, a chipped marble basin). Never "a room."
@@ -285,6 +293,11 @@ HARD RULES:
   order: who she is and what she is doing, then where, then the light, then the \
   fine details. No clause-piles, no riddles, no cramming nouns to hit a quota. \
   If you cannot follow it on a single read, rewrite it simpler.
+- STATE THE BIG VISUAL FACTS FIRST. Put the light (direction + quality), the \
+  camera angle, and any dramatic key (backlight, rim-halo, flare, the grade) into \
+  clear EARLY sentences — THEN add the fine micro-texture. Precise beats poetic: \
+  a few plainly-stated directive facts steer the render far harder than lyrical \
+  texture-prose, so never let the poetry bury the lighting/angle that sets the shot.
 - SENTENCE 1 IS ABOUT HER. The woman is the GRAMMATICAL SUBJECT of the opening \
   sentence — it opens ON HER (her pose, action or presence), says who she is and \
   what she is doing, and where she is. NEVER open on a prop, a hand, an object \
@@ -773,6 +786,22 @@ COMPOSITION_PRINCIPLES: tuple[str, ...] = (
     "GOLDEN SPIRAL — the composition curls inward, the eye spiralling to her face or gaze",
 )
 
+# Camera ELEVATION/ANGLE — the genuinely-missing axis (2026-06-18 cinematic R&D vs
+# gpt-image-1): the framing rotation set orientation + shot DISTANCE but never camera
+# HEIGHT, so every prompt defaulted to eye-level and never the heroic low angle the
+# frontier model reaches for unprompted. Rotated like composition; 3-cycle (coprime
+# with framing 8 / opener 5 / craft 7 / concept 11 / sensual 13). Worded to stay
+# gate-safe with light direction: a low angle pairs with "looking up" (NEVER "from
+# above"), a high angle with "looking down" — so it never trips CAMERA_ANGLE_CONFLICT.
+CAMERA_ANGLES: tuple[str, ...] = (
+    "EYE-LEVEL — the camera meets her at her own height, natural and direct",
+    "a LOW, HEROIC ANGLE — the camera sits slightly below her looking UP, so she "
+    "rises tall against the sky or ceiling (keep every proportion correct and "
+    "natural — no foreshortening distortion of limbs, hands or feet)",
+    "a gently HIGH ANGLE — the camera a little above her looking softly down, for "
+    "an intimate, flattering line",
+)
+
 
 class _PromptOut(BaseModel):
     prompt: str
@@ -1043,6 +1072,7 @@ def generate_one(
     concept: str = "",
     sensual_reveal: str = "",
     composition: str = "",
+    camera_angle: str = "",
 ) -> dict:
     tier_directive = TIER_DIRECTIVES.get(tier, TIER_DIRECTIVES["T3_artnude"])
     if extra_directive:
@@ -1147,6 +1177,12 @@ def generate_one(
         creative_variety += (
             f"\n\nCOMPOSITION for THIS image (the picture's underlying geometry): "
             f"{composition}."
+        )
+    if camera_angle:
+        creative_variety += (
+            f"\n\nCAMERA ANGLE for THIS image (vary the camera's HEIGHT across the "
+            f"series — it must NOT be eye-level every time): {camera_angle}. Make the "
+            f"prose and the described viewpoint physically match this angle."
         )
     # T4-only explicit-reveal nudge — rotates HOW the bare anatomy is revealed so a
     # set spans many tasteful angles/poses/degrees instead of one centred splay.
@@ -1311,6 +1347,10 @@ def generate_series(
         # lockstep with each other and the framing/structural rotations.
         concept = EDITORIAL_CONCEPTS[(i + run_offset) % len(EDITORIAL_CONCEPTS)]
         composition = COMPOSITION_PRINCIPLES[(i + run_offset) % len(COMPOSITION_PRINCIPLES)]
+        # Camera HEIGHT rotation (the missing axis) — 3-cycle, coprime with the
+        # 8/5/7/11/13 rotations so the heroic low angle lands on different
+        # framings/concepts across runs rather than locking to one.
+        camera_angle = CAMERA_ANGLES[(i + run_offset) % len(CAMERA_ANGLES)]
         # The sensual-reveal axis is an UNDRESS/partial-bare axis — it belongs
         # to T2 (implied) and T3 (art-nude) only. At T1 ("fully clothed") it
         # pushed Chroma to render nude (2026-06-12 batch: art_deco T1 drifted
@@ -1381,6 +1421,7 @@ def generate_series(
                     concept=concept,
                     sensual_reveal=sensual_reveal,
                     composition=composition,
+                    camera_angle=camera_angle,
                 )
             except Exception as exc:  # noqa: BLE001 — Pydantic/safety reject → retry
                 msg = str(exc)
