@@ -1,0 +1,172 @@
+{
+  "unet": {
+    "inputs": {
+      "unet_name": "gonzalomoZpop_v40.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model \u2014 gonzaLomo ZPop v4.0 (Z-Image Turbo BF16, NSFW)"
+    }
+  },
+  "modelsampling": {
+    "inputs": {
+      "shift": 3.0,
+      "model": [
+        "unet",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingAuraFlow",
+    "_meta": {
+      "title": "ModelSamplingAuraFlow (shift 3.0 \u2014 Z-Image few-step stability)"
+    }
+  },
+  "clip": {
+    "inputs": {
+      "clip_name": "qwen_3_4b.safetensors",
+      "type": "lumina2",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP (Qwen3-4B \u2014 type lumina2 auto-routes to Z-Image TE)"
+    }
+  },
+  "vae": {
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE (Flux ae \u2014 Z-Image 16ch, already on disk)"
+    }
+  },
+  "positive_prompt": {
+    "inputs": {
+      "text": "a photograph of one adult woman, soft natural light",
+      "clip": [
+        "clip",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Positive (Qwen3-4B prose \u2014 PATCHED)"
+    }
+  },
+  "negative_prompt": {
+    "inputs": {
+      "text": "",
+      "clip": [
+        "clip",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Negative (PATCHED \u2192 zeroed at cfg 1)"
+    }
+  },
+  "neg_zero": {
+    "inputs": {
+      "conditioning": [
+        "negative_prompt",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "ConditioningZeroOut (cfg=1 \u2192 negative inert, like Chroma flash)"
+    }
+  },
+  "empty_latent": {
+    "inputs": {
+      "width": 1216,
+      "height": 1536,
+      "batch_size": 1
+    },
+    "class_type": "EmptySD3LatentImage",
+    "_meta": {
+      "title": "EmptySD3LatentImage (16ch \u2014 W/H PATCHED)"
+    }
+  },
+  "ksampler": {
+    "inputs": {
+      "seed": 0,
+      "steps": 8,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "beta",
+      "denoise": 1,
+      "model": [
+        "deepshrink",
+        0
+      ],
+      "positive": [
+        "positive_prompt",
+        0
+      ],
+      "negative": [
+        "neg_zero",
+        0
+      ],
+      "latent_image": [
+        "empty_latent",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler \u2014 Z-Image hires (euler/beta/8/cfg1; deep-shrink model)"
+    }
+  },
+  "decode": {
+    "inputs": {
+      "samples": [
+        "ksampler",
+        0
+      ],
+      "vae": [
+        "vae",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode \u2014 Z-Image (ae 16ch)"
+    }
+  },
+  "save": {
+    "inputs": {
+      "filename_prefix": "stage1_base_zimage",
+      "images": [
+        "decode",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image \u2014 Z-Image base"
+    }
+  },
+  "deepshrink": {
+    "inputs": {
+      "block_number": 3,
+      "downscale_factor": 2.0,
+      "start_percent": 0.0,
+      "end_percent": 0.35,
+      "downscale_after_skip": true,
+      "downscale_method": "bicubic",
+      "upscale_method": "bicubic",
+      "model": [
+        "modelsampling",
+        0
+      ]
+    },
+    "class_type": "PatchModelAddDownscale",
+    "_meta": {
+      "title": "Deep-Shrink (Kohya, gonzaLomo v11) \u2014 hires coherence; block 3 x2 over first 35% of steps"
+    }
+  }
+}

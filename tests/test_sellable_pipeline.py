@@ -410,6 +410,20 @@ def test_zimage_refine_t4_honored_by_tier_purity_guard():
     assert not A._violates_tier_purity("T4_explicit", "templates/zimage/refine_T4.json", wd)
 
 
+def test_zimage_hires_base_template():
+    """The --hires base template exists, carries the deep-shrink patch wired into
+    the sampler's model chain, and keeps the 4-node external contract."""
+    p = Path("config/comfyui_workflows/templates/zimage/base_hires.json")
+    assert p.exists()
+    d = json.loads(p.read_text())
+    assert d.get("deepshrink", {}).get("class_type") == "PatchModelAddDownscale"
+    assert d["deepshrink"]["inputs"]["model"] == ["modelsampling", 0]
+    assert d["ksampler"]["inputs"]["model"] == ["deepshrink", 0], \
+        "deep-shrink must sit in the sampler's model chain"
+    for nid in ("positive_prompt", "negative_prompt", "ksampler", "empty_latent", "save"):
+        assert nid in d, f"hires base missing contract node {nid}"
+
+
 # ── influencer-substance prompt-engine knobs (2026-06-17) ──────────
 
 def test_tier_directives_carry_wardrobe_cut_vocab():

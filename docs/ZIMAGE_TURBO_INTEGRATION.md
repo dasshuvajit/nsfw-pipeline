@@ -152,7 +152,19 @@ python scripts/art_series.py --engine zimage --niche aspirational_luxe --tier T1
 python scripts/art_series.py --engine zimage --niche aspirational_luxe --tier T4_explicit
 # base-only (skip the detailer):
 python scripts/art_series.py --engine zimage --niche <id> --tier T1_suggestive --no-refine
+# HIRES hero render — gonzaLomo v11 deep-shrink base at ~1.9MP (forces zimage, ~2x slower on MPS):
+python scripts/art_series.py --hires --niche aspirational_luxe --tier T1_suggestive
 ```
+
+### Hires mode (`--hires`, gonzaLomo v11 deep-shrink)
+`PatchModelAddDownscale` (block 3 ×2 over the first 35% of steps) lets Z-Image render
+coherently ABOVE its ~1MP native res. Per-orientation hires resolutions: portrait 1216×1536,
+square 1344×1344, landscape 1536×1216. A/B'd vs the 896×1152 base (same seed): clearly more
+detail (skin/hair/fabric/background), at **~213s vs ~98s** (≈2× slower on MPS). Use it for
+max-detail hero/realism content; the standard base stays the default for volume. The SDXL
+detailer stage still applies on top. Template: `templates/zimage/base_hires.json`. (Detailer
+denoise was also raised 0.25→0.45 to match the creator's Z-Image-tuned value — rebuilds the
+softer base anatomy.)
 `--engine zimage` swaps the base + refine + refine_T4 templates as a set (explicit
 `--base-template`/`--refine-template` still override). ComfyUI needs no special flags on the
 current torch 2.13 build; the LLM auto-unloads before render. Ad-hoc A/B harness:
@@ -167,5 +179,30 @@ current torch 2.13 build; the LLM auto-unloads before render. Ad-hoc A/B harness
   render (T1+T3), 12-frame A/B vs Chroma, **T4 base→detailer render (genitals rebuilt, nipples
   cleaned, face untouched)**, NudeNet tier-truth, tier-purity guard, full suite (342 tests).
 - **PENDING (optional next):** Realistic-Snapshot realism LoRA if skin reads waxy on a wider
-  set; 4K USDU pass for Z-Image; per-niche detailer-denoise tuning; wider A/B across niches/tiers;
-  decide whether to flip the pipeline DEFAULT engine to zimage (currently chroma).
+  set; 4K USDU pass for Z-Image; per-niche detailer-denoise tuning; optional per-niche
+  engine auto-selection (see verdict below).
+
+## WIDER A/B verdict (2026-06-18) — DEFAULT STAYS CHROMA (per-niche, not a flip)
+Blind 4-judge panel + synthesis across 4 stylized niches (matched-prompt, base-only ZPop vs
+the packaged Chroma gated frames), spot-confirmed by eye:
+| Niche | Winner | Why |
+|---|---|---|
+| `aspirational_luxe` (realism/lifestyle, prior A/B) | **Z-Image** | faster + more photoreal |
+| `fine_art_figure_study` T3 (B&W fine-art) | **Chroma** | ZPop renders in **color**, ignores the B&W assignment; Chroma = true monochrome chiaroscuro |
+| `old_hollywood_glamour` T3 (B&W vintage) | **Chroma** | Chroma nails period mood; ZPop = generic modern boudoir |
+| `renaissance_baroque` T3 (painterly) | **Chroma** | ZPop too glossy/photoreal; Chroma = painterly old-master |
+| `goth_romantic` T3 (dark/moody) | **tie** | ZPop better low-key atmosphere, Chroma better faces |
+
+**Core finding:** Z-Image's photoreal crispness is a *liability* when the niche's job is
+tonality/mood (B&W, painterly) rather than photorealism — most starkly, **ZPop won't render
+true B&W** (defaults to color). So a flat default-flip is wrong; **Chroma remains the default**.
+
+**Recommended engine per niche:**
+- **Z-Image (`--engine zimage`):** realism/lifestyle niches — `aspirational_luxe` (proven); plausibly
+  `poolside_goldenhour`, `modern_boudoir`, `bohemian_naturallight`, `cottagecore_pastoral`
+  (untested — opt in per niche).
+- **Chroma (default):** all B&W / painterly / period / fantasy niches — `fine_art_figure_study`,
+  `monochrome_fine_art`, `old_hollywood_glamour`, `renaissance_baroque`, `medieval_lady`,
+  `mythology_goddess`, `arabian_nights`, `angelic_divine`, `dark_fantasy_vampire`, `goth_romantic`.
+- Per-niche AUTO-selection (a `default_engine:` field on each niche read by `--engine`'s default)
+  is the clean way to encode this — not yet wired (awaiting go-ahead).

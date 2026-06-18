@@ -1310,6 +1310,11 @@ def main() -> int:
                          "zimage (Z-Image Turbo / gonzaLomo ZPop). Swaps the base + "
                          "refine + refine_T4 templates as a set; explicit "
                          "--base-template / --refine-template still override.")
+    ap.add_argument("--hires", action="store_true",
+                    help="Z-Image deep-shrink HIRES base (gonzaLomo v11: "
+                         "PatchModelAddDownscale + higher per-orientation resolution) "
+                         "for max-detail hero renders. Forces --engine zimage; "
+                         "~2x slower on MPS. The SDXL detailer stage still applies.")
     ap.add_argument("--model-tag", default=art_director.DEFAULT_LLM_TAG,
                     help="LLM tag for prompt generation; routed to its backend "
                          "(LM Studio / Ollama / MLX) by config/llm_models.yaml. "
@@ -1390,12 +1395,25 @@ def main() -> int:
             "refine_template_t4": "templates/zimage/refine_T4.json",
         },
     }
+    # --hires: gonzaLomo deep-shrink base at a higher per-orientation resolution
+    # (Z-Image only — deep-shrink is a Z-Image feature; ~2x slower on MPS).
+    _ZIMAGE_HIRES_BASE = "templates/zimage/base_hires.json"
+    _HIRES_BASE_RESOLUTION = {"portrait": [1216, 1536], "square": [1344, 1344],
+                              "landscape": [1536, 1216]}
+    if args.hires and args.engine != "zimage":
+        print("  (--hires forces --engine zimage: deep-shrink is a Z-Image feature)",
+              flush=True)
+        args.engine = "zimage"
     eng = _ENGINE_TEMPLATES.get(args.engine, {})
+    base_tmpl_cli = args.base_template or (
+        _ZIMAGE_HIRES_BASE if args.hires else eng.get("base_template"))
     rp_cli = {
-        "base_template": args.base_template or eng.get("base_template"),
+        "base_template": base_tmpl_cli,
         "refine_template": args.refine_template or eng.get("refine_template"),
         "refine_template_t4": eng.get("refine_template_t4"),
     }
+    if args.hires:
+        rp_cli["base_resolution"] = _HIRES_BASE_RESOLUTION
     if args.no_refine:
         rp_cli["enable_refine"] = False
     rp = resolve_render_pipeline(cfg.get("render_pipeline"), None, rp_cli)
