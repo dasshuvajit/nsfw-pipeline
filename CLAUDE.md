@@ -57,9 +57,15 @@ scripts/upscale_folder.py ── manual, selective true-4K (USDU, face-true deno
 
 ## Tech Stack
 - Python 3.11+, Mac M4 Pro 48GB unified RAM (Apple MPS — no CUDA)
-- ComfyUI (separate, http://127.0.0.1:8188) — image model **gonzaLomo Chroma
-  v30** (Chroma = FLUX-arch, T5-prompted, flash-heun LoRA baked in → cfg 1.0
-  contract) + SDXL DMD for detailers/4K
+- ComfyUI (separate, http://127.0.0.1:8188). **DEFAULT engine = Z-Image Turbo**
+  (`--engine zimage`, 2026-06-19): official `zImageTurbo_turbo.safetensors` (Lumina2-arch,
+  Qwen3-4B TE type=lumina2, 16ch Flux VAE, cfg 1.0) + a LoRA stack
+  (`NSFW_master_ZIT` restores anatomy on the NSFW-weak official base + `dopsd_white` style)
+  + `ModelSamplingAuraFlow` shift 3.0, `dpmpp_sde`/beta/8. Template
+  `templates/zimage/base.json`; ZPop fallback = `base_zpop.json`. Render at the official
+  ~1MP buckets (896×1152/1024²/1152×896; ÷16; NEVER 1536×2048 → MPS >12k-token/INT_MAX
+  crash). **`--engine chroma`** = gonzaLomo **Chroma v30** (FLUX-arch, T5, flash-heun
+  cfg-1) — use for B&W/painterly/period/fantasy niches. Both + SDXL DMD for detailers/4K.
 - LLM registry `config/llm_models.yaml` → `LLMClientPool` routes by backend:
   Ollama / LM Studio / MLX / openai_compatible (dormant remote API).
   **Default: `gemma4_26b_a4b_uncensored_hauhaucs_balanced`** (Gemma-4 26B MoE-A4B

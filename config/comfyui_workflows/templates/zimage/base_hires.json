@@ -1,25 +1,72 @@
 {
   "unet": {
     "inputs": {
-      "unet_name": "gonzalomoZpop_v40.safetensors",
+      "unet_name": "zImageTurbo_turbo.safetensors",
       "weight_dtype": "default"
     },
     "class_type": "UNETLoader",
     "_meta": {
-      "title": "Load Diffusion Model \u2014 gonzaLomo ZPop v4.0 (Z-Image Turbo BF16, NSFW)"
+      "title": "Load Diffusion Model — official Z-Image Turbo BF16 (hires variant of the default base.json)"
+    }
+  },
+  "lora_nsfw": {
+    "inputs": {
+      "model": [
+        "unet",
+        0
+      ],
+      "lora_name": "zit/NSFW_master_ZIT_000017532.safetensors",
+      "strength_model": 0.8
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoRA 1/2 — NSFW_master_ZIT"
+    }
+  },
+  "lora_style": {
+    "inputs": {
+      "model": [
+        "lora_nsfw",
+        0
+      ],
+      "lora_name": "dopsd_white_zimage_turbo_comfy.safetensors",
+      "strength_model": 0.8
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoRA 2/2 — dopsd_white"
     }
   },
   "modelsampling": {
     "inputs": {
       "shift": 3.0,
       "model": [
-        "unet",
+        "lora_style",
         0
       ]
     },
     "class_type": "ModelSamplingAuraFlow",
     "_meta": {
-      "title": "ModelSamplingAuraFlow (shift 3.0 \u2014 Z-Image few-step stability)"
+      "title": "ModelSamplingAuraFlow (shift 3.0 — Z-Image few-step stability)"
+    }
+  },
+  "deepshrink": {
+    "inputs": {
+      "block_number": 3,
+      "downscale_factor": 2.0,
+      "start_percent": 0.0,
+      "end_percent": 0.35,
+      "downscale_after_skip": true,
+      "downscale_method": "bicubic",
+      "upscale_method": "bicubic",
+      "model": [
+        "modelsampling",
+        0
+      ]
+    },
+    "class_type": "PatchModelAddDownscale",
+    "_meta": {
+      "title": "Deep-Shrink (Kohya, gonzaLomo v11) — hires coherence; block 3 x2 over first 35% of steps"
     }
   },
   "clip": {
@@ -30,7 +77,7 @@
     },
     "class_type": "CLIPLoader",
     "_meta": {
-      "title": "Load CLIP (Qwen3-4B \u2014 type lumina2 auto-routes to Z-Image TE)"
+      "title": "Load CLIP (Qwen3-4B full-precision safetensors — type lumina2)"
     }
   },
   "vae": {
@@ -39,7 +86,7 @@
     },
     "class_type": "VAELoader",
     "_meta": {
-      "title": "Load VAE (Flux ae \u2014 Z-Image 16ch, already on disk)"
+      "title": "Load VAE (Flux ae — Z-Image 16ch)"
     }
   },
   "positive_prompt": {
@@ -52,7 +99,7 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "Positive (Qwen3-4B prose \u2014 PATCHED)"
+      "title": "Positive (Qwen3-4B prose — PATCHED)"
     }
   },
   "negative_prompt": {
@@ -65,7 +112,7 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "Negative (PATCHED \u2192 zeroed at cfg 1)"
+      "title": "Negative (PATCHED → zeroed at cfg 1)"
     }
   },
   "neg_zero": {
@@ -77,7 +124,7 @@
     },
     "class_type": "ConditioningZeroOut",
     "_meta": {
-      "title": "ConditioningZeroOut (cfg=1 \u2192 negative inert, like Chroma flash)"
+      "title": "ConditioningZeroOut (cfg=1 → negative inert)"
     }
   },
   "empty_latent": {
@@ -88,7 +135,7 @@
     },
     "class_type": "EmptySD3LatentImage",
     "_meta": {
-      "title": "EmptySD3LatentImage (16ch \u2014 W/H PATCHED)"
+      "title": "EmptySD3LatentImage (16ch — W/H PATCHED to _HIRES_BASE_RESOLUTION ~1.9MP, deep-shrink keeps it coherent)"
     }
   },
   "ksampler": {
@@ -118,7 +165,7 @@
     },
     "class_type": "KSampler",
     "_meta": {
-      "title": "KSampler \u2014 Z-Image hires (res_multistep/simple/8/cfg1; deep-shrink model)"
+      "title": "KSampler — Z-Image hires (res_multistep/simple/8/cfg1; deep-shrink model chain)"
     }
   },
   "decode": {
@@ -134,12 +181,12 @@
     },
     "class_type": "VAEDecode",
     "_meta": {
-      "title": "VAE Decode \u2014 Z-Image (ae 16ch)"
+      "title": "VAE Decode — Z-Image (ae 16ch)"
     }
   },
   "save": {
     "inputs": {
-      "filename_prefix": "stage1_base_zimage",
+      "filename_prefix": "stage1_base_zimage_hires",
       "images": [
         "decode",
         0
@@ -147,26 +194,7 @@
     },
     "class_type": "SaveImage",
     "_meta": {
-      "title": "Save Image \u2014 Z-Image base"
-    }
-  },
-  "deepshrink": {
-    "inputs": {
-      "block_number": 3,
-      "downscale_factor": 2.0,
-      "start_percent": 0.0,
-      "end_percent": 0.35,
-      "downscale_after_skip": true,
-      "downscale_method": "bicubic",
-      "upscale_method": "bicubic",
-      "model": [
-        "modelsampling",
-        0
-      ]
-    },
-    "class_type": "PatchModelAddDownscale",
-    "_meta": {
-      "title": "Deep-Shrink (Kohya, gonzaLomo v11) \u2014 hires coherence; block 3 x2 over first 35% of steps"
+      "title": "Save Image — Z-Image hires base"
     }
   }
 }

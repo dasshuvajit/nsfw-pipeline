@@ -1326,11 +1326,13 @@ def main() -> int:
                     help="skip stage-2 refine; review images = raw base render")
     ap.add_argument("--no-postgrade", action="store_true",
                     help="skip the cinematic post-grade pass (pipeline.yaml postgrade)")
-    ap.add_argument("--engine", choices=["chroma", "zimage"], default="chroma",
-                    help="render engine: chroma (gonzaLomo Chroma v30, default) or "
-                         "zimage (Z-Image Turbo / gonzaLomo ZPop). Swaps the base + "
-                         "refine + refine_T4 templates as a set; explicit "
-                         "--base-template / --refine-template still override.")
+    ap.add_argument("--engine", choices=["chroma", "zimage"], default="zimage",
+                    help="render engine: zimage (Z-Image Turbo — DEFAULT; official base "
+                         "+ NSFW_master + dopsd_white LoRA stack, dpmpp_sde) or chroma "
+                         "(gonzaLomo Chroma v30 — for B&W/painterly/period/fantasy niches). "
+                         "Swaps the base + refine + refine_T4 templates as a set; explicit "
+                         "--base-template / --refine-template still override. (ZPop base is "
+                         "templates/zimage/base_zpop.json via --base-template.)")
     ap.add_argument("--hires", action="store_true",
                     help="Z-Image deep-shrink HIRES base (gonzaLomo v11: "
                          "PatchModelAddDownscale + higher per-orientation resolution) "

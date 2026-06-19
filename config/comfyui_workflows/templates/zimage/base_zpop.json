@@ -1,53 +1,25 @@
 {
   "unet": {
     "inputs": {
-      "unet_name": "zImageTurbo_turbo.safetensors",
+      "unet_name": "gonzalomoZpop_v40.safetensors",
       "weight_dtype": "default"
     },
     "class_type": "UNETLoader",
     "_meta": {
-      "title": "Load Diffusion Model — official Z-Image Turbo BF16 (NSFW via the LoRA stack below; ZPop preserved as base_zpop.json)"
-    }
-  },
-  "lora_nsfw": {
-    "inputs": {
-      "model": [
-        "unet",
-        0
-      ],
-      "lora_name": "zit/NSFW_master_ZIT_000017532.safetensors",
-      "strength_model": 0.8
-    },
-    "class_type": "LoraLoaderModelOnly",
-    "_meta": {
-      "title": "LoRA 1/2 — NSFW_master_ZIT (restores explicit anatomy on the NSFW-weak official base; strength tuned by 2026-06-19 validation)"
-    }
-  },
-  "lora_style": {
-    "inputs": {
-      "model": [
-        "lora_nsfw",
-        0
-      ],
-      "lora_name": "dopsd_white_zimage_turbo_comfy.safetensors",
-      "strength_model": 0.8
-    },
-    "class_type": "LoraLoaderModelOnly",
-    "_meta": {
-      "title": "LoRA 2/2 — dopsd_white (style/realism, from the Engineer V6 workflow; stacked after NSFW_master)"
+      "title": "Load Diffusion Model — gonzaLomo ZPop v4.0 (Z-Image Turbo BF16, NSFW)"
     }
   },
   "modelsampling": {
     "inputs": {
       "shift": 3.0,
       "model": [
-        "lora_style",
+        "unet",
         0
       ]
     },
     "class_type": "ModelSamplingAuraFlow",
     "_meta": {
-      "title": "ModelSamplingAuraFlow (shift 3.0 — Z-Image few-step stability; re-added vs the source workflow which omitted it)"
+      "title": "ModelSamplingAuraFlow (shift 3.0 — Z-Image few-step stability)"
     }
   },
   "clip": {
@@ -58,7 +30,7 @@
     },
     "class_type": "CLIPLoader",
     "_meta": {
-      "title": "Load CLIP (Qwen3-4B full-precision safetensors — type lumina2; chosen over the workflow's GGUF TE: full precision + no ComfyUI-GGUF dependency)"
+      "title": "Load CLIP (Qwen3-4B — type lumina2 auto-routes to Z-Image TE)"
     }
   },
   "vae": {
@@ -67,7 +39,7 @@
     },
     "class_type": "VAELoader",
     "_meta": {
-      "title": "Load VAE (Flux ae — Z-Image 16ch)"
+      "title": "Load VAE (Flux ae — Z-Image 16ch, already on disk)"
     }
   },
   "positive_prompt": {
@@ -105,7 +77,7 @@
     },
     "class_type": "ConditioningZeroOut",
     "_meta": {
-      "title": "ConditioningZeroOut (cfg=1 → negative inert)"
+      "title": "ConditioningZeroOut (cfg=1 → negative inert, like Chroma flash)"
     }
   },
   "empty_latent": {
@@ -116,7 +88,7 @@
     },
     "class_type": "EmptySD3LatentImage",
     "_meta": {
-      "title": "EmptySD3LatentImage (16ch — W/H PATCHED to render_pipeline.base_resolution ~1MP; never the source workflow's MPS-unsafe 1536x2048)"
+      "title": "EmptySD3LatentImage (16ch — W/H PATCHED)"
     }
   },
   "ksampler": {
@@ -146,7 +118,7 @@
     },
     "class_type": "KSampler",
     "_meta": {
-      "title": "KSampler — Z-Image Turbo (res_multistep/simple/8/cfg1, seed PATCHED; ~2x faster than the workflow's dpmpp_sde, A/B-validated equal-or-better)"
+      "title": "KSampler — Z-Image Turbo (res_multistep/simple/8/cfg1, seed PATCHED; creator settings)"
     }
   },
   "decode": {
@@ -175,7 +147,7 @@
     },
     "class_type": "SaveImage",
     "_meta": {
-      "title": "Save Image — Z-Image base (official + NSFW_master + dopsd_white)"
+      "title": "Save Image — Z-Image base"
     }
   }
 }

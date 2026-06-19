@@ -410,6 +410,42 @@ def test_zimage_refine_t4_honored_by_tier_purity_guard():
     assert not A._violates_tier_purity("T4_explicit", "templates/zimage/refine_T4.json", wd)
 
 
+def test_zimage_default_workflow_is_official_plus_lora_stack():
+    """The new default zimage base.json (2026-06-19 'Engineer V6' adoption): official
+    Z-Image Turbo + NSFW_master + dopsd_white LoRA stack wired into the model chain,
+    dpmpp_sde sampler, ModelSamplingAuraFlow shift, full-precision safetensors TE,
+    patchable contract nodes intact, and a safe (~1MP) static latent. ZPop preserved
+    as base_zpop.json."""
+    base = Path("config/comfyui_workflows/templates/zimage")
+    b = json.loads((base / "base.json").read_text())
+    assert b["unet"]["inputs"]["unet_name"] == "zImageTurbo_turbo.safetensors"   # official base
+    # stacked LoRAs in the model chain: unet → lora_nsfw → lora_style → modelsampling → ksampler
+    assert b["lora_nsfw"]["class_type"] == "LoraLoaderModelOnly"
+    assert b["lora_nsfw"]["inputs"]["model"] == ["unet", 0]
+    assert "NSFW_master_ZIT" in b["lora_nsfw"]["inputs"]["lora_name"]
+    assert b["lora_style"]["inputs"]["model"] == ["lora_nsfw", 0]
+    assert "dopsd_white" in b["lora_style"]["inputs"]["lora_name"]
+    assert b["modelsampling"]["inputs"]["model"] == ["lora_style", 0]
+    assert b["ksampler"]["inputs"]["model"] == ["modelsampling", 0]
+    assert b["ksampler"]["inputs"]["sampler_name"] == "res_multistep"    # faster than workflow's dpmpp_sde
+    assert b["clip"]["inputs"]["type"] == "lumina2"
+    assert b["clip"]["inputs"]["clip_name"].endswith(".safetensors")    # full-precision, not GGUF
+    # static latent stays ~1MP — never the MPS-unsafe (>12k-token) 1536x2048
+    el = b["empty_latent"]["inputs"]
+    assert el["width"] * el["height"] <= 1024 * 1280, "static latent must stay ~1MP (MPS-safe)"
+    # ZPop preserved as a selectable fallback
+    z = json.loads((base / "base_zpop.json").read_text())
+    assert z["unet"]["inputs"]["unet_name"] == "gonzalomoZpop_v40.safetensors"
+
+
+def test_zimage_is_the_default_engine():
+    """zimage is the default render engine (2026-06-19); chroma is opt-in via --engine."""
+    import re
+    src = Path("scripts/art_series.py").read_text()
+    m = re.search(r'add_argument\(\s*"--engine".*?default="(\w+)"', src, re.S)
+    assert m and m.group(1) == "zimage", "--engine default must be zimage"
+
+
 def test_zimage_hires_base_template():
     """The --hires base template exists, carries the deep-shrink patch wired into
     the sampler's model chain, and keeps the 4-node external contract."""
