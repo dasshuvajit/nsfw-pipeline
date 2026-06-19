@@ -311,13 +311,26 @@ HARD RULES:
 - 110-160 words of flowing, READABLE natural prose — aim for ~150; the renderer \
   weights the EARLIEST tokens hardest, so put your strongest visual facts first, \
   and overlong or convoluted prose dilutes adherence. Every \
-  phrase earns its place; no padding, no repetition, no noun-stuffing.
+  phrase earns its place; no padding, no repetition, no noun-stuffing. The \
+  per-image axes you are given (look, wardrobe, pose, time/weather, concept, \
+  composition, camera angle) are INGREDIENTS to SELECT from and weave into ONE \
+  concise photograph — NOT a checklist to spell out one by one; touch each lightly \
+  and keep the WHOLE prompt inside the word band.
 - VARY THE SPECIFICS image to image. Each scene gets its OWN objects, surfaces, \
   materials and wardrobe that FIT that particular place — do NOT reach for the \
   same brass lantern, satin slip and stone bench every time. Pick details the \
   way a real location would actually have them, so consecutive images read as \
   DIFFERENT photographs, never one set redressed. Avoid pet phrases ("creamy \
   bokeh", "salt sheen") repeating across the series. \
+- TAKE THE BOLDER SWING. For THIS image, commit to ONE genuinely fresh, specific \
+  picture — not the safe, expected default for the brief. Push hard on the assigned \
+  axes (the look, garment, pose, camera angle, time-of-day/weather, composition) and \
+  invent a concrete moment around them: an unusual vantage, a surprising place within \
+  the niche, an unexpected light, a candid gesture caught mid-action. Two prompts in \
+  the same niche must read as two DIFFERENT women in two DIFFERENT photographs, not the \
+  same scene reworded — vary the woman, the wardrobe, the setting, the light and the \
+  mood every time. Stay strictly inside the TIER's undress limit, the single-adult-woman \
+  rule and all safety rules — boldness is in the PICTURE, never the tier. \
 - NO tag-soup (no long comma-runs of keywords). NO "masterpiece, best quality, \
   8k, ultra-detailed" boosters. NO weighting syntax like (word:1.3). NO lists.
 - Honor the requested TIER's state of undress exactly, and the TARGET LOOK given.
@@ -567,7 +580,9 @@ def _creative_system_block() -> str:
 # 8-entry framing rotation) ever move in lockstep. The old shared-index
 # rotation pinned hair to framing permanently: every portrait close-up in the
 # whole catalog was platinum-blonde (22/22 measured).
-_POOL_STRIDES = {"hair": 3, "figure": 5, "face": 7, "complexion": 11,
+# Strides kept coprime with the (2026-06-20 expanded) pool lengths — hair 28 /
+# figure 20 / face 26 / complexion 18 / age_look 7 — so each pool is fully covered.
+_POOL_STRIDES = {"hair": 3, "figure": 9, "face": 7, "complexion": 11,
                  "age_look": 13}
 
 
@@ -591,6 +606,35 @@ def _creative_look(index: int, run_key: int = 0) -> str:
         stride = _POOL_STRIDES.get(name, 3)
         parts.append(entries[(index * stride) % len(entries)])
     return ", ".join(parts)
+
+
+# Per-axis distinct strides for the DECOUPLED rotation (2026-06-20). Combined with
+# the per-(run, axis) shuffle in _rotate, every rotation axis now advances
+# INDEPENDENTLY — axes never phase-lock to each other or to the scene index, and a
+# same-niche re-run draws a fresh independent sample of each axis. Before this, all
+# eight axes shared the single `(i + run_offset)` index, so the ~360k theoretical
+# combination space collapsed to a 1-D line of length `count` that merely rotated by
+# one per re-run ("the same 6 rooms with a different guest"). This is the single
+# largest variety lever in the engine and it costs zero new content.
+_AXIS_STRIDES = {
+    "sub_look": 5, "framing": 3, "opener": 2, "craft": 3, "concept": 4,
+    "composition": 2, "camera": 2, "sensual": 5, "reveal": 3, "grooming": 2,
+    "garment": 11, "pose": 7, "atmosphere": 3,
+}
+
+
+def _rotate(seq, index: int, run_key: int, axis: str):
+    """Decoupled per-axis rotation — generalises _creative_look to EVERY rotation
+    axis. Each axis gets its own per-(run, axis) deterministic shuffle + prime
+    stride, so no two axes move in lockstep and re-runs re-sample each axis from a
+    fresh permutation. Returns ``None`` for an empty sequence."""
+    import random as _random
+    local = list(seq)
+    if not local:
+        return None
+    _random.Random(f"{run_key}:{axis}").shuffle(local)
+    stride = _AXIS_STRIDES.get(axis, 1)
+    return local[(index * stride) % len(local)]
 
 
 def _build_system_prompt(word_band: tuple[int, int] = WORD_BAND_DEFAULT) -> str:
@@ -808,6 +852,80 @@ CAMERA_ANGLES: tuple[str, ...] = (
 )
 
 
+# WARDROBE-TYPE axis (2026-06-20) — names an INTACT garment; the TIER governs exposure.
+# Decoupled rotation (own stride), fired T1-T3 (skip T4 = nude). Cultural garments
+# (sari/lehenga/flamenco/sarafan...) live in the cultural niches' sub_looks instead.
+GARMENT_TYPES: tuple[str, ...] = (
+    "a bias-cut silk slip in oyster-grey, cut on the bias so it skims the figure",
+    "a satin slip dress in deep wine, thin straps and a straight neckline",
+    "a matched lingerie set \u2014 fine lace bralette and high-waisted briefs",
+    "a simple cotton bra-and-panty set in soft dove-grey",
+    "a sheer chiffon kaftan worn open over a fitted swimsuit",
+    "an oversized men's white dress shirt, sleeves rolled, worn as a dress",
+    "a cropped knit top with a high-waisted linen wrap skirt",
+    "a triangle string bikini in burnt-orange with side-tie ties",
+    "a sculpted one-piece swimsuit in glossy black with a scooped back",
+    "a long-sleeved cotton bodysuit with a clean boat neckline",
+    "a charmeuse silk robe in champagne, belted neatly at the waist",
+    "a printed kimono-style wrap robe with wide sleeves and an obi tie",
+    "a ribbed bodycon midi dress in camel that traces the waist and hip",
+    "a lace teddy in ivory with a scalloped edge and thin shoulder straps",
+    "a structured boned corset laced over a full taffeta skirt",
+    "a bias-cut floor-length gown in liquid pewter satin",
+    "a wide-leg halter jumpsuit in jersey, backless and clean-lined",
+    "a soft cashmere knit lounge set \u2014 relaxed top and matching wide trousers",
+    "a cotton sundress with thin straps and a gathered tiered skirt",
+    "an off-shoulder peasant blouse with elastic neckline and full sleeves",
+    "a high-neck velvet column dress in forest green, long-sleeved and floor-length",
+    "a tailored linen shirtdress, buttoned through and cinched with a belt",
+    "a crochet knit beach dress in cream worn over a bikini",
+    "a fine-gauge merino turtleneck sweater dress in oatmeal, mid-thigh length",
+    "a draped Grecian one-shoulder gown in white jersey with a corded waist",
+    "a satin pyjama set \u2014 piped camp-collar shirt and matching long trousers",
+    "an Art Deco beaded fringe flapper dress in jet and silver",
+    "a tailored tuxedo jacket worn as a dress with satin lapels and a waist belt",
+)
+
+# POSE/GESTURE axis (2026-06-20) — concrete SOLO body-lines the LLM otherwise defaults
+# to a narrow repertoire for. Decoupled rotation; fires all tiers.
+POSE_GESTURES: tuple[str, ...] = (
+    "STANDING CONTRAPPOSTO \u2014 her weight settled on one hip, the other knee soft, shoulders counter-turned for a long S-curve through the body",
+    "KNEELING UPRIGHT \u2014 sitting back on her heels, spine tall, hands resting open on her thighs, chin level and calm",
+    "ARCHED RECLINE \u2014 lying back across a low surface, the small of her back lifted off it, throat and collarbone offered to the key light",
+    "GLANCING OVER ONE SHOULDER \u2014 back mostly to the camera, head turned just enough to catch her eye and the line of her jaw",
+    "WALKING AWAY, LOOKING BACK \u2014 mid-step, the far foot leaving the ground, torso twisting so she meets the lens over her shoulder",
+    "SEATED ON THE FLOOR \u2014 knees drawn up and loosely hugged, one cheek tipped toward a raised knee, relaxed and self-contained",
+    "LEANING INTO THE LIGHT \u2014 one shoulder and hip set against a wall, the lit side toward the window, the rest falling into soft shadow",
+    "PRONE ON HER ELBOWS \u2014 lying on her front, forearms folded, the long lift of her back and the soles of her feet behind her",
+    "MID-STRETCH \u2014 both arms reaching up overhead, ribs lengthening, weight rocked onto the balls of her feet, eyes half-closed",
+    "CROUCHED LOW \u2014 folded down on her heels, knees wide, forearms balanced across them, looking up into the lens",
+    "PERCHED ON A LEDGE \u2014 seated on a sill or wall edge, one leg dangling, the other drawn up, hands braced beside her hips",
+    "TURNED THREE-QUARTERS AWAY \u2014 body angled off into the frame, only the curve of cheek, far brow and the sweep of her back to the camera",
+    "HANDS LIFTING HER HAIR \u2014 both arms raised to gather her hair off her neck, elbows winged out, the nape and shoulder line exposed",
+    "SEATED SIDESADDLE \u2014 folded onto one hip on the floor or a low couch, legs swept to one side, one hand planted to brace her lean",
+    "STEPPING THROUGH A DOORWAY \u2014 caught mid-stride in the threshold, one hand trailing the frame, half in light and half in the room beyond",
+    "RECLINED ACROSS A SURFACE \u2014 stretched the long way along a chaise or bed, propped on one elbow, the other arm draped down her side",
+    "STANDING TALL, CHIN LIFTED \u2014 squared to the camera, spine drawn long, gaze level and unbothered, hands loose at her sides",
+    "CURLED ON HER SIDE \u2014 knees gathered toward her chest, one arm tucked under her head, the other resting along her hip, soft and at ease",
+    "SEATED LEANING FORWARD \u2014 perched on the edge of a chair, forearms on her thighs, shoulders rolled toward the lens, intent and direct",
+)
+
+# TIME-OF-DAY x WEATHER overlay axis (2026-06-20) — varies light/season INDEPENDENTLY of
+# the scene (previously baked statically into each sub_look). Soft overlay the scene may
+# adapt; decoupled rotation; fires all tiers.
+ATMOSPHERE: tuple[str, ...] = (
+    "COOL BLUE DAWN \u2014 the first thin grey-blue light, the room still half-asleep, edges soft and the air cold and clean",
+    "BRIGHT CLEAR NOON \u2014 high hard sunlight, crisp shadows with sharp edges, colours saturated and the day at full strength",
+    "WARM GOLDEN HOUR \u2014 low amber sun raking in long and sideways, gilding one side of her and throwing the other into warm shadow",
+    "VIOLET BLUE-HOUR DUSK \u2014 the sun just gone, the sky deepening to indigo, the first warm lamps glowing against the cooling outside",
+    "OVERCAST SILVER DAYLIGHT \u2014 a flat, even, shadowless light through cloud, gentle and diffuse, colours muted and calm",
+    "SOFT RAIN ON THE GLASS \u2014 beads and runnels on the window scattering the grey light, the room hushed, the world outside blurred",
+    "DRIFTING SNOW \u2014 slow flakes falling past the glass, a cold blue-white bounce off the snowlight, the interior warm by contrast",
+    "LOW GROUND-MIST \u2014 a thin layer of fog lying close to the floor or field, depth softening to nothing, the air still and heavy",
+    "A CLEARING STORM \u2014 broken cloud after rain, a sudden shaft of sun cutting through, everything wet and gleaming and freshly lit",
+    "HAZY HEAT-SHIMMER \u2014 thick still air of a hot afternoon, the light gone soft and golden, distances wavering, skin warm and dewed",
+)
+
 class _PromptOut(BaseModel):
     prompt: str
     orientation: str = "portrait"      # portrait | square | landscape
@@ -838,10 +956,12 @@ class _PromptOut(BaseModel):
         words = len(text.split())
         lo, hi = _ACTIVE_WORD_BAND
         floor = max(40, int(lo * 0.6))      # lenient — gate quality via audit, not length
-        # Ceiling tightened (was hi*1.4+30 = a fiction band): flash-merged
-        # Chroma loses adherence on overlong prose, so drift past ~hi*1.25
-        # is a real quality cost, not a style choice.
-        ceiling = int(hi * 1.25)
+        # Ceiling tightened (was hi*1.25): the cfg-1 renderer weights the
+        # earliest tokens hardest, so drift past ~hi*1.15 is a real adherence
+        # cost — and the multi-axis injection (look/wardrobe/pose/weather/
+        # concept/composition/camera) tempts the LLM to over-write. This hard
+        # backstop forces it back toward the band instead of shipping ~210-word bloat.
+        ceiling = int(hi * 1.15)
         if words < floor:
             raise ValueError(
                 f"prompt too short ({words} words) — needs {lo}-{hi} of rich prose"
@@ -1078,6 +1198,9 @@ def generate_one(
     sensual_reveal: str = "",
     composition: str = "",
     camera_angle: str = "",
+    garment_type: str = "",
+    pose: str = "",
+    atmosphere: str = "",
 ) -> dict:
     tier_directive = TIER_DIRECTIVES.get(tier, TIER_DIRECTIVES["T3_artnude"])
     if extra_directive:
@@ -1189,6 +1312,21 @@ def generate_one(
             f"series — it must NOT be eye-level every time): {camera_angle}. Make the "
             f"prose and the described viewpoint physically match this angle."
         )
+    if garment_type:
+        creative_variety += (
+            f"\n\nWARDROBE — she wears {garment_type}; the TIER governs how much shows "
+            f"(in place at T1, opened/teased at T2-T3, shed and pooled nearby at T3+). "
+            f"Weave it into the scene in a phrase, never as a tag."
+        )
+    if pose:
+        creative_variety += (
+            f"\n\nPOSE — {pose} Build the composition around her line, weight and gaze."
+        )
+    if atmosphere:
+        creative_variety += (
+            f"\n\nTIME & WEATHER (soft overlay; the scene may adapt it; keep any "
+            f"haze/rain/snow environmental, never unsourced smoke): {atmosphere}."
+        )
     # T4-only explicit-reveal nudge — rotates HOW the bare anatomy is revealed so a
     # set spans many tasteful angles/poses/degrees instead of one centred splay.
     reveal_variety = ""
@@ -1236,6 +1374,11 @@ def generate_one(
         '  Make the prompt PHYSICALLY MATCH the chosen framing (a close_up prompt '
         'must describe the face/gaze in detail and crop tight; a full_body prompt '
         'must place the whole body in the scene with clear, correct anatomy).\n\n'
+        'HARD LENGTH RULE: the finished prompt MUST be 130-175 words. The many axes '
+        'above (look, wardrobe, pose, time/weather, concept, composition, camera) are '
+        'INGREDIENTS to SELECT from and fuse into one tight photograph — NOT a '
+        'checklist to describe one by one. If you are over 175 words, cut adjectives '
+        'and merge clauses until you are under it; brevity sharpens the render.\n\n'
         'Return JSON: {"prompt": "<prompt text>", "orientation": "<portrait|square|'
         'landscape>", "shot_type": "<close_up|bust|medium|full_body|wide_'
         'environmental>", "framing_rationale": "<1-2 sentences>"}'
@@ -1334,13 +1477,13 @@ def generate_series(
         (s[:36], _ngrams3(s)) for s in avoid if s
     ]
     for i in range(count):
-        sub_look = looks[(i + run_offset) % len(looks)]
+        sub_look = _rotate(looks, i, run_offset, "sub_look")
         look_label = sub_look.split(" — ")[0]
-        framing = FRAMING_TARGETS[(i + run_offset) % len(FRAMING_TARGETS)]
+        framing = _rotate(FRAMING_TARGETS, i, run_offset, "framing")
         # Structural rotation — sentence-1 lead (5-cycle) + craft-note
         # placement (7-cycle), both coprime with the 8 framing targets.
-        opener_lead = OPENER_LEADS[(i + run_offset) % len(OPENER_LEADS)]
-        craft_placement = CRAFT_PLACEMENTS[(i + run_offset) % len(CRAFT_PLACEMENTS)]
+        opener_lead = _rotate(OPENER_LEADS, i, run_offset, "opener")
+        craft_placement = _rotate(CRAFT_PLACEMENTS, i, run_offset, "craft")
         # T4-only: tight crops physically can't show the required anatomy —
         # remap them to body-showing shots BEFORE the reveal pin, then rotate
         # an explicit REVEAL STYLE + grooming alongside the framing so the set
@@ -1350,12 +1493,20 @@ def generate_series(
         # the sensual-styling tease is T1-T3 only (T4 has its own explicit
         # REVEAL_STYLES). Prime cycle lengths (11/13/9) keep them out of
         # lockstep with each other and the framing/structural rotations.
-        concept = EDITORIAL_CONCEPTS[(i + run_offset) % len(EDITORIAL_CONCEPTS)]
-        composition = COMPOSITION_PRINCIPLES[(i + run_offset) % len(COMPOSITION_PRINCIPLES)]
+        concept = _rotate(EDITORIAL_CONCEPTS, i, run_offset, "concept")
+        composition = _rotate(COMPOSITION_PRINCIPLES, i, run_offset, "composition")
         # Camera HEIGHT rotation (the missing axis) — 3-cycle, coprime with the
         # 8/5/7/11/13 rotations so the heroic low angle lands on different
         # framings/concepts across runs rather than locking to one.
-        camera_angle = CAMERA_ANGLES[(i + run_offset) % len(CAMERA_ANGLES)]
+        camera_angle = _rotate(CAMERA_ANGLES, i, run_offset, "camera")
+        # New decoupled variety axes (2026-06-20): garment-TYPE (tier governs how
+        # much shows; OFF at T4 = nude), pose/gesture (all tiers), time×weather
+        # atmosphere (all tiers). Each has its own shuffle+stride in _rotate so it
+        # does not lockstep with the scene/concept/look axes.
+        garment_type = ("" if tier == "T4_explicit"
+                        else _rotate(GARMENT_TYPES, i, run_offset, "garment"))
+        pose = _rotate(POSE_GESTURES, i, run_offset, "pose")
+        atmosphere = _rotate(ATMOSPHERE, i, run_offset, "atmosphere")
         # The sensual-reveal axis is an UNDRESS/partial-bare axis — it belongs
         # to T2 (implied) and T3 (art-nude) only. At T1 ("fully clothed") it
         # pushed Chroma to render nude (2026-06-12 batch: art_deco T1 drifted
@@ -1363,12 +1514,12 @@ def generate_series(
         # explicit REVEAL_STYLES. T1 gets its heat from the enriched tier
         # directive + concept + composition instead.
         sensual_reveal = ("" if tier in ("T4_explicit", "T1_suggestive")
-                          else SENSUAL_REVEALS[(i + run_offset) % len(SENSUAL_REVEALS)])
+                          else _rotate(SENSUAL_REVEALS, i, run_offset, "sensual"))
         reveal_target = grooming = None
         if tier == "T4_explicit":
             framing = (framing[0], _T4_SHOT_REMAP.get(framing[1], framing[1]))
-            reveal_target = REVEAL_STYLES[(i + run_offset) % len(REVEAL_STYLES)]
-            grooming = GROOMING_OPTIONS[(i + run_offset) % len(GROOMING_OPTIONS)]
+            reveal_target = _rotate(REVEAL_STYLES, i, run_offset, "reveal")
+            grooming = _rotate(GROOMING_OPTIONS, i, run_offset, "grooming")
             pin = REVEAL_SHOT_PIN.get(reveal_target[0])
             if pin:
                 framing = (framing[0], pin)
@@ -1427,6 +1578,9 @@ def generate_series(
                     sensual_reveal=sensual_reveal,
                     composition=composition,
                     camera_angle=camera_angle,
+                    garment_type=garment_type,
+                    pose=pose,
+                    atmosphere=atmosphere,
                 )
             except Exception as exc:  # noqa: BLE001 — Pydantic/safety reject → retry
                 msg = str(exc)

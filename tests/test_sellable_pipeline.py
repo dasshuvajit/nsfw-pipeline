@@ -335,12 +335,18 @@ def test_generate_series_seeds_avoid_and_offsets_rotation(monkeypatch):
     # the seed persists and the lists grow within-series as scenes commit
     # (each accept adds a head signature AND a tail signature since 2026-06)
     assert calls[1]["avoid"][0] == "PRIOR SIG …" and len(calls[1]["avoid"]) == 3
-    # (2) run_offset=2 rotates the sub-look sequence: looks[(i+2)%4]
-    assert [c["sub_look"] for c in calls] == [looks[2], looks[3], looks[0]]
-    # framing + look rotations are offset by the same amount
+    # (2) DECOUPLED rotation (2026-06-20): each axis is sampled INDEPENDENTLY via
+    # _rotate(seq, i, run_offset, axis) — its own per-(run,axis) shuffle + stride —
+    # so axes no longer move in lockstep and a re-run (different run_offset) draws a
+    # fresh sample. Assert against the mechanism + the invariants it delivers.
+    assert [c["sub_look"] for c in calls] == [AD._rotate(looks, i, 2, "sub_look") for i in range(3)]
+    assert all(c["sub_look"] in looks for c in calls)
     assert [c["framing_target"] for c in calls] == \
-        [AD.FRAMING_TARGETS[(i + 2) % len(AD.FRAMING_TARGETS)] for i in range(3)]
+        [AD._rotate(AD.FRAMING_TARGETS, i, 2, "framing") for i in range(3)]
     assert [c["look_target"] for c in calls] == [AD._creative_look(i, 2) for i in range(3)]
+    # the headline win: a different run_offset yields a DIFFERENT sub_look sequence
+    assert [AD._rotate(looks, i, 2, "sub_look") for i in range(3)] != \
+        [AD._rotate(looks, i, 9, "sub_look") for i in range(3)]
 
 
 def test_generate_series_locked_look_overrides_rotation(monkeypatch):
@@ -372,10 +378,10 @@ def test_generate_series_locked_look_overrides_rotation(monkeypatch):
     # identity LOCKED — same look every image, flagged locked
     assert [c["look_target"] for c in calls] == ["LOCKED-CLARA-LOOK"] * 3
     assert all(c["look_locked"] is True for c in calls)
-    # scene/pose STILL vary — sub_look + framing rotate by run_offset as usual
-    assert [c["sub_look"] for c in calls] == [looks[2], looks[3], looks[0]]
+    # scene/pose STILL vary — sub_look + framing rotate (decoupled) by run_offset
+    assert [c["sub_look"] for c in calls] == [AD._rotate(looks, i, 2, "sub_look") for i in range(3)]
     assert [c["framing_target"] for c in calls] == \
-        [AD.FRAMING_TARGETS[(i + 2) % len(AD.FRAMING_TARGETS)] for i in range(3)]
+        [AD._rotate(AD.FRAMING_TARGETS, i, 2, "framing") for i in range(3)]
 
 
 # ── Z-Image engine + detailer wiring (2026-06-18) ──────────────────
@@ -817,6 +823,35 @@ def test_generate_one_injects_camera_angle():
     assert "CAMERA ANGLE for THIS image" in up and "LOW, HEROIC ANGLE" in up
 
 
+def test_new_variety_axes_assigned_decoupled(monkeypatch):
+    """2026-06-20 variety expansion: garment-TYPE / pose / atmosphere axes are
+    assigned per image from their tuples, garment is OFF at T4 (nude), and the
+    rotation is DECOUPLED (a re-run draws a different sequence) — the headline fix."""
+    seen = []
+
+    def rec(client, **kw):
+        seen.append({k: kw.get(k) for k in ("garment_type", "pose", "atmosphere")})
+        filler = " ".join(chr(97 + j % 26) + chr(98 + j % 25) for j in range(80))
+        return {"prompt": filler, "orientation": "portrait",
+                "shot_type": "medium", "framing_rationale": "r"}
+
+    monkeypatch.setattr(AD, "generate_one", rec)
+    AD.generate_series(brief="b", tier="T2_implied", count=6, model_tag="m",
+                       temperature=0.8, audit_gate=False, client=object())
+    assert all(s["garment_type"] in AD.GARMENT_TYPES for s in seen)
+    assert all(s["pose"] in AD.POSE_GESTURES for s in seen)
+    assert all(s["atmosphere"] in AD.ATMOSPHERE for s in seen)
+    # decoupled: a different run_offset re-samples the axis (re-runs differ)
+    assert [AD._rotate(AD.GARMENT_TYPES, i, 0, "garment") for i in range(6)] != \
+        [AD._rotate(AD.GARMENT_TYPES, i, 7, "garment") for i in range(6)]
+    # garment OFF at T4 (nude); pose still on
+    seen.clear()
+    AD.generate_series(brief="b", tier="T4_explicit", count=3, model_tag="m",
+                       temperature=0.8, audit_gate=False, client=object())
+    assert all(s["garment_type"] == "" for s in seen)
+    assert all(s["pose"] in AD.POSE_GESTURES for s in seen)
+
+
 def test_camera_angle_axis_rotates(monkeypatch):
     """generate_series assigns a rotating camera angle from CAMERA_ANGLES to every
     image so a set is not all eye-level — and the low-heroic directive is gate-safe."""
@@ -1079,7 +1114,9 @@ def test_t4_explicit_reveal_rotation_only_at_t4(monkeypatch):
                        temperature=0.8, audit_gate=False, client=object())
     reveals = [s["reveal"] for s in seen]
     assert all(r is not None for r in reveals)                       # every T4 image
-    assert [r[0] for r in reveals] == [AD.REVEAL_STYLES[i][0] for i in range(6)]  # rotates
+    assert [r[0] for r in reveals] == \
+        [AD._rotate(AD.REVEAL_STYLES, i, 0, "reveal")[0] for i in range(6)]  # rotates (decoupled)
+    assert all(r in AD.REVEAL_STYLES for r in reveals)               # all valid styles
     assert all(s["grooming"] for s in seen)                          # grooming assigned
     for s in seen:                                                   # pins honoured
         pin = AD.REVEAL_SHOT_PIN.get(s["reveal"][0])

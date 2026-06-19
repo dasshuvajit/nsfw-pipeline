@@ -82,6 +82,24 @@ look_pools:
     - deep espresso-brown in heavy old-Hollywood waves
     - jet-black, poker-straight with blunt bangs
     - dark copper-brown in a thick fishtail braid coming loose
+    - silver-grey, cropped into a soft tousled pixie
+    - deep mahogany-brown swept into a sleek high ponytail
+    - ash-blonde in beachy windswept waves, sun-lightened at the ends
+    - burgundy-tinted dark brown in a low chignon at the nape
+    - warm cinnamon-red, shoulder-length and air-dried with natural body
+    - strawberry-blonde with soft face-framing curtain bangs
+    - wet-look dark hair slicked straight back off her face
+    - honey-caramel ombre falling in loose ringlets past her shoulders
+    - ink-black hair in two thick milkmaid braids crowning her head
+    - cool platinum, long and pin-straight with a centre part
+    - rich espresso brown in a tousled french-twist updo
+    - butter-blonde cut into a blunt, chin-skimming bob
+    - deep chestnut with subtle copper highlights, half-up half-down
+    - soft brown finger-waves in a glamorous 1930s marcel set
+    - natural coily dark hair shaped into a rounded voluminous afro
+    - bronze-auburn in a tight, sculpted bun with a clean middle part
+    - smoky lavender-grey balayage over dark roots, in loose waves
+    - warm walnut-brown, long and feathered with soft windblown layers
   figure:                                 # 7 entries, 3 natural-busty
     - slender with an attractive full natural bust
     - soft natural curves with a heavy, full natural bust
@@ -90,6 +108,19 @@ look_pools:
     - soft, feminine curves
     - long-legged and lithe
     - petite and shapely
+    - tall and statuesque with broad shoulders and long limbs
+    - a soft pear shape with a slim waist and full, rounded hips
+    - lean and willowy with a small, neat natural bust
+    - an athletic build with defined shoulders and a medium natural bust
+    - full-figured and soft all over with a generous natural bust
+    - compact and muscular with strong, sculpted legs
+    - a balanced hourglass with a moderate, even natural bust
+    - rounded and plush with a wide, soft midriff and full natural bust
+    - trim and dancer-lean with elongated muscle tone
+    - broad-hipped and grounded with a medium-full natural bust
+    - voluptuous and curvy with a generous natural bust and a deep waist curve
+    - slim with subtle athletic definition and a small-to-medium natural bust
+    - tall and slender with a long torso and a modest natural bust
   face:                                   # 8 entries — eyes + features
     - clear green eyes and a dusting of freckles across her nose and cheeks
     - dark almond eyes and a small beauty mark above her lip
@@ -99,6 +130,24 @@ look_pools:
     - deep brown eyes and a fine gold stud in one nostril
     - pale blue eyes, a faint mole on her cheekbone and a heart-shaped face
     - amber eyes and gently upturned, feline features
+    - deep-set dark brown eyes and a strong, straight Roman nose
+    - grey eyes with a faint scar through one eyebrow
+    - warm honey-brown eyes and a wide, full-lipped smile
+    - striking pale green eyes set wide over sharp cheekbones
+    - dark eyes with a single dimple that creases only on the left
+    - blue-grey eyes and a sprinkle of freckles across the bridge of her nose
+    - rich brown eyes with a small mole at the corner of her mouth
+    - hooded amber eyes and arched, expressive dark brows
+    - clear hazel eyes and a faint cleft in her chin
+    - almond-shaped dark eyes and a fine septum ring
+    - soft grey-green eyes and a generous, rounded lower lip
+    - warm tawny eyes and a narrow nose with a gentle bridge bump
+    - deep brown eyes and a faint gap between her front teeth when she smiles
+    - light olive-green eyes and high, broad cheekbones
+    - dark eyes and a small star-shaped freckle below one eye
+    - cool blue eyes and a sharply defined cupid's bow
+    - warm brown eyes and a slim healed piercing scar in one eyebrow
+    - deep espresso eyes, full brows and a wide, square jawline
   complexion:                             # 6 entries — span of skin tones
     - fair, cool-toned skin that flushes easily
     - sun-warmed olive Mediterranean skin
@@ -106,8 +155,23 @@ look_pools:
     - deep brown skin with a warm, even glow
     - light golden East-Asian skin, smooth and luminous at the cheekbones
     - warm caramel skin with cool undertones
+    - fair skin with neutral pink undertones and a light natural blush
+    - warm beige skin with golden undertones across the cheeks and nose
+    - light tan South-Asian skin with rich olive-gold undertones
+    - deep ebony skin with cool blue-black undertones and an even matte finish
+    - rich brown skin with warm red-bronze undertones
+    - medium tan skin with neutral honey undertones, smooth and matte
+    - pale skin with cool rosy undertones and a faint scatter of sun freckles
+    - warm sienna-brown skin with golden-copper undertones
+    - light copper-toned Indigenous-Latina skin with warm earthen undertones
+    - soft caramel-bronze skin with peachy-warm undertones
+    - deep mahogany skin with a smooth, healthy sheen and warm red undertones
+    - fair freckled skin with cool ivory undertones that catch the light softly
   age_look:                               # 4 entries — always clearly adult
     - in her mid-twenties
     - in her late twenties
     - around thirty, radiantly self-assured
     - in her early thirties, poised and worldly
+    - in her early twenties, unmistakably an adult, college-age adult
+    - in her mid-thirties, mature and composed
+    - approaching forty, confident and fully self-possessed
