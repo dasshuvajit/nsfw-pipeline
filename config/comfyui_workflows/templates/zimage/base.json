@@ -96,8 +96,8 @@
       "seed": 0,
       "steps": 8,
       "cfg": 1,
-      "sampler_name": "euler",
-      "scheduler": "beta",
+      "sampler_name": "res_multistep",
+      "scheduler": "simple",
       "denoise": 1,
       "model": [
         "modelsampling",
@@ -118,7 +118,7 @@
     },
     "class_type": "KSampler",
     "_meta": {
-      "title": "KSampler — Z-Image Turbo (euler/beta/8/cfg1, seed PATCHED; creator settings)"
+      "title": "KSampler — Z-Image Turbo (res_multistep/simple/8/cfg1, seed PATCHED; creator settings)"
     }
   },
   "decode": {

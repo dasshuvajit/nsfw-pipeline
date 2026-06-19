@@ -28,7 +28,11 @@ UPSCALE = TPL / "sdxl" / "upscale_4k.json"
 #  upscale_4k.json after the MPS post-upscale-detailer removal — 4K is tier-
 #  neutral; explicit detail comes from the REVIEW stage.)
 
-_MPS_BANNED_SAMPLERS = {"res_2m", "res_2s", "res_3m", "res_multistep", "res_2m_sde"}
+# RES4LYF res_* family — float64 path crashes on MPS. NOTE: `res_multistep` is NOT
+# in this set: despite the prefix it is a CORE ComfyUI sampler (not RES4LYF),
+# empirically validated MPS-safe (2026-06-19 Z-Image A/B) and adopted as the zimage
+# default sampler.
+_MPS_BANNED_SAMPLERS = {"res_2m", "res_2s", "res_3m", "res_2m_sde"}
 _MPS_BANNED_SCHEDULERS = {"bong_tangent"}
 
 
