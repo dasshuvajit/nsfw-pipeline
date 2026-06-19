@@ -522,6 +522,11 @@ def _curate(
 
 # ── tier-split labels ───────────────────────────────────────────────
 _EXPLICIT_TIERS = {"T3_artnude", "T4_explicit"}
+# Z-Image default base.json bakes in an NSFW LoRA (lora_nsfw) that restores explicit
+# anatomy on the NSFW-weak official base. It is a LIABILITY at the funnel tiers — it
+# strips clothing even on clean T1/T2 prompts (2026-06-20: bohemian T2 drifted 5/6 nude).
+# So it is TIER-GATED at render time: full at T3/T4, OFF at T1/T2 + covers (which are T1).
+_NSFW_LORA_STRENGTH = 0.8
 AI_DISCLOSURE_LABEL = "Created using AI tools"
 
 # ── Plate numbering (collectability — DA_GO_TO_MARKET.md §4) ─────────
@@ -625,7 +630,7 @@ def _render_stage_base(
     dest_dir: Path, out_dir: Path, prefix: str,
     rp: dict | None = None, default_orientation: str = "portrait",
     anatomy_retries: int = 0, hand_detector_path: "str | None" = None,
-    reroll_start: "int | None" = None,
+    reroll_start: "int | None" = None, nsfw_lora_strength: float = 0.0,
 ) -> list[dict]:
     """Stage 1 (Chroma): base gen for every (prompt × seed) into dest_dir.
 
@@ -674,6 +679,10 @@ def _render_stage_base(
                     wf = builder.build_external(
                         external_template=base_template, prompt_text=r["prompt"],
                         negative_prompt=negative, resolution=res, seed=seed)
+                    # Tier-gate the Z-Image NSFW LoRA (only present in the default
+                    # zimage base) — full at T3/T4, OFF at T1/T2 + covers (anti-drift).
+                    if "lora_nsfw" in wf:
+                        wf["lora_nsfw"]["inputs"]["strength_model"] = nsfw_lora_strength
                     images = client.render_single_with_retry(wf, timeout=1800)
                     outs = [im for im in images if im.type == "output"] or images
                     name = f"{prefix}{idx + 1:02d}_{look}_s{seed}.png"
@@ -1688,7 +1697,8 @@ def main() -> int:
         seeds=args.seeds, dest_dir=base_dir, out_dir=out_dir, prefix="ad",
         rp=rp, default_orientation=args.orientation,
         anatomy_retries=args.anatomy_retries, hand_detector_path=hand_det_path,
-        reroll_start=main_reroll_start)
+        reroll_start=main_reroll_start,
+        nsfw_lora_strength=(_NSFW_LORA_STRENGTH if args.tier in _EXPLICIT_TIERS else 0.0))
     if cover_rows:
         cover_manifest = _render_stage_base(
             cover_rows, builder=builder, client=client, base_template=base_tmpl,
@@ -1697,7 +1707,7 @@ def main() -> int:
             dest_dir=base_dir, out_dir=out_dir, prefix="cover",
             rp=rp, default_orientation=args.orientation,
             anatomy_retries=args.anatomy_retries, hand_detector_path=hand_det_path,
-            reroll_start=cover_reroll_start)
+            reroll_start=cover_reroll_start, nsfw_lora_strength=0.0)   # covers are SFW T1
     if enable_refine:
         print(f"\n=== Phase 2b (refine, SDXL): {Path(refine_tmpl_main).name} "
               f"→ review images ===", flush=True)

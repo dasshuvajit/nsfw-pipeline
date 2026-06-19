@@ -52,13 +52,13 @@
   },
   "clip": {
     "inputs": {
-      "clip_name": "qwen_3_4b.safetensors",
+      "clip_name": "Z-Image-Engineer-V6-Q8_0.gguf",
       "type": "lumina2",
       "device": "default"
     },
-    "class_type": "CLIPLoader",
+    "class_type": "ClipLoaderGGUF",
     "_meta": {
-      "title": "Load CLIP (Qwen3-4B full-precision safetensors — type lumina2; chosen over the workflow's GGUF TE: full precision + no ComfyUI-GGUF dependency)"
+      "title": "Load CLIP — Z-Image-Engineer-V6 Q8_0 GGUF (type lumina2; user-preferred after manual testing; needs custom_nodes/ComfyUI-GGUF)"
     }
   },
   "vae": {
@@ -124,8 +124,8 @@
       "seed": 0,
       "steps": 8,
       "cfg": 1,
-      "sampler_name": "res_multistep",
-      "scheduler": "simple",
+      "sampler_name": "dpmpp_sde",
+      "scheduler": "beta",
       "denoise": 1,
       "model": [
         "modelsampling",
@@ -146,7 +146,7 @@
     },
     "class_type": "KSampler",
     "_meta": {
-      "title": "KSampler — Z-Image Turbo (res_multistep/simple/8/cfg1, seed PATCHED; ~2x faster than the workflow's dpmpp_sde, A/B-validated equal-or-better)"
+      "title": "KSampler — Z-Image Turbo (dpmpp_sde/beta/8/cfg1, seed PATCHED; user-preferred after manual testing — slower than res_multistep but better detail)"
     }
   },
   "decode": {

@@ -427,9 +427,10 @@ def test_zimage_default_workflow_is_official_plus_lora_stack():
     assert "dopsd_white" in b["lora_style"]["inputs"]["lora_name"]
     assert b["modelsampling"]["inputs"]["model"] == ["lora_style", 0]
     assert b["ksampler"]["inputs"]["model"] == ["modelsampling", 0]
-    assert b["ksampler"]["inputs"]["sampler_name"] == "res_multistep"    # faster than workflow's dpmpp_sde
+    assert b["ksampler"]["inputs"]["sampler_name"] == "dpmpp_sde"        # user-preferred after manual A/B
+    assert b["clip"]["class_type"] == "ClipLoaderGGUF"                   # Engineer-V6 GGUF TE
     assert b["clip"]["inputs"]["type"] == "lumina2"
-    assert b["clip"]["inputs"]["clip_name"].endswith(".safetensors")    # full-precision, not GGUF
+    assert b["clip"]["inputs"]["clip_name"].endswith(".gguf")
     # static latent stays ~1MP — never the MPS-unsafe (>12k-token) 1536x2048
     el = b["empty_latent"]["inputs"]
     assert el["width"] * el["height"] <= 1024 * 1280, "static latent must stay ~1MP (MPS-safe)"
@@ -921,6 +922,40 @@ def test_base_anatomy_retry_rerolls_until_clean(tmp_path, monkeypatch):
     # only the clean render survives on disk (defective seed-100 file deleted)
     assert sorted(p.name for p in (tmp_path / "base").glob("*.png")) == \
         ["ad01_riverbank_s101.png"]
+
+
+def test_nsfw_lora_tier_gated_in_base_render(tmp_path):
+    """2026-06-20 anti-drift: _render_stage_base patches lora_nsfw.strength_model to
+    the passed nsfw_lora_strength — 0.0 at funnel tiers (T1/T2 + covers), 0.8 at T3/T4
+    — but only when the template carries lora_nsfw (the default zimage base). Without
+    the fix the baked-in NSFW LoRA stripped clothing at T2 (5/6 drifted nude)."""
+    from PIL import Image
+    src = tmp_path / "src.png"
+    Image.new("RGB", (8, 8)).save(src)
+    captured = []
+
+    class _Img:
+        type = "output"
+        file_path = str(src)
+
+    class _Client:
+        def render_single_with_retry(self, wf, timeout=0):
+            captured.append(wf["lora_nsfw"]["inputs"]["strength_model"])
+            return [_Img()]
+
+    class _Builder:
+        def build_external(self, **kw):
+            return {"lora_nsfw": {"inputs": {"strength_model": 0.8}}}
+
+    rows = [{"look": "scene one", "prompt": "p", "orientation": "portrait"}]
+    for strength in (0.0, 0.8):
+        captured.clear()
+        A._render_stage_base(
+            rows, builder=_Builder(), client=_Client(), base_template="t",
+            negative="n", resolution=(896, 1152), base_seed=1, seeds=1,
+            dest_dir=tmp_path / f"b{strength}", out_dir=tmp_path, prefix="ad",
+            nsfw_lora_strength=strength)
+        assert captured == [strength], f"lora_nsfw must be patched to {strength}"
 
 
 def test_base_anatomy_retry_keeps_least_bad_when_all_fail(tmp_path, monkeypatch):

@@ -71,13 +71,13 @@
   },
   "clip": {
     "inputs": {
-      "clip_name": "qwen_3_4b.safetensors",
+      "clip_name": "Z-Image-Engineer-V6-Q8_0.gguf",
       "type": "lumina2",
       "device": "default"
     },
-    "class_type": "CLIPLoader",
+    "class_type": "ClipLoaderGGUF",
     "_meta": {
-      "title": "Load CLIP (Qwen3-4B full-precision safetensors — type lumina2)"
+      "title": "Load CLIP — Z-Image-Engineer-V6 Q8_0 GGUF (type lumina2; needs custom_nodes/ComfyUI-GGUF)"
     }
   },
   "vae": {
@@ -143,8 +143,8 @@
       "seed": 0,
       "steps": 8,
       "cfg": 1,
-      "sampler_name": "res_multistep",
-      "scheduler": "simple",
+      "sampler_name": "dpmpp_sde",
+      "scheduler": "beta",
       "denoise": 1,
       "model": [
         "deepshrink",
@@ -165,7 +165,7 @@
     },
     "class_type": "KSampler",
     "_meta": {
-      "title": "KSampler — Z-Image hires (res_multistep/simple/8/cfg1; deep-shrink model chain)"
+      "title": "KSampler — Z-Image hires (dpmpp_sde/beta/8/cfg1; deep-shrink model chain)"
     }
   },
   "decode": {
