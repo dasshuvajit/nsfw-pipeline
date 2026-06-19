@@ -9,26 +9,25 @@
       "title": "Load Diffusion Model — gonzaLomo ZPop v4.0 (Z-Image Turbo BF16, NSFW)"
     }
   },
-  "zit_lora": {
+  "lora": {
     "inputs": {
       "model": [
         "unet",
         0
       ],
       "lora_name": "zit_fdpo_v1.safetensors",
-      "strength_model": 0.5,
-      "auto_convert_qkv": true
+      "strength_model": 0.5
     },
-    "class_type": "ZImageTurboLoraLoader",
+    "class_type": "LoraLoaderModelOnly",
     "_meta": {
-      "title": "Z-Image LoRA — zit_fdpo Flow-DPO (OPT-IN cinematic lighting; arch-aware QKV-fuse, LoKr-validated 2026-06-19). Needs custom_nodes/Comfyui-ZiT-Lora-loader. Pair with REDUCED post-grade (double-warm)."
+      "title": "Z-Image LoRA — zit_fdpo Flow-DPO (OPT-IN cinematic lighting @0.5). BUILT-IN LoraLoaderModelOnly — verified 2026-06-19 to apply this LoKr + the Z-Image separate→fused QKV IDENTICALLY to the arch-aware ZiT loader (output diff 0.0/255), so NO custom-node dependency. rgthree's Power Lora Loader (Chroma path) wraps this same loader. Pair with REDUCED post-grade (double-warm)."
     }
   },
   "modelsampling": {
     "inputs": {
       "shift": 3.0,
       "model": [
-        "zit_lora",
+        "lora",
         0
       ]
     },

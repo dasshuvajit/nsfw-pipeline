@@ -425,19 +425,19 @@ def test_zimage_hires_base_template():
 
 
 def test_zimage_base_lora_template_wired():
-    """The OPT-IN zit_fdpo LoRA template (A/B-validated 2026-06-19) inserts the
-    arch-aware ZiT loader into the model chain (unet → zit_lora → modelsampling) with
-    QKV auto-fuse, and keeps the patchable contract nodes intact so WorkflowBuilder
-    can still patch prompt/seed/resolution. It is NOT the default base (opt-in via
-    --base-template) so it never forces the custom-node dependency."""
+    """The OPT-IN zit_fdpo LoRA template (A/B-validated 2026-06-19) inserts a LoRA
+    loader into the model chain (unet → lora → modelsampling) and keeps the patchable
+    contract nodes intact so WorkflowBuilder can still patch prompt/seed/resolution.
+    Uses the BUILT-IN LoraLoaderModelOnly (no custom-node dependency) — empirically
+    verified to apply this Z-Image LoKr identically to the arch-aware ZiT loader. It is
+    NOT the default base (opt-in via --base-template)."""
     p = Path("config/comfyui_workflows/templates/zimage/base_lora.json")
     assert p.exists()
     d = json.loads(p.read_text())
-    assert d["zit_lora"]["class_type"] == "ZImageTurboLoraLoader"
-    assert d["zit_lora"]["inputs"]["lora_name"] == "zit_fdpo_v1.safetensors"
-    assert d["zit_lora"]["inputs"]["auto_convert_qkv"] is True
-    assert d["zit_lora"]["inputs"]["model"] == ["unet", 0]
-    assert d["modelsampling"]["inputs"]["model"] == ["zit_lora", 0], \
+    assert d["lora"]["class_type"] == "LoraLoaderModelOnly"   # built-in, zero dependency
+    assert d["lora"]["inputs"]["lora_name"] == "zit_fdpo_v1.safetensors"
+    assert d["lora"]["inputs"]["model"] == ["unet", 0]
+    assert d["modelsampling"]["inputs"]["model"] == ["lora", 0], \
         "the LoRA loader must sit in the model chain before ModelSamplingAuraFlow"
     for nid in ("positive_prompt", "negative_prompt", "ksampler", "empty_latent", "save"):
         assert nid in d, f"base_lora missing contract node {nid}"
