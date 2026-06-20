@@ -1324,8 +1324,11 @@ def generate_one(
         )
     if atmosphere:
         creative_variety += (
-            f"\n\nTIME & WEATHER (soft overlay; the scene may adapt it; keep any "
-            f"haze/rain/snow environmental, never unsourced smoke): {atmosphere}."
+            f"\n\nTIME & WEATHER (a soft overlay to vary the mood — if it does NOT "
+            f"fit this scene's real location, climate or season, OVERRIDE it for "
+            f"coherence instead of forcing it in (no snow in a sunlit Mediterranean "
+            f"courtyard); keep any haze/rain/snow environmental, never unsourced "
+            f"smoke): {atmosphere}."
         )
     # T4-only explicit-reveal nudge — rotates HOW the bare anatomy is revealed so a
     # set spans many tasteful angles/poses/degrees instead of one centred splay.
