@@ -26,12 +26,19 @@ scripts/upscale_folder.py ── manual, selective true-4K (USDU, face-true deno
 - **Prompt engine** (`art_director.py`): system prompt teaches optical
   light-on-form craft, subject-first openers, anatomical-clarity/hands rules,
   T1-T4 tier directives, T4 reveal-style rotation (11 styles), framing rotation
-  (8 targets), opener-lead (5) + craft-placement (7) structural rotations, and
-  per-image subject looks sampled from `config/creative_direction.yaml`
-  look_pools (hair/figure/face/complexion/age_look — prime strides + per-run
-  shuffle). Anti-repetition is MECHANICAL: 3-gram similarity rejects + banned
-  openers/tails enforced in the retry loop, with rejection feedback, temperature
-  escalation, and a final-attempt Cydonia fallback.
+  (8 targets), opener-lead (5) + craft-placement (7) structural rotations,
+  wardrobe/pose/time-weather axes (GARMENT_TYPES 28 / POSE_GESTURES 19 /
+  ATMOSPHERE 10), and per-image subject looks sampled from
+  `config/creative_direction.yaml` look_pools (hair 28/figure 20/face 26/
+  complexion 18/age_look 7 — coprime strides + per-run shuffle). **All axes are
+  DECOUPLED** via `_rotate(seq, i, run_key, axis)` (per-(run,axis) shuffle +
+  coprime stride) — they no longer share one rotation index, so the combination
+  space is actually explored and re-runs differ. A firm 130-175 word cap frames
+  the many axes as ingredients to SELECT, keeping the richer prompts in-band.
+  Anti-repetition is MECHANICAL: 3-gram similarity rejects + banned openers/tails
+  enforced in the retry loop, with rejection feedback, temperature escalation,
+  and a final-attempt Cydonia fallback. `scripts/diversity_report.py` is the
+  GPU-free A/B harness (3-gram coverage, cross-pair similarity, entropy).
 - **Quality gate** (`scripts/audit_prompts.py::score_prompt`): defect penalties
   + tier contracts (T4 requires explicit tokens; T3 requires nudity; T1/T2
   reject nudity/explicit) + quality ladders (cliché density, freshness vs run
@@ -106,10 +113,14 @@ scripts/upscale_folder.py ── manual, selective true-4K (USDU, face-true deno
 ## Key Files
 - CLAUDE.md — this file (project context for Claude Code sessions)
 - scripts/art_director.py · scripts/art_series.py · scripts/audit_prompts.py ·
-  scripts/upscale_folder.py — the active path (flat scripts by design; the
-  shared rule lists live in audit_prompts)
-- config/niche_library.yaml — 20 niches (5-6 sub_looks each, signature
-  materials, `family:` for the 5-family DA architecture) + persona_pool
+  scripts/upscale_folder.py · scripts/diversity_report.py — the active path (flat
+  scripts by design; the shared rule lists live in audit_prompts)
+- config/niche_library.yaml — 27 niches (12 sub_looks each, varied lighting,
+  signature materials, `family:` for the 5-family DA architecture) + persona_pool.
+  Includes a modern lane (athletic_studio, wild_nature, aspirational_luxe), a
+  surreal lane (surreal_dreamscape → chroma), and a heritage-fashion cultural lane
+  (south_asian_editorial, iberian_flamenco, slavic_folk — tasteful T1-T3, never
+  sacred/caricature; cultural garments live IN these niches, not the portable axis)
 - config/creative_direction.yaml — tunable house-style knobs + look_pools
 - config/pipeline.yaml — comfyui/llm endpoints, render_pipeline templates,
   watermark; `comfyui.output_dir` is the canonical ComfyUI path source
