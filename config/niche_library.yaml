@@ -54,6 +54,12 @@ niches:
       - "raw atelier with plaster casts — soft skylight from above in a working sculptor's studio, plaster dust and unfinished white casts around the living model, the body posed among fragments"
       - "draped-canvas abstraction — the figure half-wrapped in heavy raw canvas against a grey seamless, one hard side light, folds and flesh composed as a single sculptural form"
       - "contact-shadow study — the body close against a textured plaster wall, a hard raking key throwing her crisp shadow beside her as a second graphic form"
+      - "cold pre-dawn studio — thin blue first light seeping through a frosted clerestory across a bare wooden plinth, the form held in cool grey half-tone and faint breath-mist, charcoal-and-ivory neutrals, hushed reverent stillness before the working day"
+      - "high-noon overhead shaft — one hard vertical beam dropping straight down from a roof oculus onto a plaster pedestal, the body modelled in steep top-down light and a deep black floor-shadow, scorched-white and deep-shade contrast, austere and sculptural"
+      - "soft overcast atelier — flat even silver daylight from a wide north skylight filling the room without shadow, the figure standing among draped easels and a muslin backdrop, low-contrast pewter-grey tonality, calm graphic clarity"
+      - "golden-hour dust study — warm low side-sun raking through a tall west window, suspended studio dust turned to drifting gold motes around the form, a fall of unbleached linen over a stool, sepia monochrome warmth, quiet reverence"
+      - "grid-shadow projection — a single hard lamp thrown through a tall multi-pane window casting a crisp lattice of light and shade across skin and the studio floor, the body and the cast grid composed as interlocking forms, stark high-contrast B&W"
+      - "candle-and-ember nocturne — one low guttering taper on a sculptor's bench carving the figure out of near-total dark, warm amber falloff over bare boards and a shrouded armature, deep shadow and a single soft highlight, intimate and grave"
     aesthetics:
       palettes: ["high-contrast black-and-white", "warm sepia monochrome", "muted charcoal-and-ivory neutrals"]
       lighting: ["single hard key, Caravaggio chiaroscuro", "soft north-window daylight", "split lighting, half the face in shadow"]
@@ -76,6 +82,12 @@ niches:
       - "premiere-night satin — a floor-length bias-cut satin gown and elbow-length gloves under one hard key, a fur stole draped over one arm, star-arrival poise"
       - "silver-screen bath — a deco clawfoot tub piled with foam, marcel waves pinned high, a champagne coupe on the side table, playful starlet luxury"
       - "dressing-gown window — a silk dressing gown loose at a tall hotel window, smoke curling from a cigarette resting in a crystal ashtray on the sill, slatted city light"
+      - "soundstage shaft — a single dramatic overhead shaft cutting through hung gauze and drifting set-haze on a darkened 1940s film soundstage, a bias-cut gown and a feather boa across a director's chair, between-takes star stillness"
+      - "poolside lounger noon — hard high midday sun and bright sky-bounce fill at a streamline-moderne hotel pool, a white maillot and cat-eye sunglasses on a striped chaise, a sweating highball on chrome, confident jet-set leisure"
+      - "rolls-royce arrival at blue hour — cool deep-blue dusk and the warm amber wash of a theatre marquee spilling across a black lacquered town car, a fur wrap and long satin gloves, after-the-premiere poise"
+      - "fireside library nightcap — warm flickering hearth glow in a panelled study lined with leather books, a brocade lounging robe and a brandy snifter on a walnut side table, low amber tones, languid late-evening calm"
+      - "lanai golden hour — low honeyed late-sun raking through slatted blinds across a tropical Hollywood lanai, banana-leaf shadows dappling a halter sundress and a planter's punch, warm relaxed starlet ease"
+      - "overcast garden conservatory — soft even silver daylight diffusing through tall steamed glass among palms and white wicker, a tea-gown and a porcelain cup, pale grey-green tones, serene morning composure"
     aesthetics:
       palettes: ["silver-grey monochrome", "champagne-and-ivory with soft sepia", "deep oxblood and gold"]
       lighting: ["butterfly/paramount glamour key + fill", "single hard key with a long shadow tail", "warm low practical lamplight"]
@@ -103,6 +115,12 @@ niches:
       - "soda-fountain stool — a chrome diner counter and red vinyl stool, a tall milkshake with a striped straw, crossed legs and a wink, saturated kodachrome cheer"
       - "garage glamour — a polished cherry-red fender under a hung work-light, tied gingham blouse and denim shorts, a playful smudge of grease on one cheek"
       - "stocking-check boudoir — perched on a tufted powder-pink stool fastening a seamed stocking to its garter, the classic caught-mid-dressing Elvgren situation"
+      - "drive-in neon dusk — magenta-and-cyan marquee neon and warm dashboard glow on a finned convertible at a 1950s drive-in, blue-hour sky behind, a tray of root-beer floats clipped to the door, capri pants and a knotted blouse, flirtatious evening cool"
+      - "Route 66 motel noon — hard overhead summer sun on a turquoise roadside motel and its chrome-trimmed neon sign, a packed train-case and white cat-eye sunglasses pushed up, halter sundress and wedge sandals, road-trip swagger in the heat-shimmer"
+      - "jukebox blue hour — warm amber-and-rose glow from a bubbling Wurlitzer jukebox in a dim malt shop after closing, last cool daylight at the window, a circle skirt and saddle shoes, a 45 record in hand, dreamy after-hours sway"
+      - "Pullman train compartment dawn — cool grey first light through a rain-flecked sleeper-car window, brass fittings and tufted green plush, a steamer trunk and a hatbox, a tailored travel suit half-unbuttoned, refined departure-morning calm"
+      - "county-fair Ferris wheel dusk — strings of warm carnival bulbs and a single follow-spot against a deepening violet sky, painted wooden gondolas and a stuffed-bear prize, a gingham halter top and cropped pedal-pushers, giddy fairground charm"
+      - "powder-room vanity candle-glow — warm bulb-and-candlelit Formica vanity in a pastel 1950s washroom, no mirror in frame, atomizer perfume bottles and a feathered powder puff, a pink satin peignoir off one shoulder, soft pre-party intimacy"
     aesthetics:
       palettes: ["kodachrome red-teal-cream", "warm jewel tones", "pink-and-gold pastel"]
       lighting: ["warm studio key + strong fill, heavy catchlights", "bright sunny daylight", "soft glamour key"]
@@ -125,6 +143,12 @@ niches:
       - "antlered crown at twilight — a bone-and-branch crown over loose wild hair, furs laid over moss, violet dusk rim light, feral regal presence"
       - "standing stones storm-light — wind-blown gossamer among ancient lichened monoliths under a storm-green sky, a faintly glowing orb cradled at her hip as the light source"
       - "spring of the petals — she rests on a smooth stone shelf at the rim of a shallow crystal spring, blossom petals drifting on the water BESIDE her, dawn mist between dark trunks"
+      - "frost-fae at the winter solstice — cold pale pre-dawn light over a glade rimed in hoarfrost, a fur-lined cloak open at the shoulder, antler-and-crystal adornments and frost-jewelled gossamer, breath misting, regal midwinter stillness"
+      - "sun-dappled fern hollow at high noon — hard overhead light broken into bright shards through a deep canopy onto lichened stone and unfurling ferns, sheer drapery and woven-vine adornments, a clearing of green shadow and white sun, vivid wild calm"
+      - "will-o'-the-wisp marsh at dusk — drifting cool blue-green glowing motes hovering low over black peat water and reeds, their soft underlight on a fae's skin, a moss-and-bone circlet and damp gossamer, mysterious enchanted hush"
+      - "fire-keeper of the deep grove — warm orange firelight from a low ring of embers flickering up across a fur-lined cloak and antler crown, sparks rising into the dark trees, jewelled adornments catching the flame, feral guardian warmth"
+      - "aurora over the standing circle — green-and-violet northern lights rippling above ancient lichened monoliths, cold ambient skyglow on bare snow-dusted ground, gossamer and a heavy fur cloak, a circlet of frost-bright stones, cosmic Celtic awe"
+      - "overcast moor enchantress — flat soft silver light under a low pewter sky across heather and weathered grey stone, a fur-lined cloak and trailing gossamer lifting in the damp wind, antler-clasped braids, brooding composed power"
     aesthetics:
       palettes: ["deep emerald and gold", "jewel-toned twilight", "cool moonlit cyan-and-indigo"]
       lighting: ["dappled god-rays through canopy", "warm practical candlelight", "cool blue-hour ambient glow"]
@@ -148,6 +172,12 @@ niches:
       - "snowfall at the lodge window — soft grey-blue daylight, fat snowflakes falling beyond the glass, a chunky cream knit worn off one shoulder, a steaming mug on the sill, hygge winter calm"
       - "afternoon shutter light — low slatted sun through half-open shutters banding across a linen-dressed platform bed, drowsy warm haze, unhurried ease"
       - "slow dressing — stepping into a slip dress beside an open wardrobe, soft bounced daylight, caught candid mid-motion, quiet grace"
+      - "blue-hour reading nook — cool pre-dawn light just beginning at a tall bedroom window, the bedside lamp not yet switched on, a woman wrapped in a chunky oatmeal knit cardigan over a linen sleep set, an open paperback and cold tea on a low stool, quiet half-awake calm"
+      - "candlelit slip bath — a deep modern soaking tub by a few clustered tea-lights, warm flickering glow on washed-cotton towels and bare shoulders, steam softening the tiled wall, a folded linen robe within reach, unhurried late-evening intimacy"
+      - "single shaft across the bed — one narrow blade of hard late-morning sun cutting through a gap in linen drapes onto rumpled white sheets, dust drifting in the beam, a lace-trimmed cotton slip and a woman stretched in the light, drowsy graphic stillness"
+      - "dappled balcony doorway — soft dappled light filtered through a leafy houseplant and a half-open sheer curtain at open balcony doors, a loose linen shirt and bare legs on a cane chair, a watering can and trailing pothos nearby, warm green-tinged ease"
+      - "golden-hour bedroom floor — low warm sun raking sideways across bare boards and a tumbled cotton duvet, a woman sitting against the bed frame in a soft camisole, a steaming mug and folded knit throw beside her, honeyed end-of-day quiet"
+      - "first hard daybreak — clear cold early light striking flat through an uncurtained window onto crisp white linen, sharp edges and pale even tones, a woman just sitting up in a simple cotton tee, hair loose, candid unguarded waking moment"
     aesthetics:
       palettes: ["soft faded warm neutrals", "cream and dusty rose", "muted cool morning tones"]
       lighting: ["soft diffuse window daylight", "single warm bedside lamp", "bright overcast morning"]
@@ -172,6 +202,12 @@ niches:
       - "stairwell shadows — one hard light down a wrought-iron stairwell, a long coat open over a satin slip, smoke curling from a cigarette in an ashtray on the step"
       - "interrogation lamp — a single bare bulb low over a scarred wooden table, she leans into the cone of light out of darkness, femme-fatale composure"
       - "fire-escape midnight — slatted shadow from the iron escape above, brick and drifting steam from a vent, a trench over satin, city-night tension"
+      - "headlight fog — twin car headlamps cutting through rolling night fog along a deserted dock road, hard white beams flaring against drifting mist, a belted trench over a satin slip, chrome and wet cobbles glinting, brooding stranded-dame tension"
+      - "neon-sign hotel room — a buzzing red-and-blue neon sign pulsing through gauzy curtains across a dim third-floor room, alternating warm and cold spill on bare shoulders, rumpled bedsheets and a glass ashtray, restless after-midnight unease"
+      - "lighter-flame close — the sudden orange flare of a struck cigarette lighter the only light in pitch black, warm flame glow on her face and a fall of dark hair, the room dissolving into shadow, a held conspiratorial hush"
+      - "night-train compartment — strobing trackside lamps and station glow flickering through the window of a sleeper berth, brass fittings and a velvet curtain swaying, a fur stole and gloved hand, the rhythm of a long midnight journey"
+      - "after-hours bar back-shelf — a low green-shaded desk lamp behind the counter of a shuttered bar, amber light raking the bottles and a long bevelled glass shelf, a satin gown and an abandoned martini, weary closing-time solitude"
+      - "skylight moonlight — cold blue moonlight pouring straight down through a grimy attic skylight onto a brass bed, dust drifting in the shaft, a silk robe loose at the shoulder and deep surrounding black, lonely top-floor stillness"
     aesthetics:
       palettes: ["high-contrast black-and-white", "cool desaturated night", "amber-tungsten in deep shadow"]
       lighting: ["hard venetian-blind slats", "single hard key, low-key noir", "cool rain-window night light"]
@@ -200,6 +236,12 @@ niches:
       - "beaded-fringe dance — mid-motion fringe flaring under a warm stage-side lamp, t-strap heels and a jewelled headband, champagne-sparkle energy"
       - "lacquer-screen lounge — a black-lacquer folding screen behind a chaise, a marabou-trimmed robe and a gilt cigarette case catching lamplight, languid deco poise"
       - "penthouse dawn — first gold light through a geometric deco window, a beaded gown and the dark city silhouetted beyond, after-the-party stillness"
+      - "ocean-liner stateroom at blue hour — cool dusk light through a brass porthole and a chrome-railed sconce in a paneled first-class cabin, a beaded travelling gown and a marabou wrap over a steamer trunk, refined transatlantic poise"
+      - "speakeasy under the marquee — hard coloured spill from an electric neon sign through a fogged window onto black-lacquer trim and a gilt cocktail rail, a fringed gown and a long cigarette holder, after-midnight jazz-age cool"
+      - "rooftop garden at high noon — bright hard summer sun on geometric chrome railings and a sunburst-patterned awning, a drop-waist day dress and a wide cloche, a chilled coupe on a tiled ledge, breezy daytime deco ease"
+      - "winter conservatory storm-light — flat grey light through a vaulted glass roof as rain streaks the panes, gilt palms and a black-lacquer chaise, a beaded shawl drawn close, brooding indoor calm"
+      - "candlelit cocktail alcove — a single guttering taper on a lacquered cocktail cabinet in a dim private booth, marabou and tarnished silver shaker catching the flame, a beaded gown, conspiratorial late-hour intimacy"
+      - "moonlit terrace overlooking the bay — cool silver moonlight on a gilt balustrade and a chrome deco lounger, a sheer beaded wrap stirring in the night air, the harbour lights scattered on still water, serene small-hours stillness"
     aesthetics:
       palettes: ["champagne, gold and black", "jewel-toned Gatsby palette", "warm sepia-and-gold"]
       lighting: ["warm opulent lamplight", "hazed warm shaft through tall windows", "soft glamour key"]
@@ -225,6 +267,12 @@ niches:
       - "candlelit dark bath — a black marble tub by guttering tapers, rose petals on still dark water, wet pale skin, decadent gothic intimacy"
       - "raven's library — towering shadowed bookshelves and a single oil lamp, a fall of black lace and antique pearls, brooding scholarly sensuality"
       - "candlelit conservatory at midnight — moon-pale light and warm taper-glow among black roses and wrought iron, dark velvet and antique lace, a brooding composed stillness"
+      - "storm-grey cloister walk — flat overcast daylight through a fog-filled gothic arcade, rain darkening the flagstones between slender stone columns, a trailing black velvet cloak and antique jet beads, a brooding composed adult woman with rain-damp hair, solemn and self-possessed"
+      - "hearthside in the keep — warm orange firelight flickering up from a deep stone hearth across a fur-draped settle, wrought-iron andirons and guttering embers, black lace and oxblood drapery catching the glow, a confident grown woman reclining in decadent gothic warmth"
+      - "blue-hour orrery chamber — cold dusk-blue light through a tall observatory window over a brass orrery and dark mahogany, an antique silver pendant and a fall of black silk, the first stars beyond the glass, an intelligent composed stillness"
+      - "crypt taper at midnight — a single hard taper-flame carving the figure from the black of a vaulted stone catacomb, cold weeping walls and tarnished silver candelabra, dark lace and a wax-pale grown woman, reverent decadent calm"
+      - "pre-dawn widow's walk — cold grey first light over a sea-cliff balustrade of weathered wrought iron, mist rolling off dark water below, a long black mourning-lace shawl lifting in the wind, a stoic self-possessed adult woman watching the horizon"
+      - "lightning at the organ loft — a sudden silver flash through a great rose window strobing across carved oak pipes and a dark velvet gown, deep thunder-shadow between flickers, antique pearls and pale skin, fearless gothic grandeur"
     aesthetics:
       palettes: ["deep black, oxblood and silver", "cool moonlit monochrome", "candlelit amber in deep shadow"]
       lighting: ["warm flickering candlelight", "cool moonlight through a window", "single low key in darkness"]
@@ -247,6 +295,12 @@ niches:
       - "canvas tent at dawn — soft pink first light glowing through sun-bleached canvas, woven rugs and brass lanterns, sleepy bohemian intimacy"
       - "desert bloom at golden hour — warm low sun across pale sand and flowering cactus, a gauzy wrap lifting in the breeze, wild and serene"
       - "olive-grove hammock at golden hour — warm low sun through silver-green leaves, a woven hammock and trailing linen, a strummed guitar resting nearby, drowsy free-spirited ease"
+      - "overcast potter's studio — flat soft grey daylight from a north skylight across raw clay, a slumped linen apron and stoneware bowls, trailing pothos and a wheel dusted pale, earthy unhurried calm"
+      - "blue-hour rooftop garden — cool pre-dawn light over terracotta pots and climbing jasmine, a chunky knit thrown over bare shoulders and a chipped enamel mug steaming, an indigo sky going grey, quiet free-spirited stillness"
+      - "macrame studio noon — hard high sun broken into bright dapples through a knotted macrame screen and hanging ferns, woven jute and a rattan stool, sharp warm patterns across sun-warmed skin, languid bright ease"
+      - "driftwood beach fire at dusk — warm flickering bonfire glow against deepening violet sky, a sand-dusted gauze wrap and a woolen blanket on cooling dune sand, woodsmoke drifting, drowsy untamed warmth"
+      - "moonlit canyon spring — cool silver moonlight over pale sandstone and a still desert pool, she rests on the warm solid rock with the water beside her, sparse sage and a dropped linen shawl, serene nocturnal calm"
+      - "storm-grey artist's barn — flat slate light through wide-open weathered doors as rain sheets beyond, splattered canvas drop-cloths and dried wildflowers in jars, a paint-smeared linen smock, moody earthy hush"
     aesthetics:
       palettes: ["warm earthy ochres and cream", "golden honey light", "sun-faded pastel"]
       lighting: ["warm afternoon sun through gauze", "low golden-hour backlight", "soft diffuse daylight"]
@@ -271,6 +325,12 @@ niches:
       - "shaded sun-lounger siesta — a striped lounger under a palm's dappled gold shade, a sweating cocktail beside her, languid jet-set ease"
       - "outdoor villa shower — warm water and low sun on bare skin against terracotta tile, bougainvillea overhead, fresh sensual glow"
       - "rooftop plunge pool at dusk — warm low sun skimming the water's edge, a sheer kaftan thrown over swimwear, a city skyline hazed gold beyond the glass rail, languid jet-set calm"
+      - "pre-dawn lap pool — cool blue first light before sunrise over a still glass-flat villa pool, faint mist rising off the warm water, a wet one-piece and goggles pushed up into wet hair, a towel over the ladder rail, crisp fresh-start calm"
+      - "high-noon poolside cabana — hard vertical midday sun and sharp-edged shadows under a striped canvas cabana, bleached white stucco and turquoise tile, a wide straw hat and oversized sunglasses, a sweating carafe of iced water, bright confident Riviera glamour"
+      - "overcast morning by the pool house — soft even silver light under a flat grey sky, the water a muted slate, damp flagstones and a folded linen robe over a teak bench, a cool unhurried before-the-sun mood, relaxed and serene"
+      - "moonlit night swim — cool silver moonlight and the aqua underwater pool glow on wet skin, ripples casting moving light across pale stucco, a thin wet cover-up clinging at the steps, scattered glasses left from the evening, hushed midnight ease"
+      - "blue-hour poolside lounge — deep indigo dusk settling over the villa, warm amber lanterns and a low fire-bowl as the only warm light against the cool sky, a silk kaftan and bare feet on cooling stone, glass of wine at hand, languid end-of-day calm"
+      - "afternoon thunderstorm under the pergola — flat storm-grey light and fat rain dimpling the pool, dry shelter under a vine-wrapped stone pergola, a damp wrap and wind-tossed hair, a flash of distant lightning over the sea, charged restless glamour"
     aesthetics:
       palettes: ["honey, peach and sky-blue", "warm golden-hour saturation", "sun-bleached Riviera tones"]
       lighting: ["low warm golden-hour sun", "bright backlit sunset", "warm rim-light + sky-bounce fill"]
@@ -293,6 +353,12 @@ niches:
       - "spotlight feather reveal — a single hard spotlight catching ostrich plumes mid-gesture on a dark stage, rhinestones glinting, theatrical tease"
       - "masquerade soiree — a single feathered or filigree half-mask catching warm candelabra light in a shadowed ballroom alcove, beaded gown, conspiratorial after-the-ball intimacy"
       - "after-hours piano lounge — a single warm lamp over a black grand piano in an empty club, a beaded gown and long gloves, a forgotten champagne coupe, intimate post-show hush"
+      - "footlight glow at the apron — a row of warm coloured footlights raking hard up from below the stage edge, casting an upward theatrical shadow, ostrich plumes and a rhinestone-fringed corset catching the gels, bold mid-act showgirl swagger"
+      - "cold stage-door alley at blue hour — flat steely pre-show twilight in a brick service lane behind the club, a marabou-trimmed wrap thrown over a beaded costume, a forgotten bouquet on a crate, between-shows quiet poise"
+      - "empty theatre at noon — one hard dusty shaft of daylight falling through a high grimy clerestory window across rows of velvet seats, gilt balconies in shadow, a feathered headdress and gloves, lone rehearsal stillness"
+      - "marquee bulb-glow at night — warm flickering rows of incandescent canopy bulbs spilling over the sidewalk under the theatre awning, a sequinned gown and a fur stole, wet pavement holding the light, arrival-night sparkle"
+      - "circus-wagon brazier — warm iron-brazier firelight inside a touring cabaret's painted caravan, trunks of feathers and a rhinestone headdress, a corset half-laced, smoke-tinged travelling-show intimacy"
+      - "soft rehearsal-hall morning — even grey overcast daylight from tall side windows across a bare sprung floor, a folding chair draped with a beaded costume and t-strap heels, a satin practice robe, unguarded working calm"
     aesthetics:
       palettes: ["deep red velvet and gold", "warm theatrical amber", "black-and-rhinestone sparkle"]
       lighting: ["warm theatrical spotlight", "warm vanity-bulb light", "single dramatic stage key"]
@@ -317,6 +383,12 @@ niches:
       - "rooftop above the megacity — neon haze and traffic light-trails far below a high parapet, windswept sleek styling, vertiginous night glamour"
       - "rain-soaked noodle stall — warm sign-glow and steam in a cramped neon alley, wet skin and neon-slick puddles, intimate street-level cool"
       - "monorail platform at night — cold fluorescent strip-light and magenta signage glow on a rain-damp elevated platform, sleek techwear and chrome, distant neon towers, lonely future-city cool"
+      - "arcade backroom — the cold blue-white wash and scrolling marquee glow of banked retro game cabinets in a dim arcade, a hard scanline flicker across sleek vinyl and chrome, coiled cables and a worn stool, electric after-hours cool"
+      - "neon-dawn fire escape — cold grey pre-dawn light bleeding over the megacity while the last dead-blue tube sign hums beside her on a rusted iron landing, wet techwear and a thin steam plume, lonely end-of-night calm"
+      - "ramen-bot capsule diner — sterile clinical white panel light and the amber spill of a single sign in a cramped automated noodle booth, brushed steel counters and a steaming bowl, chrome jewellery, intimate machine-age hush"
+      - "self-driving cab interior — soft cyan dashboard glow and the streak of passing neon raking through rain-beaded glass inside a sleek autonomous pod, leather and chrome trim, reflected light-trails on wet skin, private travelling stillness"
+      - "drone-searchlight rooftop — a single hard white searchlight beam swinging across a fog-wrapped service deck, harsh top-down shadow on latex and matte armour plating, ductwork and warning strobes, tense midnight glamour"
+      - "vending-machine corner — the flat pink-and-green screen wash of glowing vending fronts in a deserted underpass, a flickering broken sign stuttering magenta overhead, wet concrete and graffiti, candid street-level cool"
     aesthetics:
       palettes: ["magenta-and-cyan neon", "teal-and-orange blockbuster", "blade-runner neon-noir"]
       lighting: ["magenta key + cyan rim, neon night", "saturated neon window spill", "wet-specular neon reflections"]
@@ -340,6 +412,12 @@ niches:
       - "reedy lakeside meadow — soft afternoon light by a still lake, a picnic blanket and scattered wildflowers, languid countryside calm"
       - "amber orchard at harvest — low gold afternoon sun through turning amber-and-russet leaves, windfall apples and a woven basket, a linen dress worn off one shoulder, warm harvest calm"
       - "harvest-moon field — a huge low amber harvest moon over cut golden stubble, woodsmoke haze, a knit shawl wrapped close, dreamy late-September warmth"
+      - "hearthside cottage evening — warm flickering firelight from a stone hearth glowing across a wood-beamed kitchen, a hanging copper pot and dried-herb bundles overhead, a loose linen shift and a knit shawl slipped low, drowsy rustic warmth and quiet contentment"
+      - "noon hayloft — hard bright midday sun slanting in shafts through the gapped barn boards onto loose straw and a rough timber loft, motes drifting in the light, a sun-warmed cotton dress unbuttoned at the collar, languid summer-afternoon stillness"
+      - "storm-grey kitchen garden — flat overcast light under a low bruised sky before rain, rows of cabbages and runner-bean canes glistening, a damp apron over a linen dress and mud on bare ankles, earthy windswept calm"
+      - "blue-hour milking shed — cool dim twilight settling over a whitewashed stone byre, a wooden three-legged stool and a tin pail, a wool cardigan pulled close against the chill, a soft hush as the day fades to dusk"
+      - "candlelit larder at night — a single tallow candle and an oil lamp casting amber pools over crocks of preserves, hanging onions and a wheel of cheese, a linen nightdress and bare shoulders, secret midnight-pantry intimacy"
+      - "rain on the porch — soft grey side-light through a steady downpour off the cottage eaves, water sheeting from the thatch and dripping ferns, a chunky knit blanket round her shoulders and a steaming tin cup, cosy rain-watching ease"
     aesthetics:
       palettes: ["soft sage, cream and wildflower", "warm pastoral daylight", "faded pastel countryside"]
       lighting: ["soft window daylight", "dappled orchard sunlight", "warm overcast morning"]
@@ -374,6 +452,12 @@ niches:
       - "rooftop lounge at sunset — she stretches out on a canvas-and-rattan daybed in a fluid halter jumpsuit as warm low sun rakes from camera-left across the skyline, a concrete parapet and potted olive trees around her, a soft sheen along her arms and a catchlight in her eye, easy cocktail-hour glamour"
       - "sunlit bedroom morning — she lies among rumpled white cotton and linen in a cropped camisole as soft daylight washes in from the left, a ceramic mug of coffee steaming on the bedside table, fine down along her shoulder and a warm flush on her cheek, intimate and unhurried"
       - "Santorini caldera terrace at golden hour — she leans at a whitewashed plaster railing in a deep-navy lace dress with fine gold-thread embroidery and sheer organza sleeves as low gold light rakes in from camera-left, blue-domed whitewashed churches and distant Cyclades isles stepping down to the hazed Aegean behind her, a warm sheen along her collarbone and a catchlight in her eye, candid postcard glamour"
+      - "travertine bathroom at cold pre-dawn — she stands at a backlit floating vanity in a silk-trimmed robe as flat blue-grey first light fills the floor-to-ceiling window from camera-right, honed grey travertine, a brushed-brass faucet and a glass of iced water beading on the slab, a single soft catchlight in her eye, quiet just-woken hush"
+      - "yacht sundeck at hard noon — she reclines on a white teak-and-canvas lounger in a high-cut maillot as overhead tropical sun throws crisp short shadows, stainless rigging and a chilled glass bottle in a sweating ice bucket beside her, a bright salt sheen on sun-bronzed skin and a salt-stiff sarong, bright confident open-water ease"
+      - "private-jet cabin above the clouds — she settles into a cream leather seat in a tailored knit set as one hard shaft of high-altitude sun cuts through the oval window from camera-left, polished teak veneer and a glass flute of champagne catching the beam, a soft sheen along her jaw and fine down lit at her temple, serene jet-set calm"
+      - "modernist desert villa at blue hour — she perches on a poured-concrete step beside a glowing turquoise lap pool in a draped jersey gown as the sky deepens to cool indigo, warm pool-light raking up from below on one side of her, raw concrete and a brass-railed glass screen nearby, a faint pool-damp sheen on her shoulders, still high-desert dusk poise"
+      - "lakehouse deck under storm-grey skies — she wraps a chunky alpaca throw over a slip dress at a cedar railing as flat slate daylight presses down from above before the rain, dark water and pine beyond, the first heavy drops dimpling a glass of red wine on the rail, a faint chill-flush on her skin, brooding contemplative calm"
+      - "rooftop plunge under a full moon — she rests on the travertine edge of a steaming infinity spa in a sheer cover-up as cool blue moonlight rakes across the rising steam from camera-left, a brass rail and teak deck underfoot, the dim city a field of low amber pinpricks behind, a single warm deck-lantern catchlight in her eye, languid midnight stillness"
     aesthetics:
       palettes: ["sun-bleached white-and-cerulean", "warm terracotta-and-gold", "soft blush-and-cream resort tones"]
       lighting: ["low warm golden-hour sun", "soft poolside sky-bounce fill", "warm candle-and-lamp interior glow"]
@@ -401,6 +485,12 @@ niches:
       - "anatomist's studio — a heavy oak table with brass dividers and indistinct sepia sketches, the model resting between poses in a rough wool wrap, candle-lit Leonardo-era scholarship"
       - "venetian loggia twilight — dusk over a stone balustrade, a brocade gown laced close, pearls wound through her hair, La Serenissima opulence"
       - "tenebrist still-life — copper pots, grapes and bread in Caravaggio darkness, one raking candle carving the model out of the same gloom, earthy and sacred"
+      - "hearth-fire study at dusk — low flickering firelight from a wide stone hearth throws warm restless glow up across the figure, a heavy oxblood velvet wrap and a pewter cup on the mantel, embers and ash in deep shadow, an intimate old-master warmth"
+      - "moonlit gallery of old masters — cool silver moonlight falling through a high arched window onto pale skin and a fall of brocade, gilt picture-frames dim in the dark behind her, a tarnished pewter candlestick unlit on the sill, still nocturnal reverence"
+      - "scriptorium under a single roof-shaft — one hard noon shaft from a high oculus spotlighting the figure at a slanted oak desk, aged gilt-edged vellum and an inkwell catching the beam, damask draped over the stool, dust adrift, scholarly hush"
+      - "blue-hour conservatory at first light — cold pre-dawn light through tall leaded glass over potted citrus and stone, a damask robe loose at the shoulder, gilt birdcage and pewter ewer in the cool gloom, a quiet timeless stillness before the household wakes"
+      - "storm-grey music room — flat overcast light through a rain-streaked casement across a lacquered virginal and oxblood velvet hangings, a brocade gown laced close, sheet-music and a gilt candelabra unlit nearby, brooding baroque calm"
+      - "golden-hour solar at the loom — warm low afternoon sun slanting through a mullioned window onto an unfinished tapestry on a great oak loom, gilt thread catching the light, a velvet mantle slipped from one shoulder, dust motes drifting, drowsy old-master warmth"
     aesthetics:
       palettes: ["oxblood, gold and deep shadow", "Vermeer cool-and-cream", "jewel-toned baroque"]
       lighting: ["single candle chiaroscuro", "soft north-window light", "hazed shaft through leaded glass"]
@@ -423,6 +513,12 @@ niches:
       - "Danae in the golden rain — she reclines on white linen as a shaft of golden dust-laden light pours over her from a high opening, bronze bowls glinting, the myth told purely in light"
       - "nereid on the storm rocks — dark wet rocks and kelp, sea-foam bursting BESIDE her perch, silver storm-light on salt-wet skin, elemental and unafraid"
       - "oracle at the brazier — a bronze brazier's ember glow in a dark sanctum, laurel leaves in her hair, thin smoke rising from the coals, prophetic intensity"
+      - "mountain-spring naiad at blue hour — cold pre-dawn light over a clear rock pool fed by a marble fountainhead, ferns and travertine and a bronze water-jar at the rim, a sheer chiton clinging damp, still and serene before sunrise"
+      - "ruined amphitheatre at hard noon — harsh overhead sun bleaching tiered marble seats and a fallen Corinthian capital, a sun-warmed slab of stone, a laurel wreath and a cracked bronze lyre at hand, the chiton sun-faded, austere midday divinity"
+      - "Demeter in the overcast olive grove — even silver light under a flat grey sky among silver-leaved olives, a woven sheaf of wheat and a clay honey-jar on a low stone wall, linen the colour of grain, fertile harvest calm"
+      - "forge of the smith-goddess — warm orange firelight from an open hearth and glowing coals in a cavern-workshop, hammered bronze ingots, an anvil and an iron tripod, sweat-sheened skin and a wool wrap at the waist, elemental focused strength"
+      - "Persephone in the underworld grotto — a single pale shaft falling through a crack in the cavern roof onto black stone and a pomegranate split open beside her, dark water and pale marble, gold-thread linen, composed queen-of-shades stillness"
+      - "Hestia's votive temple at night — many small oil-lamp flames in bronze dishes ringing a low hearth in a dark sanctum, woodsmoke and warm shadow, a heavy linen mantle drawn close, keeper-of-the-flame serenity"
     aesthetics:
       palettes: ["marble white and gold", "warm Aegean light", "cool silver moonlight"]
       lighting: ["diffused colonnade daylight", "warm shoreline low sun", "cool moonlit grove"]
@@ -448,6 +544,12 @@ niches:
       - "solar window needlework — diamond-paned daylight in the private solar, a fur-lined mantle about her shoulders while embroidery lies forgotten in her lap, noble idleness"
       - "bathing barrel — a steaming oak bathing barrel strewn with herbs, iron sconce candlelight, wet hair over the rim, rough-hewn medieval comfort"
       - "frost on the tower glass — fat snow falling beyond a narrow arched window, frost-breath misting in a cold stone chamber, a fur-lined wool mantle drawn over pale skin, regal-composed midwinter stillness"
+      - "castle herb garden at noon — hard overhead midday sun across a walled physic garden of lavender and climbing roses, a noblewoman in a laced wool kirtle gathering cuttings into a woven willow trug, hammered-iron shears at her hip, sun-warmed self-possessed calm"
+      - "private chapel single shaft — one dramatic shaft of dust-laden light angling through a high lancet window onto worn flagstones, a fur-lined mantle clasped high at the throat as she kneels at an oak prie-dieu, beeswax tapers unlit beside her, hushed solemn grace"
+      - "rampart walk at blue hour — cool dusk-blue light over the battlements after sunset, a heavy wool cloak whipping in the wind above the dark bailey, hammered-iron crenellations and a guttering pitch-brazier nearby, watchful regal stillness"
+      - "scriptorium overcast afternoon — flat soft grey daylight through tall mullioned glass across a slanted oak writing desk, vellum, a quill and an inkhorn at hand, a fur-trimmed wool surcoat over loose laces, scholarly composed quiet"
+      - "orchard storm-light — bruised storm-grey light under gusting apple boughs in the castle orchard, windfall fruit on damp grass and a fallen woven basket, a wool gown pressed against her by the wind, untamed weather-wild poise"
+      - "moonlit mews at midnight — cold silver moonlight through the open shutters of the falcon mews, a hooded hawk asleep on its oak perch, leather jesses and a fur-lined wrap loose at her shoulders, still secretive nocturnal calm"
     aesthetics:
       palettes: ["warm candle-and-velvet", "cool stone dawn", "amber hearth glow"]
       lighting: ["warm candle flame", "cool arched-window dawn", "flickering hearth fire"]
@@ -472,6 +574,12 @@ niches:
       - "ruined chapel wings — soft beams through a collapsed roof over feathered wings and wildflowers among the rubble, hope-amid-ruins serenity"
       - "annunciation light — one golden beam across a humble whitewashed room, a lily in a clay jug on the sill, awed luminous stillness"
       - "marble ledge under stars — a moonlit figure resting on a pale marble ledge against night cloud and starfield, cool silver rim light, cosmic calm"
+      - "blue-hour celestial mist — cold pre-dawn indigo light over a still highland tarn, a fall of white gauze and gold-leaf circlet, large soft feathered wings folded low, faint mist curling at her feet, hushed transcendent stillness before the sun"
+      - "high-noon pale-marble sanctum — hard overhead zenith light pouring straight down through an open oculus onto pale stone, sheer drifting fabric and a single dropped feather, a clean carved pale-marble basin beside her, austere radiant calm"
+      - "overcast cliff of feathers — flat soft silver light under a pewter sky at a windblown chalk headland, white gauze and half-furled wings stirred by the gusting air, loose feathers caught on the breeze, serene wind-swept grace"
+      - "golden-hour backlit ascension — low warm sun firing straight through translucent wing-feathers from behind so they glow gold at the edges, sheer fabric lifting in the rising air over a sunlit hilltop, weightless radiant joy"
+      - "single shaft over still water — one narrow dramatic beam breaking through dark thunder-grey cloud onto a glassy reflecting pool, gold-leaf adornment glinting, soft feathers drifting on the surface beside her, awed solemn quiet"
+      - "frost-dawn cloister garth — pale cold morning light on a hoar-frosted cloister lawn, white gauze and a thin gilt halo, breath misting in the chill air, soft feathered wings dusted with frost, composed wintry serenity"
     aesthetics:
       palettes: ["luminous white and gold", "soft heavenly pastel", "warm sunrise gold"]
       lighting: ["volumetric heavenly beams", "soft golden sunrise", "warm chapel candlelight"]
@@ -494,6 +602,12 @@ niches:
       - "rooftop under the stars — a lantern-ringed rooftop bed beneath the desert night sky, cool indigo dark against warm flame, sheer canopies stirring in the wind"
       - "private silk stall — bolts of jewel-toned silk draped across her among brass scales and pyramids of saffron, golden light through slatted shade, no other figure present"
       - "oasis palm shade — dappled palm light over a woven rug at the edge of a clear pool, a brass ewer and dates at hand, languid desert ease on solid ground"
+      - "courtyard fountain at high noon — hard overhead desert sun pouring straight down into a tiled inner courtyard, sharp shadows on a mosaic-rimmed pool and trickling brass spout, a sheer silk wrap and gold anklets, water-cool composure against the heat"
+      - "moonlit harem garden — cool silver moonlight through latticed jali screens casting pierced patterns across her skin and a carved cedar bench, jasmine and a still reflecting channel, jewel-toned silk draped around her, serene nocturnal calm"
+      - "candlelit reading nook — warm flickering oil-lamp and a cluster of beeswax candles in a cushioned cedar alcove, an open illuminated manuscript and brass inkpot set aside, silk and gold bangles, intimate scholarly hush"
+      - "incense brazier sanctum — the hot amber glow of a low brass brazier rising through coiling incense smoke in a windowless mosaic chamber, embers reddening carved walls, heavy silk and tarnished gold, hypnotic ceremonial stillness"
+      - "shaft through the dome oculus — one dramatic beam of dusty afternoon light spearing down from a high pierced dome onto a single spot of patterned floor, she stands where it lands amid shadow, sheer drifting silk, reverent solitary drama"
+      - "blue-hour balcony over the bazaar — cool dusk-blue light settling on a filigree balcony as the first lanterns warm below, carved cedar rail and trailing silk, a brass coffee set cooling at hand, languid twilight reverie"
     aesthetics:
       palettes: ["jewel-toned silk and gold", "cool desert dawn", "warm mosaic amber"]
       lighting: ["warm filigree lantern light", "cool desert sunrise", "diffused steam light"]
@@ -518,6 +632,12 @@ niches:
       - "throne of the night court — a carved obsidian throne in a ruined great hall, a black lace train spilling down the dais steps, moon shafts through broken vaulting, predatory queen composure"
       - "wine-cellar candle — one candle among dusty casks and tarnished goblets, crimson velvet thrown over cold stone, conspiratorial closeness"
       - "bell-tower midnight — moonlight through the louvres beside a great bronze bell, wind-stirred black chiffon, the sleeping city far below, vertiginous gothic romance"
+      - "fireplace library at midnight — orange ember-glow from a great stone hearth flickering across a wall of leather-bound tomes, a fall of black lace over crimson velvet and an open grimoire, tarnished-silver candelabra dark and unlit, brooding predatory intelligence"
+      - "storm at the parapet — a single white flash of lightning carving her out of black rain over the battlements, wind-driven black chiffon and cold wet stone underfoot, the drowned valley below, fearless tempest-lit composure"
+      - "stained-glass dusk in the chapel ruin — low blue-hour twilight pouring jewelled red and violet through a broken rose window onto pale skin, dark velvet draped over a cracked altar slab, dust and tarnished silver, solemn unhurried menace"
+      - "the masked ball alcove — warm guttering candelabra light spilling from the ballroom beyond into a shadowed stone alcove, a filigree half-mask and a deep blood-red velvet gown, a long-stemmed goblet at rest, conspiratorial after-midnight poise"
+      - "the night garden of black roses — cold silver moonless starlight and a low brazier's red coals among wrought-iron and thorned black blooms, a black lace mantle drawn close over bone-pale skin, still and watchful in the chill"
+      - "torch-lit descent — a single pitch-pine torch throwing hard amber flame and leaping shadow down a worn spiral stair of cold stone, crimson velvet trailing the steps and a glint of tarnished silver at her throat, descending with unhurried command"
     aesthetics:
       palettes: ["cool moonlit blue and crimson", "deep crimson and candle", "cold stone and black lace"]
       lighting: ["cool blue moonlight", "warm low candle", "cold crypt dawn"]
@@ -542,6 +662,12 @@ niches:
       - "bodyscape dunes — an extreme close crop turning hip, waist and shoulder into dune-like landscape forms, hard side light, pure tonal abstraction"
       - "dancer's chalk study — a dark rehearsal studio, chalk dust hanging in one hard key, the figure caught sharp mid-extension, kinetic monochrome energy"
       - "wet-skin contrast — water beaded on skin under a single hard key against black, every droplet a specular point, graphic and stark"
+      - "pre-dawn loft figure — cold flat overcast light through a vast grid of dusty industrial windows before sunrise, bare floorboards and a single iron stool, low-contrast grey silver-gelatin tones, a still and contemplative monochrome hush"
+      - "dappled shadow study — hard midday sun filtered through a latticed screen or bare branches scattering a graphic pattern of light and dark across the figure and a plain plaster wall, sharp tonal mosaic, kinetic monochrome geometry"
+      - "overcast skylight nude — soft directionless daylight falling straight down from a frosted-glass roof in an empty atelier, draped muslin and a worn wooden plinth, gentle gradients and fine grain, quiet sculptural calm"
+      - "firelit hearth study — warm flickering firelight as the sole key in a dark bare-brick room, glow modelling the form against deep falling shadow, a coarse wool blanket and stone floor, intimate restless monochrome"
+      - "blue-hour bath — cool dim twilight through a high frosted window over a deep enamel tub, water surface and wet skin catching the last grey light, smooth low-key tonal range, a tender pre-night stillness"
+      - "single shaft through the rafters — one narrow dramatic beam of dust-laden light cutting down through a dark barn or attic, hard-edged where it strikes the figure and pure black around it, raw hay and rough beams, stark theatrical monochrome"
     aesthetics:
       palettes: ["high-contrast silver-gelatin black-and-white", "soft high-key monochrome", "deep film-noir black-and-white"]
       lighting: ["single hard studio key", "soft even high-key", "hard venetian-blind slats"]
@@ -557,6 +683,168 @@ niches:
 # shippable on Chroma (FLUX-arch, cfg 1.0) + Apple MPS without breaking the cfg-1
 # flash contract or the Chroma-face mandate, so it stays deferred.
 # face + complexion mirror the config/creative_direction.yaml look_pools axes.
+  - id: athletic_studio
+    class: trend
+    weight: 1.0
+    tier_band: [T1_suggestive, T2_implied, T3_artnude]
+    da_folder: "Athletic Studio"
+    family: golden_hour
+    source: modern_fitness
+    tags: [fitness, athletic, gym, yoga, wellness, sporty, strong, sensual, modern, editorial, aiart, digitalart, portrait]
+    sub_looks:
+      - "sunlit yoga studio at morning — soft north-window daylight rakes low across a pale oak floor and a rolled cork mat, a sports bra and leggings worn intact, fine chalk-dust haze and a sheen of clean sweat, a slow controlled stretch held in calm focused stillness"
+      - "pilates reformer room — even cool skylight from a high overcast roof glass washes across a black-and-chrome reformer and taut leather straps, a fitted unitard, a faint flush of effort, precise composed concentration in a quiet bright room"
+      - "weight-training gym floor — hard overhead spotlights throw crisp pools of light over knurled steel, rubber plates and a chalked grip, bike shorts and a crop top damp at the spine, grounded confident power between sets"
+      - "dance and barre studio — soft bounced afternoon light fills a sprung blond-wood floor along a polished wooden barre, a leotard and worn canvas slippers, rosin grit underfoot, an extended line held in poised graceful control"
+      - "bouldering and climbing wall — cool angled fluorescent contrast skims a textured overhang studded with bright resin holds, chalk bag and taped fingers, a fitted tank and shorts, taut reaching focus mid-route on solid ground"
+      - "boxing gym at dusk — a single dramatic side-light carves muscle out of a dim brick room hung with a heavy bag and skipping ropes, hand wraps and shorts, sweat and leather and the chalk line of the ring, fierce composed grit"
+      - "25m lap pool — poolside water caustics ripple turquoise light across wet tiled lane lines and a coiled lane rope, a sleek one-piece training swimsuit, beaded water on the shoulders, a steady breath caught at the wall in serene focus"
+      - "calisthenics frame outdoors — warm low sunset light glows along powder-coated steel bars and worn chalk smears, a crop and bike shorts, a faint dust of magnesia in the air, a strong held hang in quiet effortless control"
+      - "spin class studio — cool overhead fluorescent contrast and a wash of saturated screen-glow over rows of stationary bikes and brushed-aluminium frames, a sports bra and leggings damp with effort, the after-class hush of an emptied room, settled steady calm"
+      - "rooftop stretch at dawn — cold blue pre-dawn light over a concrete parapet and a single laid-out mat, the city hazed grey below, an oversized tee and shorts, breath misting faintly in the chill, a serene unhurried waking calm"
+      - "sauna cooldown — warm amber sauna glow on honeyed cedar slats and a folded linen towel, soft steam haze and a wooden ladle by the stones, a one-piece training swimsuit, skin sheened and loose, languid restorative ease"
+      - "outdoor running track at first light — dawn-track cool gold rakes long across red rubberised lanes and crisp white lines, a sports bra and leggings, a fine sweat-glow and a paused stride, fresh open-air determination"
+    aesthetics:
+      palettes: ["warm oak, chalk-white and steel-grey", "cool aqua, slate and dawn gold", "sun-warmed honey and clean cream neutrals"]
+      lighting: ["soft north-window studio daylight", "hard overhead gym spotlights", "cool dawn-gold rake across the track"]
+      photographers: ["clean natural-light fitness editorial", "Annie Leibovitz athlete portraiture", "soft overcast sports-studio lighting"]
+    brief_seed: "Athletic studio — one fit adult woman training across modern disciplines and spaces, from a sunlit yoga studio and pilates reformer room to a gym floor, lap pool, climbing wall and dawn running track. Movement, sweat-sheen and athletic-wear as set dressing, the light shifting widely with each space; strong, focused and graceful, never a costume or fantasy piece."
+
+  - id: wild_nature
+    class: trend
+    weight: 1.0
+    tier_band: [T1_suggestive, T2_implied, T3_artnude, T4_explicit]
+    da_folder: "Wild Nature"
+    family: golden_hour
+    source: natural_landscape
+    tags: [nature, wild, landscape, naturenude, waterfall, forest, mountain, outdoor, earthy, sensual, fineart, aiart, digitalart]
+    sub_looks:
+      - "waterfall basin at midday — soft mist-diffused light scatters evenly off the falling spray onto wet basalt boulders, beaded water on bare shoulders and a clinging natural-fibre wrap, ferns trembling at the plunge pool, a fresh exhilarated calm"
+      - "old-growth mossy forest — green-filtered dappled shafts break through a high canopy and dance across a fallen cedar furred in deep moss, a thin draped cloth and damp leaf-litter underfoot, lichen and curling bark around her, a hushed cathedral stillness"
+      - "snowfield at first light — cold blue pre-dawn dawn bounces flat and even off untouched powder, breath misting on the still air, a heavy wool wrap and frost-rimed lashes, a vast silent immaculate calm"
+      - "alpine ridge at noon — hard high overhead sun glares off bare grey granite and a wind-scoured cornice, a flowing wrap snapping in thin cold air, scree and a far hazed valley below, an exposed elated vertigo"
+      - "desert dunes at golden hour — low raking gold sun rakes long shadows across rippled sand crests, warm grains clinging to skin and a gauzy wrap lifting in the breeze, a lone wind-carved ridge behind, a slow burnished serenity"
+      - "steaming hot spring at dusk — warm steam-glow rises and softens the fading light over mineral-rimmed turquoise water, wet hair and rising vapour, smooth travertine terraces and sulphur-pale stone, a languid thawed ease"
+      - "rainforest canopy stream — filtered green light sifts soft and humid through layered leaves onto a clear shallow stream over smooth pebbles, a thin wet cloth and trailing vines, dripping fronds and slick black rock, a lush enclosed hush"
+      - "sea-cliff at sunset — hard backlit rim-light burns the edge of windblown hair and a flowing wrap as the low sun sits over the open water, salt spray hazing the air, weathered headland grass and gulls below, a wild buffeted freedom"
+      - "autumn birch wood — warm low side-light slants amber through white papery trunks and a drift of fallen gold leaves, a draped natural-fibre cloth and bare feet in the crisp litter, peeling bark and slender shadows, a wistful glowing calm"
+      - "cave mouth shaft — a single dramatic overhead shaft of daylight spears down through the dark cave roof onto a wet stone slab, the figure half in shadow with mineral dust adrift in the beam, dripping flowstone and black depths beyond, a solemn hushed awe"
+      - "blue-hour lakeshore — even cool blue-hour twilight settles over a glass-still alpine lake under the first stars, a thin draped wrap and goose-fleshed skin, smooth pale shingle and dark pine silhouettes, a tranquil suspended quiet"
+      - "moonlit fern grotto — silver moonlight filters cool and soft over dense unfurling ferns and a dripping mossed rock wall, a sheer pale cloth catching the pale glow, trickling water and deep green shadow, a secret enchanted stillness"
+    aesthetics:
+      palettes: ["wet basalt, deep moss-green and silver spray", "cold snow-blue and granite grey", "burnished desert gold and warm sand"]
+      lighting: ["mist-diffused soft daylight off spray", "cold blue pre-dawn snow-bounce", "single dramatic overhead cave shaft"]
+      photographers: ["Ansel Adams dramatic wild-landscape light", "Sebastiao Salgado epic natural grandeur", "fine-art figure-in-landscape nature study"]
+    brief_seed: "Wild Nature — one woman immersed in dramatic untamed landscapes across the day's full range of light: a misted waterfall basin, a mossy old-growth forest, a snowfield at first light, an alpine ridge, desert dunes, a steaming hot spring, a rainforest stream, a sea-cliff, an autumn birch wood, a shafted cave mouth, a blue-hour lakeshore and a moonlit fern grotto. A classic figure-in-nature study, the wild place and its light the true subject, elemental and serene."
+
+  - id: surreal_dreamscape
+    class: trend
+    weight: 1.0
+    tier_band: [T2_implied, T3_artnude, T4_explicit]
+    da_folder: "Surreal Dreamscape"
+    family: nocturne
+    source: surreal_dream
+    tags: [surreal, dreamscape, ethereal, oneiric, fantasy, conceptual, dreamy, artnude, atmospheric, painterly, aiart, digitalart]
+    sub_looks:
+      - "drifting-petal stillness — soft otherworldly ambient glow with no single source, suspended in a pale void where slow petals drift past her, sheer drifting fabric, scattered blossoms and faint floating motes, dreamy weightless calm"
+      - "flooded moonrise hall — cool silver moonlight rakes low from a tall window across a shin-deep sheet of glass-still water, a wet stone floor, a sheer veil, slow ripples spreading from each step, hushed nocturnal wonder"
+      - "endless hall of billowing curtains — a single dramatic shaft of pale light cuts down a long dim corridor where gauze curtains billow on either side, polished floor and drifting linen, theatrical solitary grace"
+      - "field of oversized blooms at pearl dawn — soft pearl dawn-mist light diffuses from a low overcast sky among giant petalled blooms taller than she stands, dewed petals, drifting fabric, tender storybook serenity"
+      - "moonlit sea of cloud — cold deep-blue night light from a low full moon over a rolling floor of soft cloud she reclines upon, silver moon-glow, diaphanous drift, vast quiet awe"
+      - "floating paper-lantern drift — warm lantern amber from dozens of suspended paper lanterns hovering around her in still dark air, rice-paper and soft cord, a thin veil, a hushed festival hush adrift in night"
+      - "ground-mist room at dusk — twilight violet light slants through high panes into a bare interior softly filling with low ground-mist around her ankles, worn floorboards, sheer fabric, a slow dreamlike unease made gentle"
+      - "suspended water-droplets — gold dust-mote backlight rakes from behind through a curtain of frozen-in-air water droplets that scatter the light into points around her, wet skin sheen, drifting gauze, suspended-time wonder"
+      - "staircase that fades to sky — drifting-candle warm light pools on lower stone steps that climb up and dissolve into pale open sky, a worn balustrade, trailing sheer cloth, ascending dreamlike yearning"
+      - "bioluminescent grotto — cool bioluminescent teal glow rising from glowing pools and cave walls in a dim wet cavern, slick dark rock, a clinging wet veil, mineral water sheen, otherworldly secret stillness"
+      - "dusk desert of standing monoliths — warm low dusk light glances off tall pale stone monoliths planted across rippled sand around her, long raking shadows, drifting fabric, surreal sunlit emptiness"
+      - "bed adrift on calm water — refracted water caustics ripple soft light up onto her from a still dark pool beneath a low bed that floats upon it, damp linen and pale wood, a thin sheet, weightless midnight drift"
+    aesthetics:
+      palettes: ["pale dawn-mist grey and blush", "moonlit silver and deep night-blue", "bioluminescent teal and twilight violet"]
+      lighting: ["soft otherworldly ambient glow, no single source", "cool moonlit silver side-rake", "gold dust-mote backlight through suspended droplets"]
+      photographers: ["Brooke Shaden conceptual fine-art", "Tim Walker dreamlike staged surrealism", "Bella Kotak ethereal fantasy"]
+    brief_seed: "Surreal dreamscape — one woman alone in a gently surreal, dreamlike scene where all light is motivated and grounded (no unsourced smoke): adrift among slow petals, in flooded mirror-water, an endless hall of curtains, a bioluminescent grotto or a moonlit sea of cloud, drifting fabric or a bare ethereal figure as set dressing, otherworldly and serene. SIGNATURE MATERIALS: still mirror-water, gauze curtains, paper lanterns, oversized blooms, ground-mist, suspended droplets — dreamlike and weightless, never literal or modern."
+
+  - id: south_asian_editorial
+    class: trend
+    weight: 1.0
+    tier_band: [T1_suggestive, T2_implied, T3_artnude]
+    da_folder: "South Asian Editorial"
+    family: gilded_glamour
+    source: heritage_couture
+    tags: [southasian, editorial, heritage, couture, sari, lehenga, fashion, elegant, sensual, cultural, aiart, digitalart, portrait]
+    sub_looks:
+      - "haveli courtyard golden — warm late-afternoon haveli sun raking across a carved sandstone arch, a silk sari with a gold zari border and gold jhumka earrings, settled poise and heritage grandeur"
+      - "jasmine balcony at dusk — soft brass-lamp glow on a jasmine-strung balcony, an anarkali in deep teal silk, strung jasmine and a hammered-brass lamp, a still warm-violet evening calm"
+      - "monsoon veranda grey — flat diffuse monsoon daylight under a tiled veranda eave, rain beading on a richly embroidered lehenga and a bandhani dupatta, cool composed quiet as water drips"
+      - "sandstone palace noon — hard high midday sun across a sandstone palace arch, a crisp kanjivaram drape with a contrast zari border and silver anklets, bold graphic editorial confidence"
+      - "marigold doorway warm — warm reflected bounce off a marigold-draped doorway, a shisha-work blouse catching the orange light and a printed cotton skirt, a bright celebratory mood"
+      - "riverside ghat dawn — cool gold pre-sunrise light on stone ghat steps by the river, a gauzy jamdani drape and thin gold bangles, mist on the water and a serene early stillness"
+      - "tea-garden overcast — flat soft overcast light on a green tea-garden hillside, a handloom cotton sari and a woven cane basket, dewy leaves and an unhurried fresh-air ease"
+      - "jali-screen pattern light — geometric shafts of sun cast through a carved marble jali screen, a pale chanderi sari and gold filigree rings, lace-patterned light across the form, contemplative grace"
+      - "brass-lamp interior — warm low diya and oil-lamp glow in a dark haveli room, a bandhani lehenga in crimson and a heavy gold maang-tikka, intimate amber editorial warmth"
+      - "terrace blue-hour — cool even blue-hour twilight on a marble terrace overlooking rooftops, a sheer organza dupatta over a fitted choli, oxidised silver jewellery, calm modern poise"
+      - "courtyard skylight diffuse — soft top-down skylight into an open marble courtyard, an ivory silk sari with a woven pallu and pearl-drop earrings, clean airy minimalist elegance"
+      - "festival-diya warm — many small clay diya flames pooling warm light along a decorated step, an embroidered velvet anarkali and gold bangles, a joyful glowing festive editorial mood"
+    aesthetics:
+      palettes: ["marigold-saffron and deep teal with gold", "ivory and rose-pink with oxidised silver", "monsoon grey-green with brass accents"]
+      lighting: ["warm haveli golden-hour rake", "jali-screen patterned sun shafts", "warm diya and brass-lamp glow"]
+      photographers: ["Steve McCurry warm South-Asian colour", "Tarun Khiwal heritage-textile editorial", "Prabuddha Dasgupta soft fashion light"]
+    brief_seed: "Contemporary South-Asian heritage-fashion editorial — one adult woman in beautifully draped modern interpretations of regional textiles (silk sari, lehenga, anarkali, jamdani, kanjivaram) across havelis, balconies, verandas and ghats. Celebratory and respectful fashion editorial, tasteful and never explicit; never sacred, ritual, or religious dress, and never exoticized."
+
+  - id: iberian_flamenco
+    class: trend
+    weight: 1.0
+    tier_band: [T1_suggestive, T2_implied, T3_artnude]
+    da_folder: "Iberian Flamenco"
+    family: gilded_glamour
+    source: heritage_glamour
+    tags: [flamenco, spanish, andalusian, heritage, couture, dramatic, glamour, elegant, sensual, cultural, aiart, digitalart, portrait]
+    sub_looks:
+      - "whitewashed Andalusian patio at hard noon — bright vertical Andalusian sun bleaching lime-washed walls, a ruffled red bata de cola and terracotta pots of scarlet geraniums, crisp blue shadow, proud celebratory poise"
+      - "candlelit tablao stage — a cluster of warm tablecloth candles low and frontal carving the dark room, a fringed black manton de Manila and a tortoiseshell peineta comb, intimate after-hours hush"
+      - "sunlit wrought-iron balcony — low gold late-afternoon side-light slanting through the railing, a polka-dot traje de flamenca and a lace mantilla, a hand-painted abanico fan, warm easy grace"
+      - "Sevillian tiled courtyard at blue hour — soft cool dusk reflecting off azulejo tilework and a trickling fountain, an ivory fringed shawl and silver filigree earrings, calm contemplative stillness"
+      - "Moorish alcazar arcade — a single dramatic shaft of sun cutting through a horseshoe arch into shadow, a deep-green bata de cola and a carved comb, plaster fretwork and ochre stone, regal composure"
+      - "vineyard at dusk — warm amber afterglow raking low across the vines, a saffron fringed manton and worn leather boots, dust haze in the air, unhurried sun-warmed contentment"
+      - "stone wine-cellar by lantern — one warm oil lantern glow against cool damp vaulting and oak barrels, a black lace mantilla and a fitted bolero, hushed candle-dark intimacy"
+      - "geranium-patio dappled shade — leaf-broken sun scattering across whitewashed walls and a tiled bench, a coral ruffled dress and a crocheted shawl, potted carnations, languid siesta calm"
+      - "window-grille interior — patterned light through a wrought-iron reja casting lace shadows on plaster, an emerald polka-dot dress and a Manila shawl, quiet private reflection"
+      - "rooftop terrace at blue-hour — cool even twilight over terracotta tiles with Sevillian rooftops beyond, a wine-red fringed shawl wrapped close at the shoulder, a peineta and comb, serene end-of-day poise"
+      - "hand-fan filtered light — warm afternoon glow softened and dappled through a translucent painted abanico held close, a polka-dot bodice and lace mantilla, flirtatious composed elegance"
+      - "courtyard tiled-bounce midday — bright sun bouncing up off pale patio tiles for a soft glowing under-light, a saffron traje de flamenca and silver filigree, a citrus tree overhead, fresh radiant warmth"
+    aesthetics:
+      palettes: ["scarlet, ivory and patio whitewash", "saffron, terracotta and deep emerald", "wine-red, black lace and warm ochre"]
+      lighting: ["hard vertical Andalusian sun, crisp blue shadow", "warm low candle and lantern glow", "patterned reja and hand-fan dappled light"]
+      photographers: ["Ruven Afanador Spanish flamenco editorial", "warm Mediterranean heritage-fashion style", "Annie Leibovitz dramatic location glamour"]
+    brief_seed: "Iberian flamenco heritage glamour — one adult woman in dramatic flamenco-inspired couture (ruffled bata de cola, polka-dot traje, fringed Manila shawl, lace mantilla) across whitewashed Andalusian patios, tiled Sevillian courtyards and candlelit tablaos. Celebratory editorial fashion, respectful and never caricatured; tasteful and sensual, never explicit."
+
+  - id: slavic_folk
+    class: trend
+    weight: 1.0
+    tier_band: [T1_suggestive, T2_implied, T3_artnude]
+    da_folder: "Slavic Folk"
+    family: myth_crown
+    source: folk_romantic
+    tags: [slavic, folk, russian, heritage, romantic, embroidery, winter, rustic, elegant, cultural, aiart, digitalart, portrait]
+    sub_looks:
+      - "snow-dusted birch grove at first light — a woman in an embroidered linen sorochka with red rushnyk trim under a fur-trimmed wool wrap stands among slim white birches as cool-gold pre-dawn light filters low through the trunks, frost on bark and breath in the air, hushed wintry calm"
+      - "izba interior by the tiled stove — she sits on a painted wooden bench in a sarafan pinafore over a cross-stitched chemise as warm firelight spills from the glazed-tile stove at camera-right, a clay pot and a strung bunch of dried herbs nearby, cozy hearthside ease"
+      - "wheat field at golden hour — a woman in a loose-sleeved folk blouse and woven sash stands among ripe gold wheat as low warm sun rakes from camera-left, a bound sheaf and a willow sickle at her feet, sun-warmed harvest serenity"
+      - "frozen lake at blue hour — she wraps a Pavlovo-Posad floral shawl close on the silver-blue ice as even cold twilight pearls the air, fine rime on the shawl fringe and a violet sky behind the far shore, still and self-possessed"
+      - "folk-painted veranda in soft daylight — a woman in a sarafan rests against a hand-painted floral balustrade as gentle overcast daylight wraps her evenly, carved wooden shutters and a clay jug of cornflowers beside her, unhurried summer poise"
+      - "summer riverbank with daisies at midday — she stands ankle-deep at a slow river in an embroidered linen sorochka as bright high sun glints hard off the water, white daisies and reeds at the bank, a barefoot warm-weather lightness"
+      - "candlelit wooden hall in the evening — a woman in a sarafan and kokoshnik-inspired headpiece stands among carved oak pillars as a cluster of beeswax candles throws warm amber glow from camera-right, an embroidered rushnyk draped over a long table, festive folk-hall warmth"
+      - "misty fern meadow at dawn — she moves through waist-high ferns in a flowing folk chemise and floral shawl as soft pearl-grey morning light diffuses through low fog, dew beading on the fronds, a quiet dreamlike calm"
+      - "snowfield under overcast — a woman in a fur-trimmed winter wrap over a sarafan stands on open snow as flat bright snow-bounce light wraps her shadowlessly, falling flakes catching on the wool and a kokoshnik headpiece, crisp midwinter stillness"
+      - "izba window side-light morning — she leans at a small wooden window in an embroidered sorochka as soft directional daylight enters from the left, a frost-laced pane and an enamel jug on the sill, contemplative domestic quiet"
+      - "lantern-lit barn at twilight — a woman in a sarafan and woven sash stands by stacked hay as a hanging amber lantern glows warm against the deepening dusk-blue beyond the door, coiled rope and a wooden rake nearby, rustic evening hush"
+      - "twilight birch lane in violet light — she walks a path between birches in a Pavlovo-Posad shawl and long linen skirt as cool violet after-sunset light settles over the snow, lit windows glowing far behind, a serene end-of-day stillness"
+    aesthetics:
+      palettes: ["red-and-white folk embroidery on linen", "warm honey wheat and stove-amber", "frosted birch white and twilight violet"]
+      lighting: ["cool-gold birch pre-dawn", "warm tiled-stove firelight", "cold blue-hour and snow-bounce overcast"]
+      photographers: ["folk-romantic editorial portrait", "Andrey Yakovlev painterly Slavic style", "natural-light winter fashion editorial"]
+    brief_seed: "Slavic folk-romantic fashion editorial — one adult woman in folk-INSPIRED dress (embroidered sorochka, sarafan, Pavlovo-Posad shawl, kokoshnik headpiece, fur-trimmed wrap) across birch dawns, izba firelight, golden wheat, frozen lakes and misty meadows. Celebratory heritage-as-fashion, respectful and tasteful, never religious, sacred or caricatured."
+
 persona_pool:
   - name: Clara
     hair: "long dark wavy chestnut hair"
