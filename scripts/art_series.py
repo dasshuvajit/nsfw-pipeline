@@ -1559,6 +1559,7 @@ def main() -> int:
         audit_gate=not args.no_audit_gate,
         seed_avoid=seed_avoid, seed_banned_openers=seed_banned, run_offset=run_offset,
         seed_overused=overused, locked_look=locked_look,
+        lock_wardrobe=(selection.niche.lock_wardrobe if selection else False),
     )
     if not rows:
         print("No prompts generated — aborting.", file=sys.stderr)

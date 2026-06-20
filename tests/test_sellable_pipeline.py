@@ -852,6 +852,33 @@ def test_new_variety_axes_assigned_decoupled(monkeypatch):
     assert all(s["pose"] in AD.POSE_GESTURES for s in seen)
 
 
+def test_lock_wardrobe_skips_the_contemporary_garment_axis(monkeypatch):
+    """Niches whose wardrobe is era/genre/culture-defining (heritage-cultural,
+    historical, fantasy) set lock_wardrobe — the contemporary-Western GARMENT_TYPES
+    axis is then skipped so the sub_look's own period/heritage garment governs (no
+    tuxedo or swimsuit in a haveli / medieval hall). Pose + atmosphere stay on."""
+    seen = []
+
+    def rec(client, **kw):
+        seen.append({k: kw.get(k) for k in ("garment_type", "pose", "atmosphere")})
+        filler = " ".join(chr(97 + j % 26) + chr(98 + j % 25) for j in range(80))
+        return {"prompt": filler, "orientation": "portrait",
+                "shot_type": "medium", "framing_rationale": "r"}
+
+    monkeypatch.setattr(AD, "generate_one", rec)
+    AD.generate_series(brief="b", tier="T2_implied", count=6, model_tag="m",
+                       temperature=0.8, audit_gate=False, client=object(),
+                       lock_wardrobe=True)
+    assert all(s["garment_type"] == "" for s in seen), "locked wardrobe must skip the garment axis"
+    assert all(s["pose"] in AD.POSE_GESTURES for s in seen), "pose axis still active"
+    assert all(s["atmosphere"] in AD.ATMOSPHERE for s in seen), "atmosphere axis still active"
+    # unlocked (default) still injects a garment
+    seen.clear()
+    AD.generate_series(brief="b", tier="T2_implied", count=6, model_tag="m",
+                       temperature=0.8, audit_gate=False, client=object())
+    assert any(s["garment_type"] for s in seen), "unlocked niche must still rotate garments"
+
+
 def test_camera_angle_axis_rotates(monkeypatch):
     """generate_series assigns a rotating camera angle from CAMERA_ANGLES to every
     image so a set is not all eye-level — and the low-heroic directive is gate-safe."""

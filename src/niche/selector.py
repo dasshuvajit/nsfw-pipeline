@@ -51,6 +51,8 @@ class Niche:
     brief_seed: str
     avoid_motifs: list[str] = field(default_factory=list)  # per-niche "do NOT depict" hints
     family: str = ""                 # 5-family DA architecture (DA_GO_TO_MARKET.md §3)
+    lock_wardrobe: bool = False      # wardrobe is era/genre/culture-defining → skip the
+    #                                  contemporary-Western GARMENT_TYPES axis (sub_look governs)
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "Niche":
@@ -68,6 +70,7 @@ class Niche:
                 brief_seed=str(d.get("brief_seed", "")),
                 avoid_motifs=list(d.get("avoid_motifs") or []),
                 family=str(d.get("family", "")),
+                lock_wardrobe=bool(d.get("lock_wardrobe", False)),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise NicheLibraryError(f"invalid niche entry {d!r}: {exc}") from exc

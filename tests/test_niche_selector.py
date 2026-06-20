@@ -378,6 +378,23 @@ def test_no_sublook_pre_undresses_the_subject(lib):
     assert not offenders, f"sub_looks pre-undress (let the tier govern): {offenders}"
 
 
+def test_era_and_culture_locked_niches_lock_wardrobe(lib):
+    """The contemporary-Western GARMENT_TYPES variety axis must NOT override the
+    wardrobe of niches whose dress is era/genre/culture-DEFINING (it once put a
+    black tuxedo jacket and a swimsuit on a South-Asian heritage editorial). Those
+    niches carry lock_wardrobe; contemporary/period-glamour niches do not."""
+    LOCKED = {"south_asian_editorial", "iberian_flamenco", "slavic_folk",
+              "renaissance_baroque", "medieval_lady", "mythology_goddess",
+              "angelic_divine", "arabian_nights", "dark_fantasy_vampire",
+              "fantasy_glamour"}
+    for nid in LOCKED:
+        assert lib.by_id(nid).lock_wardrobe is True, f"{nid} must lock_wardrobe"
+    # contemporary niches keep the garment axis for wardrobe variety
+    for nid in ("modern_boudoir", "aspirational_luxe", "athletic_studio",
+                "wild_nature", "poolside_goldenhour"):
+        assert lib.by_id(nid).lock_wardrobe is False, f"{nid} should keep the garment axis"
+
+
 def test_aspirational_luxe_sub_looks_clear_audit_specificity(lib):
     """Each sub_look front-loads the optical craft the audit gate rewards — a
     named light DIRECTION, ≥2 whitelisted MATERIAL nouns, ≥1 MICRO-TEXTURE token,

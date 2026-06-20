@@ -133,6 +133,7 @@ niches:
     tier_band: [T2_implied, T3_artnude, T4_explicit]
     da_folder: "Fantasy Glamour"
     family: nocturne
+    lock_wardrobe: true
     source: fantasy_castlecore
     tags: [fantasy, fantasygirl, elf, fae, sorceress, fantasyart, glamour, sensual,
            characterart, ethereal, aiart, digitalart, conceptart]
@@ -475,6 +476,7 @@ niches:
     tier_band: [T1_suggestive, T2_implied, T3_artnude, T4_explicit]
     da_folder: "Renaissance Portrait"
     family: myth_crown
+    lock_wardrobe: true
     source: classical_fineart
     tags: [renaissance, baroque, classical, fineart, chiaroscuro, oldmaster,
            portrait, elegant, sensual, painterly, aiart, digitalart]
@@ -503,6 +505,7 @@ niches:
     tier_band: [T2_implied, T3_artnude, T4_explicit]
     da_folder: "Mythic Goddess"
     family: myth_crown
+    lock_wardrobe: true
     source: classical_fantasy
     tags: [mythology, goddess, greek, roman, classical, marble, divine, fantasy,
            elegant, sensual, fineart, aiart, digitalart, portrait]
@@ -533,6 +536,7 @@ niches:
     tier_band: [T1_suggestive, T2_implied, T3_artnude, T4_explicit]
     da_folder: "Lady of the Castle"
     family: myth_crown
+    lock_wardrobe: true
     source: medieval_fantasy
     tags: [medieval, castle, noblewoman, fantasy, historical, candlelit, gown,
            elegant, sensual, fineart, aiart, digitalart, portrait]
@@ -564,6 +568,7 @@ niches:
     tier_band: [T1_suggestive, T2_implied, T3_artnude]
     da_folder: "Angelic & Divine"
     family: myth_crown
+    lock_wardrobe: true
     source: ethereal_fantasy
     tags: [angel, divine, ethereal, celestial, heavenly, soft, luminous, fantasy,
            fineart, elegant, aiart, digitalart, portrait]
@@ -592,6 +597,7 @@ niches:
     tier_band: [T2_implied, T3_artnude, T4_explicit]
     da_folder: "Desert Palace Reverie"
     family: myth_crown
+    lock_wardrobe: true
     source: orientalist_fantasy
     tags: [arabiannights, desertpalace, orientalist, opulent, silk, lantern, jewels,
            fantasy, sensual, fineart, aiart, digitalart]
@@ -622,6 +628,7 @@ niches:
     tier_band: [T2_implied, T3_artnude, T4_explicit]
     da_folder: "Dark Fantasy Vampire"
     family: nocturne
+    lock_wardrobe: true
     source: gothic_fantasy
     tags: [vampire, darkfantasy, gothic, moonlit, castle, sensual, dramatic, fantasy,
            nocturnal, fineart, aiart, digitalart]
@@ -770,6 +777,7 @@ niches:
     tier_band: [T1_suggestive, T2_implied, T3_artnude]
     da_folder: "South Asian Editorial"
     family: gilded_glamour
+    lock_wardrobe: true
     source: heritage_couture
     tags: [southasian, editorial, heritage, couture, sari, lehenga, fashion, elegant, sensual, cultural, aiart, digitalart, portrait]
     sub_looks:
@@ -797,6 +805,7 @@ niches:
     tier_band: [T1_suggestive, T2_implied, T3_artnude]
     da_folder: "Iberian Flamenco"
     family: gilded_glamour
+    lock_wardrobe: true
     source: heritage_glamour
     tags: [flamenco, spanish, andalusian, heritage, couture, dramatic, glamour, elegant, sensual, cultural, aiart, digitalart, portrait]
     sub_looks:
@@ -824,6 +833,7 @@ niches:
     tier_band: [T1_suggestive, T2_implied, T3_artnude]
     da_folder: "Slavic Folk"
     family: myth_crown
+    lock_wardrobe: true
     source: folk_romantic
     tags: [slavic, folk, russian, heritage, romantic, embroidery, winter, rustic, elegant, cultural, aiart, digitalart, portrait]
     sub_looks:

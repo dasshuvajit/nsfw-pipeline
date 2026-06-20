@@ -1201,6 +1201,7 @@ def generate_one(
     garment_type: str = "",
     pose: str = "",
     atmosphere: str = "",
+    lock_wardrobe: bool = False,
 ) -> dict:
     tier_directive = TIER_DIRECTIVES.get(tier, TIER_DIRECTIVES["T3_artnude"])
     if extra_directive:
@@ -1318,6 +1319,13 @@ def generate_one(
             f"(in place at T1, opened/teased at T2-T3, shed and pooled nearby at T3+). "
             f"Weave it into the scene in a phrase, never as a tag."
         )
+    elif lock_wardrobe:
+        creative_variety += (
+            "\n\nWARDROBE — dress her ONLY in the heritage/period garment this scene "
+            "calls for (named in the look above); the TIER still governs how much shows. "
+            "Do NOT substitute a contemporary Western garment (no men's shirt, blazer, "
+            "jeans, t-shirt, swimsuit, slip dress) — the authentic dress IS the niche."
+        )
     if pose:
         creative_variety += (
             f"\n\nPOSE — {pose} Build the composition around her line, weight and gaze."
@@ -1422,6 +1430,7 @@ def generate_series(
     run_offset: int = 0,
     seed_overused: "list[str] | None" = None,
     locked_look: str = "",
+    lock_wardrobe: bool = False,
 ) -> list[dict]:
     """Generate ``count`` prompts. ``sub_looks`` (from the niche selector)
     overrides the default 3; the per-scene look rotates through them.
@@ -1506,7 +1515,12 @@ def generate_series(
         # much shows; OFF at T4 = nude), pose/gesture (all tiers), time×weather
         # atmosphere (all tiers). Each has its own shuffle+stride in _rotate so it
         # does not lockstep with the scene/concept/look axes.
-        garment_type = ("" if tier == "T4_explicit"
+        # GARMENT_TYPES is a contemporary-Western vocabulary; for niches whose
+        # wardrobe is era-, genre- or culture-DEFINING (historical / fantasy /
+        # heritage-cultural), lock_wardrobe skips it so the sub_look's own
+        # period/heritage garment governs (a tuxedo/swimsuit must not land in a
+        # haveli or a medieval hall).
+        garment_type = ("" if (tier == "T4_explicit" or lock_wardrobe)
                         else _rotate(GARMENT_TYPES, i, run_offset, "garment"))
         pose = _rotate(POSE_GESTURES, i, run_offset, "pose")
         atmosphere = _rotate(ATMOSPHERE, i, run_offset, "atmosphere")
@@ -1584,6 +1598,7 @@ def generate_series(
                     garment_type=garment_type,
                     pose=pose,
                     atmosphere=atmosphere,
+                    lock_wardrobe=lock_wardrobe,
                 )
             except Exception as exc:  # noqa: BLE001 — Pydantic/safety reject → retry
                 msg = str(exc)
