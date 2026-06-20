@@ -115,8 +115,14 @@ each series running the full path: LLM prompts + SFW covers → unload → stage
 | south_asian_editorial | T2 | zimage | 6/6 keepers, public=6, cover; respectful heritage fashion (gold sari, warm diya ambiance) — verified by eye, tasteful + covered. 2 skin-forward frames flagged. |
 | modern_boudoir | T2 | zimage | 6/6 keepers, public=6; the fixed-redundant niche renders cleanly. 1 skin-forward frame flagged. |
 | surreal_dreamscape | T3 | chroma | 6/6 keepers, gated=6 + public=2 (SFW covers). Chroma path verified — genuinely dreamlike (bioluminescent teal grotto), tasteful art-nude, anatomically clean. |
+| iberian_flamenco | T2 | zimage | public=4; **2 frames render-drifted to nude and were auto-quarantined to `_tier_drift/`** by the NudeNet gate (never reach public/). Verified by eye: azulejo Sevillian courtyard, tasteful, respectful. |
+| slavic_folk | T2 | zimage | 6/6 keepers, public=6; respectful rustic folk (izba doorway, linen, misty dawn). Clean, no drift. |
 
-All five series finished exit 0 (batch 06:53→08:49). Visual QA (sampled across
+All seven series finished exit 0 (batches 06:53→08:49 and 08:52→09:41). The cultural
+lane (south_asian / iberian / slavic) is all verified by eye as celebratory heritage
+fashion — tasteful, no caricature, no sacred/ritual content. The **tier-drift gate
+proved itself live**: 2 iberian frames that Z-Image stripped to nude despite clean T2
+prompts were quarantined automatically — the documented #1 render-drift defense. Visual QA (sampled across
 series): single adult woman, anatomically clean (hands correct; the hand-YOLO guard
 auto-rerolled one extra-limb base frame), on-prompt, correct tier-truth — T3 art-nude
 to `gated/` (clean) + SFW cover to `public/` (watermarked); T2 to `public/`. Packages
@@ -144,3 +150,11 @@ you'd rather I soften that one sub_look to a neutral "oil-lamp courtyard".
 - **Residual STALE** shows up only on a few niches whose remaining scenes still rhyme
   (modern_boudoir still has multiple window-light bedrooms). Could trim/replace those
   specific sub_looks in a later pass; the mean is already back in range.
+- **Atmosphere coherence (fixed, `391cbe2`)**: the new time/weather axis once injected
+  snow into a sunlit Andalusian courtyard; the overlay now overrides itself when it
+  fights a niche's real climate. Re-verified: 0/6 iberian prompts carry incongruous
+  weather.
+- **Diverse subjects render diverse**: the look-pools put the flamenco/folk/fitness
+  wardrobe on women of varied complexion/features (the niches are *fashion*, not
+  ethnically gated) — intended, but worth knowing if you ever want a niche pinned to a
+  specific look (that's what `--persona-name` is for).
