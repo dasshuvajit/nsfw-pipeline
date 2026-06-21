@@ -395,6 +395,35 @@ def test_era_and_culture_locked_niches_lock_wardrobe(lib):
         assert lib.by_id(nid).lock_wardrobe is False, f"{nid} should keep the garment axis"
 
 
+def test_thermal_bathhouse_niche(lib):
+    """2026-06-22 wellness lane: a bathing/sauna/hot-spring niche (the home for the
+    previously-orphaned hot-spring + sauna scenes). Tasteful T1-T3 (steam/water
+    govern modesty — no explicit T4), contemporary wellness so the garment axis
+    stays ON (towels/wraps/bare, not heritage), spanning world bathing culture."""
+    n = lib.by_id("thermal_bathhouse")
+    assert len(n.sub_looks) == 12
+    assert n.tier_band == ["T1_suggestive", "T2_implied", "T3_artnude"]  # tasteful, no T4
+    assert n.family == "golden_hour"
+    assert n.lock_wardrobe is False
+    blob = " ".join(n.sub_looks).lower()
+    assert "sauna" in blob and ("hot spring" in blob or "hot-spring" in blob or "onsen" in blob)
+    # no sub_look pre-undresses or reintroduces a mirror (catalog invariants)
+    for s in n.sub_looks:
+        assert "mirror" not in s.lower()
+        assert not any(b in s.lower() for b in ("slipping", "pooled", "half-undone", "falling open"))
+
+
+def test_summer_gap_filled_in_outdoor_niches(lib):
+    """2026-06-22 seasonal enrichment: the outdoor niches that were thin on SUMMER
+    now carry at least one high-summer scene, rounding out the 4-season spread."""
+    summer = r"summer|midsummer|sun-baked|haymaking|high-summer|cicada"
+    import re
+    for nid in ("wild_nature", "cottagecore_pastoral", "bohemian_naturallight",
+                "aspirational_luxe", "athletic_studio"):
+        looks = " ".join(lib.by_id(nid).sub_looks).lower()
+        assert re.search(summer, looks), f"{nid} still missing a summer scene"
+
+
 def test_aspirational_luxe_sub_looks_clear_audit_specificity(lib):
     """Each sub_look front-loads the optical craft the audit gate rewards — a
     named light DIRECTION, ≥2 whitelisted MATERIAL nouns, ≥1 MICRO-TEXTURE token,

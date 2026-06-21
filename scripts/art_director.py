@@ -924,6 +924,9 @@ ATMOSPHERE: tuple[str, ...] = (
     "LOW GROUND-MIST \u2014 a thin layer of fog lying close to the floor or field, depth softening to nothing, the air still and heavy",
     "A CLEARING STORM \u2014 broken cloud after rain, a sudden shaft of sun cutting through, everything wet and gleaming and freshly lit",
     "HAZY HEAT-SHIMMER \u2014 thick still air of a hot afternoon, the light gone soft and golden, distances wavering, skin warm and dewed",
+    "AUTUMN BLAZE \u2014 turning red-gold leaves catching low slanting light, the air crisp and woodsmoke-tinged, drifts of fallen foliage and long amber shadows outside",
+    "SPRING BLOSSOM \u2014 soft bright light through fresh green and a froth of blossom, petals drifting on a mild pollen-gold breeze, everything tender and new",
+    "HIGH-SUMMER VERDANT \u2014 lush growth at full strength under warm saturated midday light, deep leaf-shade, the air still and heavy with a cicada-loud heat",
 )
 
 class _PromptOut(BaseModel):

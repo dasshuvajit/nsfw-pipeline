@@ -879,6 +879,18 @@ def test_lock_wardrobe_skips_the_contemporary_garment_axis(monkeypatch):
     assert any(s["garment_type"] for s in seen), "unlocked niche must still rotate garments"
 
 
+def test_atmosphere_carries_all_four_seasons_and_stays_coprime():
+    """2026-06-22: ATMOSPHERE gained autumn/spring/high-summer foliage overlays so
+    the per-image axis nudges season cross-niche (the coherence-override drops them
+    on indoor scenes). The axis length must stay coprime with its rotation stride or
+    the rotation can't reach every entry."""
+    import math
+    blob = " ".join(AD.ATMOSPHERE).lower()
+    assert "autumn" in blob and "blossom" in blob and "high-summer" in blob
+    assert math.gcd(len(AD.ATMOSPHERE), AD._AXIS_STRIDES["atmosphere"]) == 1, \
+        "ATMOSPHERE length must be coprime with its stride"
+
+
 def test_camera_angle_axis_rotates(monkeypatch):
     """generate_series assigns a rotating camera angle from CAMERA_ANGLES to every
     image so a set is not all eye-level — and the low-heroic directive is gate-safe."""
