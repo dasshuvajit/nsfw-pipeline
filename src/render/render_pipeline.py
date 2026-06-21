@@ -31,9 +31,11 @@ DEFAULTS: dict[str, Any] = {
     "enable_refine": False,
     "target_4k_long_edge": 3840,
     "base_resolution": {
-        "portrait": [896, 1152],
-        "square": [1024, 1024],
-        "landscape": [1152, 896],
+        "portrait": [896, 1152],     # ~3:4 (7:9) native ~1MP bucket
+        "square": [1024, 1024],      # 1:1
+        "landscape": [1152, 896],    # ~4:3 (9:7) native ~1MP bucket
+        "widescreen": [1360, 768],   # 16:9 cinematic (off-native, ~1MP, 4080 latent tokens)
+        "story": [768, 1360],        # 9:16 vertical/social (off-native, ~1MP)
     },
 }
 

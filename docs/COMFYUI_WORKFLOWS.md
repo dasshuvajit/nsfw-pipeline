@@ -113,8 +113,10 @@ Stages 2 and 3 consume an INPUT IMAGE (no `empty_latent`), so they use
 ### Config — `pipeline.yaml::render_pipeline`
 `base_template` / `refine_template` / `refine_template_t4` / `upscale_template`,
 `enable_refine` (false → review = raw base), `target_4k_long_edge`, and
-`base_resolution` per orientation (portrait reverted to native **896×1152**
-— 4K is reached in stage 3 so the base no longer needs 1024×1536). Per-model
+`base_resolution` per orientation (portrait **896×1152**, square 1024², landscape
+1152×896 native; + off-native lanes widescreen 16:9 **1360×768** and story 9:16
+**768×1360**, 2026-06-22 — all five ÷16, ~1MP, MPS-safe; 4K is reached in stage 3
+so the base no longer needs 1024×1536). Per-model
 override + CLI (`--base-template` / `--refine-template` / `--no-refine`) layer
 over it.
 

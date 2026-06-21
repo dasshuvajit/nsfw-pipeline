@@ -74,7 +74,7 @@ USED_NICHES_FILE = ROOT / "output/art_series/.used_niches"
 # Valid --orientation choices. The actual base render resolution per orientation
 # comes from render_pipeline.base_resolution (config/pipeline.yaml); 4K is reached
 # only in the separate manual upscale stage (scripts/upscale_folder.py).
-ORIENTATIONS = ("portrait", "square", "landscape")
+ORIENTATIONS = ("portrait", "square", "landscape", "widescreen", "story")
 
 # ⚠️ INERT AT RENDER TIME (2026-06 Chroma R&D): the staged Chroma base runs
 # cfg=1.0 (the gonzaLomo flash-heun contract) AND routes this through
@@ -1425,7 +1425,8 @@ def main() -> int:
     # (Z-Image only — deep-shrink is a Z-Image feature; ~2x slower on MPS).
     _ZIMAGE_HIRES_BASE = "templates/zimage/base_hires.json"
     _HIRES_BASE_RESOLUTION = {"portrait": [1216, 1536], "square": [1344, 1344],
-                              "landscape": [1536, 1216]}
+                              "landscape": [1536, 1216],
+                              "widescreen": [1792, 1024], "story": [1024, 1792]}
     if args.hires and args.engine != "zimage":
         print("  (--hires forces --engine zimage: deep-shrink is a Z-Image feature)",
               flush=True)
@@ -1642,7 +1643,7 @@ def main() -> int:
             seed_avoid=cover_avoid, seed_banned_openers=cover_banned,
             run_offset=run_offset + args.count,
             seed_overused=overused, locked_look=locked_look,
-            require_sfw=True,
+            require_sfw=True, native_framing_only=True,   # covers stay portrait/square/landscape
             extra_directive=art_director.SFW_COVER_DIRECTIVE,
         )
 

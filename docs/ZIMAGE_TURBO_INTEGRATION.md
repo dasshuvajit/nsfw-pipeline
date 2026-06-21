@@ -159,7 +159,8 @@ python scripts/art_series.py --hires --niche aspirational_luxe --tier T1_suggest
 ### Hires mode (`--hires`, gonzaLomo v11 deep-shrink)
 `PatchModelAddDownscale` (block 3 ×2 over the first 35% of steps) lets Z-Image render
 coherently ABOVE its ~1MP native res. Per-orientation hires resolutions: portrait 1216×1536,
-square 1344×1344, landscape 1536×1216. A/B'd vs the 896×1152 base (same seed): clearly more
+square 1344×1344, landscape 1536×1216, widescreen (16:9) 1792×1024, story (9:16) 1024×1792.
+A/B'd vs the 896×1152 base (same seed): clearly more
 detail (skin/hair/fabric/background), at **~213s vs ~98s** (≈2× slower on MPS). Use it for
 max-detail hero/realism content; the standard base stays the default for volume. The SDXL
 detailer stage still applies on top. Template: `templates/zimage/base_hires.json`. (Detailer

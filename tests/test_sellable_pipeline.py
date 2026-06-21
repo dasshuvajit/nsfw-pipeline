@@ -1234,6 +1234,73 @@ def test_promptout_framing_validators_tolerant():
     bad = AD._PromptOut(prompt=P, orientation="weird", shot_type="nonsense")
     assert (bad.orientation, bad.shot_type) == ("portrait", "medium")
     assert AD._PromptOut(prompt=P).orientation == "portrait"
+    # 2026-06-22: the validator accepts the two new aspect lanes (incl. case/space)
+    assert AD._PromptOut(prompt=P, orientation="WIDESCREEN").orientation == "widescreen"
+    assert AD._PromptOut(prompt=P, orientation=" story ").orientation == "story"
+
+
+def test_widescreen_and_story_orientations_wired():
+    """2026-06-22 16:9 widescreen + 9:16 story lanes: in the allowed set, in the
+    framing rotation PAIRED with their suiting shot (story↔full_body fills the tall
+    frame, widescreen↔wide_environmental fills the wide), and taught to the LLM in
+    both the system prompt and the per-image framing/JSON contract."""
+    assert "widescreen" in AD.ORIENTATIONS_ALLOWED and "story" in AD.ORIENTATIONS_ALLOWED
+    assert ("story", "full_body") in AD.FRAMING_TARGETS
+    assert ("widescreen", "wide_environmental") in AD.FRAMING_TARGETS
+    sysp = AD._build_system_prompt()
+    assert "widescreen" in sysp and "story" in sysp and "16:9" in sysp and "9:16" in sysp
+    # res_ok gate accepts both new buckets (long-edge based, not h>=1024)
+    from src.scoring.image_scorer import _RES_MIN_LONG, _RES_MIN_SHORT
+    for w, h in [(1360, 768), (768, 1360), (896, 1152), (1024, 1024), (1152, 896)]:
+        assert max(w, h) >= _RES_MIN_LONG and min(w, h) >= _RES_MIN_SHORT
+    # guard against a silent revert to the old portrait-ish `h >= 1024 and w >= 768`
+    # (which would fail widescreen h=768) — the production line must be long-edge based.
+    scorer_src = Path("src/scoring/image_scorer.py").read_text()
+    assert "max(w, h) >= _RES_MIN_LONG" in scorer_src and "min(w, h) >= _RES_MIN_SHORT" in scorer_src
+
+
+def test_framing_targets_stay_decoupled_length_8(monkeypatch):
+    """FRAMING_TARGETS must stay length 8 (=2^3) so it's coprime with the opener(5)/
+    craft(7)/reveal(11)/camera(3) axes — growing it to 10 silently re-coupled
+    framing↔opener (gcd(10,5)=5), the lockstep the decoupled rotation forbids."""
+    import math
+    assert len(AD.FRAMING_TARGETS) == 8
+    for other in (AD.OPENER_LEADS, AD.CRAFT_PLACEMENTS, AD.REVEAL_STYLES, AD.CAMERA_ANGLES):
+        assert math.gcd(len(AD.FRAMING_TARGETS), len(other)) == 1
+
+
+def _capture_framings(monkeypatch, **series_kw):
+    seen = []
+
+    def rec(client, **kw):
+        seen.append(kw.get("framing_target"))
+        filler = " ".join(chr(97 + j % 26) + chr(98 + j % 25) for j in range(80))
+        return {"prompt": filler, "orientation": "portrait",
+                "shot_type": "medium", "framing_rationale": "r"}
+
+    monkeypatch.setattr(AD, "generate_one", rec)
+    AD.generate_series(brief="b", count=8, model_tag="m", temperature=0.8,
+                       audit_gate=False, client=object(), **series_kw)
+    return [f[0] for f in seen if f]   # the orientation of each assigned framing
+
+
+def test_t4_remaps_off_native_orientations_to_native(monkeypatch):
+    """At T4 the off-native widescreen/story lanes must be remapped to their native
+    cousin (landscape/portrait) BEFORE the reveal pin — a wide_environmental 16:9
+    hides the explicit anatomy and a pinned close-up on 16:9 is dead space."""
+    orients = _capture_framings(monkeypatch, tier="T4_explicit")
+    assert orients, "no framings captured"
+    assert "widescreen" not in orients and "story" not in orients
+
+
+def test_covers_use_native_framing_only(monkeypatch):
+    """native_framing_only (covers/funnel) must keep every frame on a native gallery
+    aspect — a DA cover never lands on a 16:9/9:16 banner."""
+    orients = _capture_framings(monkeypatch, tier="T2_implied", native_framing_only=True)
+    assert "widescreen" not in orients and "story" not in orients
+    # without the flag, T2 DOES surface the off-native lanes (sanity: the flag matters)
+    free = _capture_framings(monkeypatch, tier="T2_implied")
+    assert "widescreen" in free or "story" in free
 
 
 def test_sfw_cover_gate_rejects_nudity(monkeypatch):

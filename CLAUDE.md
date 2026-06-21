@@ -26,7 +26,10 @@ scripts/upscale_folder.py ── manual, selective true-4K (USDU, face-true deno
 - **Prompt engine** (`art_director.py`): system prompt teaches optical
   light-on-form craft, subject-first openers, anatomical-clarity/hands rules,
   T1-T4 tier directives, T4 reveal-style rotation (11 styles), framing rotation
-  (8 targets), opener-lead (5) + craft-placement (7) structural rotations,
+  (8 targets across 5 orientations — portrait/square/landscape + off-native
+  widescreen 16:9 & story 9:16, each paired with its suiting shot; the LLM emits
+  the final orientation on merit; T4 + covers remap the off-native pair to native),
+  opener-lead (5) + craft-placement (7) structural rotations,
   wardrobe/pose/time-weather axes (GARMENT_TYPES 28 / POSE_GESTURES 19 /
   ATMOSPHERE 13 incl. 4-season foliage overlays), and per-image subject looks sampled from
   `config/creative_direction.yaml` look_pools (hair 28/figure 20/face 26/
@@ -81,8 +84,11 @@ scripts/upscale_folder.py ── manual, selective true-4K (USDU, face-true deno
   clothing on funnel prompts**) + `dopsd_white` (style); + `ModelSamplingAuraFlow` shift 3.0,
   `dpmpp_sde`/beta/8. Template
   `templates/zimage/base.json` (`base_hires.json` for `--hires`). Render at the official
-  ~1MP buckets (896×1152/1024²/1152×896; ÷16; NEVER 1536×2048 → MPS >12k-token/INT_MAX
-  crash). **`--engine chroma`** = gonzaLomo **Chroma v30** (FLUX-arch, T5, flash-heun
+  ~1MP buckets (896×1152/1024²/1152×896 + widescreen 16:9 1360×768 & story 9:16
+  768×1360; ÷16; all ≤4096 latent tokens; NEVER 1536×2048 → MPS >12k-token/INT_MAX
+  crash). base_resolution lives in 3 lockstep tables (render_pipeline DEFAULTS +
+  pipeline.yaml + the --hires table) — base_resolution_for fails OPEN to portrait,
+  so every orientation must be in all three. **`--engine chroma`** = gonzaLomo **Chroma v30** (FLUX-arch, T5, flash-heun
   cfg-1) — use for B&W/painterly/period/fantasy niches. Both + SDXL DMD for detailers/4K.
 - LLM registry `config/llm_models.yaml` → `LLMClientPool` routes by backend:
   Ollama / LM Studio / MLX / openai_compatible (dormant remote API).

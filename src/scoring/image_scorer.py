@@ -7,7 +7,7 @@ Six signals + a resolution check, combined into one composite score:
     aesthetic        LAION aesthetic-predictor v2 (CLIP ViT-L/14 + MLP)
     blur             OpenCV Laplacian variance
     face_confidence  insightface buffalo_l detector `det_score`
-    resolution       h >= 1024 AND w >= 768  (binary pass/fail)
+    resolution       long-edge >= 1024 AND short-edge >= 768  (binary pass/fail)
 
     composite = 0.30 * hps_v2_norm
               + 0.25 * image_reward_norm
@@ -153,8 +153,12 @@ _BLUR_FLAG_THRESHOLD = 80.0   # below this → "blurry" flag
 _AESTHETIC_FLAG_THRESHOLD = 4.5
 _HPS_V2_FLAG_THRESHOLD = 0.20      # below this → "low_hps_v2"
 _IMAGE_REWARD_FLAG_THRESHOLD = -1.5  # below this → "low_image_reward"
-_RES_MIN_H = 1024
-_RES_MIN_W = 768
+# Resolution gate — orientation-AGNOSTIC (long-edge based, 2026-06-22). The old
+# h>=1024 AND w>=768 silently failed every widescreen 16:9 render (h=768) and
+# under-ranked it vs the other orientations. Now: long edge >= 1024 AND short
+# edge >= 768 — passes all five buckets (portrait/square/landscape/widescreen/story).
+_RES_MIN_LONG = 1024
+_RES_MIN_SHORT = 768
 
 # T3/T4 thresholds — SFW-trained models (LAION CLIP aesthetic +
 # Laplacian-variance blur) systematically under-rate finished NSFW
@@ -635,9 +639,10 @@ class ImageScorer:
         faces = self.face_analyzer.detect(bgr)
         face_conf = float(faces[0].det_score) if faces else 0.0
 
-        # 4. Resolution: the spec mandates h >= 1024 AND w >= 768 (portrait-ish).
+        # 4. Resolution: orientation-agnostic — long edge >= 1024 AND short edge
+        # >= 768, so widescreen 16:9 (1360x768) and story 9:16 (768x1360) pass too.
         h, w = bgr.shape[:2]
-        res_ok = h >= _RES_MIN_H and w >= _RES_MIN_W
+        res_ok = max(w, h) >= _RES_MIN_LONG and min(w, h) >= _RES_MIN_SHORT
 
         # 5. HPS v2 + ImageReward — prompt-conditioned, opt-in. Both
         # silently skipped when the prompt is empty (caller didn't pass

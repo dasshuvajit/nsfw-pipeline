@@ -377,6 +377,13 @@ ORIENTATION (aspect):
 - landscape (wide 3:2): a reclining body along the frame; environmental scenes
   where the setting breathes beside her; horizons, beds, chaises, pools, terraces.
 - square (1:1): balanced medium shots; centred, graphic, editorial compositions.
+- widescreen (ultra-wide 16:9): cinematic, environmental-DOMINANT scenes — a body
+  reclining along the frame, sweeping vistas, pools/terraces/horizons where the
+  SETTING is co-equal with her. NOT for a lone standing figure or a close-up (it
+  leaves dead space). Choose it only when the wide setting genuinely fills the frame.
+- story (vertical 9:16): a tall social/reel format — a SINGLE standing or full-
+  length figure that fills the frame top-to-bottom, or a narrow vertical setting.
+  She must DOMINATE the height; never tiny in a tall empty frame.
 
 SHOT TYPE — and what each DEMANDS of the prose:
 - close_up: the face/gaze fills the frame — describe eyes, lips, skin texture,
@@ -652,27 +659,32 @@ def _build_system_prompt(word_band: tuple[int, int] = WORD_BAND_DEFAULT) -> str:
 # problem + drives subject/anatomy focus). Tolerant str fields: a value the
 # model gets slightly wrong falls back to a safe default rather than failing
 # the render. The system prompt + user prompt teach the LLM what each means.
-ORIENTATIONS_ALLOWED = ("portrait", "square", "landscape")
+ORIENTATIONS_ALLOWED = ("portrait", "square", "landscape", "widescreen", "story")
 SHOT_TYPES_ALLOWED = ("close_up", "bust", "medium", "full_body", "wide_environmental")
 
 # Rotated framing TARGETS — without a per-scene nudge the LLM defaults almost
 # everything to portrait/medium. This rotation guarantees a sellable spread
-# across all 3 orientations + 5 shot types; the LLM still emits the FINAL choice
-# + a rationale and may override when the scene genuinely demands it.
+# across orientations + shot types; the LLM still emits the FINAL choice + a
+# rationale and may override when the scene genuinely demands it.
 # Subject-FILLING by design: every target keeps her large in frame (the fix for
-# "subject too far away / empty picture"). wide_environmental is intentionally
-# NOT in the forced rotation — the LLM may still choose it for a scene that
-# genuinely needs it, but the default lean is close/medium/full where she
-# dominates. Still spreads across all 3 orientations + 4 subject-filling shots.
+# "subject too far away / empty picture"). The two OFF-NATIVE ratios (widescreen
+# 16:9, story 9:16) appear once each, deliberately PAIRED with the only shot that
+# suits them — story↔full_body (a standing figure fills the tall frame) and
+# widescreen↔wide_environmental (the setting fills the wide frame) — so the
+# off-native aspect never lands on a lone close-up where it would leave dead space.
+# LENGTH STAYS 8 (=2^3) — coprime with opener(5)/craft(7)/reveal(11)/camera(3) so the
+# decoupled rotation never phase-locks (growing to 10 silently re-coupled framing↔opener,
+# gcd(10,5)=5). The two off-native ratios REPLACE two of the most redundant native slots
+# (a 2nd square-bust and a 4th portrait-medium) rather than adding length.
 FRAMING_TARGETS: tuple[tuple[str, str], ...] = (
     ("portrait", "full_body"),          # standing/kneeling, height is the story
     ("portrait", "close_up"),           # face/gaze fills the frame
     ("square", "medium"),               # balanced, graphic, centred
     ("landscape", "full_body"),         # reclining along the frame, body large
     ("portrait", "bust"),               # head-to-chest portrait
-    ("square", "bust"),
+    ("story", "full_body"),             # 9:16 vertical — standing figure fills the tall frame
     ("landscape", "medium"),            # torso fills the wide frame
-    ("portrait", "medium"),
+    ("widescreen", "wide_environmental"),  # 16:9 cinematic — the setting fills the wide frame
 )
 
 # T4-only shot remap: the framing rotation is tier-blind, and a head-to-chest
@@ -931,7 +943,7 @@ ATMOSPHERE: tuple[str, ...] = (
 
 class _PromptOut(BaseModel):
     prompt: str
-    orientation: str = "portrait"      # portrait | square | landscape
+    orientation: str = "portrait"      # portrait | square | landscape | widescreen | story
     shot_type: str = "medium"          # close_up | bust | medium | full_body | wide_environmental
     framing_rationale: str = ""         # 1-2 sentences: why this orientation+shot fits the scene
 
@@ -1392,8 +1404,11 @@ def generate_one(
         'FRAMING DECISION — choose what best serves THIS scene (see the FRAMING '
         '& COMPOSITION rules in your instructions):\n'
         '  orientation: "portrait" (tall 2:3 — intimate close-ups, standing full-'
-        'body) | "landscape" (wide 3:2 — reclining, environmental, two-figure-'
-        'wide settings) | "square" (1:1 — balanced medium shots).\n'
+        'body) | "landscape" (wide 3:2 — reclining, environmental) | "square" '
+        '(1:1 — balanced medium shots) | "widescreen" (ultra-wide 16:9 — cinematic, '
+        'environmental-dominant, a reclining body along the frame; NOT a lone '
+        'standing figure or close-up) | "story" (vertical 9:16 — a single standing/'
+        'full-length figure that FILLS the tall frame).\n'
         '  shot_type: "close_up" (head/face fills frame) | "bust" (head to chest) '
         '| "medium" (head to waist/hips) | "full_body" (head to feet, ALL limbs '
         'coherent) | "wide_environmental" (subject + setting co-equal).\n'
@@ -1406,8 +1421,8 @@ def generate_one(
         'checklist to describe one by one. If you are over 175 words, cut adjectives '
         'and merge clauses until you are under it; brevity sharpens the render.\n\n'
         'Return JSON: {"prompt": "<prompt text>", "orientation": "<portrait|square|'
-        'landscape>", "shot_type": "<close_up|bust|medium|full_body|wide_'
-        'environmental>", "framing_rationale": "<1-2 sentences>"}'
+        'landscape|widescreen|story>", "shot_type": "<close_up|bust|medium|full_body|'
+        'wide_environmental>", "framing_rationale": "<1-2 sentences>"}'
     )
     result = client.generate_json(
         _build_system_prompt(word_band),
@@ -1446,6 +1461,7 @@ def generate_series(
     seed_overused: "list[str] | None" = None,
     locked_look: str = "",
     lock_wardrobe: bool = False,
+    native_framing_only: bool = False,
 ) -> list[dict]:
     """Generate ``count`` prompts. ``sub_looks`` (from the niche selector)
     overrides the default 3; the per-scene look rotates through them.
@@ -1507,6 +1523,10 @@ def generate_series(
         sub_look = _rotate(looks, i, run_offset, "sub_look")
         look_label = sub_look.split(" — ")[0]
         framing = _rotate(FRAMING_TARGETS, i, run_offset, "framing")
+        if native_framing_only and framing[0] in ("widescreen", "story"):
+            # covers/funnel thumbnails use only the native gallery aspects — no
+            # 16:9/9:16 — so a DA cover never lands on an off-native banner ratio.
+            framing = ({"widescreen": "landscape", "story": "portrait"}[framing[0]], framing[1])
         # Structural rotation — sentence-1 lead (5-cycle) + craft-note
         # placement (7-cycle), both coprime with the 8 framing targets.
         opener_lead = _rotate(OPENER_LEADS, i, run_offset, "opener")
@@ -1549,7 +1569,14 @@ def generate_series(
                           else _rotate(SENSUAL_REVEALS, i, run_offset, "sensual"))
         reveal_target = grooming = None
         if tier == "T4_explicit":
-            framing = (framing[0], _T4_SHOT_REMAP.get(framing[1], framing[1]))
+            # The off-native cinematic/social ratios (widescreen 16:9 / story 9:16)
+            # are a T1-T3 aesthetic lane. At T4 the explicit-reveal rotation + shot
+            # pins must keep the anatomy prominent — a wide_environmental 16:9 hides
+            # it and a pinned close-up on a 16:9 frame is dead space — so remap to the
+            # native cousin (widescreen->landscape, story->portrait) BEFORE the reveal
+            # pin runs, so the reveal styles compose on a native, anatomy-forward frame.
+            _o = {"widescreen": "landscape", "story": "portrait"}.get(framing[0], framing[0])
+            framing = (_o, _T4_SHOT_REMAP.get(framing[1], framing[1]))
             reveal_target = _rotate(REVEAL_STYLES, i, run_offset, "reveal")
             grooming = _rotate(GROOMING_OPTIONS, i, run_offset, "grooming")
             pin = REVEAL_SHOT_PIN.get(reveal_target[0])

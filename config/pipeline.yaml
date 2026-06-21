@@ -275,9 +275,11 @@ render_pipeline:
   # 4K is reached in the separate upscale stage now, so the base no longer needs
   # the 1024x1536 that made the monolith's x1.25x2.0 math land on 3840.
   base_resolution:
-    portrait:  [896, 1152]
-    square:    [1024, 1024]
-    landscape: [1152, 896]
+    portrait:   [896, 1152]    # ~3:4 (7:9) native ~1MP
+    square:     [1024, 1024]   # 1:1
+    landscape:  [1152, 896]    # ~4:3 (9:7) native ~1MP
+    widescreen: [1360, 768]    # 16:9 cinematic (off-native ~1MP; 4080 latent tokens, MPS-safe)
+    story:      [768, 1360]    # 9:16 vertical/social (off-native ~1MP)
 
 # NOTE: the old model_lanes: block was removed on 2026-04-08 when the
 # model_registry SQLite table landed. The registry is now the single
