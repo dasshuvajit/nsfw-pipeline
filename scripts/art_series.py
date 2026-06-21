@@ -345,12 +345,14 @@ def _comfyui_up(base_url: str, timeout: int = 5) -> bool:
 
 
 def _comfyui_free(base_url: str, timeout: int = 30) -> bool:
-    """Best-effort: ask ComfyUI to unload its models + free memory before Phase 1
-    loads the LLM. ComfyUI keeps Chroma+T5+SDXL (~32 GB) RESIDENT after a render,
+    """Best-effort: ask ComfyUI to unload its models + free memory. Called at
+    pre-flight (before Phase 1 loads the LLM) AND at the END of every render run
+    (2026-06-21) so the resident model drops immediately instead of lingering.
+    ComfyUI keeps the engine model (+ T5/SDXL when used) RESIDENT after a render,
     so a back-to-back series whose Phase-1 LLM (~17 GB) loads on top blows past
     the 48 GB box and the OS kills ComfyUI (cause of three crashes 2026-06-15:
-    `unload LLM before Phase 2` handles the within-series direction, but nothing
-    freed ComfyUI BETWEEN series). Freeing here gives each series a clean slate.
+    `unload LLM before Phase 2` handles the within-series direction). ComfyUI
+    stays UP and reloads the model on the next render.
     Never raises — a failure just means we proceed without the free."""
     try:
         import requests
@@ -1796,6 +1798,13 @@ def main() -> int:
     if pkg_dir:
         print(f"Publish-ready package: {pkg_dir} "
               f"(see POSTING_CHECKLIST.md). Upload is manual.", flush=True)
+
+    # Auto-free ComfyUI's resident model the moment the series finishes (2026-06-21)
+    # — not just at the next run's pre-flight — so memory drops right away. ComfyUI
+    # stays UP and reloads the model on the next render.
+    freed = _comfyui_free(cu["base_url"])
+    print(f"  (post-run: ComfyUI memory {'freed' if freed else 'free request failed'})",
+          flush=True)
     return 0
 
 
