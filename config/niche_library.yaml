@@ -873,6 +873,7 @@ niches:
     tier_band: [T1_suggestive, T2_implied, T3_artnude]
     da_folder: "Thermal & Bathhouse"
     family: golden_hour
+    lock_wardrobe: true
     source: thermal_wellness
     tags: [spa, thermal, sauna, onsen, hammam, banya, bathhouse, steam, wellness, sensual, water, aiart, digitalart]
     sub_looks:

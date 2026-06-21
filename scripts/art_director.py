@@ -1334,10 +1334,12 @@ def generate_one(
         )
     elif lock_wardrobe:
         creative_variety += (
-            "\n\nWARDROBE — dress her ONLY in the heritage/period garment this scene "
-            "calls for (named in the look above); the TIER still governs how much shows. "
-            "Do NOT substitute a contemporary Western garment (no men's shirt, blazer, "
-            "jeans, t-shirt, swimsuit, slip dress) — the authentic dress IS the niche."
+            "\n\nWARDROBE — dress her ONLY in what THIS scene calls for (the garment "
+            "named in the look above — heritage or period dress, or the setting's own "
+            "natural wear such as a robe, towel or swimsuit at a bath); the TIER still "
+            "governs how much shows. Do NOT substitute an out-of-place modern garment "
+            "(no tuxedo, blazer, men's shirt or jeans in a heritage, period or bathing "
+            "scene) — the scene's own wardrobe IS the niche."
         )
     if pose:
         creative_variety += (

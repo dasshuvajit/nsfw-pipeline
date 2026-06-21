@@ -51,8 +51,9 @@ class Niche:
     brief_seed: str
     avoid_motifs: list[str] = field(default_factory=list)  # per-niche "do NOT depict" hints
     family: str = ""                 # 5-family DA architecture (DA_GO_TO_MARKET.md §3)
-    lock_wardrobe: bool = False      # wardrobe is era/genre/culture-defining → skip the
-    #                                  contemporary-Western GARMENT_TYPES axis (sub_look governs)
+    lock_wardrobe: bool = False      # wardrobe is era/genre/culture/setting-defining (heritage
+    #                                  dress, period costume, or a bathhouse's robe/towel) → skip
+    #                                  the portable GARMENT_TYPES axis (the sub_look governs)
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "Niche":

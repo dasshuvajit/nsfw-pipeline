@@ -397,14 +397,19 @@ def test_era_and_culture_locked_niches_lock_wardrobe(lib):
 
 def test_thermal_bathhouse_niche(lib):
     """2026-06-22 wellness lane: a bathing/sauna/hot-spring niche (the home for the
-    previously-orphaned hot-spring + sauna scenes). Tasteful T1-T3 (steam/water
-    govern modesty — no explicit T4), contemporary wellness so the garment axis
-    stays ON (towels/wraps/bare, not heritage), spanning world bathing culture."""
+    previously-orphaned hot-spring + sauna scenes), spanning world bathing culture.
+    Full T1-T3: T2 (steam-veiled towel/swimsuit tease) is the niche's signature
+    register and is KEPT — the NudeNet gate quarantines any render-drift, and
+    lock_wardrobe (below) removes the falling-open garment-axis wear that drove most
+    of it. Wardrobe is LOCKED so the setting's bathing wear (towel/robe/swimsuit,
+    named in the sub_look) governs, not the portable garment axis."""
     n = lib.by_id("thermal_bathhouse")
     assert len(n.sub_looks) == 12
-    assert n.tier_band == ["T1_suggestive", "T2_implied", "T3_artnude"]  # tasteful, no T4
+    assert n.tier_band == ["T1_suggestive", "T2_implied", "T3_artnude"]
     assert n.family == "golden_hour"
-    assert n.lock_wardrobe is False
+    # bathing wear (towel/robe/swimsuit, from the sub_look) governs — not the portable
+    # contemporary GARMENT_TYPES axis (a jersey jumpsuit in a lagoon read wrong).
+    assert n.lock_wardrobe is True
     blob = " ".join(n.sub_looks).lower()
     assert "sauna" in blob and ("hot spring" in blob or "hot-spring" in blob or "onsen" in blob)
     # no sub_look pre-undresses or reintroduces a mirror (catalog invariants)
