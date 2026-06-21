@@ -62,7 +62,7 @@ def test_stage_base_records_base_path_and_seed(tmp_path, rows):
     builder, client = _FakeBuilder(), _FakeClient(_src_png(tmp_path))
     manifest = A._render_stage_base(
         rows, builder=builder, client=client, base_template="templates/chroma/base.json",
-        negative="neg", resolution=(896, 1152), base_seed=100, seeds=1,
+        negative="neg", resolution=(896, 1152), base_seed=100, seeds=1, random_seeds=False,
         dest_dir=out_dir / "base", out_dir=out_dir, prefix="ad")
     assert len(manifest) == 2
     for i, entry in enumerate(manifest):
@@ -101,7 +101,7 @@ def test_stage_base_uses_per_row_orientation(tmp_path):
     builder, client = _CapBuilder(), _FakeClient(_src_png(tmp_path))
     manifest = A._render_stage_base(
         mixed, builder=builder, client=client, base_template="t.json",
-        negative="n", resolution=(896, 1152), base_seed=1, seeds=1,
+        negative="n", resolution=(896, 1152), base_seed=1, seeds=1, random_seeds=False,
         dest_dir=out_dir / "base", out_dir=out_dir, prefix="ad",
         rp=rp, default_orientation="portrait")
     assert captured == [(1152, 896), (1024, 1024), (896, 1152)]  # per-row
@@ -116,7 +116,7 @@ def test_stage_refine_sets_path_and_reuses_seed(tmp_path, rows):
     builder, client = _FakeBuilder(), _FakeClient(_src_png(tmp_path))
     manifest = A._render_stage_base(
         rows, builder=builder, client=client, base_template="templates/chroma/base.json",
-        negative="neg", resolution=(896, 1152), base_seed=100, seeds=1,
+        negative="neg", resolution=(896, 1152), base_seed=100, seeds=1, random_seeds=False,
         dest_dir=out_dir / "base", out_dir=out_dir, prefix="ad")
     A._render_stage_refine(
         manifest, builder=builder, client=client,
@@ -160,7 +160,7 @@ def test_refine_failure_falls_back_to_base(tmp_path, rows):
     builder, client = _FakeBuilder(), _FakeClient(_src_png(tmp_path))
     manifest = A._render_stage_base(
         rows, builder=builder, client=client, base_template="templates/chroma/base.json",
-        negative="neg", resolution=(896, 1152), base_seed=100, seeds=1,
+        negative="neg", resolution=(896, 1152), base_seed=100, seeds=1, random_seeds=False,
         dest_dir=out_dir / "base", out_dir=out_dir, prefix="ad")
 
     def boom(**kwargs):

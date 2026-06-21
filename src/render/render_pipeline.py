@@ -25,7 +25,10 @@ DEFAULTS: dict[str, Any] = {
     "upscale_template": "templates/sdxl/upscale_4k.json",
     # (upscale_template_t4 removed 2026-06-10 — the 4K stage is tier-neutral;
     #  the T4 variant had become byte-identical after the MPS detailer removal)
-    "enable_refine": True,
+    # Base-only by default (2026-06-21): the SDXL detailer refine — like 4K — is
+    # OPT-IN (art_series --refine). Keeps a series on a single resident model, no
+    # zimage↔SDXL swap thrash. enable_refine stays a real switch for when it's asked.
+    "enable_refine": False,
     "target_4k_long_edge": 3840,
     "base_resolution": {
         "portrait": [896, 1152],

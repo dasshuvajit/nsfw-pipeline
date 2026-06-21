@@ -1004,6 +1004,16 @@ class _PromptOut(BaseModel):
         toks = {w.strip(".,;:!?—–-\"'()[]") for w in low.split()}
         sad = sorted(t for t in toks if t in _SAD_MOOD_EXACT
                      or any(t.startswith(p) for p in _SAD_MOOD_PREFIX))
+        # 'weeping willow / stone / wall / window' is gothic scene vocab, not a
+        # sad SUBJECT — exempt it (it used to loop the gate). A weeping woman/eyes
+        # still trips: only drop 'weeping' when every use is an inanimate noun.
+        if "weeping" in sad:
+            _WEEPING_OK = {"willow", "willows", "stone", "stones", "wall", "walls",
+                           "window", "windows", "wound", "wounds", "birch", "cherry",
+                           "branch", "branches", "ivy", "fig", "tree", "trees", "mortar"}
+            uses = re.findall(r"weeping\s+(\w+)", low)
+            if uses and all(u in _WEEPING_OK for u in uses):
+                sad = [t for t in sad if t != "weeping"]
         if sad:
             raise ValueError(
                 f"mood: sad-affect term(s) {sad} — commercial NSFW sells "

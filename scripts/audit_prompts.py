@@ -255,7 +255,8 @@ REFUSAL_TOKENS = (
 # sensuality, NOT sorrow.
 _SAD_TOKENS = (
     "tear", "tears", "tearful", "tear-streaked", "teardrop", "teardrops",
-    "crying", "weeping", "sobbing", "mournful",
+    "crying", "sobbing", "mournful",  # 'weeping' handled context-aware by the
+    #                                   hard gate (exempts weeping willow/stone)
     "grieving", "grief", "sorrow", "sorrowful",
     "wet eyes", "dried tears",
     "numb detachment", "vacant stare", "blank stare", "vacantly",

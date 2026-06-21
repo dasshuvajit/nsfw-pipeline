@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import random
 import re
 import shutil
 import subprocess
@@ -46,11 +47,17 @@ from src.niche.selector import (  # noqa: E402
     select_niche_cycle, persona_locked_look,
 )
 
-# Persistent seed counter — guarantees every render across runs gets a
-# never-before-used seed, defeating ComfyUI's per-node cache collisions
-# (which hit us on the seed-9 retry: cache key matched a prior submission).
-SEED_COUNTER_FILE = ROOT / "output/art_series/.last_seed"
-LEGACY_DEFAULT_SEED = 7
+# Seeds are RANDOM per render by default (2026-06-21). A fresh random int makes
+# every submitted workflow JSON unique → no ComfyUI execution-cache collision, and
+# nothing to desync on abort (the old persisted counter only advanced on success,
+# so an aborted run let the next reuse its seeds → cache-served empty renders).
+# The exact seed is logged per image (manifest + filename) for reproducibility;
+# pass --base-seed N to force a fully deterministic, reproducible run.
+_SEED_MAX = 2**31 - 1
+# Per-render ComfyUI timeout. Was 1800s (30 min) — a hung render then ate the full
+# half hour before failing. 300s comfortably covers a real base/chroma render
+# (~2.5–4 min) while failing a hang fast so the reroll/circuit-breaker kicks in.
+_RENDER_TIMEOUT_S = 300
 
 # Persistent niche cursor — advances each --auto run; drives the per-series
 # aesthetic-lock + persona rotation (deterministic, no randomness; mirrors the
@@ -89,33 +96,6 @@ DEFAULT_NEGATIVE = (
     "lowres, blurry, jpeg artifacts, watermark, text, signature, "
     "cartoon, anime, illustration, 3d render, cgi, plastic skin, airbrushed"
 )
-
-
-def _read_seed_counter() -> int | None:
-    """Return the highest seed used by any prior art_series run, or None."""
-    try:
-        return int(SEED_COUNTER_FILE.read_text().strip())
-    except (FileNotFoundError, ValueError):
-        return None
-
-
-def _next_base_seed(explicit: int | None) -> int:
-    """Pick the base seed for this run. Explicit --base-seed overrides; else
-    advance one past the persisted counter; else fall back to the legacy
-    default."""
-    if explicit is not None:
-        return explicit
-    prior = _read_seed_counter()
-    if prior is None:
-        return LEGACY_DEFAULT_SEED
-    return prior + 1
-
-
-def _record_max_seed(seed: int) -> None:
-    """Write back the highest seed used so the next run advances past it."""
-    SEED_COUNTER_FILE.parent.mkdir(parents=True, exist_ok=True)
-    prior = _read_seed_counter() or -1
-    SEED_COUNTER_FILE.write_text(str(max(prior, seed)))
 
 
 def _read_niche_cursor() -> int:
@@ -631,6 +611,7 @@ def _render_stage_base(
     rp: dict | None = None, default_orientation: str = "portrait",
     anatomy_retries: int = 0, hand_detector_path: "str | None" = None,
     reroll_start: "int | None" = None, nsfw_lora_strength: float = 0.0,
+    random_seeds: bool = True,
 ) -> list[dict]:
     """Stage 1 (Chroma): base gen for every (prompt × seed) into dest_dir.
 
@@ -668,9 +649,13 @@ def _render_stage_base(
         for k in range(seeds):
             kept: "tuple[str, int, int] | None" = None  # (rel_path, seed, hand_count)
             for attempt in range(anatomy_retries + 1):
-                if attempt == 0:
-                    # Per-PROMPT seeds (2026-06 audit): `base_seed + k` gave
-                    # every prompt in a series the same initial latent noise.
+                if random_seeds:
+                    # Fresh random seed per render (incl. rerolls) — unique workflow
+                    # JSON, no cache collision; logged in the filename for repro.
+                    seed = random.randint(1, _SEED_MAX)
+                elif attempt == 0:
+                    # Deterministic --base-seed path: per-PROMPT seeds (2026-06
+                    # audit) so prompts don't share one initial latent noise.
                     seed = base_seed + idx * seeds + k
                 else:
                     seed = reroll_seed
@@ -683,7 +668,7 @@ def _render_stage_base(
                     # zimage base) — full at T3/T4, OFF at T1/T2 + covers (anti-drift).
                     if "lora_nsfw" in wf:
                         wf["lora_nsfw"]["inputs"]["strength_model"] = nsfw_lora_strength
-                    images = client.render_single_with_retry(wf, timeout=1800)
+                    images = client.render_single_with_retry(wf, timeout=_RENDER_TIMEOUT_S)
                     outs = [im for im in images if im.type == "output"] or images
                     name = f"{prefix}{idx + 1:02d}_{look}_s{seed}.png"
                     dst = dest_dir / name
@@ -798,7 +783,7 @@ def _render_stage_refine(
                 wf = builder.build_image_stage(
                     external_template=refine_template,
                     image_path=str(base_abs), seed=im["seed"])
-                images = client.render_single_with_retry(wf, timeout=1800)
+                images = client.render_single_with_retry(wf, timeout=_RENDER_TIMEOUT_S)
                 outs = [i for i in images if i.type == "output"] or images
                 name = Path(base_rel).name  # mirror base filename under images/
                 dst = dest_dir / name
@@ -1331,8 +1316,12 @@ def main() -> int:
     ap.add_argument("--refine-template", default=None,
                     help="staged stage-2 refine template (default: pipeline.yaml "
                     "render_pipeline.refine_template)")
+    ap.add_argument("--refine", action="store_true",
+                    help="OPT-IN: run the stage-2 SDXL detailer refine. Default is "
+                    "base-only (like 4K) — keeps a series on one resident model.")
     ap.add_argument("--no-refine", action="store_true",
-                    help="skip stage-2 refine; review images = raw base render")
+                    help="(default) skip stage-2 refine; review images = raw base "
+                    "render. Kept for back-compat; base-only is now the default.")
     ap.add_argument("--no-postgrade", action="store_true",
                     help="skip the cinematic post-grade pass (pipeline.yaml postgrade)")
     ap.add_argument("--engine", choices=["chroma", "zimage"], default="zimage",
@@ -1371,8 +1360,9 @@ def main() -> int:
                     help="generate + save prompts and STOP (no render) — for "
                     "prompt analysis / LLM A-B (writes prompts.json)")
     ap.add_argument("--base-seed", type=int, default=None,
-                    help="explicit base seed; default = auto-advance past the "
-                    "highest seed any prior run used (output/art_series/.last_seed)")
+                    help="explicit base seed for a DETERMINISTIC, reproducible run "
+                    "(per-prompt seeds = base_seed + offset). Default = a fresh "
+                    "RANDOM seed per render (logged per image for reproducibility).")
     ap.add_argument("--out-dir", default="",
                     help="output dir (default: output/art_series/<timestamp>)")
     args = ap.parse_args()
@@ -1446,7 +1436,11 @@ def main() -> int:
     }
     if args.hires:
         rp_cli["base_resolution"] = _HIRES_BASE_RESOLUTION
-    if args.no_refine:
+    # Refine is OPT-IN (base-only default). --refine turns it on; --no-refine is
+    # the (now-default) off state, kept for back-compat. --refine wins if both given.
+    if args.refine:
+        rp_cli["enable_refine"] = True
+    elif args.no_refine:
         rp_cli["enable_refine"] = False
     rp = resolve_render_pipeline(cfg.get("render_pipeline"), None, rp_cli)
     # Base renders at the model's native resolution (render_pipeline.base_resolution
@@ -1492,24 +1486,30 @@ def main() -> int:
               f"| folder={selection.niche.da_folder!r} "
               f"| persona={selection.persona.name if selection.persona else 'none'} "
               f"| tier={args.tier} ===", flush=True)
-    base_seed = _next_base_seed(args.base_seed)
+    # Seeds: RANDOM per render by default; an explicit --base-seed switches to a
+    # deterministic, reproducible layout. The deterministic layout below is only
+    # consulted when random_seeds is False (the render stage draws random otherwise).
+    random_seeds = args.base_seed is None
+    base_seed = 0 if random_seeds else args.base_seed
     is_explicit = args.tier in _EXPLICIT_TIERS
     n_covers = args.covers if (is_explicit and not args.no_package) else 0
     cover_seeds = 1
-    # Seed layout (per-prompt seeds, 2026-06): [main: count*seeds][covers]
-    # [main anatomy-rerolls][cover anatomy-rerolls]. The counter records the
-    # full reserved span so rerolls can never collide with the next run.
+    # Deterministic seed layout (per-prompt seeds): [main: count*seeds][covers]
+    # [main anatomy-rerolls][cover anatomy-rerolls] — non-overlapping spans so a
+    # reroll never collides with a cover.
     main_span = args.count * args.seeds
-    cover_base = base_seed + main_span         # covers use non-overlapping seeds
+    cover_base = base_seed + main_span
     cover_end = cover_base + n_covers * cover_seeds
     main_reroll_start = cover_end
     cover_reroll_start = cover_end + main_span * args.anatomy_retries
-    max_seed = (cover_reroll_start + n_covers * cover_seeds * args.anatomy_retries - 1
-                if n_covers else
-                main_reroll_start + main_span * args.anatomy_retries - 1)
-    print(f"=== base_seed {base_seed} (main seeds {base_seed}..{cover_base - 1}"
-          f"{f'; cover seeds {cover_base}..{cover_end - 1}' if n_covers else ''}) ===",
-          flush=True)
+    if random_seeds:
+        print("=== seeds: RANDOM per render (reproduce a specific run with "
+              "--base-seed N) ===", flush=True)
+    else:
+        print(f"=== base_seed {base_seed} (deterministic; main {base_seed}.."
+              f"{cover_base - 1}"
+              f"{f'; covers {cover_base}..{cover_end - 1}' if n_covers else ''}) ===",
+              flush=True)
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     out_dir = Path(args.out_dir) if args.out_dir else (
@@ -1698,7 +1698,7 @@ def main() -> int:
         seeds=args.seeds, dest_dir=base_dir, out_dir=out_dir, prefix="ad",
         rp=rp, default_orientation=args.orientation,
         anatomy_retries=args.anatomy_retries, hand_detector_path=hand_det_path,
-        reroll_start=main_reroll_start,
+        reroll_start=main_reroll_start, random_seeds=random_seeds,
         nsfw_lora_strength=(_NSFW_LORA_STRENGTH if args.tier in _EXPLICIT_TIERS else 0.0))
     if cover_rows:
         cover_manifest = _render_stage_base(
@@ -1708,7 +1708,8 @@ def main() -> int:
             dest_dir=base_dir, out_dir=out_dir, prefix="cover",
             rp=rp, default_orientation=args.orientation,
             anatomy_retries=args.anatomy_retries, hand_detector_path=hand_det_path,
-            reroll_start=cover_reroll_start, nsfw_lora_strength=0.0)   # covers are SFW T1
+            reroll_start=cover_reroll_start, random_seeds=random_seeds,
+            nsfw_lora_strength=0.0)   # covers are SFW T1
     if enable_refine:
         print(f"\n=== Phase 2b (refine, SDXL): {Path(refine_tmpl_main).name} "
               f"→ review images ===", flush=True)
@@ -1729,24 +1730,24 @@ def main() -> int:
                     im["review_path"] = im["path"]
 
     # ── Post-render checkpoint ──────────────────────────────────────────
-    # Manifest + seed counter commit RIGHT AFTER rendering: a crash in
-    # curation/packaging previously lost manifest.json (the cross-run
-    # anti-repetition memory!) and never advanced the seed counter even
-    # though every image existed on disk.
+    # Manifest commits RIGHT AFTER rendering: a crash in curation/packaging
+    # previously lost manifest.json (the cross-run anti-repetition memory!)
+    # even though every image existed on disk. (Seeds are random per render now,
+    # so there is no counter to advance — each seed is logged per image.)
     def _write_manifest(pkg_path: "Path | None" = None) -> None:
         (out_dir / "manifest.json").write_text(json.dumps({
             "brief": brief, "tier": args.tier, "template": run_template,
             "template_sha256": _template_hashes(workflow_dir, run_template),
             "model_tag": args.model_tag, "orientation": args.orientation,
             "resolution": resolution, "seeds_per_prompt": args.seeds,
-            "base_seed": base_seed, "word_band": list(word_band),
+            "base_seed": (None if random_seeds else base_seed),
+            "random_seeds": random_seeds, "word_band": list(word_band),
             "niche": niche_meta,
             "package": str(pkg_path.relative_to(out_dir)) if pkg_path else None,
             "prompts": manifest, "covers": cover_manifest,
         }, indent=2))
 
     _write_manifest()
-    _record_max_seed(max_seed)
 
     # ── Phase 3: curation (ImageScorer triage) ─────────────────────────
     scoring_cfg = cfg.get("scoring", {})

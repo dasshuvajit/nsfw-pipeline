@@ -265,9 +265,10 @@ render_pipeline:
   refine_template:     "templates/chroma/refine.json"    # stage 2 (SDXL refine: hands+nipples)
   refine_template_t4:  "templates/chroma/refine_T4.json" # stage 2 T4 variant (+ vagina detailer); main images only
   upscale_template:    "templates/sdxl/upscale_4k.json"  # stage 3 (manual; SFW)
-  # false -> skip stage 2; review images are the raw base (the 4K stage's USDU
-  # tiled diffusion then serves as the refine). true matches base+refine review.
-  enable_refine: true
+  # Base-only by DEFAULT (2026-06-21): the SDXL detailer refine is opt-in, like 4K
+  # (art_series --refine to enable). Keeps a series on one resident model — no
+  # zimage<->SDXL swap thrash. false -> review images are the raw base render.
+  enable_refine: false
   target_4k_long_edge: 3840
   # Base resolution per orientation (overrides art_series ORIENTATIONS when the
   # staged pipeline is active). Reverted to the model's native 896x1152 portrait:

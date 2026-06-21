@@ -975,7 +975,7 @@ def test_base_anatomy_retry_rerolls_until_clean(tmp_path, monkeypatch):
     rows = [{"look": "riverbank scene", "prompt": "p", "orientation": "portrait"}]
     manifest = A._render_stage_base(
         rows, builder=builder, client=client, base_template="t", negative="n",
-        resolution=(896, 1152), base_seed=100, seeds=1,
+        resolution=(896, 1152), base_seed=100, seeds=1, random_seeds=False,
         dest_dir=tmp_path / "base", out_dir=tmp_path, prefix="ad",
         anatomy_retries=2, hand_detector_path="x")
     imgs = manifest[0]["images"]
@@ -1014,7 +1014,7 @@ def test_nsfw_lora_tier_gated_in_base_render(tmp_path):
         captured.clear()
         A._render_stage_base(
             rows, builder=_Builder(), client=_Client(), base_template="t",
-            negative="n", resolution=(896, 1152), base_seed=1, seeds=1,
+            negative="n", resolution=(896, 1152), base_seed=1, seeds=1, random_seeds=False,
             dest_dir=tmp_path / f"b{strength}", out_dir=tmp_path, prefix="ad",
             nsfw_lora_strength=strength)
         assert captured == [strength], f"lora_nsfw must be patched to {strength}"
@@ -1030,7 +1030,7 @@ def test_base_anatomy_retry_keeps_least_bad_when_all_fail(tmp_path, monkeypatch)
     rows = [{"look": "tent scene", "prompt": "p", "orientation": "portrait"}]
     manifest = A._render_stage_base(
         rows, builder=builder, client=client, base_template="t", negative="n",
-        resolution=(896, 1152), base_seed=100, seeds=1,
+        resolution=(896, 1152), base_seed=100, seeds=1, random_seeds=False,
         dest_dir=tmp_path / "base", out_dir=tmp_path, prefix="ad",
         anatomy_retries=2, hand_detector_path="x")
     assert manifest[0]["images"][0]["seed"] == 101     # fewest-hands render kept
@@ -1045,11 +1045,29 @@ def test_base_anatomy_guard_off_single_render(tmp_path, monkeypatch):
     rows = [{"look": "loft scene", "prompt": "p", "orientation": "portrait"}]
     manifest = A._render_stage_base(
         rows, builder=builder, client=client, base_template="t", negative="n",
-        resolution=(896, 1152), base_seed=100, seeds=1,
+        resolution=(896, 1152), base_seed=100, seeds=1, random_seeds=False,
         dest_dir=tmp_path / "base", out_dir=tmp_path, prefix="ad",
         anatomy_retries=0, hand_detector_path="x")
     assert manifest[0]["images"][0]["seed"] == 100
     assert loaded == []                                # detector never loaded when off
+
+
+def test_base_seeds_are_random_by_default(tmp_path, monkeypatch):
+    """Default = a fresh RANDOM seed per render (no persisted counter, no ComfyUI
+    cache collision). Each render calls random.randint; base_seed is ignored. The
+    chosen seed is still recorded per image (filename + manifest) for repro."""
+    builder, client = _fake_render_env(tmp_path)
+    seq = iter([555, 666, 777, 888])
+    monkeypatch.setattr(A.random, "randint", lambda a, b: next(seq))
+    rows = [{"look": "loft a", "prompt": "p1", "orientation": "portrait"},
+            {"look": "loft b", "prompt": "p2", "orientation": "portrait"}]
+    manifest = A._render_stage_base(
+        rows, builder=builder, client=client, base_template="t", negative="n",
+        resolution=(896, 1152), base_seed=100, seeds=1,   # random_seeds defaults True
+        dest_dir=tmp_path / "base", out_dir=tmp_path, prefix="ad",
+        anatomy_retries=0, hand_detector_path="x")
+    seeds = [m["images"][0]["seed"] for m in manifest]
+    assert seeds == [555, 666], "random mode draws random.randint per render, not base_seed+idx"
 
 
 @pytest.mark.parametrize("tier,expected", [
@@ -1249,6 +1267,18 @@ def test_mood_gate_rejects_sad_affect():
     assert AD._PromptOut(prompt=base + "serene and introspective, she gazes ahead.").prompt
     # look-alikes must NOT false-positive (word-level matching)
     assert AD._PromptOut(prompt=base + "seated on a worn leather saddle, sober and composed.").prompt
+
+
+def test_mood_gate_exempts_inanimate_weeping():
+    """'weeping willow / stone / wall' is gothic scene vocab, not a sad SUBJECT —
+    it must pass the mood gate (it looped the goth niche before). A weeping
+    woman / eyes / softly-weeping subject still hard-rejects."""
+    base = "A warm shaft of light falls across a confident woman in a quiet room. " * 6
+    assert AD._PromptOut(prompt=base + "beside a weeping willow, serene and composed.").prompt
+    assert AD._PromptOut(prompt=base + "against the cold weeping stone, poised and calm.").prompt
+    for sad in ("a weeping woman", "her weeping eyes", "weeping softly she turns away"):
+        with pytest.raises(Exception):
+            AD._PromptOut(prompt=base + sad + " in the dim light.")
 
 
 def test_audit_gate_keeps_best_when_all_below(monkeypatch):

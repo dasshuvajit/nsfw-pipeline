@@ -17,8 +17,8 @@ scripts/art_director.py ──── Gemma writes COMPLETE prose prompts (120-18
         │                     guarded by Pydantic hard gates + audit-gate v2
         ▼
 scripts/art_series.py ────── orchestrates: Phase 1 LLM (prompts + SFW covers +
-        │                     metadata) → unload LLM → Phase 2 staged render
-        │                     (Chroma base → SDXL detailer refine) → curation →
+        │                     metadata) → unload LLM → Phase 2 render (zimage base
+        │                     only by default; SDXL detailer refine OPT-IN) → curation →
         │                     tier-split packaging (+ 4k_queue/ + posting templates)
         ▼
 scripts/upscale_folder.py ── manual, selective true-4K (USDU, face-true denoise 0.05)
@@ -52,12 +52,21 @@ scripts/upscale_folder.py ── manual, selective true-4K (USDU, face-true deno
   of ANY niche, an overused-house-word budget, and the rotation offset
   (stride count+1). `--brief` runs get a slug key. **Never delete
   output/art_series/*/manifest.json — it is the diversity memory.**
-- **Render**: staged templates under `config/comfyui_workflows/templates/`
-  (chroma/base.json — dpmpp_2m/simple@12/cfg1; chroma/refine.json — detailers
-  ONLY hands+nipples, NO face detailer, NO global refine; refine_T4.json adds
-  the genital detailer, T4-only via content-based tier-purity guard;
-  sdxl/upscale_4k.json — USDU denoise 0.05 face-true). Per-prompt seeds;
-  extra-limb guard (hand YOLO reroll); ComfyUI pre-flight + circuit breaker.
+- **Render**: **BASE-ONLY by default (2026-06-21)** — the SDXL detailer refine is
+  OPT-IN (`--refine`), exactly like 4K (manual `upscale_folder.py`). One series =
+  one resident model, no zimage↔SDXL swap thrash. `enable_refine` defaults False
+  (pipeline.yaml + resolver). Staged templates under
+  `config/comfyui_workflows/templates/` (chroma/base.json — dpmpp_2m/simple@12/cfg1;
+  chroma/refine.json — detailers ONLY hands+nipples, NO face detailer, NO global
+  refine; refine_T4.json adds the genital detailer, T4-only via content-based
+  tier-purity guard; sdxl/upscale_4k.json — USDU denoise 0.05 face-true).
+  **Engine = always `zimage` unless `--engine chroma` is given explicitly — there is
+  NO niche-wise/auto engine routing; never auto-pick chroma.** **Seeds are RANDOM
+  per render** (logged per image; `--base-seed N` forces a deterministic
+  reproducible run) — no persisted counter (the old one only advanced on success →
+  an aborted run reused seeds → ComfyUI execution-cache empty renders). Per-render
+  ComfyUI timeout 300s (was 1800) so a hang fails fast → reroll/circuit-breaker.
+  Extra-limb guard (hand YOLO reroll); ComfyUI pre-flight + circuit breaker.
 - **Packaging**: tier-split public/ (SFW only, watermarked) + gated/ (clean)
   + 4k_queue/ (score ≥0.62, flag-free) + per-image posting_templates/ with
   family-serial "Plate" titling + POSTING_CHECKLIST.md.

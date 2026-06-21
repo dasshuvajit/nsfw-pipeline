@@ -23,7 +23,7 @@ def test_pipeline_yaml_block_parses():
     assert rp["refine_template"] == "templates/chroma/refine.json"
     assert rp["refine_template_t4"] == "templates/chroma/refine_T4.json"  # T4 vagina variant
     assert rp["upscale_template"] == "templates/sdxl/upscale_4k.json"
-    assert rp["enable_refine"] is True
+    assert rp["enable_refine"] is False  # base-only by default; refine is opt-in
     assert rp["target_4k_long_edge"] == 3840
     assert rp["base_resolution"]["portrait"] == [896, 1152]  # reverted to native
 
@@ -31,7 +31,7 @@ def test_pipeline_yaml_block_parses():
 def test_defaults_when_no_layers():
     rp = resolve_render_pipeline()
     assert rp["base_template"] == DEFAULTS["base_template"]
-    assert rp["enable_refine"] is True
+    assert rp["enable_refine"] is False  # base-only by default; refine is opt-in
     assert rp["base_resolution"]["portrait"] == [896, 1152]
 
 
