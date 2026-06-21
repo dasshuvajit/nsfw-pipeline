@@ -1587,6 +1587,11 @@ def main() -> int:
         print(f"  orientations: {dict(oris)}  shot_types: {dict(shots)}", flush=True)
         print(f"  mean audit: {payload['mean_audit']}  -> {out_dir / 'prompts.json'}",
               flush=True)
+        # Free the LLM here too (2026-06-22): a prompts-only run returns before the
+        # render phase that normally unloads it, so it would otherwise leave ~18 GB
+        # resident. Best-effort, same mechanism as the pre-Phase-2 unload.
+        _unload_llm(args.model_tag)
+        print("  (prompts-only: LLM freed)", flush=True)
         return 0
 
     # ── State commit (post-prompts): the run has real output now, so the
