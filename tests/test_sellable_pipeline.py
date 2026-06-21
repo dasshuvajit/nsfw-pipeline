@@ -420,11 +420,10 @@ def test_zimage_default_workflow_is_official_plus_lora_stack():
     """The new default zimage base.json (2026-06-19 'Engineer V6' adoption): official
     Z-Image Turbo + NSFW_master + dopsd_white LoRA stack wired into the model chain,
     dpmpp_sde sampler, ModelSamplingAuraFlow shift, full-precision safetensors TE,
-    patchable contract nodes intact, and a safe (~1MP) static latent. ZPop preserved
-    as base_zpop.json."""
+    patchable contract nodes intact, and a safe (~1MP) static latent."""
     base = Path("config/comfyui_workflows/templates/zimage")
     b = json.loads((base / "base.json").read_text())
-    assert b["unet"]["inputs"]["unet_name"] == "zImageTurbo_turbo.safetensors"   # official base
+    assert b["unet"]["inputs"]["unet_name"] == "z_image_turbo_bf16.safetensors"   # official base
     # stacked LoRAs in the model chain: unet → lora_nsfw → lora_style → modelsampling → ksampler
     assert b["lora_nsfw"]["class_type"] == "LoraLoaderModelOnly"
     assert b["lora_nsfw"]["inputs"]["model"] == ["unet", 0]
@@ -440,9 +439,6 @@ def test_zimage_default_workflow_is_official_plus_lora_stack():
     # static latent stays ~1MP — never the MPS-unsafe (>12k-token) 1536x2048
     el = b["empty_latent"]["inputs"]
     assert el["width"] * el["height"] <= 1024 * 1280, "static latent must stay ~1MP (MPS-safe)"
-    # ZPop preserved as a selectable fallback
-    z = json.loads((base / "base_zpop.json").read_text())
-    assert z["unet"]["inputs"]["unet_name"] == "gonzalomoZpop_v40.safetensors"
 
 
 def test_zimage_is_the_default_engine():
@@ -465,28 +461,6 @@ def test_zimage_hires_base_template():
         "deep-shrink must sit in the sampler's model chain"
     for nid in ("positive_prompt", "negative_prompt", "ksampler", "empty_latent", "save"):
         assert nid in d, f"hires base missing contract node {nid}"
-
-
-def test_zimage_base_lora_template_wired():
-    """The OPT-IN zit_fdpo LoRA template (A/B-validated 2026-06-19) inserts a LoRA
-    loader into the model chain (unet → lora → modelsampling) and keeps the patchable
-    contract nodes intact so WorkflowBuilder can still patch prompt/seed/resolution.
-    Uses the BUILT-IN LoraLoaderModelOnly (no custom-node dependency) — empirically
-    verified to apply this Z-Image LoKr identically to the arch-aware ZiT loader. It is
-    NOT the default base (opt-in via --base-template)."""
-    p = Path("config/comfyui_workflows/templates/zimage/base_lora.json")
-    assert p.exists()
-    d = json.loads(p.read_text())
-    assert d["lora"]["class_type"] == "LoraLoaderModelOnly"   # built-in, zero dependency
-    assert d["lora"]["inputs"]["lora_name"] == "zit_fdpo_v1.safetensors"
-    assert d["lora"]["inputs"]["model"] == ["unet", 0]
-    assert d["modelsampling"]["inputs"]["model"] == ["lora", 0], \
-        "the LoRA loader must sit in the model chain before ModelSamplingAuraFlow"
-    for nid in ("positive_prompt", "negative_prompt", "ksampler", "empty_latent", "save"):
-        assert nid in d, f"base_lora missing contract node {nid}"
-    assert "text" in d["positive_prompt"]["inputs"]
-    assert "seed" in d["ksampler"]["inputs"]
-    assert {"width", "height"} <= set(d["empty_latent"]["inputs"])
 
 
 # ── influencer-substance prompt-engine knobs (2026-06-17) ──────────

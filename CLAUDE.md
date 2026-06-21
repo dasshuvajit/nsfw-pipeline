@@ -74,13 +74,13 @@ scripts/upscale_folder.py ── manual, selective true-4K (USDU, face-true deno
 ## Tech Stack
 - Python 3.11+, Mac M4 Pro 48GB unified RAM (Apple MPS — no CUDA)
 - ComfyUI (separate, http://127.0.0.1:8188). **DEFAULT engine = Z-Image Turbo**
-  (`--engine zimage`, 2026-06-19): official `zImageTurbo_turbo.safetensors` (Lumina2-arch,
+  (`--engine zimage`, 2026-06-19): official `z_image_turbo_bf16.safetensors` (Lumina2-arch,
   **Engineer-V6 Q8_0 GGUF TE** via `ClipLoaderGGUF` type=lumina2 [needs custom_nodes/ComfyUI-GGUF],
   16ch Flux VAE, cfg 1.0) + a LoRA stack: `NSFW_master_ZIT` (restores anatomy on the NSFW-weak
   official base — **TIER-GATED at render time: 0.8 at T3/T4, OFF at T1/T2 + covers, or it strips
   clothing on funnel prompts**) + `dopsd_white` (style); + `ModelSamplingAuraFlow` shift 3.0,
   `dpmpp_sde`/beta/8. Template
-  `templates/zimage/base.json`; ZPop fallback = `base_zpop.json`. Render at the official
+  `templates/zimage/base.json` (`base_hires.json` for `--hires`). Render at the official
   ~1MP buckets (896×1152/1024²/1152×896; ÷16; NEVER 1536×2048 → MPS >12k-token/INT_MAX
   crash). **`--engine chroma`** = gonzaLomo **Chroma v30** (FLUX-arch, T5, flash-heun
   cfg-1) — use for B&W/painterly/period/fantasy niches. Both + SDXL DMD for detailers/4K.

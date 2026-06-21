@@ -1334,8 +1334,7 @@ def main() -> int:
                          "+ NSFW_master + dopsd_white LoRA stack, dpmpp_sde) or chroma "
                          "(gonzaLomo Chroma v30 — for B&W/painterly/period/fantasy niches). "
                          "Swaps the base + refine + refine_T4 templates as a set; explicit "
-                         "--base-template / --refine-template still override. (ZPop base is "
-                         "templates/zimage/base_zpop.json via --base-template.)")
+                         "--base-template / --refine-template still override.)")
     ap.add_argument("--hires", action="store_true",
                     help="Z-Image deep-shrink HIRES base (gonzaLomo v11: "
                          "PatchModelAddDownscale + higher per-orientation resolution) "
