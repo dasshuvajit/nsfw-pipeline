@@ -640,7 +640,10 @@ def _render_stage_base(
     conn_failures = 0          # circuit breaker — consecutive connectivity deaths
     manifest: list[dict] = []
     for idx, r in enumerate(rows):
-        look = r["look"].split()[0]
+        # filename-safe scene tag: a sub_look title can contain a slash/colon
+        # ("mineral/clay …"), which would turn into a bogus path separator and
+        # fail the render write — sanitize to [A-Za-z0-9_-] only.
+        look = re.sub(r"[^A-Za-z0-9_-]", "-", r["look"].split()[0]) or "scene"
         orientation = r.get("orientation") or default_orientation
         res = base_resolution_for(rp, orientation) if rp else resolution
         entry = {"index": idx, "look": r["look"], "prompt": r["prompt"],

@@ -1082,6 +1082,23 @@ def test_base_seeds_are_random_by_default(tmp_path, monkeypatch):
     assert seeds == [555, 666], "random mode draws random.randint per render, not base_seed+idx"
 
 
+def test_render_filename_sanitizes_slash_in_sublook_title(tmp_path, monkeypatch):
+    """A sub_look whose first token contains a slash/colon ("mineral/clay …") must
+    NOT become a path separator and fail the render write — the scene tag is
+    sanitized to [A-Za-z0-9_-]. (Caught live on the thermal_bathhouse niche.)"""
+    builder, client = _fake_render_env(tmp_path)
+    monkeypatch.setattr(A.random, "randint", lambda a, b: 4242)
+    rows = [{"look": "mineral/clay thermal bath", "prompt": "p", "orientation": "portrait"}]
+    manifest = A._render_stage_base(
+        rows, builder=builder, client=client, base_template="t", negative="n",
+        resolution=(896, 1152), base_seed=100, seeds=1,
+        dest_dir=tmp_path / "base", out_dir=tmp_path, prefix="ad",
+        anatomy_retries=0, hand_detector_path="x")
+    name = Path(manifest[0]["images"][0]["base_path"]).name
+    assert "/" not in name and "mineral-clay" in name, f"slash not sanitized: {name}"
+    assert (tmp_path / "base" / name).exists()
+
+
 @pytest.mark.parametrize("tier,expected", [
     ("T4_explicit", "refine_T4.json"),     # explicit main → vagina-detailer variant
     ("T3_artnude", "refine.json"),         # tasteful nude → base refine (tier purity)
