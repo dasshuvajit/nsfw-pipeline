@@ -1315,6 +1315,10 @@ def main() -> int:
                          "the hand detector finds >2 hands (0 = off; default 2)")
     ap.add_argument("--orientation", default="portrait",
                     choices=list(ORIENTATIONS))
+    ap.add_argument("--force-orientation", default=None, choices=list(ORIENTATIONS),
+                    help="FORCE every main image to this orientation (overrides the "
+                    "per-scene LLM/rotation choice) — e.g. a pure widescreen 16:9 or "
+                    "story 9:16 series. Covers stay native. Best on wide-scene niches.")
     ap.add_argument("--base-template", default=None,
                     help="staged stage-1 base template (default: pipeline.yaml "
                     "render_pipeline.base_template)")
@@ -1565,6 +1569,7 @@ def main() -> int:
         seed_avoid=seed_avoid, seed_banned_openers=seed_banned, run_offset=run_offset,
         seed_overused=overused, locked_look=locked_look,
         lock_wardrobe=(selection.niche.lock_wardrobe if selection else False),
+        force_orientation=(args.force_orientation or ""),
     )
     if not rows:
         print("No prompts generated — aborting.", file=sys.stderr)

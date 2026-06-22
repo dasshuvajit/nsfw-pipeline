@@ -1303,6 +1303,14 @@ def test_covers_use_native_framing_only(monkeypatch):
     assert "widescreen" in free or "story" in free
 
 
+def test_force_orientation_pins_the_whole_series(monkeypatch):
+    """--force-orientation overrides the per-scene choice so EVERY main frame is that
+    aspect (a pure widescreen / story / landscape series)."""
+    for o in ("widescreen", "story", "landscape", "square"):
+        orients = _capture_framings(monkeypatch, tier="T2_implied", force_orientation=o)
+        assert orients and all(x == o for x in orients), f"{o} not pinned: {orients}"
+
+
 def test_sfw_cover_gate_rejects_nudity(monkeypatch):
     """require_sfw=True must hard-reject any nudity in a cover prompt
     (DA SFW-shopfront ToS) so the LLM re-rolls clothed. The verification

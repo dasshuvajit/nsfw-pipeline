@@ -1462,6 +1462,7 @@ def generate_series(
     locked_look: str = "",
     lock_wardrobe: bool = False,
     native_framing_only: bool = False,
+    force_orientation: str = "",
 ) -> list[dict]:
     """Generate ``count`` prompts. ``sub_looks`` (from the niche selector)
     overrides the default 3; the per-scene look rotates through them.
@@ -1527,6 +1528,13 @@ def generate_series(
             # covers/funnel thumbnails use only the native gallery aspects — no
             # 16:9/9:16 — so a DA cover never lands on an off-native banner ratio.
             framing = ({"widescreen": "landscape", "story": "portrait"}[framing[0]], framing[1])
+        if force_orientation:
+            # --force-orientation: a whole single-aspect series (overrides per-scene
+            # choice). Keep the rotated shot, but a tight crop wastes a 16:9 frame.
+            _s = framing[1]
+            if force_orientation == "widescreen" and _s in ("close_up", "bust"):
+                _s = "wide_environmental"
+            framing = (force_orientation, _s)
         # Structural rotation — sentence-1 lead (5-cycle) + craft-note
         # placement (7-cycle), both coprime with the 8 framing targets.
         opener_lead = _rotate(OPENER_LEADS, i, run_offset, "opener")
