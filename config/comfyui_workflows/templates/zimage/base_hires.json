@@ -6,7 +6,7 @@
     },
     "class_type": "UNETLoader",
     "_meta": {
-      "title": "Load Diffusion Model — official Z-Image Turbo BF16 (hires variant of the default base.json)"
+      "title": "Load Diffusion Model \u2014 official Z-Image Turbo BF16 (hires variant of the default base.json)"
     }
   },
   "lora_nsfw": {
@@ -20,7 +20,7 @@
     },
     "class_type": "LoraLoaderModelOnly",
     "_meta": {
-      "title": "LoRA 1/2 — NSFW_master_ZIT"
+      "title": "LoRA 1/2 \u2014 NSFW_master_ZIT"
     }
   },
   "lora_style": {
@@ -29,25 +29,25 @@
         "lora_nsfw",
         0
       ],
-      "lora_name": "dopsd_white_zimage_turbo_comfy.safetensors",
+      "lora_name": "zit/dopsd_white_zimage_turbo_comfy.safetensors",
       "strength_model": 0.8
     },
     "class_type": "LoraLoaderModelOnly",
     "_meta": {
-      "title": "LoRA 2/2 — dopsd_white"
+      "title": "LoRA 2/2 \u2014 dopsd_white"
     }
   },
   "modelsampling": {
     "inputs": {
       "shift": 3.0,
       "model": [
-        "lora_style",
+        "lora_dpo",
         0
       ]
     },
     "class_type": "ModelSamplingAuraFlow",
     "_meta": {
-      "title": "ModelSamplingAuraFlow (shift 3.0 — Z-Image few-step stability)"
+      "title": "ModelSamplingAuraFlow (shift 3.0 \u2014 Z-Image few-step stability)"
     }
   },
   "deepshrink": {
@@ -66,7 +66,7 @@
     },
     "class_type": "PatchModelAddDownscale",
     "_meta": {
-      "title": "Deep-Shrink (Kohya, gonzaLomo v11) — hires coherence; block 3 x2 over first 35% of steps"
+      "title": "Deep-Shrink (Kohya, gonzaLomo v11) \u2014 hires coherence; block 3 x2 over first 35% of steps"
     }
   },
   "clip": {
@@ -77,7 +77,7 @@
     },
     "class_type": "ClipLoaderGGUF",
     "_meta": {
-      "title": "Load CLIP — Z-Image-Engineer-V6 Q8_0 GGUF (type lumina2; needs custom_nodes/ComfyUI-GGUF)"
+      "title": "Load CLIP \u2014 Z-Image-Engineer-V6 Q8_0 GGUF (type lumina2; needs custom_nodes/ComfyUI-GGUF)"
     }
   },
   "vae": {
@@ -86,7 +86,7 @@
     },
     "class_type": "VAELoader",
     "_meta": {
-      "title": "Load VAE (Flux ae — Z-Image 16ch)"
+      "title": "Load VAE (Flux ae \u2014 Z-Image 16ch)"
     }
   },
   "positive_prompt": {
@@ -99,7 +99,7 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "Positive (Qwen3-4B prose — PATCHED)"
+      "title": "Positive (Qwen3-4B prose \u2014 PATCHED)"
     }
   },
   "negative_prompt": {
@@ -112,7 +112,7 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "Negative (PATCHED → zeroed at cfg 1)"
+      "title": "Negative (PATCHED \u2192 zeroed at cfg 1)"
     }
   },
   "neg_zero": {
@@ -124,7 +124,7 @@
     },
     "class_type": "ConditioningZeroOut",
     "_meta": {
-      "title": "ConditioningZeroOut (cfg=1 → negative inert)"
+      "title": "ConditioningZeroOut (cfg=1 \u2192 negative inert)"
     }
   },
   "empty_latent": {
@@ -135,7 +135,7 @@
     },
     "class_type": "EmptySD3LatentImage",
     "_meta": {
-      "title": "EmptySD3LatentImage (16ch — W/H PATCHED to _HIRES_BASE_RESOLUTION ~1.9MP, deep-shrink keeps it coherent)"
+      "title": "EmptySD3LatentImage (16ch \u2014 W/H PATCHED to _HIRES_BASE_RESOLUTION ~1.9MP, deep-shrink keeps it coherent)"
     }
   },
   "ksampler": {
@@ -165,7 +165,7 @@
     },
     "class_type": "KSampler",
     "_meta": {
-      "title": "KSampler — Z-Image hires (dpmpp_sde/beta/8/cfg1; deep-shrink model chain)"
+      "title": "KSampler \u2014 Z-Image hires (dpmpp_sde/beta/8/cfg1; deep-shrink model chain)"
     }
   },
   "decode": {
@@ -181,7 +181,7 @@
     },
     "class_type": "VAEDecode",
     "_meta": {
-      "title": "VAE Decode — Z-Image (ae 16ch)"
+      "title": "VAE Decode \u2014 Z-Image (ae 16ch)"
     }
   },
   "save": {
@@ -194,7 +194,21 @@
     },
     "class_type": "SaveImage",
     "_meta": {
-      "title": "Save Image — Z-Image hires base"
+      "title": "Save Image \u2014 Z-Image hires base"
+    }
+  },
+  "lora_dpo": {
+    "inputs": {
+      "model": [
+        "lora_style",
+        0
+      ],
+      "lora_name": "zit/zit_fdpo_v1.safetensors",
+      "strength_model": 0.5
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoRA 3/3 \u2014 flow-DPO (F16 z-image-turbo-flow-dpo @0.5; aesthetic/lighting prior \u2014 counters Turbo flatness, A/B-verified dark+bright, no burn; tunable ~0.4-0.7)"
     }
   }
 }

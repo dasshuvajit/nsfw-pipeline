@@ -79,9 +79,15 @@ scripts/upscale_folder.py ── manual, selective true-4K (USDU, face-true deno
 - ComfyUI (separate, http://127.0.0.1:8188). **DEFAULT engine = Z-Image Turbo**
   (`--engine zimage`, 2026-06-19): official `z_image_turbo_bf16.safetensors` (Lumina2-arch,
   **Engineer-V6 Q8_0 GGUF TE** via `ClipLoaderGGUF` type=lumina2 [needs custom_nodes/ComfyUI-GGUF],
-  16ch Flux VAE, cfg 1.0) + a LoRA stack: `NSFW_master_ZIT` (restores anatomy on the NSFW-weak
-  official base — **TIER-GATED at render time: 0.8 at T3/T4, OFF at T1/T2 + covers, or it strips
-  clothing on funnel prompts**) + `dopsd_white` (style); + `ModelSamplingAuraFlow` shift 3.0,
+  16ch Flux VAE, cfg 1.0) + a 3-LoRA stack (all in `models/loras/zit/` — the zit/ prefix is
+  REQUIRED in the workflow or ComfyUI silently fails to load): `NSFW_master_ZIT` (restores anatomy
+  on the NSFW-weak official base — **TIER-GATED at render time: 0.8 at T3/T4, OFF at T1/T2 +
+  covers, or it strips clothing on funnel prompts**) → `dopsd_white` (style @0.8) → `zit_fdpo_v1`
+  (**flow-DPO** aesthetic LoRA @0.5, 2026-06-23 — F16/z-image-turbo-flow-dpo, Z-Image-native LoKr;
+  counters Turbo flatness/washed-out lighting, A/B-verified to add cinematic contrast on dark AND
+  polish on bright WITHOUT changing composition or burning; steps/cfg unchanged. NOT a distill/step
+  LoRA. Skipped: alibaba Fun-Lora-Distill = redundant on already-distilled Turbo + blur; UltraFlux =
+  FLUX-arch, won't load on Lumina2); + `ModelSamplingAuraFlow` shift 3.0,
   `dpmpp_sde`/beta/8. Template
   `templates/zimage/base.json` (`base_hires.json` for `--hires`). Render at the official
   ~1MP buckets (896×1152/1024²/1152×896 + widescreen 16:9 1360×768 & story 9:16
