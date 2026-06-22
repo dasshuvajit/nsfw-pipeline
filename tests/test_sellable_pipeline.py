@@ -1304,11 +1304,26 @@ def test_covers_use_native_framing_only(monkeypatch):
 
 
 def test_force_orientation_pins_the_whole_series(monkeypatch):
-    """--force-orientation overrides the per-scene choice so EVERY main frame is that
-    aspect (a pure widescreen / story / landscape series)."""
-    for o in ("widescreen", "story", "landscape", "square"):
-        orients = _capture_framings(monkeypatch, tier="T2_implied", force_orientation=o)
-        assert orients and all(x == o for x in orients), f"{o} not pinned: {orients}"
+    """--force-orientation HARD-pins every main frame's orientation — even when the
+    LLM EMITS a different one (it 'upgrades' a forced portrait to story for a standing
+    figure). Asserts the final ROW orientation, not just the assigned framing."""
+    ctr = [0]
+
+    def rec(client, **kw):
+        ctr[0] += 1
+        prose = " ".join("w%d" % (ctr[0] * 97 + j) for j in range(80))
+        # the LLM defies the assignment and emits 'story' every time
+        return {"prompt": prose, "orientation": "story",
+                "shot_type": "medium", "framing_rationale": "r"}
+
+    monkeypatch.setattr(AD, "generate_one", rec)
+    for o in ("widescreen", "portrait", "landscape", "square"):
+        rows = AD.generate_series(brief="b", tier="T2_implied", count=5, model_tag="m",
+                                  temperature=0.8, audit_gate=False, client=object(),
+                                  force_orientation=o)
+        assert rows, f"{o}: no rows"
+        assert all(r["orientation"] == o for r in rows), \
+            f"{o} not pinned in the row: {[r['orientation'] for r in rows]}"
 
 
 def test_sfw_cover_gate_rejects_nudity(monkeypatch):

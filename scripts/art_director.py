@@ -1713,6 +1713,12 @@ def generate_series(
             print(f"  (scene {i + 1} shipping best audit={score:.1f} after "
                   f"{max_attempts} attempts; issues={issues[:3]})",
                   file=sys.stderr, flush=True)
+        if force_orientation:
+            # HARD-pin: the assigned framing was already forced, but the LLM may
+            # still EMIT a different orientation (it "upgrades" a forced portrait to
+            # story for a standing figure). --force-orientation overrides the emitted
+            # value too — the prose was composed for the forced framing regardless.
+            cand["orientation"] = force_orientation
         ptext = cand["prompt"]
         nwords = len(ptext.split())
         lo, hi = word_band
