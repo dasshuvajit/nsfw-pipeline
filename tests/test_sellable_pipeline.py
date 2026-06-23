@@ -852,6 +852,26 @@ def test_audit_surface_ornament_counts_as_material():
         assert any(m in sample.lower() for m in _MATERIAL_NOUNS), noun
 
 
+def test_audit_materials_recognize_concrete_nouns():
+    """2026-06-23: _MATERIAL_NOUNS widened so concrete materials the engine writes
+    (azulejo/ivory/silver/lacquer/marabou…) earn specificity credit — a materially
+    rich prompt stops being false-flagged THIN_MATERIALS, while a genuinely
+    material-thin prompt still flags. Colour-words ('golden') are NOT credited."""
+    from scripts.audit_prompts import _MATERIAL_NOUNS, score_prompt
+    rich = ("She is curled on cool blue azulejo tiles, an ivory shawl slipping from "
+            "one shoulder, silver filigree earrings catching the last light beside a "
+            "black lacquer screen and a drift of marabou feathers.")
+    _, issues = score_prompt(rich + " She is fully nude, bare skin dewy in raking "
+                             "side-light.", "T3_artnude")
+    assert not any("THIN_MATERIALS" in i for i in issues), issues
+    # a genuinely material-thin prompt still flags (< 2 concrete nouns)
+    _, thin = score_prompt("A nude woman stands in soft glow, calm and still, in an "
+                           "empty pale void with nothing else around her.", "T3_artnude")
+    assert any("THIN_MATERIALS" in i for i in thin), thin
+    # colour-word 'golden' must NOT count as a material (would gut the check)
+    assert "golden" not in _MATERIAL_NOUNS and "gold" not in _MATERIAL_NOUNS
+
+
 def test_generate_one_injects_camera_angle():
     """The new camera-elevation axis (2026-06-18) is injected as a per-image
     directive when assigned."""

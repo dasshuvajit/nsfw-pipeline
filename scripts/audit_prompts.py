@@ -202,6 +202,13 @@ _MATERIAL_NOUNS = (
     # specificity credit. These let couture surface-work count toward the ladder.
     "embroider", "goldwork", "beadwork", "sequin", "filigree", "brocade",
     "applique",
+    # 2026-06-23 widening (audit-only — not imported by art_director): concrete
+    # materials the engine writes that the whitelist missed → false THIN_MATERIALS
+    # ("azulejo tiles", "ivory shawl", "silver filigree", "black lacquer",
+    # "marabou feathers"). Deliberately NOT adding colour-words like "gold/golden"
+    # that would trivially match "golden hour/light" and gut the check.
+    "silver", "ivory", "azulejo", "tile", "wood", "clay", "crystal", "jade",
+    "corduroy", "feather", "marabou", "lacquer",
 )
 _MICRO_TEXTURE_TOKENS = (
     "pores", "vellus", "freckle", "mole", "catchlight", "sheen",
