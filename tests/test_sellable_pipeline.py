@@ -784,6 +784,62 @@ def test_audit_booster_spares_house_voice():
         assert not any("BOOSTER" in i for i in issues), (txt, issues)
 
 
+def test_audit_cli_scores_covers_against_sfw_contract(tmp_path, monkeypatch, capsys):
+    """2026-06-23: the audit CLI scores SFW funnel COVERS against the public/SFW
+    (T1) contract, not the run tier — so a clean cover on a T3/T4 run is no longer
+    false-flagged T*_NO_NUDITY, AND a cover that LEAKS nudity is correctly caught
+    (LOW_TIER_NUDITY). Covers are summarised on their own line."""
+    import sys, json
+    from scripts.audit_prompts import main
+    nude_prompt = ("A woman stands fully nude in raking window light, her bare "
+                   "breasts and the dewy sheen of her skin lit from the left, a "
+                   "catchlight in her eye against the linen and plaster behind her.")
+    clean_cover = ("A woman in a champagne silk slip dress beneath a stone arch in a "
+                   "sunlit garden, a soft sheen on her bare shoulders, light raking "
+                   "from camera-left across the travertine.")
+    leak_cover = ("A woman stands fully nude beneath the arch, her bare breasts and "
+                  "areola lit by a shaft of light from the left.")
+    manifest = {"tier": "T3_artnude",
+                "prompts": [{"prompt": nude_prompt}],
+                "covers": [{"prompt": clean_cover}, {"prompt": leak_cover}]}
+    (tmp_path / "manifest.json").write_text(json.dumps(manifest))
+    monkeypatch.setattr(sys, "argv", ["audit_prompts", str(tmp_path)])
+    rc = main()
+    out = capsys.readouterr().out
+    assert rc == 0
+    # covers are labelled + summarised separately
+    assert "(cover, scored SFW)" in out and "Covers (SFW)" in out
+    # the run-tier nudity contract is NEVER applied to any entry here (content
+    # prompt is nude; covers scored T1) → no false T3_NO_NUDITY anywhere
+    assert "T3_NO_NUDITY" not in out
+    # SAFETY: the leaking cover IS caught by the SFW contract
+    assert "LOW_TIER_NUDITY" in out
+
+
+def test_audit_detectors_recognize_current_prose():
+    """2026-06-23: the light-direction + micro-texture detector lists were widened
+    to match the prose the engine now writes (shaft/rim/dappled/filtered light;
+    damp/dewy/glistening skin) so craft-rich prompts stop being false-flagged —
+    while genuinely directionless / texture-thin prompts still flag."""
+    from scripts.audit_prompts import score_prompt
+    rich = [
+        "She reclines as a single shaft of light falls across her bare skin, the "
+        "dewy sheen of her shoulders catching it, fully nude on dark linen.",
+        "A cold rim light rims her shoulder while dappled light filters through a "
+        "latticed screen above, her damp nude body glistening in the gloom.",
+    ]
+    for txt in rich:
+        _, issues = score_prompt(txt, "T3_artnude")
+        assert not any("NO_LIGHT_DIRECTION" in i for i in issues), txt
+        assert not any("THIN_MICRO_TEXTURE" in i for i in issues), txt
+    # a flat, directionless, texture-thin prompt still flags both
+    flat = ("A nude woman stands in a room under soft even ambient glow with "
+            "uniform illumination everywhere, calm and still.")
+    _, issues = score_prompt(flat, "T3_artnude")
+    assert any("NO_LIGHT_DIRECTION" in i for i in issues), issues
+    assert any("THIN_MICRO_TEXTURE" in i for i in issues), issues
+
+
 def test_audit_surface_ornament_counts_as_material():
     """Couture surface-work (embroidery/goldwork/beadwork/filigree/brocade) now earns
     specificity credit so 'navy lace with gold-thread embroidery' reads as concrete."""

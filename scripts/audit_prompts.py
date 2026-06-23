@@ -164,6 +164,25 @@ _LIGHT_DIRECTION_TOKENS = (
     "from the right", "raking", "backlit", "back-lit", "side-lit",
     "sidelight", "side light", "rim-lit", "overhead", "low-angled",
     "from a high window", "from one side", "obliquely", "low and from",
+    # 2026-06-23 widening (audit-only — not imported by art_director): the prose
+    # the engine now writes describes directional light richly but rarely uses
+    # the literal camera-relative tokens above, so craft-rich prompts were
+    # false-flagged NO_LIGHT_DIRECTION. These are all genuinely about a light
+    # SOURCE/DIRECTION (beams, rim/edge light, shadow-casting, raking/spill,
+    # up/under-light), not universal filler.
+    "shaft of", "shafts of", "a shaft", "slats of", "slatted",
+    "rim light", "rim-light", "rimlight", "rims her", "rim to her",
+    "casts deep", "casts long", "cast shadows", "casting shadow", "casts shadow",
+    "throws shadow", "throwing shadow", "rakes", "grazing", "grazes",
+    "spills across", "spilling across", "falls across", "falling across",
+    "uplit", "up-lit", "underlit", "under-lit", "lit from",
+    "haloed", "halo of light", "key light",
+    # filtered/patterned-source family (light shaped by a screen/lattice/foliage
+    # from a definite direction): "sun filters through a latticed screen above,
+    # casting a mosaic of light and shadow… the patterned light".
+    "filters through", "filtered through", "filtering through", "dappled",
+    "latticed", "through a lattice", "patterned light", "play of light",
+    "mosaic of light", "pool of light", "sculpted by", "sculpts the",
 )
 _MATERIAL_NOUNS = (
     "velvet", "marble", "brass", "linen", "silk", "oak", "stone",
@@ -188,6 +207,11 @@ _MICRO_TEXTURE_TOKENS = (
     "pores", "vellus", "freckle", "mole", "catchlight", "sheen",
     "grain", "goosebumps", "flush", "dew", "down at her", "fine down",
     "peach fuzz", "translucency",
+    # 2026-06-23 widening (audit-only): genuine skin micro-texture/moisture the
+    # engine writes ("damp from a recent bath", "dewy thighs", "glistening
+    # shoulders") that the original list missed → false THIN_MICRO_TEXTURE.
+    "damp", "dewy", "beads of", "bead of", "sweat", "perspiration",
+    "wet-look", "wet skin", "glistening", "moist", "downy", "soft down",
 )
 
 
@@ -656,23 +680,35 @@ def main() -> int:
         return 1
     data = json.loads(f.read_text())
     tier = data.get("tier", "T3_artnude")
-    rows = (data.get("prompts") or []) + (data.get("covers") or [])
+    prompt_rows = data.get("prompts") or []
+    cover_rows = data.get("covers") or []
+    n_prompts = len(prompt_rows)
+    rows = prompt_rows + cover_rows
     texts = [(r.get("prompt") or "") for r in rows]
 
     print("=" * 72)
     print(f"AUDIT — {f}")
-    print(f"  tier: {tier}   prompts (incl. covers): {len(rows)}")
+    print(f"  tier: {tier}   {n_prompts} content prompt(s) + "
+          f"{len(cover_rows)} cover(s)")
     print("=" * 72 + "\n")
 
-    scores: list[float] = []
+    scores: list[float] = []        # content prompts only — the product signal
+    cover_scores: list[float] = []  # SFW funnel covers, reported separately
     for i, txt in enumerate(texts):
         if not txt:
             continue
+        is_cover = i >= n_prompts
+        # Covers are SFW funnel images regardless of the run tier. Score them
+        # against the public/SFW contract (T1) so the explicit-tier "requires
+        # nudity" rule can't false-flag a clean cover as T*_NO_NUDITY — and so
+        # that overt nudity in a cover prompt is correctly caught as a leak.
+        row_tier = "T1_suggestive" if is_cover else tier
         # context = the prompts accepted BEFORE this one (freshness ladder)
-        score, issues = score_prompt(txt, tier, context_prompts=texts[:i])
-        scores.append(score)
+        score, issues = score_prompt(txt, row_tier, context_prompts=texts[:i])
+        (cover_scores if is_cover else scores).append(score)
         rating = "✓" if score >= 8.5 else ("△" if score >= 7 else "✗")
-        print(f"[{rating}] #{i + 1:02d} — score {score:.1f}/10 "
+        label = f"#{i + 1:02d}" + ("  (cover, scored SFW)" if is_cover else "")
+        print(f"[{rating}] {label} — score {score:.1f}/10 "
               f"({count_sentences(txt)}s, {word_count(txt)}w)")
         for issue in issues:
             print(f"    {issue}")
@@ -680,14 +716,19 @@ def main() -> int:
             print(f"    PROMPT: {txt[:240]}…")
         print()
 
-    if not scores:
+    if not scores and not cover_scores:
         print("No prompts found.")
         return 1
     print("=" * 72)
-    avg = sum(scores) / len(scores)
-    print(f"  Average score: {avg:.2f}/10   "
-          f"≥8.5: {sum(1 for s in scores if s >= 8.5)}/{len(scores)}   "
-          f"<7: {sum(1 for s in scores if s < 7)}/{len(scores)}")
+    if scores:
+        avg = sum(scores) / len(scores)
+        print(f"  Content prompts: avg {avg:.2f}/10   "
+              f"≥8.5: {sum(1 for s in scores if s >= 8.5)}/{len(scores)}   "
+              f"<7: {sum(1 for s in scores if s < 7)}/{len(scores)}")
+    if cover_scores:
+        cavg = sum(cover_scores) / len(cover_scores)
+        print(f"  Covers (SFW):    avg {cavg:.2f}/10   "
+              f"≥8.5: {sum(1 for s in cover_scores if s >= 8.5)}/{len(cover_scores)}")
     print("=" * 72)
     return 0
 
