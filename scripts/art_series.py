@@ -215,8 +215,13 @@ def _load_global_openers(recent_runs: int = 3) -> list[str]:
 # This pipeline's prompts run ~5K tokens (the T4 explicit system+reveal prompt is
 # the largest); LM Studio's JIT default context (often 4096) is too small and
 # returns HTTP 400. Ensure the model is resident at a large context before gen.
-LLM_MIN_CONTEXT = 8192       # reload if the loaded context is smaller than this
-LLM_LOAD_CONTEXT = 32768     # the registry-native context we (re)load at
+LLM_MIN_CONTEXT = 12288      # reload if the loaded context is smaller than this
+                             # (prompts run ~10-11k tokens; 8192 silently passed the
+                             # guard yet 400'd at gen — 2026-06-24 overnight failure)
+LLM_LOAD_CONTEXT = 16384     # (re)load context: fits the ~10-11k prompts with headroom
+                             # and stays memory-safe. 32768 SIGKILL-OOM'd at load on the
+                             # 48GB box (26B + 32k KV alongside the resident ComfyUI
+                             # server) → JIT fell back to 8192 → every prompt 400'd.
 
 
 def _ensure_llm_loaded(model_tag: str) -> None:
@@ -247,7 +252,8 @@ def _ensure_llm_loaded(model_tag: str) -> None:
     try:  # (re)load at the large context
         subprocess.run([lms, "unload", "--all"], timeout=30, capture_output=True)
         res = subprocess.run(
-            [lms, "load", model_tag, "--context-length", str(LLM_LOAD_CONTEXT), "-y"],
+            [lms, "load", model_tag, "--context-length", str(LLM_LOAD_CONTEXT),
+             "--parallel", "1", "-y"],   # parallel 1 keeps KV small → memory-safe load
             timeout=300, capture_output=True, text=True)
         if res.returncode != 0:
             # Previously this printed success unconditionally — a typoed tag /

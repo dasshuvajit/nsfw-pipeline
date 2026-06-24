@@ -1585,3 +1585,21 @@ def test_generate_one_injects_creative_axes():
     assert "CREATIVE CONCEPT" in u and "quiet power" in u
     assert "SENSUAL STYLING" in u and "slipping off one shoulder" in u
     assert "COMPOSITION" in u and "LEADING LINES" in u
+
+
+def test_llm_context_constants_fit_prompts_and_stay_memory_safe():
+    """2026-06-24 regression: the LM Studio preload context constants must (a) treat
+    anything below a real prompt (~10-11k tokens) as insufficient so the guard
+    reloads, and (b) stay memory-safe at load. The prior 8192/32768 pair silently
+    let an 8192 JIT load pass the guard yet 400'd at generation, and 32768 SIGKILL-
+    OOM'd at load (26B + 32k KV alongside the resident ComfyUI server) → 0/6 prompts.
+    Empirically, 16384 @ parallel 1 loads in ~6s at 16.75 GiB."""
+    import re
+    from scripts.art_series import LLM_MIN_CONTEXT, LLM_LOAD_CONTEXT
+    assert LLM_MIN_CONTEXT >= 12288, "guard threshold must exceed a real ~10-11k prompt"
+    assert LLM_LOAD_CONTEXT >= LLM_MIN_CONTEXT, "load context must clear the guard"
+    assert LLM_LOAD_CONTEXT <= 20480, "stay memory-safe on 48GB (32768 OOM-kills at load)"
+    # the (re)load must pin parallel low so KV stays small and the load doesn't OOM
+    src = Path("scripts/art_series.py").read_text()
+    m = re.search(r'"load",\s*model_tag.*?\]', src, re.S)
+    assert m and '"--parallel"' in m.group(0), "lms load must pin --parallel for a safe KV size"
