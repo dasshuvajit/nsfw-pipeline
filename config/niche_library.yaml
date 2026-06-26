@@ -668,6 +668,7 @@ niches:
     weight: 1.0
     tier_band: [T2_implied, T3_artnude, T4_explicit]
     da_folder: "Fine-Art Black & White"
+    grayscale: true  # Z-Image renders muted COLOUR even when prompted 'monochrome'; output is deterministically desaturated to true B&W at package time so the gallery is actually black-and-white.
     family: atelier
     source: fineart_bw
     tags: [blackandwhite, monochrome, fineart, figurestudy, chiaroscuro, filmnoir,

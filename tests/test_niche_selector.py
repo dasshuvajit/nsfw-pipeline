@@ -503,3 +503,15 @@ def test_niche_rejects_auto_tier_outside_band():
             "auto_tier": "T2_implied",  # not in band
             "sub_looks": ["a"], "brief_seed": "s",
         })
+
+
+def test_monochrome_niche_flags_grayscale(lib):
+    """2026-06-26: monochrome_fine_art is flagged grayscale so its renders are
+    deterministically desaturated to true B&W at package time (the model renders
+    muted colour from a 'monochrome' prompt). Other niches stay colour."""
+    by_id = {n.id: n for n in lib.niches}
+    assert by_id["monochrome_fine_art"].grayscale is True
+    assert by_id["mythology_goddess"].grayscale is False
+    # grayscale is a narrow opt-in, not accidentally broad
+    grays = [n.id for n in lib.niches if n.grayscale]
+    assert grays == ["monochrome_fine_art"], grays

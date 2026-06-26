@@ -54,6 +54,10 @@ class Niche:
     lock_wardrobe: bool = False      # wardrobe is era/genre/culture/setting-defining (heritage
     #                                  dress, period costume, or a bathhouse's robe/towel) → skip
     #                                  the portable GARMENT_TYPES axis (the sub_look governs)
+    grayscale: bool = False          # render output is forced to true black & white at
+    #                                  package time (Z-Image renders muted COLOUR even when
+    #                                  prompted 'monochrome'; a deterministic desaturation
+    #                                  guarantees the gallery is actually B&W)
     auto_tier: str = ""              # preferred tier for the --auto rotation (must be in
     #                                  tier_band). Garment/cultural niches whose VALUE is the
     #                                  couture (the dress IS the content) declare a tasteful
@@ -78,6 +82,7 @@ class Niche:
                 avoid_motifs=list(d.get("avoid_motifs") or []),
                 family=str(d.get("family", "")),
                 lock_wardrobe=bool(d.get("lock_wardrobe", False)),
+                grayscale=bool(d.get("grayscale", False)),
                 auto_tier=str(d.get("auto_tier", "")),
             )
         except (KeyError, TypeError, ValueError) as exc:

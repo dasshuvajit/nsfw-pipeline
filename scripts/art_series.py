@@ -1159,17 +1159,26 @@ def _package(
     # that adds the look Z-Image/Chroma under-render. Runs on public AND gated,
     # AFTER render and BEFORE watermark (so branding sits on the graded frame); 4K
     # is graded post-USDU in upscale_folder, never here (2026-06-18 R&D).
-    if postgrade_cfg and postgrade_cfg.get("enabled", True):
+    # Grayscale niches get a deterministic desaturation to TRUE black & white (the
+    # model renders muted colour even when prompted 'monochrome') — this runs even
+    # when the colour post-grade is disabled, so a B&W gallery is always B&W.
+    is_grayscale = bool(getattr(selection.niche, "grayscale", False))
+    color_grade = bool(postgrade_cfg and postgrade_cfg.get("enabled", True))
+    if is_grayscale or color_grade:
         try:
             from src.postprocess.grader import Grader
-            grader = Grader(postgrade_cfg)
+            grader = Grader(postgrade_cfg or {})
             n_graded = 0
             for d in (public_dir, gated_dir):
                 for p in sorted(d.glob("*.png")):
-                    grader.apply(p, p)
+                    if is_grayscale:
+                        grader.apply_monochrome(p, p)   # full desaturation → B&W
+                    else:
+                        grader.apply(p, p)              # filmic colour grade
                     n_graded += 1
-            print(f"  post-grade: {n_graded} image(s) graded "
-                  f"(strength {grader.strength})", flush=True)
+            label = "desaturated to true B&W" if is_grayscale else \
+                f"graded (strength {grader.strength})"
+            print(f"  post-grade: {n_graded} image(s) {label}", flush=True)
         except Exception as exc:  # noqa: BLE001 — images are safe; grade is optional polish
             print(f"  (post-grade skipped: {exc})", file=sys.stderr, flush=True)
 

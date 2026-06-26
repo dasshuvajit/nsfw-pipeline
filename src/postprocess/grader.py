@@ -54,6 +54,30 @@ class Grader:
         graded = self._grade(a)
         blended = np.clip(graded * self.strength + a * (1.0 - self.strength), 0.0, 1.0)
         result = Image.fromarray((blended * 255.0 + 0.5).astype(np.uint8), "RGB")
+        self._save(result, out, text)
+
+    def apply_monochrome(self, src: "str | Path", out: "str | Path") -> None:
+        """True fine-art black & white: FULL luminance desaturation + a neutral
+        filmic contrast S-curve, vignette and grain — the warm split-tone and warm
+        bloom are skipped so the output stays pure grey. Z-Image renders muted
+        COLOUR even when the prompt says 'monochrome'; this guarantees grayscale
+        for niches flagged ``grayscale``. PNG text chunks are preserved."""
+        src, out = Path(src), Path(out)
+        with Image.open(src) as im:
+            text = dict(getattr(im, "text", {}) or {})
+            a = np.asarray(im.convert("RGB"), dtype=np.float32) / 255.0
+        g = np.repeat(_luma(a), 3, axis=2)                       # full desaturation → grey
+        g = g + self.shadow_lift * (1.0 - g)                    # filmic shadow lift
+        g = np.clip(0.5 + (1.0 + self.contrast) * (g - 0.5), 0.0, 1.0)  # contrast S-curve
+        if self.vignette > 0:                                   # neutral (mask is per-pixel)
+            g = g * self._vignette_mask(g.shape)
+        if self.grain > 0:                                      # neutral (same noise all 3ch)
+            g = np.clip(g + self._grain(g.shape), 0.0, 1.0)
+        result = Image.fromarray((g * 255.0 + 0.5).astype(np.uint8), "RGB")
+        self._save(result, out, text)
+
+    @staticmethod
+    def _save(result: Image.Image, out: Path, text: dict) -> None:
         if text:
             info = PngInfo()
             for k, v in text.items():
