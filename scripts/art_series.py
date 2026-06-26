@@ -1311,8 +1311,11 @@ def main() -> int:
                     help="bind a specific persona by name (e.g. Clara)")
     ap.add_argument("--brief", default=None,
                     help="manual creative brief/theme (overrides niche selection)")
-    ap.add_argument("--tier", default="T3_artnude",
-                    choices=list(art_director.TIER_DIRECTIVES))
+    ap.add_argument("--tier", default=None,
+                    choices=list(art_director.TIER_DIRECTIVES),
+                    help="content tier (default T3_artnude). In --auto, a niche's "
+                         "auto_tier (tasteful T1/T2 for couture/cultural niches) is "
+                         "used unless --tier is passed explicitly.")
     ap.add_argument("--count", type=int, default=6, help="number of prompts")
     ap.add_argument("--seeds", type=int, default=1,
                     help="renders per prompt (>1 = candidates to pick from)")
@@ -1380,6 +1383,11 @@ def main() -> int:
     ap.add_argument("--out-dir", default="",
                     help="output dir (default: output/art_series/<timestamp>)")
     args = ap.parse_args()
+    # Distinguish an EXPLICIT --tier from the default so the --auto rotation can
+    # honour each niche's auto_tier; an explicit --tier always wins.
+    tier_explicit = args.tier is not None
+    if args.tier is None:
+        args.tier = "T3_artnude"
 
     if not (args.auto or args.niche or args.brief):
         ap.error("provide one of --auto, --niche <id>, or --brief <text>")
@@ -1484,6 +1492,16 @@ def main() -> int:
                     print("=== niche cycle complete — starting a fresh "
                           "rotation ===", flush=True)
                 chosen_niche_id = picked.id
+                # Per-niche auto-tier: couture/cultural niches whose VALUE is the
+                # garment run their tasteful tier in --auto (feeding the public DA
+                # funnel) instead of being forced to T3 — where the nudity contract
+                # fought the costume → dropped scenes + soft prompts. Explicit
+                # --tier always wins; auto_tier is validated ∈ tier_band at load.
+                if not tier_explicit and picked.auto_tier and picked.auto_tier != args.tier:
+                    print(f"=== auto-tier: {picked.id} → {picked.auto_tier} "
+                          f"(niche's preferred --auto tier; default was {args.tier}) ===",
+                          flush=True)
+                    args.tier = picked.auto_tier
             selection = build_selection(
                 library, niche_cursor, tier=args.tier,
                 force_niche=chosen_niche_id,

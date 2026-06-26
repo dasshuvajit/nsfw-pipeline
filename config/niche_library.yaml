@@ -192,6 +192,7 @@ niches:
     weight: 0.9
     tier_band: [T2_implied, T3_artnude]
     da_folder: "Film-Noir Boudoir"
+    auto_tier: T2_implied  # satin/shadow glamour is the content; --auto runs the tasteful tier. T3 reachable via explicit --tier.
     family: gilded_glamour
     source: dark_boudoir_neonoir
     tags: [filmnoir, noir, blackandwhite, moody, shadow, vintage, boudoir,
@@ -226,6 +227,7 @@ niches:
     # intact garments so the TIER governs undress. T1 public + T3 gated artnude.
     tier_band: [T1_suggestive, T3_artnude]
     da_folder: "Art Deco Boudoir"
+    auto_tier: T1_suggestive  # deco couture/lingerie glamour is the content; --auto runs the safe public tier (T2 dropped for drift above; T3 reachable via explicit --tier).
     family: gilded_glamour
     source: luxury_editorial
     tags: [artdeco, 1920s, flapper, gatsby, pearls, vintage, elegant, glamour,
@@ -257,6 +259,7 @@ niches:
     weight: 1.0
     tier_band: [T2_implied, T3_artnude]
     da_folder: "Dark Romantic"
+    auto_tier: T2_implied  # gothic gowns/romance are the content; --auto runs the tasteful tier. T3 reachable via explicit --tier.
     family: nocturne
     source: dark_moody
     tags: [goth, gothic, darkart, sensual, moody, candlelight, romantic, glamour,
@@ -541,6 +544,7 @@ niches:
     weight: 0.9
     tier_band: [T1_suggestive, T2_implied, T3_artnude, T4_explicit]
     da_folder: "Lady of the Castle"
+    auto_tier: T2_implied  # the medieval gown IS the content; --auto runs the tasteful tier (T3 nudity contract fought the costume → dropped scenes). T3/T4 still reachable via explicit --tier.
     family: myth_crown
     lock_wardrobe: true
     source: medieval_fantasy
@@ -786,6 +790,7 @@ niches:
     weight: 1.0
     tier_band: [T1_suggestive, T2_implied, T3_artnude]
     da_folder: "South Asian Editorial"
+    auto_tier: T2_implied  # heritage couture (sari/lehenga) is the content; --auto runs the tasteful, culturally-respectful tier (avoids exoticized nudes). T3 reachable via explicit --tier.
     family: gilded_glamour
     lock_wardrobe: true
     source: heritage_couture
@@ -814,6 +819,7 @@ niches:
     weight: 1.0
     tier_band: [T1_suggestive, T2_implied, T3_artnude]
     da_folder: "Iberian Flamenco"
+    auto_tier: T2_implied  # flamenco couture is the content; --auto runs the tasteful, culturally-respectful tier. T3 reachable via explicit --tier.
     family: gilded_glamour
     lock_wardrobe: true
     source: heritage_glamour
@@ -842,6 +848,7 @@ niches:
     weight: 1.0
     tier_band: [T1_suggestive, T2_implied, T3_artnude]
     da_folder: "Slavic Folk"
+    auto_tier: T2_implied  # folk dress is the content; --auto runs the tasteful, culturally-respectful tier. T3 reachable via explicit --tier.
     family: myth_crown
     lock_wardrobe: true
     source: folk_romantic

@@ -9,6 +9,7 @@ import pytest
 
 from src.niche.selector import (
     AestheticLock,
+    Niche,
     NicheLibrary,
     NicheLibraryError,
     Persona,
@@ -455,3 +456,43 @@ def test_aspirational_luxe_sub_looks_clear_audit_specificity(lib):
     # cramming that made every render look alike).
     shared = set.intersection(*per_look_materials)
     assert not shared, f"material(s) in EVERY sub_look (sameness): {shared}"
+
+
+def test_auto_tier_in_band_and_set_on_couture_niches(lib):
+    """2026-06-26 niche×tier fix: couture/cultural niches whose VALUE is the garment
+    declare an auto_tier (the tasteful tier --auto runs them at, instead of forcing
+    T3 where the nudity contract fought the costume → dropped scenes). Every auto_tier
+    must be IN the niche's tier_band; nude-coded niches leave it blank."""
+    expected = {
+        "medieval_lady": "T2_implied",
+        "film_noir_boudoir": "T2_implied",
+        "art_deco_boudoir": "T1_suggestive",   # band has no T2 (dropped for drift)
+        "goth_romantic": "T2_implied",
+        "south_asian_editorial": "T2_implied",
+        "iberian_flamenco": "T2_implied",
+        "slavic_folk": "T2_implied",
+    }
+    by_id = {n.id: n for n in lib.niches}
+    for nid, tier in expected.items():
+        assert by_id[nid].auto_tier == tier, f"{nid} auto_tier"
+    # invariant across the whole library: any auto_tier set is within the band,
+    # and it's a tasteful (non-explicit) tier — the whole point is funnel-safe output
+    for n in lib.niches:
+        if n.auto_tier:
+            assert n.auto_tier in n.tier_band, f"{n.id}: auto_tier not in band"
+            assert n.auto_tier in ("T1_suggestive", "T2_implied"), \
+                f"{n.id}: auto_tier should be a tasteful public tier"
+    # nude-coded niches keep it blank → --auto still runs them at the T3 default
+    assert by_id["fine_art_figure_study"].auto_tier == ""
+    assert by_id["aspirational_luxe"].auto_tier == ""
+
+
+def test_niche_rejects_auto_tier_outside_band():
+    """The model guards against a typo'd auto_tier that isn't in the band (which would
+    later blow up at build_selection's tier check)."""
+    with pytest.raises(NicheLibraryError):
+        Niche.from_dict({
+            "id": "x", "tier_band": ["T1_suggestive", "T3_artnude"],
+            "auto_tier": "T2_implied",  # not in band
+            "sub_looks": ["a"], "brief_seed": "s",
+        })

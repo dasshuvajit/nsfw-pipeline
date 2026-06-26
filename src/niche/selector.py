@@ -54,11 +54,17 @@ class Niche:
     lock_wardrobe: bool = False      # wardrobe is era/genre/culture/setting-defining (heritage
     #                                  dress, period costume, or a bathhouse's robe/towel) → skip
     #                                  the portable GARMENT_TYPES axis (the sub_look governs)
+    auto_tier: str = ""              # preferred tier for the --auto rotation (must be in
+    #                                  tier_band). Garment/cultural niches whose VALUE is the
+    #                                  couture (the dress IS the content) declare a tasteful
+    #                                  T1/T2 here so --auto runs them where they shine + feeds
+    #                                  the public DA funnel; nude-coded niches leave it blank
+    #                                  and --auto uses its default (T3). Empty → no override.
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "Niche":
         try:
-            return cls(
+            niche = cls(
                 id=str(d["id"]),
                 niche_class=str(d.get("class", "core")),
                 weight=float(d.get("weight", 1.0)),
@@ -72,9 +78,15 @@ class Niche:
                 avoid_motifs=list(d.get("avoid_motifs") or []),
                 family=str(d.get("family", "")),
                 lock_wardrobe=bool(d.get("lock_wardrobe", False)),
+                auto_tier=str(d.get("auto_tier", "")),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise NicheLibraryError(f"invalid niche entry {d!r}: {exc}") from exc
+        if niche.auto_tier and niche.auto_tier not in niche.tier_band:
+            raise NicheLibraryError(
+                f"niche {niche.id!r}: auto_tier {niche.auto_tier!r} not in "
+                f"tier_band {niche.tier_band}")
+        return niche
 
 
 @dataclass(frozen=True)
