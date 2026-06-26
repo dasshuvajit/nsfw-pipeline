@@ -1606,16 +1606,22 @@ def generate_series(
                                 # is not the prompt's fault)
         while attempt < max_attempts:
             # Blind-retry fix: escalate temperature on later attempts to escape
-            # deterministic failure basins; final attempt of an otherwise-failed
-            # scene switches to the Cydonia fallback (different lineage+backend —
-            # the pool routes the tag to Ollama).
+            # deterministic failure basins. The final attempt of an otherwise-
+            # failed scene is a HARD SALVAGE — escalate temperature further on the
+            # loaded PRIMARY rather than switching to the Ollama Cydonia tag. The
+            # Cydonia model is frequently not pulled (Ollama empty) → the switch
+            # was a guaranteed 404 that simply dropped the scene (2026-06-26: this
+            # recurred ~1/3 runs, losing a prompt or cover). A high-temp primary
+            # retry has a real chance of clearing the gate with zero backend
+            # dependency. (Cydonia remains the registry fallback_llm for explicit
+            # --model-tag use / painterly-light niches; it's just no longer the
+            # automatic per-scene salvage path.)
             cur_temp = temperature + (0.1 if attempt >= 2 else 0.0)
             cur_tag = model_tag
-            if (attempt == max_attempts - 1 and best is None
-                    and model_tag != CYDONIA_TAG):
-                cur_tag = CYDONIA_TAG
-                print(f"  (scene {i + 1} final attempt — falling back to "
-                      f"{CYDONIA_TAG})", file=sys.stderr, flush=True)
+            if attempt == max_attempts - 1 and best is None:
+                cur_temp = temperature + 0.3
+                print(f"  (scene {i + 1} final salvage — primary @ temp "
+                      f"{cur_temp:.2f})", file=sys.stderr, flush=True)
             attempt_directive = series_directive
             if feedback:
                 attempt_directive += (
