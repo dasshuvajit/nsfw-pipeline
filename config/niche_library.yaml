@@ -544,7 +544,7 @@ niches:
     weight: 0.9
     tier_band: [T1_suggestive, T2_implied, T3_artnude, T4_explicit]
     da_folder: "Lady of the Castle"
-    auto_tier: T2_implied  # the medieval gown IS the content; --auto runs the tasteful tier (T3 nudity contract fought the costume → dropped scenes). T3/T4 still reachable via explicit --tier.
+    auto_tier: T1_suggestive  # lock_wardrobe: the velvet-brocade gown IS the content. T1 keeps it WORN; T2/T3 drape-or-strip it (verified) → generic glamour + dropped scenes. T3/T4 via explicit --tier.
     family: myth_crown
     lock_wardrobe: true
     source: medieval_fantasy
@@ -790,7 +790,7 @@ niches:
     weight: 1.0
     tier_band: [T1_suggestive, T2_implied, T3_artnude]
     da_folder: "South Asian Editorial"
-    auto_tier: T2_implied  # heritage couture (sari/lehenga) is the content; --auto runs the tasteful, culturally-respectful tier (avoids exoticized nudes). T3 reachable via explicit --tier.
+    auto_tier: T1_suggestive  # lock_wardrobe: the sari/lehenga IS the content. T1 keeps it WORN (verified: gorgeous, respectful, distinctive); T2 drapes it off → generic satin, lost cultural identity. Avoids exoticized nudes. T3 via explicit --tier.
     family: gilded_glamour
     lock_wardrobe: true
     source: heritage_couture
@@ -819,7 +819,7 @@ niches:
     weight: 1.0
     tier_band: [T1_suggestive, T2_implied, T3_artnude]
     da_folder: "Iberian Flamenco"
-    auto_tier: T2_implied  # flamenco couture is the content; --auto runs the tasteful, culturally-respectful tier. T3 reachable via explicit --tier.
+    auto_tier: T1_suggestive  # lock_wardrobe: the flamenco dress IS the content. T1 keeps it WORN (respectful, distinctive); T2 drapes it off. T3 via explicit --tier.
     family: gilded_glamour
     lock_wardrobe: true
     source: heritage_glamour
@@ -848,7 +848,7 @@ niches:
     weight: 1.0
     tier_band: [T1_suggestive, T2_implied, T3_artnude]
     da_folder: "Slavic Folk"
-    auto_tier: T2_implied  # folk dress is the content; --auto runs the tasteful, culturally-respectful tier. T3 reachable via explicit --tier.
+    auto_tier: T1_suggestive  # lock_wardrobe: the embroidered folk dress IS the content. T1 keeps it WORN (respectful, distinctive); T2 drapes it off. T3 via explicit --tier.
     family: myth_crown
     lock_wardrobe: true
     source: folk_romantic

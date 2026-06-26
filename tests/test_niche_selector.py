@@ -464,24 +464,31 @@ def test_auto_tier_in_band_and_set_on_couture_niches(lib):
     T3 where the nudity contract fought the costume → dropped scenes). Every auto_tier
     must be IN the niche's tier_band; nude-coded niches leave it blank."""
     expected = {
-        "medieval_lady": "T2_implied",
+        # garment-LOCKED niches → T1 (keep the heritage/period dress WORN; T2 drapes
+        # it off → generic glamour + lost identity, verified by render):
+        "medieval_lady": "T1_suggestive",
+        "south_asian_editorial": "T1_suggestive",
+        "iberian_flamenco": "T1_suggestive",
+        "slavic_folk": "T1_suggestive",
+        "art_deco_boudoir": "T1_suggestive",    # band has no T2 (dropped for drift)
+        # non-locked glamour niches → T2 (sensual-implied is on-brand; no garment to keep):
         "film_noir_boudoir": "T2_implied",
-        "art_deco_boudoir": "T1_suggestive",   # band has no T2 (dropped for drift)
         "goth_romantic": "T2_implied",
-        "south_asian_editorial": "T2_implied",
-        "iberian_flamenco": "T2_implied",
-        "slavic_folk": "T2_implied",
     }
     by_id = {n.id: n for n in lib.niches}
     for nid, tier in expected.items():
         assert by_id[nid].auto_tier == tier, f"{nid} auto_tier"
-    # invariant across the whole library: any auto_tier set is within the band,
-    # and it's a tasteful (non-explicit) tier — the whole point is funnel-safe output
     for n in lib.niches:
         if n.auto_tier:
+            # any auto_tier is in-band and a tasteful (non-explicit) public tier
             assert n.auto_tier in n.tier_band, f"{n.id}: auto_tier not in band"
             assert n.auto_tier in ("T1_suggestive", "T2_implied"), \
                 f"{n.id}: auto_tier should be a tasteful public tier"
+            # garment-locked niches must use T1 — T2's implied-undress directive
+            # strips the locked heritage/period garment that IS the niche's value.
+            if n.lock_wardrobe:
+                assert n.auto_tier == "T1_suggestive", \
+                    f"{n.id}: lock_wardrobe niche must auto_tier to T1 (T2 strips the garment)"
     # nude-coded niches keep it blank → --auto still runs them at the T3 default
     assert by_id["fine_art_figure_study"].auto_tier == ""
     assert by_id["aspirational_luxe"].auto_tier == ""
