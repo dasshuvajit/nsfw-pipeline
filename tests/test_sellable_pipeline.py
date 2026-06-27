@@ -1603,3 +1603,37 @@ def test_llm_context_constants_fit_prompts_and_stay_memory_safe():
     src = Path("scripts/art_series.py").read_text()
     m = re.search(r'"load",\s*model_tag.*?\]', src, re.S)
     assert m and '"--parallel"' in m.group(0), "lms load must pin --parallel for a safe KV size"
+
+
+def test_grade_presets_cover_all_families_and_lean_by_mood():
+    """2026-06-27 cinematic push: every DA family has a post-grade preset, and the
+    tone matches the mood — cool for the dark nocturne family, neutral for the fine-art
+    atelier, warm for glamour/golden-hour/myth. Presets merge OVER the base cfg."""
+    from scripts.art_series import _GRADE_PRESETS
+    fams = {"atelier", "nocturne", "gilded_glamour", "golden_hour", "myth_crown"}
+    assert set(_GRADE_PRESETS) == fams, set(_GRADE_PRESETS)
+    assert _GRADE_PRESETS["nocturne"]["tone"] == "cool"
+    assert _GRADE_PRESETS["atelier"]["tone"] == "neutral"
+    for warm_fam in ("gilded_glamour", "golden_hour", "myth_crown"):
+        assert _GRADE_PRESETS[warm_fam]["tone"] == "warm"
+    # base cfg fields (strength/enabled) survive the merge; preset overrides the look
+    base = {"enabled": True, "strength": 0.6, "tone": "warm"}
+    merged = {**base, **_GRADE_PRESETS["nocturne"]}
+    assert merged["strength"] == 0.6 and merged["enabled"] is True
+    assert merged["tone"] == "cool"            # preset wins the look
+
+
+def test_banned_acts_gate_rejects_without_false_positives():
+    """2026-06-27 compliance (MARKET_INTEL.md): the validator hard-bans Fanvue/DA-
+    prohibited acts even in synthetic content — WITHOUT false-flagging the very common
+    'draped/drapery/choker/scattered' house prose (word-boundary matched)."""
+    from scripts.art_director import _BANNED_ACT_RX as RX
+    for bad in ("a rape fantasy", "non-consensual", "bestiality", "choking her",
+                "asphyxiation", "age-play", "incest", "necrophilia", "mind control"):
+        assert RX.search(bad), bad
+    for clean in ("silk drapery pooled at her feet", "a draped Grecian gown",
+                  "a velvet choker", "scattered petals", "a bowl of grapes",
+                  "the vast landscape falls away", "a strangler fig vine in the canopy",
+                  "her hypnotic gaze meets the lens"):
+        assert not RX.search(clean), f"false positive: {clean}"
+    assert RX.search("strangling") and RX.search("strangulation")  # the verb still bites

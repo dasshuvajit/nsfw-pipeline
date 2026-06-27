@@ -941,6 +941,23 @@ ATMOSPHERE: tuple[str, ...] = (
     "HIGH-SUMMER VERDANT \u2014 lush growth at full strength under warm saturated midday light, deep leaf-shade, the air still and heavy with a cicada-loud heat",
 )
 
+# Banned ACTS/themes (2026-06-27 compliance hardening — MARKET_INTEL.md): Fanvue (and
+# DeviantArt) prohibit these even in FULLY SYNTHETIC content, with permanent-ban + real-
+# money risk. The tasteful house style would never produce them, but this is cheap
+# belt-and-suspenders insurance. WORD-BOUNDARY matched — bare "rape" would substring-hit
+# the very common "draped"/"drapery"; \b...\b prevents that (and "choker", "scatter", etc.).
+_BANNED_ACT_RX = re.compile(
+    r"\b(?:"
+    r"bestialit\w*|zoophil\w*|animal\s+sex"
+    r"|asphyxiat\w*|strangl(?:e|es|ed|ing)|strangulat\w*|breath[\s-]?play|chok(?:e|ing)\s+her"
+    r"|age[\s-]?play"
+    r"|rap(?:e|ed|ing)|non[\s-]?consensual|sexual\s+assault|molest\w*|against\s+her\s+will"
+    r"|necrophil\w*|incest\w*|genital\s+mutilation"
+    r"|mind[\s-]?control|hypnoti[sz]\w*"
+    r"|watersports|golden\s+shower"
+    r")\b", re.I)
+
+
 class _PromptOut(BaseModel):
     prompt: str
     orientation: str = "portrait"      # portrait | square | landscape | widescreen | story
@@ -1008,6 +1025,10 @@ class _PromptOut(BaseModel):
         hit = [b for b in banned if b in low]
         if hit:
             raise ValueError(f"safety: banned age/multi-subject token(s) {hit}")
+        # Banned ACTS/themes (Fanvue/DA hard bans even for synthetic content).
+        act = _BANNED_ACT_RX.search(low)
+        if act:
+            raise ValueError(f"safety: banned act/theme token {act.group(0)!r}")
         # Photo, not painting (calibrated to refs: chroma = photoreal).
         paint = ("oil painting", "digital painting", "concept art", "illustration",
                  "anime", "painterly brush", "watercolor", "cel shad")
