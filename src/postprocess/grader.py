@@ -26,6 +26,23 @@ from PIL.PngImagePlugin import PngInfo
 # Fixed seed → the grain pattern is deterministic (reproducible renders + tests).
 _GRAIN_SEED = 0x5A1707
 
+# Split-tone (highlight RGB mult, shadow RGB mult) per tone. The finish leans to match
+# the niche mood: warm glamour/golden-hour, cool noir/night, neutral restrained fine-art.
+_SPLIT_TONES = {
+    "warm":    (np.array([1.0, 0.85, 0.55], dtype=np.float32),   # amber highlights
+                np.array([0.55, 0.75, 1.0], dtype=np.float32)),  # teal shadows
+    "cool":    (np.array([0.80, 0.90, 1.0], dtype=np.float32),   # cool highlights
+                np.array([0.45, 0.62, 1.0], dtype=np.float32)),  # deep-blue shadows
+    "neutral": (np.array([1.0, 0.97, 0.92], dtype=np.float32),   # barely warm
+                np.array([0.92, 0.96, 1.0], dtype=np.float32)),  # barely cool
+}
+# Highlight-bloom halation tint per tone (warm halation reads golden; cool reads icy).
+_BLOOM_TINTS = {
+    "warm":    np.array([1.0, 0.7, 0.4], dtype=np.float32),
+    "cool":    np.array([0.6, 0.8, 1.0], dtype=np.float32),
+    "neutral": np.array([0.9, 0.9, 0.95], dtype=np.float32),
+}
+
 
 class Grader:
     """Apply a deterministic cinematic grade to an image file in place or to a copy."""
@@ -34,7 +51,13 @@ class Grader:
         cfg = cfg or {}
         self.enabled = bool(cfg.get("enabled", True))
         self.strength = _clamp(cfg.get("strength", 0.6), 0.0, 1.0)
-        self.warmth = float(cfg.get("warmth", 0.06))            # warm/teal split amount
+        self.warmth = float(cfg.get("warmth", 0.06))            # split-tone amount
+        # tone = which DIRECTION the split-tone leans, so the FINISH matches the niche
+        # mood instead of one global warm look (2026-06-27 per-family grade): "warm" =
+        # amber highlights / teal shadows (glamour, golden-hour); "cool" = cool
+        # highlights / deep-blue shadows (noir/night nocturne); "neutral" = minimal tint
+        # (restrained fine-art atelier). Bloom halation follows the tone.
+        self.tone = str(cfg.get("tone", "warm")).lower()
         self.contrast = float(cfg.get("contrast", 0.12))        # filmic S-curve strength
         self.shadow_lift = float(cfg.get("shadow_lift", 0.02))  # gentle filmic shadow lift
         self.bloom = float(cfg.get("bloom", 0.18))              # highlight halation amount
@@ -95,11 +118,10 @@ class Grader:
         # 1. filmic shadow lift + contrast S-curve around mid-grey
         g = g + self.shadow_lift * (1.0 - g)
         g = np.clip(0.5 + (1.0 + self.contrast) * (g - 0.5), 0.0, 1.0)
-        # 2. warm split-tone — push highlights amber, shadows slightly teal
+        # 2. split-tone — direction set by self.tone so the finish matches the mood
         luma = _luma(g)
-        warm = np.array([1.0, 0.85, 0.55], dtype=np.float32)
-        cool = np.array([0.55, 0.75, 1.0], dtype=np.float32)
-        split = warm * luma + cool * (1.0 - luma)
+        hi, lo = _SPLIT_TONES.get(self.tone, _SPLIT_TONES["warm"])
+        split = hi * luma + lo * (1.0 - luma)
         g = np.clip(g * (1.0 + self.warmth * (split - 1.0)), 0.0, 1.0)
         # 3. highlight bloom / warm halation (screen-blended)
         if self.bloom > 0:
@@ -121,7 +143,7 @@ class Grader:
             Image.fromarray(bright).filter(ImageFilter.GaussianBlur(radius)),
             dtype=np.float32,
         ) / 255.0
-        blur = blur * np.array([1.0, 0.7, 0.4], dtype=np.float32)  # warm halation tint
+        blur = blur * _BLOOM_TINTS.get(self.tone, _BLOOM_TINTS["warm"])  # halation follows tone
         return np.clip(1.0 - (1.0 - g) * (1.0 - self.bloom * blur), 0.0, 1.0)
 
     def _vignette_mask(self, shape: tuple) -> np.ndarray:

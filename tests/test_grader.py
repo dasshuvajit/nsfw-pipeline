@@ -49,3 +49,23 @@ def test_color_grade_stays_colour(tmp_path):
     _save_color(p)
     Grader({"strength": 0.6}).apply(p, p)
     assert _saturation(p) > 20, "colour grade should keep colour"
+
+
+def _mean_r_minus_b(path):
+    im = np.asarray(Image.open(path).convert("RGB")).astype(float)
+    return im[..., 0].mean() - im[..., 2].mean()
+
+
+def test_grade_tone_leans_the_finish(tmp_path):
+    """2026-06-27 per-family grade: tone steers the split-tone so the finish matches
+    mood — warm leans amber (R>B), cool leans blue (B>R), neutral stays ~balanced."""
+    import numpy as np
+    a = np.tile(np.linspace(40, 210, 48).astype(np.uint8)[:, None, None], (1, 48, 3))
+    leans = {}
+    for tone in ("warm", "cool", "neutral"):
+        p = tmp_path / f"{tone}.png"
+        Image.fromarray(a, "RGB").save(p)
+        Grader({"strength": 1.0, "warmth": 0.2, "tone": tone}).apply(p, p)
+        leans[tone] = _mean_r_minus_b(p)
+    assert leans["warm"] > leans["neutral"] > leans["cool"], leans
+    assert leans["cool"] < 0 < leans["warm"], leans   # cool is blue, warm is amber

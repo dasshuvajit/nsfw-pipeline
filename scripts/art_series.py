@@ -1065,6 +1065,28 @@ def _tier_truth_advisory(image_path: Path) -> str:
     return ""
 
 
+# Per-family post-grade presets (2026-06-27 cinematic push): the finishing grade
+# leans to MATCH each DA family's mood instead of one global warm look — cool/high-
+# contrast noir for the dark nocturne family, rich warm for gilded glamour, airy
+# lifted-shadow warm for golden-hour lifestyle, restrained neutral for the fine-art
+# atelier, epic warm-contrast for the myth/period crown. Merged OVER the base
+# postgrade cfg (so strength/enabled carry through); unknown family → base look.
+_GRADE_PRESETS: dict[str, dict] = {
+    # `warmth` here is the split-tone INTENSITY (not direction — `tone` sets direction);
+    # the mood-distinct families lean harder so the finish actually reads their mood.
+    "atelier":        {"tone": "neutral", "warmth": 0.03, "contrast": 0.14,
+                       "shadow_lift": 0.01, "bloom": 0.10, "vignette": 0.20, "grain": 0.018},
+    "nocturne":       {"tone": "cool", "warmth": 0.13, "contrast": 0.17,
+                       "shadow_lift": 0.0, "bloom": 0.14, "vignette": 0.28, "grain": 0.020},
+    "gilded_glamour": {"tone": "warm", "warmth": 0.12, "contrast": 0.12,
+                       "shadow_lift": 0.02, "bloom": 0.22, "vignette": 0.16, "grain": 0.012},
+    "golden_hour":    {"tone": "warm", "warmth": 0.10, "contrast": 0.10,
+                       "shadow_lift": 0.04, "bloom": 0.20, "vignette": 0.12, "grain": 0.012},
+    "myth_crown":     {"tone": "warm", "warmth": 0.09, "contrast": 0.15,
+                       "shadow_lift": 0.01, "bloom": 0.16, "vignette": 0.22, "grain": 0.015},
+}
+
+
 def _package(
     out_dir: Path, selection, tier: str,
     main_manifest: list[dict], cover_manifest: list[dict],
@@ -1167,7 +1189,10 @@ def _package(
     if is_grayscale or color_grade:
         try:
             from src.postprocess.grader import Grader
-            grader = Grader(postgrade_cfg or {})
+            # lean the grade to the niche's family mood (merge over the base cfg)
+            fam = getattr(selection.niche, "family", "") or ""
+            grade_cfg = {**(postgrade_cfg or {}), **_GRADE_PRESETS.get(fam, {})}
+            grader = Grader(grade_cfg)
             n_graded = 0
             for d in (public_dir, gated_dir):
                 for p in sorted(d.glob("*.png")):
