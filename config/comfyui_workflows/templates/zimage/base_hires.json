@@ -71,22 +71,21 @@
   },
   "clip": {
     "inputs": {
-      "clip_name": "Z-Image-Engineer-V6-Q8_0.gguf",
-      "type": "lumina2",
-      "device": "default"
+      "clip_name": "qwen_3_4b.safetensors",
+      "type": "lumina2"
     },
-    "class_type": "ClipLoaderGGUF",
+    "class_type": "CLIPLoader",
     "_meta": {
-      "title": "Load CLIP \u2014 Z-Image-Engineer-V6 Q8_0 GGUF (type lumina2; needs custom_nodes/ComfyUI-GGUF)"
+      "title": "Load CLIP \u2014 Qwen3-4B fp16 (lumina2) [was Engineer-V6 GGUF]"
     }
   },
   "vae": {
     "inputs": {
-      "vae_name": "ae.safetensors"
+      "vae_name": "zit/ultrafluxVAEImproved_v10.safetensors"
     },
     "class_type": "VAELoader",
     "_meta": {
-      "title": "Load VAE (Flux ae \u2014 Z-Image 16ch)"
+      "title": "Load VAE \u2014 ultrafluxVAEImproved_v10 [was ae.safetensors]"
     }
   },
   "positive_prompt": {

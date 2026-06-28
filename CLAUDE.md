@@ -78,8 +78,10 @@ scripts/upscale_folder.py ── manual, selective true-4K (USDU, face-true deno
 - Python 3.11+, Mac M4 Pro 48GB unified RAM (Apple MPS — no CUDA)
 - ComfyUI (separate, http://127.0.0.1:8188). **DEFAULT engine = Z-Image Turbo**
   (`--engine zimage`, 2026-06-19): official `z_image_turbo_bf16.safetensors` (Lumina2-arch,
-  **Engineer-V6 Q8_0 GGUF TE** via `ClipLoaderGGUF` type=lumina2 [needs custom_nodes/ComfyUI-GGUF],
-  16ch Flux VAE, cfg 1.0) + a 3-LoRA stack (all in `models/loras/zit/` — the zit/ prefix is
+  **`qwen_3_4b.safetensors` fp16 TE** via stock `CLIPLoader` type=lumina2 (2026-06-29 — swapped
+  from the Engineer-V6 Q8 GGUF; fp16 is crisper but ~8GB heavier-to-load → slower first render),
+  **`ultrafluxVAEImproved_v10.safetensors`** VAE in `models/vae/zit/` (16ch Flux-compatible, swapped
+  from `ae.safetensors`), cfg 1.0) + a 3-LoRA stack (all in `models/loras/zit/` — the zit/ prefix is
   REQUIRED in the workflow or ComfyUI silently fails to load): `NSFW_master_ZIT` (restores anatomy
   on the NSFW-weak official base — **TIER-GATED at render time: 0.8 at T3/T4, OFF at T1/T2 +
   covers, or it strips clothing on funnel prompts**) → `dopsd_white` (style @0.8) → `zit_fdpo_v1`

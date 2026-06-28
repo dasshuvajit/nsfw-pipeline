@@ -445,9 +445,12 @@ def test_zimage_default_workflow_is_official_plus_lora_stack():
     for nid in ("lora_nsfw", "lora_style", "lora_dpo"):
         assert b[nid]["inputs"]["lora_name"].startswith("zit/"), f"{nid} not in zit/"
     assert b["ksampler"]["inputs"]["sampler_name"] == "dpmpp_sde"        # user-preferred after manual A/B
-    assert b["clip"]["class_type"] == "ClipLoaderGGUF"                   # Engineer-V6 GGUF TE
+    # 2026-06-29: TE swapped to the qwen_3_4b fp16 safetensors (stock CLIPLoader, was the
+    # Engineer-V6 Q8 GGUF) + VAE to ultrafluxVAEImproved_v10 (in vae/zit/, was ae.safetensors).
+    assert b["clip"]["class_type"] == "CLIPLoader"
     assert b["clip"]["inputs"]["type"] == "lumina2"
-    assert b["clip"]["inputs"]["clip_name"].endswith(".gguf")
+    assert b["clip"]["inputs"]["clip_name"] == "qwen_3_4b.safetensors"
+    assert b["vae"]["inputs"]["vae_name"] == "zit/ultrafluxVAEImproved_v10.safetensors"
     # static latent stays ~1MP — never the MPS-unsafe (>12k-token) 1536x2048
     el = b["empty_latent"]["inputs"]
     assert el["width"] * el["height"] <= 1024 * 1280, "static latent must stay ~1MP (MPS-safe)"
