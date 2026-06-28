@@ -71,7 +71,7 @@ sensual_register:
 # art_director._creative_look (hair 10 / figure 7 / face 8 / complexion 6 /
 # age_look 4) so rotations never lock to each other or to the 8 framing targets.
 look_pools:
-  hair:                                   # 10 entries, ≤3 blonde-family
+  hair:                                   # 28 entries, ≤3 blonde-family
     - long blonde waves
     - sleek platinum-blonde cut in a sharp jaw-length bob
     - warm honey-blonde with a loose braid over one shoulder
@@ -100,7 +100,7 @@ look_pools:
     - bronze-auburn in a tight, sculpted bun with a clean middle part
     - smoky lavender-grey balayage over dark roots, in loose waves
     - warm walnut-brown, long and feathered with soft windblown layers
-  figure:                                 # 7 entries, 3 natural-busty
+  figure:                                 # 20 entries, 3 natural-busty
     - slender with an attractive full natural bust
     - soft natural curves with a heavy, full natural bust
     - a curvy hourglass figure with a generous natural bust and wide hips
@@ -121,7 +121,7 @@ look_pools:
     - voluptuous and curvy with a generous natural bust and a deep waist curve
     - slim with subtle athletic definition and a small-to-medium natural bust
     - tall and slender with a long torso and a modest natural bust
-  face:                                   # 8 entries — eyes + features
+  face:                                   # 26 entries — eyes + features
     - clear green eyes and a dusting of freckles across her nose and cheeks
     - dark almond eyes and a small beauty mark above her lip
     - grey-blue eyes, high Slavic cheekbones and full lips
@@ -148,7 +148,7 @@ look_pools:
     - cool blue eyes and a sharply defined cupid's bow
     - warm brown eyes and a slim healed piercing scar in one eyebrow
     - deep espresso eyes, full brows and a wide, square jawline
-  complexion:                             # 6 entries — span of skin tones
+  complexion:                             # 18 entries — span of skin tones
     - fair, cool-toned skin that flushes easily
     - sun-warmed olive Mediterranean skin
     - golden-tan skin with sun-kissed shoulders
@@ -167,7 +167,7 @@ look_pools:
     - soft caramel-bronze skin with peachy-warm undertones
     - deep mahogany skin with a smooth, healthy sheen and warm red undertones
     - fair freckled skin with cool ivory undertones that catch the light softly
-  age_look:                               # 4 entries — always clearly adult
+  age_look:                               # 7 entries — always clearly adult
     - in her mid-twenties
     - in her late twenties
     - around thirty, radiantly self-assured

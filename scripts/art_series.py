@@ -27,6 +27,7 @@ import shutil
 import subprocess
 import sys
 import time
+import zlib
 from datetime import datetime
 from pathlib import Path
 
@@ -1614,7 +1615,15 @@ def main() -> int:
     seed_banned = list(dict.fromkeys(seed_banned + _load_global_openers()))
     # Rotation offset strides past the whole previous run (count+1, not 1):
     # stride-1 re-issued 5/6 of the assignment tuples on every consecutive run.
-    run_offset = prior_count * (args.count + 1)
+    # PLUS a STABLE per-niche salt (2026-06-29): without it, run_offset is a pure
+    # function of prior_count, so under --auto (niches cycle evenly) every niche at the
+    # same sweep position got the IDENTICAL global-pool permutation → verbatim-same
+    # pose/face/figure/age across DIFFERENT niches (the "series feel same-y" report).
+    # run_offset is consumed ONLY as a shuffle seed (never a bounded index), so this
+    # decorrelates niches without touching within-series coverage. crc32 (NOT builtin
+    # hash(), which is PYTHONHASHSEED-randomized) keeps it deterministic for --base-seed.
+    niche_salt = (zlib.crc32(_niche_id.encode()) % 100000) if _niche_id else 0
+    run_offset = prior_count * (args.count + 1) + niche_salt
     # A bound persona LOCKS the per-image look to one identity (the same woman in
     # every image of the series, replacing the look-pool rotation); non-persona
     # runs pass "" → rotation as before. None-safe for the --brief path.

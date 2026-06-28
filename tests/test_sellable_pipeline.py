@@ -1640,3 +1640,31 @@ def test_banned_acts_gate_rejects_without_false_positives():
                   "her hypnotic gaze meets the lens"):
         assert not RX.search(clean), f"false positive: {clean}"
     assert RX.search("strangling") and RX.search("strangulation")  # the verb still bites
+
+
+def test_per_niche_salt_decorrelates_global_axes():
+    """2026-06-29: under --auto, niches at the same sweep position shared run_offset →
+    verbatim-identical pose/face across DIFFERENT niches (the 'series feel same-y' bug).
+    A stable per-niche crc32 salt decorrelates them, deterministically (so --base-seed
+    reproducibility + cross-run memory survive)."""
+    import zlib
+    import scripts.art_director as AD
+    def offset(niche, prior=0):
+        return prior * (6 + 1) + (zlib.crc32(niche.encode()) % 100000)
+    a, b = offset("athletic_studio"), offset("slavic_folk")
+    assert a != b, "salt must differ per niche"
+    pa = [AD._rotate(AD.POSE_GESTURES, i, a, "pose") for i in range(6)]
+    pb = [AD._rotate(AD.POSE_GESTURES, i, b, "pose") for i in range(6)]
+    assert pa != pb, "salted niches must get different pose sequences"
+    assert offset("athletic_studio") == offset("athletic_studio")  # deterministic
+
+
+def test_cigarettes_banned_and_absent():
+    """2026-06-29: cigarettes/ashtrays removed from sub_looks + hard-banned in the
+    validator (without false-hitting 'a lighter shade')."""
+    from pathlib import Path
+    from scripts.art_director import _BANNED_PROP_RX as RX
+    assert RX.search("a cigarette") and RX.search("an ashtray") and RX.search("a cigar")
+    assert not RX.search("a lighter shade of grey")
+    nl = Path("config/niche_library.yaml").read_text().lower()
+    assert "cigarette" not in nl and "ashtray" not in nl

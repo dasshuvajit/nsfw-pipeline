@@ -165,7 +165,11 @@ TIER_DIRECTIVES = {
         "and soft, turned, closed, shadowed or out of view (that frank reveal is "
         "T4's job, not this). The register is 'stunning sensual nude,' never "
         "'clinical figure study.' Any wardrobe is a sheer cover-up falling open "
-        "or a slip off the shoulders — cut to frame the bare body, never conceal it."
+        "or a slip off the shoulders — cut to frame the bare body, never conceal it. "
+        "EXCEPTION — when the shot is a deliberate close_up or bust (a chosen "
+        "FACE-PLATE within the nude set): make it a true face-tight portrait — fill "
+        "the frame with her face and expression, the bare body simply CROPPED OUT of "
+        "this frame (not covered) — sensual eye-contact carries it, not exposure."
     ),
     "T4_explicit": (
         "T4 — EXPLICIT. Full nudity with the vulva bare and visible — but as "
@@ -352,14 +356,18 @@ HARD RULES:
   scenes use a vanity, dressing table or console WITHOUT a mirror (perfume \
   bottles, a powder compact, a lamp, jewellery), never a mirror.
 - PROPS & ATMOSPHERE must be RENDERABLE and MOTIVATED. Every atmospheric \
-  element (smoke, steam, vapour, drifting dust) needs a VISIBLE in-frame \
-  source — a lit cigarette held or resting in an ashtray, a candle, a \
-  smouldering censer — or leave it out; floating smoke with no source reads \
-  as a glitch. Do NOT write an ambiguous "spill / splash / spray of champagne \
-  bubbles" for a glass that simply sits there — a coupe HOLDS its champagne, \
-  it does not erupt. Avoid thin, hard-to-render focal props (a long cigarette \
-  holder, a slim stem, a fine chain) — the model renders them as ambiguous \
-  lines, worst of all in silhouette; choose solid, legible props instead.
+  element (smoke, steam, vapour, haze, mist, drifting dust) needs a VISIBLE \
+  in-frame source — a candle, a smouldering censer or brazier, a steaming \
+  bath/spring/kettle, a hearth or bonfire, low dawn ground-mist outdoors — \
+  or leave it out; floating smoke or haze with no source reads as a glitch. \
+  NEVER cigarettes, ashtrays or smoking — they are banned. And NEVER add \
+  smoke/haze/mist to a clear, bright, sunny, high-noon or snowy scene where \
+  nothing in frame produces it. Do NOT write an ambiguous "spill / splash / \
+  spray of champagne bubbles" for a glass that simply sits there — a coupe \
+  HOLDS its champagne, it does not erupt. Avoid thin, hard-to-render focal \
+  props (a slim stem, a fine chain, a long thin wand) — the model renders \
+  them as ambiguous lines, worst of all in silhouette; choose solid, \
+  legible props instead.
 - NO LEGIBLE TEXT or signage. Keep any signs, neon, screens, labels, posters, \
   branding or tattoos abstract, glowing, distant or blurred — the model renders \
   written words as garbled gibberish that reads as an obvious AI tell on a close \
@@ -903,17 +911,17 @@ GARMENT_TYPES: tuple[str, ...] = (
 POSE_GESTURES: tuple[str, ...] = (
     "STANDING CONTRAPPOSTO \u2014 her weight settled on one hip, the other knee soft, shoulders counter-turned for a long S-curve through the body",
     "KNEELING UPRIGHT \u2014 sitting back on her heels, spine tall, hands resting open on her thighs, chin level and calm",
-    "ARCHED RECLINE \u2014 lying back across a low surface, the small of her back lifted off it, throat and collarbone offered to the key light",
+    "ARCHED RECLINE \u2014 lying back across a low surface in a soft, easy arch, her spine still settled along it, throat and collarbone offered to the key light",
     "GLANCING OVER ONE SHOULDER \u2014 back mostly to the camera, head turned just enough to catch her eye and the line of her jaw",
-    "WALKING AWAY, LOOKING BACK \u2014 mid-step, the far foot leaving the ground, torso twisting so she meets the lens over her shoulder",
+    "WALKING AWAY, LOOKING BACK \u2014 paused mid-step with her trailing foot still planted on the ground, shoulders turning so she meets the lens over one shoulder",
     "SEATED ON THE FLOOR \u2014 knees drawn up and loosely hugged, one cheek tipped toward a raised knee, relaxed and self-contained",
     "LEANING INTO THE LIGHT \u2014 one shoulder and hip set against a wall, the lit side toward the window, the rest falling into soft shadow",
     "PRONE ON HER ELBOWS \u2014 lying on her front, forearms folded, the long lift of her back and the soles of her feet behind her",
-    "MID-STRETCH \u2014 both arms reaching up overhead, ribs lengthening, weight rocked onto the balls of her feet, eyes half-closed",
-    "CROUCHED LOW \u2014 folded down on her heels, knees wide, forearms balanced across them, looking up into the lens",
+    "MID-STRETCH \u2014 one arm reaching up overhead and the other easing out along her side, ribs lengthening, weight settled evenly on both flat feet, eyes half-closed",
+    "CROUCHED LOW \u2014 folded down onto her heels, knees drawn together and angled to one side, one forearm resting across them, looking up into the lens",
     "PERCHED ON A LEDGE \u2014 seated on a sill or wall edge, one leg dangling, the other drawn up, hands braced beside her hips",
     "TURNED THREE-QUARTERS AWAY \u2014 body angled off into the frame, only the curve of cheek, far brow and the sweep of her back to the camera",
-    "HANDS LIFTING HER HAIR \u2014 both arms raised to gather her hair off her neck, elbows winged out, the nape and shoulder line exposed",
+    "HANDS LIFTING HER HAIR \u2014 one arm raised to sweep her hair up off her neck, elbow soft and rounded, the other hand drifting down along her collarbone, the nape and shoulder line exposed",
     "SEATED SIDESADDLE \u2014 folded onto one hip on the floor or a low couch, legs swept to one side, one hand planted to brace her lean",
     "STEPPING THROUGH A DOORWAY \u2014 caught mid-stride in the threshold, one hand trailing the frame, half in light and half in the room beyond",
     "RECLINED ACROSS A SURFACE \u2014 stretched the long way along a chaise or bed, propped on one elbow, the other arm draped down her side",
@@ -936,7 +944,7 @@ ATMOSPHERE: tuple[str, ...] = (
     "LOW GROUND-MIST \u2014 a thin layer of fog lying close to the floor or field, depth softening to nothing, the air still and heavy",
     "A CLEARING STORM \u2014 broken cloud after rain, a sudden shaft of sun cutting through, everything wet and gleaming and freshly lit",
     "HAZY HEAT-SHIMMER \u2014 thick still air of a hot afternoon, the light gone soft and golden, distances wavering, skin warm and dewed",
-    "AUTUMN BLAZE \u2014 turning red-gold leaves catching low slanting light, the air crisp and woodsmoke-tinged, drifts of fallen foliage and long amber shadows outside",
+    "AUTUMN BLAZE \u2014 turning red-gold leaves catching low slanting light, the air crisp and cool and scented with damp fallen leaves, drifts of fallen foliage and long amber shadows outside",
     "SPRING BLOSSOM \u2014 soft bright light through fresh green and a froth of blossom, petals drifting on a mild pollen-gold breeze, everything tender and new",
     "HIGH-SUMMER VERDANT \u2014 lush growth at full strength under warm saturated midday light, deep leaf-shade, the air still and heavy with a cicada-loud heat",
 )
@@ -956,6 +964,13 @@ _BANNED_ACT_RX = re.compile(
     r"|mind[\s-]?control|hypnoti[sz]\w*"
     r"|watersports|golden\s+shower"
     r")\b", re.I)
+
+# Banned smoking PROPS (2026-06-29 — user: remove cigarettes entirely). Stylistic, not a
+# compliance ban: cigarettes/ashtrays read cheap + dated and the user wants them gone.
+# Word-boundary: \bcigar\b won't hit "cigarette"; bare "lighter" is OMITTED (it false-hits
+# "a lighter shade"). Free-floating "smoke/haze" is NOT banned here — motivated steam/mist
+# (bathhouse, dawn) is fine; that's handled by the system-prompt motivation rule, not a token ban.
+_BANNED_PROP_RX = re.compile(r"\b(?:cigarette\w*|ashtray\w*|tobacco|cigar)\b", re.I)
 
 
 class _PromptOut(BaseModel):
@@ -1029,6 +1044,11 @@ class _PromptOut(BaseModel):
         act = _BANNED_ACT_RX.search(low)
         if act:
             raise ValueError(f"safety: banned act/theme token {act.group(0)!r}")
+        # Banned smoking props (cigarettes/ashtrays — user preference, re-roll).
+        prop = _BANNED_PROP_RX.search(low)
+        if prop:
+            raise ValueError(f"style: banned smoking prop {prop.group(0)!r} — "
+                             f"no cigarettes/ashtrays; use another period prop.")
         # Photo, not painting (calibrated to refs: chroma = photoreal).
         paint = ("oil painting", "digital painting", "concept art", "illustration",
                  "anime", "painterly brush", "watercolor", "cel shad")
