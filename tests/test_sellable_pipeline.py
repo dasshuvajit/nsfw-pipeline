@@ -424,25 +424,20 @@ def test_zimage_default_workflow_is_official_plus_lora_stack():
     base = Path("config/comfyui_workflows/templates/zimage")
     b = json.loads((base / "base.json").read_text())
     assert b["unet"]["inputs"]["unet_name"] == "z_image_turbo_bf16.safetensors"   # official base
-    # stacked LoRAs (2026-06-24 reorder): unet → lora_dpo(flow-DPO, FIRST @1.0) →
-    # lora_nsfw → lora_style → modelsampling → ksampler. lora_nsfw keeps its node KEY
-    # (not its position) so the safety tier-gate patch (art_series sets its
-    # strength_model to 0.0 on T1/T2/covers) is unaffected by the reorder.
-    # All three live in the zit/ subfolder (un-prefixed paths silently fail to load).
-    # flow-DPO aesthetic/lighting prior, now first at full strength:
+    # 2-LoRA stack (2026-06-29: NSFW_master removed per user — add back later if needed):
+    # unet → lora_dpo(flow-DPO @1.0, FIRST) → lora_style(dopsd_white @1.0) → modelsampling
+    # → ksampler. Both live in the zit/ subfolder (un-prefixed paths silently fail to load).
+    assert "lora_nsfw" not in b, "NSFW_master LoRA was removed from the default stack"
     assert b["lora_dpo"]["class_type"] == "LoraLoaderModelOnly"
     assert b["lora_dpo"]["inputs"]["model"] == ["unet", 0]
     assert b["lora_dpo"]["inputs"]["lora_name"] == "zit/zit_fdpo_v1.safetensors"
     assert b["lora_dpo"]["inputs"]["strength_model"] == 1.0
-    assert b["lora_nsfw"]["class_type"] == "LoraLoaderModelOnly"
-    assert b["lora_nsfw"]["inputs"]["model"] == ["lora_dpo", 0]
-    assert b["lora_nsfw"]["inputs"]["lora_name"] == "zit/NSFW_master_ZIT_000017532.safetensors"
-    assert b["lora_style"]["inputs"]["model"] == ["lora_nsfw", 0]
+    assert b["lora_style"]["inputs"]["model"] == ["lora_dpo", 0]   # rewired past the removed node
     assert b["lora_style"]["inputs"]["lora_name"] == "zit/dopsd_white_zimage_turbo_comfy.safetensors"
+    assert b["lora_style"]["inputs"]["strength_model"] == 1.0      # dopsd 0.8 -> 1.0
     assert b["modelsampling"]["inputs"]["model"] == ["lora_style", 0]
     assert b["ksampler"]["inputs"]["model"] == ["modelsampling", 0]
-    # every LoRA reference is under zit/ (the moved-folder fix)
-    for nid in ("lora_nsfw", "lora_style", "lora_dpo"):
+    for nid in ("lora_style", "lora_dpo"):
         assert b[nid]["inputs"]["lora_name"].startswith("zit/"), f"{nid} not in zit/"
     assert b["ksampler"]["inputs"]["sampler_name"] == "dpmpp_sde"        # user-preferred after manual A/B
     # 2026-06-29: TE swapped to the qwen_3_4b fp16 safetensors (stock CLIPLoader, was the

@@ -81,15 +81,16 @@ scripts/upscale_folder.py ── manual, selective true-4K (USDU, face-true deno
   **`qwen_3_4b.safetensors` fp16 TE** via stock `CLIPLoader` type=lumina2 (2026-06-29 — swapped
   from the Engineer-V6 Q8 GGUF; fp16 is crisper but ~8GB heavier-to-load → slower first render),
   **`ultrafluxVAEImproved_v10.safetensors`** VAE in `models/vae/zit/` (16ch Flux-compatible, swapped
-  from `ae.safetensors`), cfg 1.0) + a 3-LoRA stack (all in `models/loras/zit/` — the zit/ prefix is
-  REQUIRED in the workflow or ComfyUI silently fails to load): `NSFW_master_ZIT` (restores anatomy
-  on the NSFW-weak official base — **TIER-GATED at render time: 0.8 at T3/T4, OFF at T1/T2 +
-  covers, or it strips clothing on funnel prompts**) → `dopsd_white` (style @0.8) → `zit_fdpo_v1`
-  (**flow-DPO** aesthetic LoRA @0.5, 2026-06-23 — F16/z-image-turbo-flow-dpo, Z-Image-native LoKr;
-  counters Turbo flatness/washed-out lighting, A/B-verified to add cinematic contrast on dark AND
-  polish on bright WITHOUT changing composition or burning; steps/cfg unchanged. NOT a distill/step
-  LoRA. Skipped: alibaba Fun-Lora-Distill = redundant on already-distilled Turbo + blur; UltraFlux =
-  FLUX-arch, won't load on Lumina2); + `ModelSamplingAuraFlow` shift 3.0,
+  from `ae.safetensors`), cfg 1.0) + a 2-LoRA stack (both in `models/loras/zit/` — the zit/ prefix
+  is REQUIRED in the workflow or ComfyUI silently fails to load): `zit_fdpo_v1` (**flow-DPO**
+  aesthetic LoRA @1.0, FIRST in the chain — F16/z-image-turbo-flow-dpo, Z-Image-native LoKr; counters
+  Turbo flatness/washed-out lighting, A/B-verified to add cinematic contrast/polish WITHOUT changing
+  composition or burning) → `dopsd_white` (style @1.0). **`NSFW_master_ZIT` was REMOVED 2026-06-29
+  (user) — re-addable later; the render-time tier-gate code (sets its strength to 0.0 on T1/T2+covers,
+  0.8 at T3/T4) stays in art_series and is a graceful no-op while the LoRA is absent. WITHOUT it,
+  T3/T4 anatomy renders weaker on the NSFW-weak official base.** (Skipped LoRAs: alibaba
+  Fun-Lora-Distill = redundant on already-distilled Turbo + blur; UltraFlux = FLUX-arch, won't load on
+  Lumina2.) + `ModelSamplingAuraFlow` shift 3.0,
   `dpmpp_sde`/beta/8. Template
   `templates/zimage/base.json` (`base_hires.json` for `--hires`). Render at the official
   ~1MP buckets (896×1152/1024²/1152×896 + widescreen 16:9 1360×768 & story 9:16
