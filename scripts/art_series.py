@@ -511,10 +511,13 @@ def _curate(
 
 # ── tier-split labels ───────────────────────────────────────────────
 _EXPLICIT_TIERS = {"T3_artnude", "T4_explicit"}
-# Z-Image default base.json bakes in an NSFW LoRA (lora_nsfw) that restores explicit
-# anatomy on the NSFW-weak official base. It is a LIABILITY at the funnel tiers — it
-# strips clothing even on clean T1/T2 prompts (2026-06-20: bohemian T2 drifted 5/6 nude).
-# So it is TIER-GATED at render time: full at T3/T4, OFF at T1/T2 + covers (which are T1).
+# NSFW LoRA (lora_nsfw) — REMOVED from both zimage templates 2026-06-29 (user request;
+# re-addable later). When present it restored explicit anatomy on the NSFW-weak official
+# base but was a LIABILITY at the funnel tiers — it stripped clothing even on clean T1/T2
+# prompts (2026-06-20: bohemian T2 drifted 5/6 nude). The render-time tier-gate below
+# (`if "lora_nsfw" in wf`) is now a dormant no-op kept for when the LoRA is re-added; the
+# _NSFW_LORA_STRENGTH value + the nsfw_lora_strength arg it feeds are currently INERT.
+# Gate intent (when active): full at T3/T4, OFF at T1/T2 + covers (which are T1).
 _NSFW_LORA_STRENGTH = 0.8
 AI_DISCLOSURE_LABEL = "Created using AI tools"
 
@@ -1379,7 +1382,7 @@ def main() -> int:
                     help="skip the cinematic post-grade pass (pipeline.yaml postgrade)")
     ap.add_argument("--engine", choices=["chroma", "zimage"], default="zimage",
                     help="render engine: zimage (Z-Image Turbo — DEFAULT; official base "
-                         "+ NSFW_master + dopsd_white LoRA stack, dpmpp_sde) or chroma "
+                         "+ flow-DPO + dopsd_white LoRA stack, dpmpp_sde) or chroma "
                          "(gonzaLomo Chroma v30 — for B&W/painterly/period/fantasy niches). "
                          "Swaps the base + refine + refine_T4 templates as a set; explicit "
                          "--base-template / --refine-template still override.)")

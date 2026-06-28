@@ -6,7 +6,7 @@
     },
     "class_type": "UNETLoader",
     "_meta": {
-      "title": "Load Diffusion Model \u2014 official Z-Image Turbo BF16 (NSFW via the LoRA stack below)"
+      "title": "Load Diffusion Model \u2014 official Z-Image Turbo BF16 (NSFW-weak base; NSFW_master LoRA removed 2026-06-29)"
     }
   },
   "lora_style": {
@@ -147,7 +147,7 @@
     },
     "class_type": "VAEDecode",
     "_meta": {
-      "title": "VAE Decode \u2014 Z-Image (ae 16ch)"
+      "title": "VAE Decode \u2014 Z-Image (ultrafluxVAEImproved_v10, 16ch)"
     }
   },
   "save": {
@@ -160,7 +160,7 @@
     },
     "class_type": "SaveImage",
     "_meta": {
-      "title": "Save Image \u2014 Z-Image base (official + NSFW_master + dopsd_white)"
+      "title": "Save Image \u2014 Z-Image base (official + flow-DPO + dopsd_white)"
     }
   },
   "lora_dpo": {

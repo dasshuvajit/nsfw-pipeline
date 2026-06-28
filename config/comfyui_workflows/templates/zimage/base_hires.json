@@ -166,7 +166,7 @@
     },
     "class_type": "VAEDecode",
     "_meta": {
-      "title": "VAE Decode \u2014 Z-Image (ae 16ch)"
+      "title": "VAE Decode \u2014 Z-Image (ultrafluxVAEImproved_v10, 16ch)"
     }
   },
   "save": {

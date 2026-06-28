@@ -970,7 +970,7 @@ _BANNED_ACT_RX = re.compile(
 # Word-boundary: \bcigar\b won't hit "cigarette"; bare "lighter" is OMITTED (it false-hits
 # "a lighter shade"). Free-floating "smoke/haze" is NOT banned here — motivated steam/mist
 # (bathhouse, dawn) is fine; that's handled by the system-prompt motivation rule, not a token ban.
-_BANNED_PROP_RX = re.compile(r"\b(?:cigarette\w*|ashtray\w*|tobacco|cigar)\b", re.I)
+_BANNED_PROP_RX = re.compile(r"\b(?:cigarette\w*|ashtray\w*|tobacco|cigar\w*)\b", re.I)
 
 
 class _PromptOut(BaseModel):

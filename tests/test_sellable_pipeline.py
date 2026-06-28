@@ -417,10 +417,10 @@ def test_zimage_refine_t4_honored_by_tier_purity_guard():
 
 
 def test_zimage_default_workflow_is_official_plus_lora_stack():
-    """The new default zimage base.json (2026-06-19 'Engineer V6' adoption): official
-    Z-Image Turbo + NSFW_master + dopsd_white LoRA stack wired into the model chain,
-    dpmpp_sde sampler, ModelSamplingAuraFlow shift, full-precision safetensors TE,
-    patchable contract nodes intact, and a safe (~1MP) static latent."""
+    """The default zimage base.json: official Z-Image Turbo + the 2-LoRA stack
+    (flow-DPO + dopsd_white; NSFW_master removed 2026-06-29) wired into the model
+    chain, dpmpp_sde sampler, ModelSamplingAuraFlow shift, qwen_3_4b safetensors TE,
+    ultraflux VAE, patchable contract nodes intact, and a safe (~1MP) static latent."""
     base = Path("config/comfyui_workflows/templates/zimage")
     b = json.loads((base / "base.json").read_text())
     assert b["unet"]["inputs"]["unet_name"] == "z_image_turbo_bf16.safetensors"   # official base
@@ -471,6 +471,18 @@ def test_zimage_hires_base_template():
         "deep-shrink must sit in the sampler's model chain"
     for nid in ("positive_prompt", "negative_prompt", "ksampler", "empty_latent", "save"):
         assert nid in d, f"hires base missing contract node {nid}"
+    # hires must carry the SAME model config as base.json — TE/VAE/LoRA stack — so a
+    # revert on one template can't silently diverge the other (2026-06-29 audit gap).
+    assert "lora_nsfw" not in d, "NSFW_master LoRA must stay removed from hires too"
+    assert d["clip"]["class_type"] == "CLIPLoader"
+    assert d["clip"]["inputs"]["type"] == "lumina2"
+    assert d["clip"]["inputs"]["clip_name"] == "qwen_3_4b.safetensors"
+    assert d["vae"]["inputs"]["vae_name"] == "zit/ultrafluxVAEImproved_v10.safetensors"
+    assert d["lora_dpo"]["inputs"]["lora_name"] == "zit/zit_fdpo_v1.safetensors"
+    assert d["lora_dpo"]["inputs"]["strength_model"] == 1.0
+    assert d["lora_style"]["inputs"]["lora_name"] == "zit/dopsd_white_zimage_turbo_comfy.safetensors"
+    assert d["lora_style"]["inputs"]["strength_model"] == 1.0
+    assert d["lora_style"]["inputs"]["model"] == ["lora_dpo", 0]   # rewired past removed node
 
 
 # ── influencer-substance prompt-engine knobs (2026-06-17) ──────────
