@@ -45,25 +45,25 @@ niches:
     da_folder: "Fine-Art Figure Study"
     family: atelier
     source: fine_art_figurative
-    tags: [fineartnude, figurestudy, figure, artnude, chiaroscuro, blackandwhite,
-           monochrome, classical, form, sculptural, aiart, digitalart, portrait]
+    tags: [fineartnude, figurestudy, figure, artnude, chiaroscuro, colour,
+           classical, form, sculptural, aiart, digitalart, portrait]
     sub_looks:
-      - "studio chiaroscuro figure study — single hard key against a black seamless backdrop, the body sculpted by light and deep shadow, gallery figure-study framing, B&W or near-monochrome"
+      - "studio chiaroscuro figure study — single hard key against a black seamless backdrop, the body sculpted by warm light and deep shadow, rich amber skin tones glowing out of the dark, gallery figure-study framing"
       - "north-light atelier — soft directional daylight from a tall studio window across a plinth or stool, classical sculptural pose, muted neutral tones, fine-art nude tradition"
       - "low-key rim study — a single rim light tracing the edge of the form out of darkness, the silhouette and contour as the subject, restrained and reverent"
       - "raw atelier with plaster casts — soft skylight from above in a working sculptor's studio, plaster dust and unfinished white casts around the living model, the body posed among fragments"
-      - "draped-canvas abstraction — the figure half-wrapped in heavy raw canvas against a grey seamless, one hard side light, folds and flesh composed as a single sculptural form"
+      - "draped-canvas abstraction — the figure half-wrapped in heavy raw canvas against a warm taupe seamless, one hard side light, the oatmeal canvas and warm flesh composed as a single sculptural form"
       - "contact-shadow study — the body close against a textured plaster wall, a hard raking key throwing her crisp shadow beside her as a second graphic form"
-      - "cold pre-dawn studio — thin blue first light seeping through a frosted clerestory across a bare wooden plinth, the form held in cool grey half-tone and faint breath-mist, charcoal-and-ivory neutrals, hushed reverent stillness before the working day"
+      - "cold pre-dawn studio — thin blue first light seeping through a frosted clerestory across a bare wooden plinth, the form held in cool blue-grey dawn colour and faint breath-mist, dusky slate and warm-rose skin half-tones, hushed reverent stillness before the working day"
       - "high-noon overhead shaft — one hard vertical beam dropping straight down from a roof oculus onto a plaster pedestal, the body modelled in steep top-down light and a deep black floor-shadow, scorched-white and deep-shade contrast, austere and sculptural"
-      - "soft overcast atelier — flat even silver daylight from a wide north skylight filling the room without shadow, the figure standing among draped easels and a muslin backdrop, low-contrast pewter-grey tonality, calm graphic clarity"
-      - "golden-hour dust study — warm low side-sun raking through a tall west window, suspended studio dust turned to drifting gold motes around the form, a fall of unbleached linen over a stool, sepia monochrome warmth, quiet reverence"
-      - "grid-shadow projection — a single hard lamp thrown through a tall multi-pane window casting a crisp lattice of light and shade across skin and the studio floor, the body and the cast grid composed as interlocking forms, stark high-contrast B&W"
+      - "soft overcast atelier — flat even silver daylight from a wide north skylight filling the room without shadow, the figure standing among draped easels and a muslin backdrop, soft low-contrast desaturated colour, cool fawn-and-ivory tones with warm skin, calm graphic clarity"
+      - "golden-hour dust study — warm low side-sun raking through a tall west window, suspended studio dust turned to drifting gold motes around the form, a fall of unbleached linen over a stool, honeyed amber-and-gold colour warmth, quiet reverence"
+      - "grid-shadow projection — a single hard lamp thrown through a tall multi-pane window casting a crisp lattice of light and shade across skin and the studio floor, the body and the cast grid composed as interlocking forms, stark high-contrast warm lamplight on skin against cool shade"
       - "candle-and-ember nocturne — one low guttering taper on a sculptor's bench carving the figure out of near-total dark, warm amber falloff over bare boards and a shrouded armature, deep shadow and a single soft highlight, intimate and grave"
     aesthetics:
-      palettes: ["high-contrast black-and-white", "warm sepia monochrome", "muted charcoal-and-ivory neutrals"]
+      palettes: ["warm chiaroscuro — amber key, deep umber shadow", "cool north-light neutrals — fawn, slate, ivory skin", "candle-warm amber against near-black"]
       lighting: ["single hard key, Caravaggio chiaroscuro", "soft north-window daylight", "split lighting, half the face in shadow"]
-      photographers: ["Edward Weston figure-study tradition", "Robert Mapplethorpe sculptural B&W", "Ruth Bernhard luminous nude"]
+      photographers: ["Caravaggio oil-painting chiaroscuro, warm flesh tones", "Paolo Roversi soft painterly colour", "classical atelier oil portrait, rich warm palette"]
     brief_seed: "A fine-art figure study — one nude woman rendered as sculptural form in light, gallery framing, the body as subject, not spectacle."
 
   - id: old_hollywood_glamour

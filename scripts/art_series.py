@@ -1420,7 +1420,27 @@ def main() -> int:
                     "RANDOM seed per render (logged per image for reproducibility).")
     ap.add_argument("--out-dir", default="",
                     help="output dir (default: output/art_series/<timestamp>)")
+    ap.add_argument("--figure-focus", default="default",
+                    choices=["default", "busty"],
+                    help="bias the per-image FIGURE look-pool for THIS run only "
+                         "(does not touch config): 'busty' restricts figure to the "
+                         "bigger-natural-bust entries while leaving hair/face/"
+                         "complexion/age fully varied — for a bust-forward series.")
     args = ap.parse_args()
+    # Run-only figure bias (bust-forward series). Filters art_director's in-memory
+    # figure look-pool to the bigger-natural-bust subset; other axes stay varied.
+    if args.figure_focus == "busty":
+        import re as _re
+        pools = (art_director._CREATIVE or {}).get("look_pools") or {}
+        full = list(pools.get("figure") or [])
+        _busty_rx = _re.compile(
+            r"(full|heavy|generous|voluptuous)\b.{0,30}bust|bust.{0,30}"
+            r"(full|heavy|generous|medium-full)", _re.I)
+        busty = [f for f in full if _busty_rx.search(f)]
+        if busty:
+            pools["figure"] = busty
+            print(f"[figure-focus] busty: figure pool {len(full)}→{len(busty)} "
+                  f"entries (other axes unchanged)", flush=True)
     # Distinguish an EXPLICIT --tier from the default so the --auto rotation can
     # honour each niche's auto_tier; an explicit --tier always wins.
     tier_explicit = args.tier is not None
