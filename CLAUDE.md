@@ -81,14 +81,17 @@ scripts/upscale_folder.py ── manual, selective true-4K (USDU, face-true deno
   **`qwen_3_4b.safetensors` fp16 TE** via stock `CLIPLoader` type=lumina2 (2026-06-29 — swapped
   from the Engineer-V6 Q8 GGUF; fp16 is crisper but ~8GB heavier-to-load → slower first render),
   **`ultrafluxVAEImproved_v10.safetensors`** VAE in `models/vae/zit/` (16ch Flux-compatible, swapped
-  from `ae.safetensors`), cfg 1.0) + a 2-LoRA stack (both in `models/loras/zit/` — the zit/ prefix
+  from `ae.safetensors`), cfg 1.0) + a 3-LoRA stack (all in `models/loras/zit/` — the zit/ prefix
   is REQUIRED in the workflow or ComfyUI silently fails to load): `zit_fdpo_v1` (**flow-DPO**
   aesthetic LoRA @1.0, FIRST in the chain — F16/z-image-turbo-flow-dpo, Z-Image-native LoKr; counters
   Turbo flatness/washed-out lighting, A/B-verified to add cinematic contrast/polish WITHOUT changing
-  composition or burning) → `dopsd_white` (style @1.0). **`NSFW_master_ZIT` was REMOVED 2026-06-29
-  (user) — re-addable later; the render-time tier-gate code (sets its strength to 0.0 on T1/T2+covers,
-  0.8 at T3/T4) stays in art_series and is a graceful no-op while the LoRA is absent. WITHOUT it,
-  T3/T4 anatomy renders weaker on the NSFW-weak official base.** (Skipped LoRAs: alibaba
+  composition or burning) → **`NSFW_master_ZIT` @0.8** → `dopsd_white` (style @0.8). **`NSFW_master_ZIT`
+  was RE-ENABLED 2026-06-30 (user) after a 2026-06-29 removal — the render-time tier-gate code clamps
+  its strength to 0.0 on T1/T2+covers and 0.8 at T3/T4 (anti-drift: at full strength it strips clothing
+  on clean funnel-tier prompts). It restores explicit anatomy on the NSFW-weak official base; WITHOUT it,
+  T4 silently renders as tasteful T3 art-nude. Cumulative LoRA strength at T3/T4 = 2.6 (A/B-verified, no
+  burn); dopsd dropped 1.0→0.8 on re-add to hold that total. NudeNet package-time gate is the visual
+  backstop for residual T1/T2 drift.** (Skipped LoRAs: alibaba
   Fun-Lora-Distill = redundant on already-distilled Turbo + blur; UltraFlux = FLUX-arch, won't load on
   Lumina2.) + `ModelSamplingAuraFlow` shift 3.0,
   `dpmpp_sde`/beta/8. Template

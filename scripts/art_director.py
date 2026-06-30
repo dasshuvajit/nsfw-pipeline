@@ -130,6 +130,28 @@ SFW_COVER_DIRECTIVE = (
 AUDIT_GATE_THRESHOLD_DEFAULT = 8.5
 
 
+# Forced "topless bust" mode (--force-shot-type bust|close_up at T3). The T3
+# directive's default FACE-PLATE exception (used verbatim in the T3 entry below)
+# makes a deliberate bust/close_up a face-ONLY headshot with the bare body "CROPPED
+# OUT" — the opposite of a face+bare-breasts crop. generate_one(topless_bust=True)
+# swaps the face-plate clause for the override so a pinned bust at T3 frames the
+# face AND bare breasts together. Default runs are byte-identical (the override only
+# fires when --force-shot-type is set), so this never touches normal series.
+_T3_FACEPLATE_EXCEPTION = (
+    "EXCEPTION — when the shot is a deliberate close_up or bust (a chosen "
+    "FACE-PLATE within the nude set): make it a true face-tight portrait — fill "
+    "the frame with her face and expression, the bare body simply CROPPED OUT of "
+    "this frame (not covered) — sensual eye-contact carries it, not exposure."
+)
+_T3_TOPLESS_BUST_OVERRIDE = (
+    "FORCED TOPLESS BUST — this image is a tight chest-up crop framed from the top "
+    "of her head to just below her bare breasts: her face/expression AND both bare "
+    "breasts are co-equal subjects, fully in frame and lit. Do NOT crop the breasts "
+    "out, do NOT retreat to a face-only headshot, do NOT widen to a full body or the "
+    "surrounding room — hold this identical face+breasts crop."
+)
+
+
 TIER_DIRECTIVES = {
     "T1_suggestive": (
         "T1 — SUGGESTIVE (fully CLOTHED, but HOT). She wears an actual garment "
@@ -166,10 +188,7 @@ TIER_DIRECTIVES = {
         "T4's job, not this). The register is 'stunning sensual nude,' never "
         "'clinical figure study.' Any wardrobe is a sheer cover-up falling open "
         "or a slip off the shoulders — cut to frame the bare body, never conceal it. "
-        "EXCEPTION — when the shot is a deliberate close_up or bust (a chosen "
-        "FACE-PLATE within the nude set): make it a true face-tight portrait — fill "
-        "the frame with her face and expression, the bare body simply CROPPED OUT of "
-        "this frame (not covered) — sensual eye-contact carries it, not exposure."
+        + _T3_FACEPLATE_EXCEPTION
     ),
     "T4_explicit": (
         "T4 — EXPLICIT. Full nudity with the vulva bare and visible — but as "
@@ -1268,8 +1287,16 @@ def generate_one(
     pose: str = "",
     atmosphere: str = "",
     lock_wardrobe: bool = False,
+    topless_bust: bool = False,
 ) -> dict:
     tier_directive = TIER_DIRECTIVES.get(tier, TIER_DIRECTIVES["T3_artnude"])
+    if topless_bust:
+        # --force-shot-type bust|close_up at T3: replace the FACE-PLATE exception
+        # (which crops the breasts OUT → a face-only headshot) with the topless-bust
+        # override (face + bare breasts co-equal). No-op at other tiers (the T3
+        # face-plate substring is absent), so it only affects a pinned T3 bust set.
+        tier_directive = tier_directive.replace(
+            _T3_FACEPLATE_EXCEPTION, _T3_TOPLESS_BUST_OVERRIDE)
     if extra_directive:
         tier_directive = f"{tier_directive}\n{extra_directive}"
     # Tier-split sensual REGISTER dial (config/creative_direction.yaml::
@@ -1308,15 +1335,27 @@ def generate_one(
     framing_variety = ""
     if framing_target:
         o, s = framing_target
-        framing_variety = (
-            f"\n\nASSIGNED FRAMING for THIS image: orientation={o}, shot_type={s}. "
-            f"COMPOSE THE SCENE TO FIT IT and emit exactly this in your JSON. This "
-            f"image's job in the series is to be the {o} {s} shot — write a scene "
-            f"that genuinely works in that frame (e.g. a {s} demands you actually "
-            f"frame the body that way). Only deviate if {o}/{s} would truly break "
-            f"this specific shot, and if so explain why in framing_rationale. A "
-            f"sellable series MUST vary — never portrait/medium every time."
-        )
+        if topless_bust:
+            # Crop is PINNED across the whole set — replace the "vary the framing"
+            # nudge (which fights consistency) with a hold-the-crop instruction.
+            framing_variety = (
+                f"\n\nFORCED FRAMING for THIS image: orientation={o}, shot_type={s} — a "
+                f"tight CHEST-UP TOPLESS BUST. Frame from the top of her head to just "
+                f"below her bare breasts; her face AND both bare breasts are co-equal in "
+                f"frame and lit. Emit exactly orientation={o}, shot_type={s} in your JSON. "
+                f"Do NOT widen to a full body / environmental shot and do NOT crop to a "
+                f"face-only headshot — every image in this series holds this identical crop."
+            )
+        else:
+            framing_variety = (
+                f"\n\nASSIGNED FRAMING for THIS image: orientation={o}, shot_type={s}. "
+                f"COMPOSE THE SCENE TO FIT IT and emit exactly this in your JSON. This "
+                f"image's job in the series is to be the {o} {s} shot — write a scene "
+                f"that genuinely works in that frame (e.g. a {s} demands you actually "
+                f"frame the body that way). Only deviate if {o}/{s} would truly break "
+                f"this specific shot, and if so explain why in framing_rationale. A "
+                f"sellable series MUST vary — never portrait/medium every time."
+            )
     # Per-image subject look. Two modes: rotated (sampled from the look pools so
     # the series shows wide variety) OR locked (a bound persona's fixed identity —
     # the SAME woman every image). look_locked flips the contract wording.
@@ -1504,6 +1543,7 @@ def generate_series(
     lock_wardrobe: bool = False,
     native_framing_only: bool = False,
     force_orientation: str = "",
+    force_shot_type: str = "",
 ) -> list[dict]:
     """Generate ``count`` prompts. ``sub_looks`` (from the niche selector)
     overrides the default 3; the per-scene look rotates through them.
@@ -1561,6 +1601,11 @@ def generate_series(
     ref_sigs: list[tuple[str, set[str]]] = [
         (s[:36], _ngrams3(s)) for s in avoid if s
     ]
+    # --force-shot-type bust|close_up at T3 = the "topless bust portrait" mode:
+    # swaps the T3 face-plate exception for a face+bare-breasts override and holds
+    # the crop across the set (see generate_one(topless_bust=)).
+    topless_bust = bool(force_shot_type in ("bust", "close_up")
+                        and tier == "T3_artnude")
     for i in range(count):
         sub_look = _rotate(looks, i, run_offset, "sub_look")
         look_label = sub_look.split(" — ")[0]
@@ -1576,6 +1621,11 @@ def generate_series(
             if force_orientation == "widescreen" and _s in ("close_up", "bust"):
                 _s = "wide_environmental"
             framing = (force_orientation, _s)
+        if force_shot_type:
+            # --force-shot-type: pin the crop series-wide (the topless-bust portrait
+            # set). Set BEFORE the T4 anatomy remap below, so a tight crop at T4 still
+            # widens to show the required anatomy (a face/breast crop is a T3 mode).
+            framing = (framing[0], force_shot_type)
         # Structural rotation — sentence-1 lead (5-cycle) + craft-note
         # placement (7-cycle), both coprime with the 8 framing targets.
         opener_lead = _rotate(OPENER_LEADS, i, run_offset, "opener")
@@ -1682,6 +1732,7 @@ def generate_series(
                     word_band=word_band,
                     extra_directive=attempt_directive,
                     framing_target=framing,
+                    topless_bust=topless_bust,
                     look_target=scene_look,
                     look_locked=bool(locked_look),
                     reveal_target=reveal_target,
@@ -1766,6 +1817,10 @@ def generate_series(
             # story for a standing figure). --force-orientation overrides the emitted
             # value too — the prose was composed for the forced framing regardless.
             cand["orientation"] = force_orientation
+        if force_shot_type:
+            # Hard-pin the crop too — the LLM may still EMIT a wider shot_type.
+            # framing[1] reflects any tier remap (e.g. the T4 bust->full_body widen).
+            cand["shot_type"] = framing[1]
         ptext = cand["prompt"]
         nwords = len(ptext.split())
         lo, hi = word_band

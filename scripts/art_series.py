@@ -511,13 +511,14 @@ def _curate(
 
 # ── tier-split labels ───────────────────────────────────────────────
 _EXPLICIT_TIERS = {"T3_artnude", "T4_explicit"}
-# NSFW LoRA (lora_nsfw) — REMOVED from both zimage templates 2026-06-29 (user request;
-# re-addable later). When present it restored explicit anatomy on the NSFW-weak official
-# base but was a LIABILITY at the funnel tiers — it stripped clothing even on clean T1/T2
-# prompts (2026-06-20: bohemian T2 drifted 5/6 nude). The render-time tier-gate below
-# (`if "lora_nsfw" in wf`) is now a dormant no-op kept for when the LoRA is re-added; the
-# _NSFW_LORA_STRENGTH value + the nsfw_lora_strength arg it feeds are currently INERT.
-# Gate intent (when active): full at T3/T4, OFF at T1/T2 + covers (which are T1).
+# NSFW LoRA (lora_nsfw) — RE-ENABLED in both zimage templates 2026-06-30 (user request) at
+# 0.8 in the chain, after being removed 2026-06-29. It restores explicit anatomy on the
+# NSFW-weak official base (WITHOUT it, T4 silently renders as tasteful T3 art-nude). It is
+# a LIABILITY at the funnel tiers — it can strip clothing even on clean T1/T2 prompts
+# (2026-06-20: bohemian T2 drifted 5/6 nude) — so the render-time tier-gate below
+# (`if "lora_nsfw" in wf`) clamps its strength: full _NSFW_LORA_STRENGTH at T3/T4, 0.0 at
+# T1/T2 + covers (which are T1). The NudeNet package-time tier-drift gate is the visual
+# backstop for any residual T1/T2 render-drift.
 _NSFW_LORA_STRENGTH = 0.8
 AI_DISCLOSURE_LABEL = "Created using AI tools"
 
@@ -1366,6 +1367,13 @@ def main() -> int:
                     help="FORCE every main image to this orientation (overrides the "
                     "per-scene LLM/rotation choice) — e.g. a pure widescreen 16:9 or "
                     "story 9:16 series. Covers stay native. Best on wide-scene niches.")
+    ap.add_argument("--force-shot-type", default=None,
+                    choices=list(art_director.SHOT_TYPES_ALLOWED),
+                    help="FORCE the crop/shot_type for every main image (overrides the "
+                    "rotation). 'bust' + --tier T3_artnude + --force-orientation portrait "
+                    "= a face+bare-breasts 'topless bust' portrait set (the T3 face-plate "
+                    "exception is auto-swapped so the breasts stay in frame). Covers stay "
+                    "native. At T4 a tight crop is still widened to show anatomy.")
     ap.add_argument("--base-template", default=None,
                     help="staged stage-1 base template (default: pipeline.yaml "
                     "render_pipeline.base_template)")
@@ -1660,6 +1668,7 @@ def main() -> int:
         seed_overused=overused, locked_look=locked_look,
         lock_wardrobe=(selection.niche.lock_wardrobe if selection else False),
         force_orientation=(args.force_orientation or ""),
+        force_shot_type=(args.force_shot_type or ""),
     )
     if not rows:
         print("No prompts generated — aborting.", file=sys.stderr)

@@ -417,27 +417,31 @@ def test_zimage_refine_t4_honored_by_tier_purity_guard():
 
 
 def test_zimage_default_workflow_is_official_plus_lora_stack():
-    """The default zimage base.json: official Z-Image Turbo + the 2-LoRA stack
-    (flow-DPO + dopsd_white; NSFW_master removed 2026-06-29) wired into the model
-    chain, dpmpp_sde sampler, ModelSamplingAuraFlow shift, qwen_3_4b safetensors TE,
-    ultraflux VAE, patchable contract nodes intact, and a safe (~1MP) static latent."""
+    """The default zimage base.json: official Z-Image Turbo + the 3-LoRA stack
+    (flow-DPO + NSFW_master + dopsd_white; NSFW_master re-enabled 2026-06-30) wired into
+    the model chain, dpmpp_sde sampler, ModelSamplingAuraFlow shift, qwen_3_4b safetensors
+    TE, ultraflux VAE, patchable contract nodes intact, and a safe (~1MP) static latent."""
     base = Path("config/comfyui_workflows/templates/zimage")
     b = json.loads((base / "base.json").read_text())
     assert b["unet"]["inputs"]["unet_name"] == "z_image_turbo_bf16.safetensors"   # official base
-    # 2-LoRA stack (2026-06-29: NSFW_master removed per user — add back later if needed):
-    # unet → lora_dpo(flow-DPO @1.0, FIRST) → lora_style(dopsd_white @1.0) → modelsampling
-    # → ksampler. Both live in the zit/ subfolder (un-prefixed paths silently fail to load).
-    assert "lora_nsfw" not in b, "NSFW_master LoRA was removed from the default stack"
+    # 3-LoRA stack (2026-06-30: NSFW_master re-enabled per user): unet → lora_dpo(flow-DPO
+    # @1.0, FIRST) → lora_nsfw(NSFW_master @0.8, TIER-GATED to 0.0 at T1/T2+covers at render
+    # time) → lora_style(dopsd_white @0.8) → modelsampling → ksampler. All live in the zit/
+    # subfolder (un-prefixed paths silently fail to load).
     assert b["lora_dpo"]["class_type"] == "LoraLoaderModelOnly"
     assert b["lora_dpo"]["inputs"]["model"] == ["unet", 0]
     assert b["lora_dpo"]["inputs"]["lora_name"] == "zit/zit_fdpo_v1.safetensors"
     assert b["lora_dpo"]["inputs"]["strength_model"] == 1.0
-    assert b["lora_style"]["inputs"]["model"] == ["lora_dpo", 0]   # rewired past the removed node
+    assert b["lora_nsfw"]["class_type"] == "LoraLoaderModelOnly"
+    assert b["lora_nsfw"]["inputs"]["model"] == ["lora_dpo", 0]
+    assert b["lora_nsfw"]["inputs"]["lora_name"] == "zit/NSFW_master_ZIT_000017532.safetensors"
+    assert b["lora_nsfw"]["inputs"]["strength_model"] == 0.8   # template default; tier-gated at render
+    assert b["lora_style"]["inputs"]["model"] == ["lora_nsfw", 0]
     assert b["lora_style"]["inputs"]["lora_name"] == "zit/dopsd_white_zimage_turbo_comfy.safetensors"
-    assert b["lora_style"]["inputs"]["strength_model"] == 1.0      # dopsd 0.8 -> 1.0
+    assert b["lora_style"]["inputs"]["strength_model"] == 0.8
     assert b["modelsampling"]["inputs"]["model"] == ["lora_style", 0]
     assert b["ksampler"]["inputs"]["model"] == ["modelsampling", 0]
-    for nid in ("lora_style", "lora_dpo"):
+    for nid in ("lora_nsfw", "lora_style", "lora_dpo"):
         assert b[nid]["inputs"]["lora_name"].startswith("zit/"), f"{nid} not in zit/"
     assert b["ksampler"]["inputs"]["sampler_name"] == "dpmpp_sde"        # user-preferred after manual A/B
     # 2026-06-29: TE swapped to the qwen_3_4b fp16 safetensors (stock CLIPLoader, was the
@@ -473,16 +477,18 @@ def test_zimage_hires_base_template():
         assert nid in d, f"hires base missing contract node {nid}"
     # hires must carry the SAME model config as base.json — TE/VAE/LoRA stack — so a
     # revert on one template can't silently diverge the other (2026-06-29 audit gap).
-    assert "lora_nsfw" not in d, "NSFW_master LoRA must stay removed from hires too"
     assert d["clip"]["class_type"] == "CLIPLoader"
     assert d["clip"]["inputs"]["type"] == "lumina2"
     assert d["clip"]["inputs"]["clip_name"] == "qwen_3_4b.safetensors"
     assert d["vae"]["inputs"]["vae_name"] == "zit/ultrafluxVAEImproved_v10.safetensors"
     assert d["lora_dpo"]["inputs"]["lora_name"] == "zit/zit_fdpo_v1.safetensors"
     assert d["lora_dpo"]["inputs"]["strength_model"] == 1.0
+    assert d["lora_nsfw"]["inputs"]["lora_name"] == "zit/NSFW_master_ZIT_000017532.safetensors"
+    assert d["lora_nsfw"]["inputs"]["model"] == ["lora_dpo", 0]
+    assert d["lora_nsfw"]["inputs"]["strength_model"] == 0.8
+    assert d["lora_style"]["inputs"]["model"] == ["lora_nsfw", 0]
     assert d["lora_style"]["inputs"]["lora_name"] == "zit/dopsd_white_zimage_turbo_comfy.safetensors"
-    assert d["lora_style"]["inputs"]["strength_model"] == 1.0
-    assert d["lora_style"]["inputs"]["model"] == ["lora_dpo", 0]   # rewired past removed node
+    assert d["lora_style"]["inputs"]["strength_model"] == 0.8
 
 
 # ── influencer-substance prompt-engine knobs (2026-06-17) ──────────
@@ -553,6 +559,87 @@ def test_register_dial_graceful_when_absent(monkeypatch):
     """No sensual_register config → no REGISTER line, prompt engine unchanged."""
     monkeypatch.setattr(AD, "_CREATIVE", {})
     assert "REGISTER for THIS tier" not in _one("T3_artnude")
+
+
+# ── --force-shot-type "topless bust" portrait mode (2026-06-30) ────
+
+def test_t3_directive_default_carries_faceplate_not_override():
+    """The T3 directive refactor (face-plate clause extracted to a constant) is
+    byte-equivalent: the default directive still carries the FACE-PLATE exception
+    and NOT the topless-bust override, so normal runs are unchanged."""
+    t3 = AD.TIER_DIRECTIVES["T3_artnude"]
+    assert AD._T3_FACEPLATE_EXCEPTION in t3
+    assert AD._T3_TOPLESS_BUST_OVERRIDE not in t3
+    # the override is a real inversion of the face-plate (breasts IN, not cropped out)
+    assert "CROPPED OUT" in AD._T3_FACEPLATE_EXCEPTION
+    assert "CROPPED OUT" not in AD._T3_TOPLESS_BUST_OVERRIDE
+    assert "bare breasts" in AD._T3_TOPLESS_BUST_OVERRIDE
+
+
+def test_generate_one_topless_bust_swaps_faceplate_and_holds_crop():
+    """generate_one(topless_bust=True) at T3 swaps the face-plate exception for the
+    topless-bust override AND replaces the 'vary the framing' nudge with a hold-the-
+    crop instruction; default (False) leaves both untouched."""
+    def _prompt(topless_bust):
+        c = _RecordingClient()
+        AD.generate_one(c, brief="b", tier="T3_artnude", sub_look="s — x", avoid=[],
+                        banned_openers=[], model_tag="m", temperature=0.8,
+                        framing_target=("portrait", "bust"), topless_bust=topless_bust)
+        return c.user_prompts[0]
+
+    on = _prompt(True)
+    assert "FORCED TOPLESS BUST" in on and "CROPPED OUT" not in on
+    assert "CHEST-UP TOPLESS BUST" in on          # hold-the-crop framing instruction
+    assert "MUST vary" not in on                  # vary-nag suppressed when pinned
+
+    off = _prompt(False)
+    assert "CROPPED OUT" in off and "FORCED TOPLESS BUST" not in off
+    assert "MUST vary" in off                     # default keeps the vary-nag
+
+
+def test_generate_series_force_shot_type_pins_crop_and_threads_mode(monkeypatch):
+    """--force-shot-type bust at T3 pins (portrait, bust) on every image, threads
+    topless_bust=True into generate_one, and hard-pins the EMITTED shot_type even
+    when the LLM tries to widen. At T4 a forced bust is widened to full_body (the
+    anatomy remap) and topless_bust stays False."""
+    seen = []
+
+    def rec(client, **kw):
+        seen.append({"framing_target": kw.get("framing_target"),
+                     "topless_bust": kw.get("topless_bust")})
+        # LLM "tries to widen" to full_body — the hard-pin must override it
+        return {"prompt": " ".join(f"w{j}" for j in range(150)),
+                "orientation": "landscape", "shot_type": "full_body",
+                "framing_rationale": "r"}
+
+    monkeypatch.setattr(AD, "generate_one", rec)
+    rows = AD.generate_series(brief="b", tier="T3_artnude", count=6, model_tag="m",
+                              temperature=0.8, audit_gate=False, client=object(),
+                              force_orientation="portrait", force_shot_type="bust")
+    assert all(s["framing_target"] == ("portrait", "bust") for s in seen)
+    assert all(s["topless_bust"] is True for s in seen)
+    # hard-pin overrides the widened emit on every surviving row
+    assert rows and all(r["orientation"] == "portrait" and r["shot_type"] == "bust"
+                        for r in rows)
+
+    seen.clear()
+    AD.generate_series(brief="b", tier="T4_explicit", count=3, model_tag="m",
+                       temperature=0.8, audit_gate=False, client=object(),
+                       force_shot_type="bust")
+    assert all(s["framing_target"][1] == "full_body" for s in seen), \
+        "T4 must widen a forced bust to full_body for anatomy"
+    assert all(s["topless_bust"] is False for s in seen), \
+        "T4 must NOT enter topless-bust mode (no genital token -> gate fail)"
+
+
+def test_force_shot_type_cli_flag_exists():
+    """--force-shot-type is exposed with the SHOT_TYPES_ALLOWED choices."""
+    import re
+    src = Path("scripts/art_series.py").read_text()
+    assert '"--force-shot-type"' in src
+    assert "SHOT_TYPES_ALLOWED" in src
+    # threaded into the MAIN generate_series call (not the covers call)
+    assert "force_shot_type=(args.force_shot_type or \"\")" in src
 
 
 # ── tier-truth visual-QA advisory (2026-06-17) ─────────────────────
