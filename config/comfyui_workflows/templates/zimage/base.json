@@ -16,11 +16,11 @@
         0
       ],
       "lora_name": "zit/NSFW_master_ZIT_000017532.safetensors",
-      "strength_model": 0.8
+      "strength_model": 0.0
     },
     "class_type": "LoraLoaderModelOnly",
     "_meta": {
-      "title": "LoRA 2/3 \u2014 NSFW_master_ZIT (restores explicit anatomy on the NSFW-weak official base; TIER-GATED at render time: 0.8 at T3/T4, 0.0 at T1/T2 + covers)"
+      "title": "LoRA 2/3 \u2014 NSFW_master_ZIT (DISABLED @0.0 per user 2026-07-06; re-enable = strength 0.8 + _NSFW_LORA_STRENGTH 0.8)"
     }
   },
   "lora_style": {
@@ -30,11 +30,11 @@
         0
       ],
       "lora_name": "zit/dopsd_white_zimage_turbo_comfy.safetensors",
-      "strength_model": 0.8
+      "strength_model": 0.0
     },
     "class_type": "LoraLoaderModelOnly",
     "_meta": {
-      "title": "LoRA 3/3 \u2014 dopsd_white (style/realism; stacked after NSFW_master @0.8)"
+      "title": "LoRA 3/3 \u2014 dopsd_white (DISABLED @0.0 per user 2026-07-06; re-enable = strength 0.8)"
     }
   },
   "modelsampling": {

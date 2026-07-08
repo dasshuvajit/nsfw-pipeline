@@ -511,15 +511,16 @@ def _curate(
 
 # ── tier-split labels ───────────────────────────────────────────────
 _EXPLICIT_TIERS = {"T3_artnude", "T4_explicit"}
-# NSFW LoRA (lora_nsfw) — RE-ENABLED in both zimage templates 2026-06-30 (user request) at
-# 0.8 in the chain, after being removed 2026-06-29. It restores explicit anatomy on the
-# NSFW-weak official base (WITHOUT it, T4 silently renders as tasteful T3 art-nude). It is
-# a LIABILITY at the funnel tiers — it can strip clothing even on clean T1/T2 prompts
-# (2026-06-20: bohemian T2 drifted 5/6 nude) — so the render-time tier-gate below
-# (`if "lora_nsfw" in wf`) clamps its strength: full _NSFW_LORA_STRENGTH at T3/T4, 0.0 at
-# T1/T2 + covers (which are T1). The NudeNet package-time tier-drift gate is the visual
-# backstop for any residual T1/T2 render-drift.
-_NSFW_LORA_STRENGTH = 0.8
+# LoRA stack toggle — the dopsd_white (style) + NSFW_master (lora_nsfw) LoRAs are DISABLED
+# 2026-07-06 (user request); only flow-DPO (lora_dpo @1.0) stays active. Both zimage
+# templates carry lora_nsfw + lora_style at strength 0.0, and this constant is forced to 0.0
+# so the render-time tier-gate below (`if "lora_nsfw" in wf`) can NEVER re-apply NSFW_master
+# at T3/T4 — disabling it for EVERY case (all tiers + covers). Background: at 0.8 NSFW_master
+# restored explicit anatomy on the NSFW-weak official base (WITHOUT it, T4 renders as tasteful
+# art-nude) but could strip clothing on clean funnel prompts; the tier-gate + NudeNet gate
+# managed that. RE-ENABLE (when the user says so): set both templates' lora_nsfw + lora_style
+# strength_model back to 0.8 and _NSFW_LORA_STRENGTH back to 0.8.
+_NSFW_LORA_STRENGTH = 0.0   # was 0.8 (T3/T4) — disabled per user 2026-07-06
 AI_DISCLOSURE_LABEL = "Created using AI tools"
 
 # ── Plate numbering (collectability — DA_GO_TO_MARKET.md §4) ─────────

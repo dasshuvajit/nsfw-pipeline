@@ -81,17 +81,20 @@ scripts/upscale_folder.py ── manual, selective true-4K (USDU, face-true deno
   **`qwen_3_4b.safetensors` fp16 TE** via stock `CLIPLoader` type=lumina2 (2026-06-29 — swapped
   from the Engineer-V6 Q8 GGUF; fp16 is crisper but ~8GB heavier-to-load → slower first render),
   **`ultrafluxVAEImproved_v10.safetensors`** VAE in `models/vae/zit/` (16ch Flux-compatible, swapped
-  from `ae.safetensors`), cfg 1.0) + a 3-LoRA stack (all in `models/loras/zit/` — the zit/ prefix
+  from `ae.safetensors`), cfg 1.0) + a LoRA stack (all in `models/loras/zit/` — the zit/ prefix
   is REQUIRED in the workflow or ComfyUI silently fails to load): `zit_fdpo_v1` (**flow-DPO**
   aesthetic LoRA @1.0, FIRST in the chain — F16/z-image-turbo-flow-dpo, Z-Image-native LoKr; counters
   Turbo flatness/washed-out lighting, A/B-verified to add cinematic contrast/polish WITHOUT changing
-  composition or burning) → **`NSFW_master_ZIT` @0.8** → `dopsd_white` (style @0.8). **`NSFW_master_ZIT`
-  was RE-ENABLED 2026-06-30 (user) after a 2026-06-29 removal — the render-time tier-gate code clamps
-  its strength to 0.0 on T1/T2+covers and 0.8 at T3/T4 (anti-drift: at full strength it strips clothing
-  on clean funnel-tier prompts). It restores explicit anatomy on the NSFW-weak official base; WITHOUT it,
-  T4 silently renders as tasteful T3 art-nude. Cumulative LoRA strength at T3/T4 = 2.6 (A/B-verified, no
-  burn); dopsd dropped 1.0→0.8 on re-add to hold that total. NudeNet package-time gate is the visual
-  backstop for residual T1/T2 drift.** (Skipped LoRAs: alibaba
+  composition or burning) → **`NSFW_master_ZIT`** → `dopsd_white`. **BOTH `NSFW_master_ZIT` (anatomy)
+  and `dopsd_white` (style) are DISABLED @0.0 as of 2026-07-06 (user request) — only flow-DPO is active.
+  Both zimage templates carry lora_nsfw + lora_style at strength_model 0.0, and `_NSFW_LORA_STRENGTH`
+  is forced to 0.0 so the render-time tier-gate can't re-apply NSFW at T3/T4 → OFF for every case (all
+  tiers + covers). RE-ENABLE: set both templates' lora_nsfw + lora_style strength_model back to 0.8 and
+  `_NSFW_LORA_STRENGTH` back to 0.8.** (Background: NSFW_master was RE-ENABLED 2026-06-30 then disabled
+  2026-07-06. It restores explicit anatomy on the NSFW-weak official base; WITHOUT it T4 renders as
+  tasteful art-nude. The render-time tier-gate clamps lora_nsfw to 0.0 on T1/T2+covers and
+  `_NSFW_LORA_STRENGTH` at T3/T4. When on, cumulative T3/T4 strength was 2.6 (A/B-verified, no burn);
+  NudeNet package-time gate is the visual backstop for residual T1/T2 drift.) (Skipped LoRAs: alibaba
   Fun-Lora-Distill = redundant on already-distilled Turbo + blur; UltraFlux = FLUX-arch, won't load on
   Lumina2.) + `ModelSamplingAuraFlow` shift 3.0,
   `dpmpp_sde`/beta/8. Template

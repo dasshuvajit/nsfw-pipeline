@@ -417,17 +417,17 @@ def test_zimage_refine_t4_honored_by_tier_purity_guard():
 
 
 def test_zimage_default_workflow_is_official_plus_lora_stack():
-    """The default zimage base.json: official Z-Image Turbo + the 3-LoRA stack
-    (flow-DPO + NSFW_master + dopsd_white; NSFW_master re-enabled 2026-06-30) wired into
-    the model chain, dpmpp_sde sampler, ModelSamplingAuraFlow shift, qwen_3_4b safetensors
+    """The default zimage base.json: official Z-Image Turbo + the LoRA stack wired into
+    the model chain (flow-DPO @1.0 active; NSFW_master + dopsd_white DISABLED @0.0 per user
+    2026-07-06), dpmpp_sde sampler, ModelSamplingAuraFlow shift, qwen_3_4b safetensors
     TE, ultraflux VAE, patchable contract nodes intact, and a safe (~1MP) static latent."""
     base = Path("config/comfyui_workflows/templates/zimage")
     b = json.loads((base / "base.json").read_text())
     assert b["unet"]["inputs"]["unet_name"] == "z_image_turbo_bf16.safetensors"   # official base
-    # 3-LoRA stack (2026-06-30: NSFW_master re-enabled per user): unet → lora_dpo(flow-DPO
-    # @1.0, FIRST) → lora_nsfw(NSFW_master @0.8, TIER-GATED to 0.0 at T1/T2+covers at render
-    # time) → lora_style(dopsd_white @0.8) → modelsampling → ksampler. All live in the zit/
-    # subfolder (un-prefixed paths silently fail to load).
+    # LoRA stack: unet → lora_dpo(flow-DPO @1.0, FIRST, ACTIVE) → lora_nsfw(NSFW_master,
+    # DISABLED @0.0 per user 2026-07-06) → lora_style(dopsd_white, DISABLED @0.0) →
+    # modelsampling → ksampler. All live in the zit/ subfolder (un-prefixed paths silently
+    # fail to load). Chain wiring is unchanged; only the two strengths are zeroed.
     assert b["lora_dpo"]["class_type"] == "LoraLoaderModelOnly"
     assert b["lora_dpo"]["inputs"]["model"] == ["unet", 0]
     assert b["lora_dpo"]["inputs"]["lora_name"] == "zit/zit_fdpo_v1.safetensors"
@@ -435,10 +435,10 @@ def test_zimage_default_workflow_is_official_plus_lora_stack():
     assert b["lora_nsfw"]["class_type"] == "LoraLoaderModelOnly"
     assert b["lora_nsfw"]["inputs"]["model"] == ["lora_dpo", 0]
     assert b["lora_nsfw"]["inputs"]["lora_name"] == "zit/NSFW_master_ZIT_000017532.safetensors"
-    assert b["lora_nsfw"]["inputs"]["strength_model"] == 0.8   # template default; tier-gated at render
+    assert b["lora_nsfw"]["inputs"]["strength_model"] == 0.0   # DISABLED 2026-07-06 (re-enable at 0.8)
     assert b["lora_style"]["inputs"]["model"] == ["lora_nsfw", 0]
     assert b["lora_style"]["inputs"]["lora_name"] == "zit/dopsd_white_zimage_turbo_comfy.safetensors"
-    assert b["lora_style"]["inputs"]["strength_model"] == 0.8
+    assert b["lora_style"]["inputs"]["strength_model"] == 0.0   # dopsd DISABLED 2026-07-06
     assert b["modelsampling"]["inputs"]["model"] == ["lora_style", 0]
     assert b["ksampler"]["inputs"]["model"] == ["modelsampling", 0]
     for nid in ("lora_nsfw", "lora_style", "lora_dpo"):
@@ -485,10 +485,10 @@ def test_zimage_hires_base_template():
     assert d["lora_dpo"]["inputs"]["strength_model"] == 1.0
     assert d["lora_nsfw"]["inputs"]["lora_name"] == "zit/NSFW_master_ZIT_000017532.safetensors"
     assert d["lora_nsfw"]["inputs"]["model"] == ["lora_dpo", 0]
-    assert d["lora_nsfw"]["inputs"]["strength_model"] == 0.8
+    assert d["lora_nsfw"]["inputs"]["strength_model"] == 0.0
     assert d["lora_style"]["inputs"]["model"] == ["lora_nsfw", 0]
     assert d["lora_style"]["inputs"]["lora_name"] == "zit/dopsd_white_zimage_turbo_comfy.safetensors"
-    assert d["lora_style"]["inputs"]["strength_model"] == 0.8
+    assert d["lora_style"]["inputs"]["strength_model"] == 0.0
 
 
 # ── influencer-substance prompt-engine knobs (2026-06-17) ──────────
@@ -1158,10 +1158,13 @@ def test_base_anatomy_retry_rerolls_until_clean(tmp_path, monkeypatch):
 
 
 def test_nsfw_lora_tier_gated_in_base_render(tmp_path):
-    """2026-06-20 anti-drift: _render_stage_base patches lora_nsfw.strength_model to
-    the passed nsfw_lora_strength — 0.0 at funnel tiers (T1/T2 + covers), 0.8 at T3/T4
-    — but only when the template carries lora_nsfw (the default zimage base). Without
-    the fix the baked-in NSFW LoRA stripped clothing at T2 (5/6 drifted nude)."""
+    """_render_stage_base patches lora_nsfw.strength_model to the passed
+    nsfw_lora_strength — but only when the template carries lora_nsfw (the default
+    zimage base). This exercises the MECHANISM with arbitrary values; production now
+    forces 0.0 at EVERY tier since the NSFW LoRA was disabled 2026-07-06
+    (_NSFW_LORA_STRENGTH = 0.0). Historically it clamped 0.0 at funnel tiers / 0.8 at
+    T3/T4 (2026-06-20 anti-drift: the baked-in NSFW LoRA stripped clothing at T2,
+    5/6 drifted nude)."""
     from PIL import Image
     src = tmp_path / "src.png"
     Image.new("RGB", (8, 8)).save(src)
