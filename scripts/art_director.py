@@ -80,24 +80,19 @@ _ACTIVE_WORD_BAND = WORD_BAND_DEFAULT
 # Set per-run by generate_series(require_sfw=True).
 _ACTIVE_REQUIRE_SFW = False
 
-# Nudity tokens that disqualify a cover/thumbnail prompt (checked only when
-# _ACTIVE_REQUIRE_SFW). Tier directives alone proved insufficient — the LLM
-# wrote "wears only stockings" (topless) for a T1 cover.
-_NUDITY_TOKENS = (
-    "nude", "naked", "topless", "bare breast", "bare chest", "bare-chested",
-    "exposed breast", "exposed chest", "areola", "nipple", "bare body",
-    "fully bare", "undressed", "unclothed", "bare-skinned",
-)
-
-# Mood + grounding rules — CONSUMED from scripts.audit_prompts (the single
-# source of truth since 2026-06-10; the lists had drifted across 3 homes —
-# the system prompt banned 'wistful' but neither enforcement list had it).
-# Hard gate (here) uses the strict subsets; the audit's soft scoring uses its
-# broader lists. audit_prompts is stdlib-only, so this top-level import stays
+# Mood + grounding + nudity rules — CONSUMED from scripts.audit_prompts (the
+# single source of truth since 2026-06-10; the lists had drifted across 3
+# homes — the system prompt banned 'wistful' but neither enforcement list had
+# it). NUDITY_TOKENS (2026-08 consolidation) is the canonical union used by
+# both the SFW cover/thumbnail gate here (checked only when
+# _ACTIVE_REQUIRE_SFW — tier directives alone proved insufficient; the LLM
+# wrote "wears only stockings" for a T1 cover) and the audit's low-tier
+# ceiling. audit_prompts is stdlib-only, so this top-level import stays
 # light and acyclic.
 from scripts.audit_prompts import (  # noqa: E402
     HARD_SAD_EXACT as _SAD_MOOD_EXACT,
     HARD_SAD_PREFIX as _SAD_MOOD_PREFIX,
+    NUDITY_TOKENS as _NUDITY_TOKENS,
     _IMPLAUSIBLE_GROUNDING_PATTERNS,
 )
 
@@ -123,11 +118,13 @@ SFW_COVER_DIRECTIVE = (
 # scripts/audit_prompts.score_prompt; below this, regenerate (keep-best
 # fallback after the attempt budget). Gate v2 calibration (2026-06, n=154
 # production prompts): scores now spread 3.5-9.5 (mean 7.3) instead of
-# pinning at 10.0; 8.5 passes the top ~44% of the OLD corpus — prompts
+# pinning at 10.0; 8.5 passed the top ~44% of the OLD corpus — prompts
 # written under the new system prompt (light direction, cliché variation,
 # tier contracts) score higher, and keep-best means a scene is never
-# dropped for a soft miss.
-AUDIT_GATE_THRESHOLD_DEFAULT = 8.5
+# dropped for a soft miss. 2026-08 relax (user: validation churn was killing
+# throughput): 8.5 → 8.0 — the floor still rejects genuinely weak prose but
+# roughly halves regeneration retries. Override per-run via --audit-threshold.
+AUDIT_GATE_THRESHOLD_DEFAULT = 8.0
 
 
 # Forced "topless bust" mode (--force-shot-type bust|close_up at T3). The T3
@@ -671,13 +668,52 @@ def _rotate(seq, index: int, run_key: int, axis: str):
     return local[(index * stride) % len(local)]
 
 
-def _build_system_prompt(word_band: tuple[int, int] = WORD_BAND_DEFAULT) -> str:
+# The EXEMPLARS section of the system prompt: header line, an intro paragraph,
+# then one paragraph per exemplar (each starts with a "[T…]" header at line
+# start), closed by a long "─" separator. Non-greedy body between the two.
+_EXEMPLAR_SECTION_RE = re.compile(
+    r"EXEMPLARS \(this is the bar\)[^\n]*\n(?P<body>.*?)\n\n─{20,}", re.S)
+
+
+def _window_exemplars(prompt_text: str, window: "tuple[int, int]") -> str:
+    """Return the system prompt carrying only a rotating WINDOW of the exemplar
+    blocks (2026-08 diversity overhaul): showing all 6 exemplars on every run
+    made them one fixed echo source — prompts drifted toward the same six
+    settings/phrasings catalog-wide. A ``(start, width)`` window (wrapping)
+    shows each run a different subset, so the echo source itself rotates.
+    The intro line ("Note how every exemplar opens ON HER…") is generic — it
+    names no specific exemplar or count, so it stays truthful for any subset.
+    Defensive: if the exemplar section can't be located (a prose edit moved
+    the markers), the FULL prompt is returned unchanged — never a blank."""
+    m = _EXEMPLAR_SECTION_RE.search(prompt_text)
+    if not m:
+        return prompt_text
+    paras = m.group("body").split("\n\n")
+    intro = [p for p in paras if not p.lstrip().startswith("[")]
+    blocks = [p for p in paras if p.lstrip().startswith("[")]
+    if len(blocks) < 2:
+        return prompt_text
+    start, width = window
+    n = len(blocks)
+    keep = [blocks[(start + j) % n] for j in range(max(1, min(width, n)))]
+    body = "\n\n".join(intro + keep)
+    return prompt_text[:m.start("body")] + body + prompt_text[m.end("body"):]
+
+
+def _build_system_prompt(
+    word_band: tuple[int, int] = WORD_BAND_DEFAULT,
+    exemplar_window: "tuple[int, int] | None" = None,
+) -> str:
     """The art-director system prompt with the target word band + the
     config-driven CREATIVE DIRECTION house style injected. The literal
     "110-160 words" in the constant is the placeholder; the active band is
-    always substituted."""
+    always substituted. ``exemplar_window=(start, width)`` keeps only that
+    wrapping window of the exemplar blocks (see _window_exemplars); ``None``
+    (the default) keeps all 6 — existing callers/tests unchanged."""
     lo, hi = word_band
     base = ART_DIRECTOR_SYSTEM_PROMPT.replace("110-160 words", f"{lo}-{hi} words")
+    if exemplar_window is not None:
+        base = _window_exemplars(base, exemplar_window)
     block = _creative_system_block()
     return f"{base}\n{block}" if block else base
 
@@ -699,9 +735,9 @@ SHOT_TYPES_ALLOWED = ("close_up", "bust", "medium", "full_body", "wide_environme
 # suits them — story↔full_body (a standing figure fills the tall frame) and
 # widescreen↔wide_environmental (the setting fills the wide frame) — so the
 # off-native aspect never lands on a lone close-up where it would leave dead space.
-# LENGTH STAYS 8 (=2^3) — coprime with opener(5)/craft(7)/reveal(11)/camera(3) so the
-# decoupled rotation never phase-locks (growing to 10 silently re-coupled framing↔opener,
-# gcd(10,5)=5). The two off-native ratios REPLACE two of the most redundant native slots
+# LENGTH STAYS 8 (=2^3) — coprime with opener(11)/craft(7)/reveal(11)/camera(7) so the
+# decoupled rotation never phase-locks (when opener was 5, growing this to 10 silently
+# re-coupled framing↔opener, gcd(10,5)=5). The two off-native ratios REPLACE two of the most redundant native slots
 # (a 2nd square-bust and a 4th portrait-medium) rather than adding length.
 FRAMING_TARGETS: tuple[tuple[str, str], ...] = (
     ("portrait", "full_body"),          # standing/kneeling, height is the story
@@ -724,7 +760,9 @@ _T4_SHOT_REMAP = {"close_up": "medium", "bust": "full_body"}
 # Sentence-1 lead rotation (2026-06 audit: 75-80% of all prompts opened on a
 # light source — one structural template catalog-wide). The woman appears in
 # sentence 1 EVERY time (Chroma front-loads subject adherence); what varies is
-# what carries the clause. Length 5 — coprime with the 8 framing targets.
+# what carries the clause. Length 11 (2026-08 diversity overhaul: 5 → 11) —
+# coprime with its stride (2) and the 8 framing targets, so the full pool
+# cycles and never phase-locks to framing.
 # SUBJECT-FIRST ONLY (2026-06-17). Every lead keeps the WOMAN as the subject of
 # sentence 1. The old prop-first / light-first leads were removed: a same-seed
 # Chroma A/B proved "a hand brushes a bottle… leading to a woman" made the model
@@ -735,11 +773,17 @@ OPENER_LEADS: tuple[str, ...] = (
     "her GAZE leads — open on her eyes meeting (or softly avoiding) the lens",
     "her MOOD leads — open on the feeling she carries (calm, playful, lost in thought)",
     "her FORM leads — open on her pose and the line of her body",
+    "her HANDS lead — open on what her hands are doing: holding, tracing, adjusting, resting",
+    "her MOTION leads — open on her mid-movement: turning, stepping, stretching, settling",
+    "her STILLNESS leads — open on a suspended, held instant she occupies in the space",
+    "her RELATION leads — open on her touching, leaning on or framed by ONE named object of the scene",
+    "her EXPRESSION leads — open on the exact expression breaking on her face (a half-smile, parted lips, a slow exhale)",
+    "her SILHOUETTE leads — open on her outline read against the brightest plane of the scene",
 )
 
 # Craft-note placement rotation (audit: 93% of prompts ended in the same
 # "Shot on NNmm…" sentence — one closing formula catalog-wide). Length 7 —
-# coprime with framing(8) and leads(5). "omit" prompts carry the look purely
+# coprime with framing(8) and leads(11). "omit" prompts carry the look purely
 # through described light/texture.
 CRAFT_PLACEMENTS: tuple[str, ...] = (
     "omit", "tail", "omit", "mid", "tail", "omit", "tail",
@@ -806,11 +850,16 @@ REVEAL_SHOT_PIN: dict[str, str] = {
 }
 # Grooming rotates per T4 image (a varied styling choice, not a uniform default) so
 # the set reads like real, different women rather than one airbrushed ideal.
+# 7 entries (2026-08 diversity overhaul: 4 → 7) — coprime with its stride (2),
+# framing(8) and the 11 reveal styles, so a T4 set cycles the whole pool.
 GROOMING_OPTIONS: tuple[str, ...] = (
     "a soft natural triangle of hair",
     "neatly trimmed",
     "a light trimmed strip",
     "smoothly bare",
+    "a full soft natural bush",
+    "a narrow tapered strip",
+    "a short even trim, clearly natural",
 )
 
 
@@ -877,8 +926,11 @@ COMPOSITION_PRINCIPLES: tuple[str, ...] = (
 # Camera ELEVATION/ANGLE — the genuinely-missing axis (2026-06-18 cinematic R&D vs
 # gpt-image-1): the framing rotation set orientation + shot DISTANCE but never camera
 # HEIGHT, so every prompt defaulted to eye-level and never the heroic low angle the
-# frontier model reaches for unprompted. Rotated like composition; 3-cycle (coprime
-# with framing 8 / opener 5 / craft 7 / concept 11 / sensual 13). Worded to stay
+# frontier model reaches for unprompted. Rotated like composition; 7-cycle (2026-08
+# diversity overhaul: 3 → 7 — the four additions vary the camera's BEARING around
+# her, not just its height) — coprime with its stride (2) and framing(8)/opener(11)/
+# concept(11)/sensual(13); craft shares length 7, but the per-(run,axis) shuffles +
+# distinct strides keep those two decorrelated across runs. Worded to stay
 # gate-safe with light direction: a low angle pairs with "looking up" (NEVER "from
 # above"), a high angle with "looking down" — so it never trips CAMERA_ANGLE_CONFLICT.
 CAMERA_ANGLES: tuple[str, ...] = (
@@ -888,6 +940,14 @@ CAMERA_ANGLES: tuple[str, ...] = (
     "natural — no foreshortening distortion of limbs, hands or feet)",
     "a gently HIGH ANGLE — the camera a little above her looking softly down, for "
     "an intimate, flattering line",
+    "a THREE-QUARTER VIEW — the camera 45 degrees off her shoulder line, giving "
+    "depth to face and body",
+    "a clean PROFILE — her face and body side-on, a sculptural single-line "
+    "composition",
+    "an OVER-THE-SHOULDER view — the camera just past her shoulder as she "
+    "half-turns back toward it",
+    "a STRAIGHT-ON SYMMETRIC view — square to her, centered and formal, "
+    "architectural",
 )
 
 
@@ -1098,6 +1158,8 @@ class _PromptOut(BaseModel):
         # Render-safety: chroma renders mirrors as warped faces / body
         # doubles. The ONE structural guard worth keeping from the old
         # pipeline — reject + retry so the LLM re-rolls the scene.
+        # NOTE: intentionally STRICTER than audit_prompts' _MIRROR_PROSE_PATTERNS
+        # (strict substring at generation, pattern-based at scoring).
         if "mirror" in low:
             raise ValueError(
                 "render-risk: 'mirror' present — chroma warps mirror "
@@ -1172,6 +1234,14 @@ def _containment(a: set[str], b: set[str]) -> float:
 # under 0.15 on 3-gram containment; the near-duplicate candle pair was ~0.5+.
 _SIMILARITY_REJECT = 0.22
 
+# Candidate vs FULL prior-run prompts (2026-08): the history seeds were only
+# openers/heads/tails, so the MIDDLE of a prior prompt could be echoed
+# wholesale without tripping anything. Full-prompt refs are long, so
+# containment is meaningful at a lower bar than the short fragments (0.5):
+# 0.30 = "a third of the candidate's 3-grams already appeared in ONE past
+# prompt" — sits between the in-run reject (0.22) and the fragment bar (0.5).
+_HISTORY_FULL_REJECT = 0.30
+
 # Opener comparison ignores these: subject-first prompts ALL open
 # "A [look] woman with ..." — generic subject scaffolding carries no
 # creative information and must never trigger a ban.
@@ -1218,11 +1288,15 @@ def _too_similar(
     ref_sigs: "list[tuple[str, set[str]]]",
     banned_openers: "list[str]",
     look_tokens: "frozenset[str] | set[str]" = frozenset(),
+    ref_fulls: "tuple | list[tuple[str, set[str]]]" = (),
 ) -> "str | None":
     """Reason string when the candidate mechanically repeats prior work, else
     None. Checks: (1) DISTINCTIVE opener-token overlap vs every banned opener;
     (2) 3-gram containment vs accepted prompts this run; (3) 3-gram
-    containment vs seeded history signatures of prior runs.
+    containment vs seeded history signatures of prior runs; (4) 3-gram
+    containment vs FULL prior-run prompts (``ref_fulls``, 2026-08 — catches
+    a wholesale echo of a past prompt's MIDDLE, which the head/tail
+    fragments never covered).
 
     ``look_tokens`` (2026-06-11 night-batch fix): the per-image assigned LOOK
     is woven into every opener by the subject-first rule, so its tokens are
@@ -1244,7 +1318,12 @@ def _too_similar(
         if len(b_toks) < 3:
             # A ban that is pure look/scaffolding can never fire — by design.
             continue
-        need = max(3, (len(b_toks) * 7 + 9) // 10)   # ≥70% of the ban's tokens
+        # 2026-08 relax: ≥85% of the ban's tokens AND at least 4 of them —
+        # short/generic bans (≤3 distinctive tokens) can no longer fire at
+        # all. The old ≥70%/min-3 rule over-fired inside niches whose scenes
+        # legitimately share setting vocabulary (studio/plinth/backdrop) and
+        # was the main source of 4x-reject dropped scenes.
+        need = max(4, (len(b_toks) * 17) // 20)
         if len(b_toks & cand_window) >= need:
             return f"opener nearly identical to a banned opener: {b!r}"
     cand = _ngrams3(text)
@@ -1257,6 +1336,11 @@ def _too_similar(
         c = _containment(cand, ref)
         if c >= 0.5:        # sigs are short fragments — demand strong overlap
             return f"{c:.0%} overlap with a prior-series fragment ({label!r})"
+    for label, ref in ref_fulls:
+        c = _containment(cand, ref)
+        if c >= _HISTORY_FULL_REJECT:
+            return (f"{c:.0%} 3-gram overlap with a FULL prompt of a prior "
+                    f"series ({label!r})")
     return None
 
 
@@ -1288,6 +1372,7 @@ def generate_one(
     atmosphere: str = "",
     lock_wardrobe: bool = False,
     topless_bust: bool = False,
+    exemplar_window: "tuple[int, int] | None" = None,
 ) -> dict:
     tier_directive = TIER_DIRECTIVES.get(tier, TIER_DIRECTIVES["T3_artnude"])
     if topless_bust:
@@ -1317,11 +1402,15 @@ def generate_one(
             "NOT want this series to resemble earlier series in the same category."
         ]
         if banned_openers:
+            # LLM-visible context capped to the MOST RECENT 20 (2026-08): the
+            # full history list bloated the user prompt and, read as a catalog
+            # of house openers, taught the model the template by example. The
+            # MECHANICAL _too_similar check still enforces the FULL list.
             parts.append(
                 "\n\nBANNED OPENERS — do NOT begin your prompt with any of these "
                 "phrasings or close variants (from this series AND earlier series "
                 "in the same category):\n"
-                + "\n".join(f"  • {o}" for o in banned_openers)
+                + "\n".join(f"  • {o}" for o in banned_openers[-20:])
             )
         if avoid:
             parts.append(
@@ -1463,6 +1552,13 @@ def generate_one(
             f"above (the reveal sets pose/angle, the framing sets aspect+crop); if "
             f"they truly conflict, favour the reveal and note it in framing_rationale."
         )
+    # sub_look seed paraphrase (2026-08): niche sub_looks end in a mood-
+    # adjective tail ("…, serene and regal") that the LLM copied VERBATIM into
+    # prose run after run. Trim the tail when the look is long enough to spare
+    # it (>=4 comma segments), and frame the look as a SEED to reinterpret
+    # rather than phrasing to transcribe.
+    look_parts = sub_look.split(", ")
+    look_seed = ", ".join(look_parts[:-1]) if len(look_parts) >= 4 else sub_look
     # 2026-06 — tier directive moved AFTER the sub-look (LLMs weight
     # last-mentioned more heavily). Without this, a strongly-themed brief
     # paired with the "rich fantasy / editorial" sub-look's wardrobe
@@ -1470,7 +1566,9 @@ def generate_one(
     # gowns won over the bare-body tier directive).
     user_prompt = (
         f"Creative brief: {brief}\n"
-        f"TARGET LOOK for THIS image: {sub_look}\n"
+        f"TARGET LOOK for THIS image: {look_seed}. Treat this as a SEED to "
+        f"REINTERPRET — do not copy its phrasing; rebuild the scene in your "
+        f"own fresh words.\n"
         f"TIER — STATE OF UNDRESS (this OVERRIDES any wardrobe language in "
         f"the look above; fabric in the look is SET DRESSING only):\n"
         f"  {tier_directive}\n"
@@ -1495,21 +1593,28 @@ def generate_one(
         '  Make the prompt PHYSICALLY MATCH the chosen framing (a close_up prompt '
         'must describe the face/gaze in detail and crop tight; a full_body prompt '
         'must place the whole body in the scene with clear, correct anatomy).\n\n'
-        'HARD LENGTH RULE: the finished prompt MUST be 130-175 words. The many axes '
+        f'HARD LENGTH RULE: the finished prompt MUST be {word_band[0]}-'
+        f'{word_band[1]} words. The many axes '
         'above (look, wardrobe, pose, time/weather, concept, composition, camera) are '
         'INGREDIENTS to SELECT from and fuse into one tight photograph — NOT a '
-        'checklist to describe one by one. If you are over 175 words, cut adjectives '
+        f'checklist to describe one by one. If you are over {word_band[1]} words, '
+        'cut adjectives '
         'and merge clauses until you are under it; brevity sharpens the render.\n\n'
         'Return JSON: {"prompt": "<prompt text>", "orientation": "<portrait|square|'
         'landscape|widescreen|story>", "shot_type": "<close_up|bust|medium|full_body|'
         'wide_environmental>", "framing_rationale": "<1-2 sentences>"}'
     )
     result = client.generate_json(
-        _build_system_prompt(word_band),
+        _build_system_prompt(word_band, exemplar_window),
         user_prompt,
         model=model_tag,
         temperature=temperature,
-        num_predict=1200,
+        # 2026-08: 1200 → 4096. The LM Studio runtime now always emits a
+        # reasoning_content "thinking" block before the JSON content (model/
+        # server update); at 1200 the whole budget was consumed by thinking →
+        # empty content → schema failure on EVERY call. 4096 covers thinking +
+        # the ~260-token JSON with headroom (16k context holds prompt + gen).
+        num_predict=4096,
         schema=_PromptOut,
     )
     return {
@@ -1531,7 +1636,9 @@ def generate_series(
     word_band: tuple[int, int] = WORD_BAND_DEFAULT,
     audit_gate: bool = True,
     audit_threshold: float = AUDIT_GATE_THRESHOLD_DEFAULT,
-    max_attempts: int = 4,
+    max_attempts: int = 3,   # 2026-08: 4 → 3 (keep-best everywhere makes the
+                             # 4th roll rarely worth its LLM call); --max-attempts
+                             # overrides per-run
     require_sfw: bool = False,
     extra_directive: str = "",
     client: "object | None" = None,
@@ -1539,6 +1646,7 @@ def generate_series(
     seed_banned_openers: "list[str] | None" = None,
     run_offset: int = 0,
     seed_overused: "list[str] | None" = None,
+    seed_ref_texts: "list[str] | None" = None,
     locked_look: str = "",
     lock_wardrobe: bool = False,
     native_framing_only: bool = False,
@@ -1601,11 +1709,24 @@ def generate_series(
     ref_sigs: list[tuple[str, set[str]]] = [
         (s[:36], _ngrams3(s)) for s in avoid if s
     ]
+    # FULL prior-run prompts (2026-08): 3-gram refs against the WHOLE of each
+    # recent same-niche prompt (supplied by _load_niche_history), so echoing a
+    # past prompt's MIDDLE is caught — the head/tail fragments above never
+    # guarded it. Checked at _HISTORY_FULL_REJECT (0.30).
+    ref_fulls: list[tuple[str, set[str]]] = [
+        ("prior-run prompt", _ngrams3(t)) for t in (seed_ref_texts or []) if t
+    ]
     # --force-shot-type bust|close_up at T3 = the "topless bust portrait" mode:
     # swaps the T3 face-plate exception for a face+bare-breasts override and holds
     # the crop across the set (see generate_one(topless_bust=)).
     topless_bust = bool(force_shot_type in ("bust", "close_up")
                         and tier == "T3_artnude")
+    # Exemplar rotation (2026-08): each run sees only a 3-wide wrapping window
+    # of the 6 system-prompt exemplars, keyed on the run offset — a fixed
+    # 6-exemplar set was a constant echo source, so different runs now study
+    # different craft examples. Direct generate_one/_build_system_prompt
+    # callers (tests, A/B harness) default to None = all 6.
+    exemplar_window = (run_offset % 6, 3)
     for i in range(count):
         sub_look = _rotate(looks, i, run_offset, "sub_look")
         look_label = sub_look.split(" — ")[0]
@@ -1626,7 +1747,7 @@ def generate_series(
             # set). Set BEFORE the T4 anatomy remap below, so a tight crop at T4 still
             # widens to show the required anatomy (a face/breast crop is a T3 mode).
             framing = (framing[0], force_shot_type)
-        # Structural rotation — sentence-1 lead (5-cycle) + craft-note
+        # Structural rotation — sentence-1 lead (11-cycle) + craft-note
         # placement (7-cycle), both coprime with the 8 framing targets.
         opener_lead = _rotate(OPENER_LEADS, i, run_offset, "opener")
         craft_placement = _rotate(CRAFT_PLACEMENTS, i, run_offset, "craft")
@@ -1641,9 +1762,10 @@ def generate_series(
         # lockstep with each other and the framing/structural rotations.
         concept = _rotate(EDITORIAL_CONCEPTS, i, run_offset, "concept")
         composition = _rotate(COMPOSITION_PRINCIPLES, i, run_offset, "composition")
-        # Camera HEIGHT rotation (the missing axis) — 3-cycle, coprime with the
-        # 8/5/7/11/13 rotations so the heroic low angle lands on different
-        # framings/concepts across runs rather than locking to one.
+        # Camera HEIGHT/BEARING rotation (the missing axis) — 7-cycle, coprime
+        # with the framing(8)/opener(11)/concept(11)/sensual(13) rotations so
+        # the heroic low angle lands on different framings/concepts across
+        # runs rather than locking to one.
         camera_angle = _rotate(CAMERA_ANGLES, i, run_offset, "camera")
         # New decoupled variety axes (2026-06-20): garment-TYPE (tier governs how
         # much shows; OFF at T4 = nude), pose/gesture (all tiers), time×weather
@@ -1689,6 +1811,7 @@ def generate_series(
         scene_look_tokens = frozenset(
             re.findall(r"[a-z']+", scene_look.lower()))
         best: tuple[dict, float, list[str]] | None = None  # (candidate, score, issues)
+        similar_salvage: dict | None = None  # first variety-guard-rejected candidate
         last_err = None
         feedback = ""           # rejection reason fed into the NEXT attempt
         attempt = 0
@@ -1747,6 +1870,7 @@ def generate_series(
                     pose=pose,
                     atmosphere=atmosphere,
                     lock_wardrobe=lock_wardrobe,
+                    exemplar_window=exemplar_window,
                 )
             except Exception as exc:  # noqa: BLE001 — Pydantic/safety reject → retry
                 msg = str(exc)
@@ -1773,8 +1897,13 @@ def generate_series(
             # not advisory: a too-similar candidate re-rolls like a hard reject.
             sim_reason = _too_similar(cand["prompt"], accepted_ngrams,
                                       ref_sigs, banned_openers,
-                                      look_tokens=scene_look_tokens)
+                                      look_tokens=scene_look_tokens,
+                                      ref_fulls=ref_fulls)
             if sim_reason:
+                # Bank the candidate: it already cleared every safety gate, so
+                # it is a legitimate last-resort salvage (see below the loop).
+                if similar_salvage is None:
+                    similar_salvage = cand
                 feedback = (f"too similar to prior work — {sim_reason}. Write a "
                             f"VISIBLY different opening, setting and phrasing.")
                 print(f"  (scene {i + 1} attempt {attempt + 1} similarity-reject: "
@@ -1783,7 +1912,9 @@ def generate_series(
                 continue
 
             if score_fn:
-                score_ctx = accepted_texts + avoid
+                # Freshness context includes the FULL prior-run prompts too
+                # (2026-08) — familiar phrasing vs a past series now costs.
+                score_ctx = accepted_texts + avoid + (seed_ref_texts or [])
                 try:
                     score, issues = score_fn(cand["prompt"], tier,
                                              context_prompts=score_ctx)
@@ -1801,6 +1932,26 @@ def generate_series(
                   file=sys.stderr, flush=True)
             attempt += 1
 
+        if best is None and similar_salvage is not None:
+            # 2026-08 keep-best extension (SERIES SHORTFALL fix): when every
+            # attempt tripped the variety guard, ship the banked candidate
+            # instead of silently dropping the scene — the old hard-drop threw
+            # away safety-clean generations over opener resemblance and was the
+            # root cause of undersized series.
+            if score_fn:
+                try:
+                    s_score, s_issues = score_fn(
+                        similar_salvage["prompt"], tier,
+                        context_prompts=accepted_texts + avoid
+                        + (seed_ref_texts or []))
+                except TypeError:
+                    s_score, s_issues = score_fn(similar_salvage["prompt"], tier)
+            else:
+                s_score, s_issues = 10.0, []
+            best = (similar_salvage, s_score, s_issues)
+            print(f"  (scene {i + 1} similarity-salvage — shipping a variety-"
+                  f"guard-flagged candidate rather than dropping the scene)",
+                  file=sys.stderr, flush=True)
         if best is None:
             print(f"  !! scene {i + 1} failed after {max_attempts} attempts: "
                   f"{last_err}", file=sys.stderr, flush=True)
@@ -1860,6 +2011,14 @@ def main() -> int:
                          "prefers ~150-word prose; do not exceed ~250)")
     ap.add_argument("--no-audit-gate", action="store_true",
                     help="disable the inline audit_prompts quality gate")
+    ap.add_argument("--max-attempts", type=int, default=3,
+                    help="LLM attempts per scene before keep-best ships "
+                    "(default 3; safety gates always apply)")
+    ap.add_argument("--audit-threshold", type=float,
+                    default=AUDIT_GATE_THRESHOLD_DEFAULT,
+                    help="quality-gate pass score (default "
+                    f"{AUDIT_GATE_THRESHOLD_DEFAULT}; keep-best ships the top "
+                    "attempt even below it)")
     ap.add_argument("--out", default="", help="optional JSON output path")
     args = ap.parse_args()
 
@@ -1887,6 +2046,8 @@ def main() -> int:
         temperature=args.temperature,
         word_band=word_band,
         audit_gate=not args.no_audit_gate,
+        audit_threshold=args.audit_threshold,
+        max_attempts=args.max_attempts,
     )
 
     if args.out:

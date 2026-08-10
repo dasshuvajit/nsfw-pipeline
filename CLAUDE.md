@@ -16,13 +16,14 @@ config/niche_library.yaml ── niche/persona/aesthetic-lock selection
 scripts/art_director.py ──── Gemma writes COMPLETE prose prompts (120-180 words)
         │                     guarded by Pydantic hard gates + audit-gate v2
         ▼
-scripts/art_series.py ────── orchestrates: Phase 1 LLM (prompts + SFW covers +
-        │                     metadata) → unload LLM → Phase 2 render (zimage base
-        │                     only by default; SDXL detailer refine OPT-IN) → curation →
-        │                     tier-split packaging (+ 4k_queue/ + posting templates)
-        ▼
-scripts/upscale_folder.py ── manual, selective true-4K (USDU, face-true denoise 0.05)
+scripts/art_series.py ────── orchestrates: Phase 1 LLM (prompts + metadata; SFW
+                              covers OPT-IN via --covers N, default 0 — packages are
+                              100% tier-true per user directive 2026-07) → unload
+                              LLM → Phase 2 render (zimage BASE-ONLY) → curation →
+                              tier-split packaging (+ posting templates)
 ```
+(The SDXL detailer refine, chroma engine and manual 4K upscale stages were
+ARCHIVED 2026-08 — weights deleted from disk; see legacy/.)
 - **Prompt engine** (`art_director.py`): system prompt teaches optical
   light-on-form craft, subject-first openers, anatomical-clarity/hands rules,
   T1-T4 tier directives, T4 reveal-style rotation (11 styles), framing rotation
@@ -55,24 +56,21 @@ scripts/upscale_folder.py ── manual, selective true-4K (USDU, face-true deno
   of ANY niche, an overused-house-word budget, and the rotation offset
   (stride count+1). `--brief` runs get a slug key. **Never delete
   output/art_series/*/manifest.json — it is the diversity memory.**
-- **Render**: **BASE-ONLY by default (2026-06-21)** — the SDXL detailer refine is
-  OPT-IN (`--refine`), exactly like 4K (manual `upscale_folder.py`). One series =
-  one resident model, no zimage↔SDXL swap thrash. `enable_refine` defaults False
-  (pipeline.yaml + resolver). Staged templates under
-  `config/comfyui_workflows/templates/` (chroma/base.json — dpmpp_2m/simple@12/cfg1;
-  chroma/refine.json — detailers ONLY hands+nipples, NO face detailer, NO global
-  refine; refine_T4.json adds the genital detailer, T4-only via content-based
-  tier-purity guard; sdxl/upscale_4k.json — USDU denoise 0.05 face-true).
-  **Engine = always `zimage` unless `--engine chroma` is given explicitly — there is
-  NO niche-wise/auto engine routing; never auto-pick chroma.** **Seeds are RANDOM
+- **Render**: **BASE-ONLY** (default since 2026-06-21; the refine/4K/chroma
+  stages were fully archived 2026-08 — templates under
+  legacy/config_templates_chroma + legacy/config_templates_pruned). One series =
+  one resident model. Live templates: `templates/zimage/base.json`
+  (+ `base_hires.json` for `--hires`). **Engine = `zimage`, the only engine**
+  (`--engine` keeps the flag for back-compat but accepts only zimage).
+  **Seeds are RANDOM
   per render** (logged per image; `--base-seed N` forces a deterministic
   reproducible run) — no persisted counter (the old one only advanced on success →
   an aborted run reused seeds → ComfyUI execution-cache empty renders). Per-render
   ComfyUI timeout 300s (was 1800) so a hang fails fast → reroll/circuit-breaker.
   Extra-limb guard (hand YOLO reroll); ComfyUI pre-flight + circuit breaker.
 - **Packaging**: tier-split public/ (SFW only, watermarked) + gated/ (clean)
-  + 4k_queue/ (score ≥0.62, flag-free) + per-image posting_templates/ with
-  family-serial "Plate" titling + POSTING_CHECKLIST.md.
+  + per-image posting_templates/ with family-serial "Plate" titling +
+  POSTING_CHECKLIST.md.
 
 ## Tech Stack
 - Python 3.11+, Mac M4 Pro 48GB unified RAM (Apple MPS — no CUDA)
@@ -103,8 +101,8 @@ scripts/upscale_folder.py ── manual, selective true-4K (USDU, face-true deno
   768×1360; ÷16; all ≤4096 latent tokens; NEVER 1536×2048 → MPS >12k-token/INT_MAX
   crash). base_resolution lives in 3 lockstep tables (render_pipeline DEFAULTS +
   pipeline.yaml + the --hires table) — base_resolution_for fails OPEN to portrait,
-  so every orientation must be in all three. **`--engine chroma`** = gonzaLomo **Chroma v30** (FLUX-arch, T5, flash-heun
-  cfg-1) — use for B&W/painterly/period/fantasy niches. Both + SDXL DMD for detailers/4K.
+  so every orientation must be in all three. (The gonzaLomo Chroma v30 engine and
+  the SDXL DMD detailer/4K stages were archived 2026-08 — weights deleted; see legacy/.)
 - LLM registry `config/llm_models.yaml` → `LLMClientPool` routes by backend:
   Ollama / LM Studio / MLX / openai_compatible (dormant remote API).
   **Default: `gemma4_26b_a4b_uncensored_hauhaucs_balanced`** (Gemma-4 26B MoE-A4B
@@ -114,7 +112,7 @@ scripts/upscale_folder.py ── manual, selective true-4K (USDU, face-true deno
   slower; the prose fallback), `gemma_4_26b_a4b_heretic` (prior default),
   `deckard_gemma4_31b_heretic` (dense 31B). Fallback `cydonia_heretic_24b`
   (Ollama). `--model-tag` accepts a registry key OR model id (resolves or fails
-  loudly); `--llm` override.
+  loudly).
 
 ## Critical Constraints
 - **LLM and ComfyUI NEVER run simultaneously** (48GB). art_series unloads the
@@ -126,15 +124,14 @@ scripts/upscale_folder.py ── manual, selective true-4K (USDU, face-true deno
   (cfg 1.0 + ConditioningZeroOut) — positive prose + validators carry ALL
   avoidance; do not "fix" by raising cfg.
 - **Never mix tiers in a set**: T1_suggestive / T2_implied / T3_artnude /
-  T4_explicit. Gate v2 enforces tier contracts at the prompt level; the
-  tier-purity guard blocks genital detailing below T4; **Chroma can still
-  strip clothing at T1/T2 (render drift) — VISUAL tier-truth QA of public/
-  before posting is the #1 checklist rule.**
-- **Chroma face mandate**: the refine stage never touches the face (detailers
-  only: hands/nipples); 4K runs face-true denoise 0.05. Never reintroduce a
-  global refine or face detailer.
+  T4_explicit. Gate v2 enforces tier contracts at the prompt level; **the
+  model can still strip clothing at T1/T2 (render drift) — VISUAL tier-truth
+  QA of public/ before posting is the #1 checklist rule** (NudeNet is the
+  package-time gate).
+- **Base-face mandate**: the user prefers the base render's face — if any
+  refine/detailer stage is ever reintroduced, it must never touch the face
+  (no global refine, no face detailer).
 - **MPS limits**: RES4LYF res_* samplers crash (float64); stock samplers only.
-  Post-upscale detailers OOM at 4K (USDU-only stage 3).
 - **Word band 120-180**: flash-merged Chroma prefers ~150-word prose — the T5
   512-token limit is a ceiling, NOT a target; do not widen toward 300.
 - Commit/push only when the user says "push it". Never embed
@@ -143,29 +140,28 @@ scripts/upscale_folder.py ── manual, selective true-4K (USDU, face-true deno
 ## Key Files
 - CLAUDE.md — this file (project context for Claude Code sessions)
 - scripts/art_director.py · scripts/art_series.py · scripts/audit_prompts.py ·
-  scripts/upscale_folder.py · scripts/diversity_report.py — the active path (flat
-  scripts by design; the shared rule lists live in audit_prompts)
+  scripts/diversity_report.py — the active path (flat scripts by design; the
+  shared rule lists live in audit_prompts)
 - config/niche_library.yaml — 28 niches (12-15 sub_looks each, varied lighting +
   4-season spread, signature materials, `family:` for the 5-family DA architecture)
   + persona_pool. Includes a modern lane (athletic_studio, wild_nature,
   aspirational_luxe), a wellness lane (thermal_bathhouse — onsen/sauna/hammam/banya/
-  hot-spring, tasteful T1-T3, garment axis ON), a surreal lane (surreal_dreamscape →
-  chroma), and a heritage-fashion cultural lane (south_asian_editorial,
+  hot-spring, tasteful T1-T3, garment axis ON), a surreal lane (surreal_dreamscape), and a heritage-fashion cultural lane (south_asian_editorial,
   iberian_flamenco, slavic_folk — tasteful T1-T3, never sacred/caricature; cultural
   garments live IN these niches, not the portable axis). Seasons live where they
   READ (outdoor niches' sub_looks) + 3 foliage overlays in the ATMOSPHERE axis;
   NOT forced on indoor/period niches (the coherence-override drops them).
 - config/creative_direction.yaml — tunable house-style knobs + look_pools
-- config/pipeline.yaml — comfyui/llm endpoints, render_pipeline templates,
+- config/pipeline.yaml — comfyui/llm endpoints, render_pipeline base template,
   watermark; `comfyui.output_dir` is the canonical ComfyUI path source
   (~/AI/apps/ComfyUI on this box — never hardcode ~/ComfyUI)
 - config/llm_models.yaml — LLM registry (default/fallback declared here)
-- docs/COMFYUI_WORKFLOWS.md — staged render details + template contracts
+- docs/COMFYUI_WORKFLOWS.md — render details + template contracts
 - docs/DA_GO_TO_MARKET.md — 5-family galleries, pricing, cadence, funnel
 - docs/COMPETITOR_INTEL.md — living DA-seller research (append when the user
   drops links)
 - PROJECT_GUIDE.md — setup/run/test instructions (update after implementing)
-- tests/ — active suite (~325 tests, `pytest -q`); tests/legacy is excluded
+- tests/ — active suite (~318 tests, `pytest -q`); tests/legacy is excluded
   via pytest.ini
 
 ## Operating notes

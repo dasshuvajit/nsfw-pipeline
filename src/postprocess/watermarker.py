@@ -195,34 +195,3 @@ class Watermarker:
         result.save(output_path, **save_kwargs)
         logger.debug("Watermarked: %s → %s", image_path.name, output_path.name)
         return output_path
-
-    def apply_batch(
-        self,
-        images: list[dict[str, Any]],
-        *,
-        content_level: str = "T2_implied",
-    ) -> list[dict[str, Any]]:
-        """Apply watermark to a batch of image dicts (in place).
-
-        Each dict must have a ``file_path`` key. The watermark is applied
-        directly to the file (overwriting the original).
-
-        Returns the same list for chaining.
-        """
-        if not self.enabled or content_level not in self.WATERMARKED_TIERS:
-            return images
-
-        count = 0
-        for img in images:
-            fp = img.get("file_path")
-            if not fp:
-                continue
-            try:
-                self.apply(fp, content_level=content_level)
-                count += 1
-            except WatermarkError as exc:
-                logger.warning("Watermark failed for %s: %s", fp, exc)
-
-        if count:
-            logger.info("Watermarked %d/%d images", count, len(images))
-        return images

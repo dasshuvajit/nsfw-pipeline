@@ -267,7 +267,9 @@ class MetadataGenerator:
                 SYSTEM_PROMPT,
                 user_prompt,
                 temperature=temperature if temperature is not None else self.TEMPERATURE,
-                num_predict=2048,
+                # 2026-08: 2048 → 4096 — the LM Studio runtime now emits a
+                # reasoning block before content; small budgets starve the JSON.
+                num_predict=4096,
                 schema=MetadataSchema,
                 model=model,
             )

@@ -1,77 +1,11 @@
 # =============================================================================
 # NSFW Content Generation Pipeline — Default Configuration
-# Source: ARCHITECTURE.md Appendix B
 # =============================================================================
-# All weights/thresholds in this file are starting defaults. Phase 2 instructs
-# us to replace mode_weights and content_level_weights with REAL data from
-# the posts table once enough engagement signals are collected.
+# (The legacy structured-path blocks — pipeline/execution/mode_weights/
+# content_level_weights/aspect_ratio_weights/generation/set_builder/dedup/
+# variation_mode/compliance — were removed 2026-08 with the prune; nothing
+# active read them. See legacy/ for the archived path.)
 # =============================================================================
-
-pipeline:
-  runs_per_day: 3
-  output_dir: "output"
-  db_path: "nsfw_pipeline.db"
-  # Default render model. Override per-command with --models <id>.
-  # Must match an id under config/models/*.yaml. Changed 2026-05-20
-  # from juggernaut_ragnarok to gonzalomo_chroma_v30 (chroma family).
-  default_model_id: "gonzalomo_chroma_v30"
-  # Default style profile archetype. Must match a key under profiles:
-  # in config/style_profiles.yaml.
-  default_style_profile_id: "golden_hour_natural"
-
-execution:
-  mode: automated           # manual|supervised|automated
-  pause_after_dryrun: true
-  pause_after_filter: true
-
-mode_weights:
-  # 2026-05-20: character mode deleted; remaining 4 modes proportionally
-  # rescaled ×2.5 (preserves the prior relative ordering until usage
-  # data justifies a tilt).
-  theme: 0.50
-  niche: 0.25
-  style: 0.125
-  variation: 0.125
-
-content_level_weights:
-  # Sale-tier distribution: bias toward the two tiers DA Premium Gallery
-  # actually sells (T2/T3); T1 and T4 are rarer.
-  T1_suggestive: 0.10
-  T2_implied:    0.35
-  T3_artnude:    0.45
-  T4_explicit:   0.10
-
-aspect_ratio_weights:
-  # T1/T2 share the "tasteful" distribution (more variety).
-  # T3/T4 skew portrait — full-body nudes and explicit framing sell tall.
-  T1_suggestive:
-    portrait_23: 0.45
-    portrait_916: 0.20
-    square: 0.25
-    landscape: 0.10
-  T2_implied:
-    portrait_23: 0.45
-    portrait_916: 0.20
-    square: 0.25
-    landscape: 0.10
-  T3_artnude:
-    portrait_23: 0.55
-    portrait_916: 0.20
-    square: 0.20
-    landscape: 0.05
-  T4_explicit:
-    portrait_23: 0.55
-    portrait_916: 0.20
-    square: 0.20
-    landscape: 0.05
-
-generation:
-  batch_size: 1
-
-set_builder:
-  min_images: 10
-  max_images: 25
-  quality_cutoff: 0.55       # Minimum composite score
 
 scoring:
   # Phase G — human-preference scorers. Both ship OFF by default; flip
@@ -100,14 +34,8 @@ scoring:
     face_weight:       0.25
     resolution_weight: 0.10
 
-dedup:
-  prompt_similarity_threshold: 0.9
-  scene_structural_threshold: 0.75  # Cross-level dedup
-
 llm:
   base_url: "http://localhost:11434"
-  unload_after_phase: true
-  keep_alive_seconds: 0
   # Per-request HTTP timeout (seconds) for Ollama /api/generate +
   # /api/chat calls. Default 900s (15 min) is sized for 70B-class
   # models on M4 Pro under unified-memory pressure; 24B-class models
@@ -116,43 +44,9 @@ llm:
   request_timeout_seconds: 900
 
   # The default LLM for the project lives in config/llm_models.yaml under
-  # `default_llm:`. Override per-command with the --llm <id> flag. List
-  # available ids with `python scripts/list_models.py`.
-
-  # Per-role routing — fires ONLY when --llm is omitted on the CLI. When
-  # --llm is specified it overrides every role for that one command run.
-  # All values must be registry IDs from config/llm_models.yaml (NOT raw
-  # Ollama strings — the router resolves to the Ollama tag at call time
-  # so editing the tag in the registry propagates everywhere automatically).
-  #
-  # Current state (2026-05-19): ROUTING DISABLED. Every role falls back to
-  # default_llm (cydonia_heretic_24b) — the heretic-tuned variant already
-  # carries a low refusal floor, so the prior split (venice_24b for facets,
-  # cydonia for planner) is no longer needed. Re-enable per-role routing
-  # only if a future evaluation shows a specific role benefits from a
-  # different LLM.
-  #
-  # Examples (uncomment + customise if needed):
-  # 2026-05-23 — dual-write A/B verdict. Both Cydonia 24B and
-  # DavidAU 12B :3 (32K context instance) produce excellent dual-
-  # write output. Empirical scores on the same 10-scene T4 themes:
-  #
-  #   DavidAU :3 (32K):  avg 9.40/10, 10/10 excellent, 627s wall-clock
-  #   Cydonia 24B    :  avg 9.35/10, 9/10 excellent,  1709s wall-clock
-  #
-  # DavidAU is 2.7x faster AND scores marginally higher. User
-  # preference: "I mainly want to use [DavidAU] if it works perfectly".
-  # Verdict: DavidAU is primary (falls through to default_llm).
-  # Cydonia stays available as fallback_llm in llm_models.yaml.
-  #
-  # IMPORTANT: DavidAU's lm_studio_id is pinned to ":3" suffix (the
-  # 32K-context instance). LM Studio has multiple loaded instances at
-  # different contexts; the bare base id routes to :1 (4K) which
-  # can't fit the dual-write system prompt.
-  routing: {}
-    # series_planner:    cydonia_heretic_24b
-    # scene_generator:   cydonia_heretic_24b
-    # metadata_generator: cydonia_heretic_24b
+  # `default_llm:`. List available ids with `python scripts/list_models.py`.
+  # (The per-role routing block was archived 2026-08 with
+  # src/agents/llm_router.py — see legacy/.)
 
 # Round-14 (2026-05-21) — LM Studio backend. The pipeline's LLM client
 # pool dispatches by `backend:` on each entry in config/llm_models.yaml;
@@ -244,36 +138,14 @@ comfyui:
   # (this dev box runs ComfyUI from ~/AI/apps/ComfyUI). Edit this for your
   # own install. ~ is expanded by Path.expanduser().
   output_dir: "~/AI/apps/ComfyUI/output"
-  # ComfyUI's LoadImage node reads from this directory (NOT from the
-  # project tree). Reserved for future LoadImage-style nodes in
-  # external templates. Sibling of output_dir on standard installs.
-  # Edit this for your install. ~ is expanded by Path.expanduser().
-  input_dir: "~/AI/apps/ComfyUI/input"
-  render_timeout_seconds: 900
-  max_retry_per_image: 3
   workflow_dir: "config/comfyui_workflows"
 
-# Staged render pipeline (2026-06-02). art_series runs the base stage for
-# ALL prompts (Chroma resident), then the refine stage for ALL base outputs
-# (SDXL DMD resident) — the two model domains are never co-resident, which
-# avoids the ~21GB swap the monolith hit on the 48GB M4 Pro. 4K is a SEPARATE
-# manual step (scripts/upscale_folder.py) run only on hand-picked keepers —
-# never auto-run in a series (4K USDU is ~66% of render cost; don't spend it
-# on culls). See docs/COMFYUI_WORKFLOWS.md § Staged pipeline.
+# Render pipeline: zimage BASE-ONLY. One base render per (prompt x seed); the
+# base output IS the review image. The SDXL refine / chroma / 4K upscale stages
+# were archived 2026-08 (weights deleted) — see legacy/.
 render_pipeline:
-  base_template:       "templates/chroma/base.json"      # stage 1 (Chroma)
-  refine_template:     "templates/chroma/refine.json"    # stage 2 (SDXL refine: hands+nipples)
-  refine_template_t4:  "templates/chroma/refine_T4.json" # stage 2 T4 variant (+ vagina detailer); main images only
-  upscale_template:    "templates/sdxl/upscale_4k.json"  # stage 3 (manual; SFW)
-  # Base-only by DEFAULT (2026-06-21): the SDXL detailer refine is opt-in, like 4K
-  # (art_series --refine to enable). Keeps a series on one resident model — no
-  # zimage<->SDXL swap thrash. false -> review images are the raw base render.
-  enable_refine: false
-  target_4k_long_edge: 3840
-  # Base resolution per orientation (overrides art_series ORIENTATIONS when the
-  # staged pipeline is active). Reverted to the model's native 896x1152 portrait:
-  # 4K is reached in the separate upscale stage now, so the base no longer needs
-  # the 1024x1536 that made the monolith's x1.25x2.0 math land on 3840.
+  base_template:       "templates/zimage/base.json"      # Z-Image Turbo base
+  # Base resolution per orientation (the model's native ~1MP buckets).
   base_resolution:
     portrait:   [896, 1152]    # ~3:4 (7:9) native ~1MP
     square:     [1024, 1024]   # 1:1
@@ -293,10 +165,10 @@ watermark:
   opacity: 0.3                     # 0.0 = invisible, 1.0 = fully opaque
 
 # Cinematic post-grade (src/postprocess/grader.py) — the deterministic finishing
-# layer that adds the filmic look Z-Image/Chroma under-render (warm high-contrast
+# layer that adds the filmic look Z-Image under-renders (warm high-contrast
 # grade + highlight bloom/halation + vignette + grain). Runs in _package() on the
 # public AND gated sets, AFTER render and BEFORE watermark. Pure CPU. Disable per
-# run with --no-postgrade. 4K is graded post-USDU, never here (2026-06-18 R&D).
+# run with --no-postgrade.
 postgrade:
   enabled: true
   strength: 0.6          # 0..1 blend with the ungraded render (R&D sweet spot 0.5-0.7)
@@ -308,28 +180,3 @@ postgrade:
   vignette: 0.18         # corner darkening
   grain: 0.015           # film-grain sigma (0 = off)
 
-# postprocess block deleted 2026-05-20 with the Upscaler + FaceRefiner
-# modules. Post-processing (upscale, face-detailer) goes inside external
-# templates from now on — gonzaLomo_Chroma_Refiner_v11.json already does
-# the FaceDetailer pass after its SDXL refiner stage.
-
-variation_mode:
-  axis_weights:
-    pose: 0.40
-    camera: 0.30
-    lighting: 0.20
-    expression: 0.10
-  multi_base:
-    enabled: false
-    max_bases: 3
-    min_source_quality: 0.7
-
-# Compliance gate. When commercial_mode is true the model registry
-# refuses to register any model whose YAML declares
-# ``commercial_use: false`` (e.g. the FLUX NCL-licensed FLUX.2 Klein 9B
-# tier). Pipeline output feeds paid platforms (DA Premium, Patreon,
-# Fanvue); non-commercial licenses would be an actionable violation.
-# Leave this false for personal / research / non-commercial runs; flip
-# it to true only when every selected model is commercially licensed.
-compliance:
-  commercial_mode: false

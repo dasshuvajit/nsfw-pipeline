@@ -19,37 +19,29 @@ def test_pipeline_yaml_block_parses():
     cfg = yaml.safe_load((PROJECT_ROOT / "config" / "pipeline.yaml").read_text())
     rp = cfg.get("render_pipeline")
     assert rp is not None, "pipeline.yaml missing render_pipeline block"
-    assert rp["base_template"] == "templates/chroma/base.json"
-    assert rp["refine_template"] == "templates/chroma/refine.json"
-    assert rp["refine_template_t4"] == "templates/chroma/refine_T4.json"  # T4 vagina variant
-    assert rp["upscale_template"] == "templates/sdxl/upscale_4k.json"
-    assert rp["enable_refine"] is False  # base-only by default; refine is opt-in
-    assert rp["target_4k_long_edge"] == 3840
-    assert rp["base_resolution"]["portrait"] == [896, 1152]  # reverted to native
+    assert rp["base_template"] == "templates/zimage/base.json"  # base-only pipeline
+    assert rp["base_resolution"]["portrait"] == [896, 1152]  # native ~1MP bucket
 
 
 def test_defaults_when_no_layers():
     rp = resolve_render_pipeline()
-    assert rp["base_template"] == DEFAULTS["base_template"]
-    assert rp["enable_refine"] is False  # base-only by default; refine is opt-in
+    assert rp["base_template"] == "templates/zimage/base.json"  # base-only pipeline
     assert rp["base_resolution"]["portrait"] == [896, 1152]
 
 
 def test_global_over_defaults():
-    rp = resolve_render_pipeline(global_rp={"enable_refine": False,
-                                            "target_4k_long_edge": 4096})
-    assert rp["enable_refine"] is False
-    assert rp["target_4k_long_edge"] == 4096
+    rp = resolve_render_pipeline(global_rp={"base_template": "g.json"})
+    assert rp["base_template"] == "g.json"
     # untouched keys keep defaults
-    assert rp["base_template"] == DEFAULTS["base_template"]
+    assert rp["base_resolution"]["portrait"] == list(DEFAULTS["base_resolution"]["portrait"])
 
 
 def test_model_over_global():
     rp = resolve_render_pipeline(
-        global_rp={"refine_template": "templates/chroma/refine.json"},
-        model_rp={"refine_template": "templates/chroma/refine_alt.json"},
+        global_rp={"base_template": "templates/zimage/base.json"},
+        model_rp={"base_template": "templates/zimage/base_alt.json"},
     )
-    assert rp["refine_template"] == "templates/chroma/refine_alt.json"
+    assert rp["base_template"] == "templates/zimage/base_alt.json"
 
 
 def test_cli_over_model_and_global():
@@ -64,10 +56,9 @@ def test_cli_over_model_and_global():
 def test_none_cli_value_does_not_clobber():
     rp = resolve_render_pipeline(
         global_rp={"base_template": "g.json"},
-        cli={"base_template": None, "enable_refine": False},
+        cli={"base_template": None},
     )
     assert rp["base_template"] == "g.json"   # None ignored
-    assert rp["enable_refine"] is False
 
 
 def test_base_resolution_merges_per_orientation():

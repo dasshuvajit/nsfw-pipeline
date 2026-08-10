@@ -23,8 +23,6 @@ Multi-backend support (round-14, 2026-05-21):
 
 Read sites:
 
-  * :class:`src.agents.llm_router.LLMRouter` (Phase 3) — resolves
-    role/family → registry id → ``model_tag`` for every LLM call.
   * :class:`src.agents.llm_client.LLMClientPool` — looks up backend
     per registry id at call time.
   * CLIs (``--llm <id>`` flag, Phase 5) — validate user input and

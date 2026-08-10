@@ -94,6 +94,7 @@ numeric-only. Case-insensitive (shown CamelCase-friendly).
    SFW crop** (B&W reads as "art" to moderators). Banner = a 3–5 image strip spanning all 5
    families so the profile reads "studio with a roster," not "one model." Same avatar on DA +
    Fanvue + IG. **Source covers ONLY from package `public/`** (SFW, watermarked) — never a mature crop.
+   *(2026-08: SFW covers are OPT-IN via `--covers`, default 0 — T3/T4 packages are gated-only.)*
 4. **AI disclosure IN the bio, on every platform.** DA: the per-post "Created using AI tools"
    label (template-enforced) + an "AI-assisted fine-art" line in the profile. Fanvue: a plain
    "AI-generated art" line (required; hiding it risks termination). This is a positioning asset,

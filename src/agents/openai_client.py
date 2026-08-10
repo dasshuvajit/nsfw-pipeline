@@ -255,22 +255,6 @@ class OpenAICompatibleClient:
         ⇒ dormant. Actual reachability surfaces at generate time."""
         return bool(self.api_key and self.base_url)
 
-    def list_models(self) -> list[str]:
-        """Return the model ids the gateway exposes (``GET {base_url}/models``)."""
-        if not self.api_key:
-            return []
-        try:
-            resp = requests.get(
-                f"{self.base_url}/models",
-                headers={"Authorization": f"Bearer {self.api_key}"},
-                timeout=15,
-            )
-            if resp.status_code != 200:
-                return []
-            return [m["id"] for m in (resp.json().get("data") or [])]
-        except (requests.ConnectionError, KeyError, ValueError):
-            return []
-
     # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------

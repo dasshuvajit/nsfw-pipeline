@@ -19,7 +19,6 @@ import pytest
 from pydantic import BaseModel, Field
 
 from src.agents.llm_client import OllamaClient, OllamaJSONParseError
-from src.agents.llm_router import LLMRouter
 from src.memory.llm_registry import (
     LLMRegistryError,
     LLMRegistryLoader,
@@ -110,25 +109,6 @@ class TestRegistryFallbackLlm:
         """)
         with pytest.raises(LLMRegistryError, match="non-empty string"):
             LLMRegistryLoader(path)
-
-
-# ── Router fallback resolution ──────────────────────────────────────
-
-
-class TestRouterFallback:
-    def test_fallback_returns_registry_fallback_ollama_id(
-        self, llm_registry_yaml,
-    ):
-        registry = LLMRegistryLoader(llm_registry_yaml)
-        router = LLMRouter(registry, routing_config={})
-        # No fallback_llm set in fixture → mirrors default_llm.
-        assert router.fallback() == "test/llm-a:latest"
-
-    def test_resolve_fallback_returns_entry(self, llm_registry_yaml):
-        registry = LLMRegistryLoader(llm_registry_yaml)
-        router = LLMRouter(registry, routing_config={})
-        entry = router.resolve_fallback()
-        assert entry.id == registry.default_llm_id
 
 
 # ── Client-side: second-chance retry path ───────────────────────────

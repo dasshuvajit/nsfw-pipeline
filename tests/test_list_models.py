@@ -1,8 +1,8 @@
 """Tests for ``scripts/list_models.py``.
 
 LLM-registry-only since 2026-06-10 — the image-model registry half was
-archived with the legacy structured path (``legacy/config/models/``); the
-active render path hardcodes its checkpoint in the workflow templates.
+archived with the legacy structured path; the ``--routing`` table was
+archived 2026-08 with ``src/agents/llm_router.py`` (see legacy/).
 Uses subprocess against the real on-disk registry so the smoke covers actual
 command-line behaviour.
 """
@@ -43,36 +43,3 @@ class TestDefaultOutput:
         # 3-way A/B and is the default; Cydonia is still the registered fallback).
         assert "gemma4_26b_a4b_uncensored_hauhaucs_balanced" in result.stdout
         assert "default = 'gemma4_26b_a4b_uncensored_hauhaucs_balanced'" in result.stdout
-
-    def test_llms_only_is_retained_noop(self):
-        result = _run("--llms-only")
-        assert result.returncode == 0
-        assert "LLM registry" in result.stdout
-
-
-class TestRouting:
-    def test_routing_prints_resolution_table(self):
-        result = _run("--routing")
-        assert result.returncode == 0
-        assert "Resolved LLMs by role" in result.stdout
-        # Forward table includes Source column header
-        assert "Source" in result.stdout
-        # Includes every known role
-        for role in (
-            "series_planner",
-            "scene_generator",
-            "metadata_generator",
-        ):
-            assert role in result.stdout
-        # Includes facet styles
-        assert "scene_facet_generator.flux_natural" in result.stdout
-
-    def test_routing_prints_reverse_mapping(self):
-        result = _run("--routing")
-        assert result.returncode == 0
-        assert "Reverse mapping" in result.stdout
-        # The fallback LLM should appear in reverse mapping with annotations
-        assert "cydonia_heretic_24b" in result.stdout or \
-            "deckard_gemma4_31b_heretic" in result.stdout
-        # Default annotation visible somewhere
-        assert "default" in result.stdout

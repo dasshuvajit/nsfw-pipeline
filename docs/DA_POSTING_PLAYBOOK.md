@@ -27,6 +27,8 @@ all of it is from the verified 2026 market/policy research (workflow `w9m6qmriy`
 1. **SFW shopfront.** Every cover / thumbnail / tier-cover MUST be SFW even when
    the unlocked set is explicit. → Covers come only from the package `public/`
    set (the pipeline enforces this; it never routes a T3/T4 image to a cover).
+   *(2026-08: SFW covers are now OPT-IN via `--covers`, default 0 — T3/T4
+   packages are gated-only; pass `--covers N` when a shopfront cover is needed.)*
 2. **AI disclosure.** Apply the **"Created using AI tools"** label on every
    for-sale piece. Do not strip AI metadata to evade the classifier.
 3. **Mature label** on every nude/suggestive piece.

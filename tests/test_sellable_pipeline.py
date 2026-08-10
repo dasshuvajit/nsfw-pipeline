@@ -386,34 +386,16 @@ def test_generate_series_locked_look_overrides_rotation(monkeypatch):
 
 # ── Z-Image engine + detailer wiring (2026-06-18) ──────────────────
 
-def test_zimage_engine_templates_exist_and_tier_pure():
-    """The --engine zimage template set exists; its base satisfies the 4-node
-    external contract; and the genital detailer is gated to T4 — refine_T4.json
-    carries the vagina detailer, the T3-and-below refine.json does NOT."""
+def test_zimage_engine_templates_exist():
+    """The zimage template set exists (base-only pipeline — the refine
+    templates were archived 2026-08, see legacy/); the base satisfies the
+    4-node external contract."""
     base = Path("config/comfyui_workflows/templates/zimage")
-    for f in ("base.json", "refine.json", "refine_T4.json"):
+    for f in ("base.json", "base_hires.json"):
         assert (base / f).exists(), f"missing zimage/{f}"
     b = json.loads((base / "base.json").read_text())
     for nid in ("positive_prompt", "negative_prompt", "ksampler", "empty_latent", "save"):
         assert nid in b, f"zimage/base.json missing contract node {nid}"
-
-    def has_genital(d):
-        return any("vagina" in n.get("inputs", {}).get("model_name", "")
-                   for n in d.values())
-    assert not has_genital(json.loads((base / "refine.json").read_text())), \
-        "zimage/refine.json must NOT detail genitals (tier purity for T3-and-below)"
-    assert has_genital(json.loads((base / "refine_T4.json").read_text())), \
-        "zimage/refine_T4.json must carry the genital detailer (T4)"
-
-
-def test_zimage_refine_t4_honored_by_tier_purity_guard():
-    """The tier-purity guard treats the zimage T4 detailer like chroma's: a
-    genital detailer is allowed ONLY at T4_explicit."""
-    wd = Path("config/comfyui_workflows")
-    assert A._template_has_genital_detailer(wd, "templates/zimage/refine_T4.json")
-    assert not A._template_has_genital_detailer(wd, "templates/zimage/refine.json")
-    assert A._violates_tier_purity("T3_artnude", "templates/zimage/refine_T4.json", wd)
-    assert not A._violates_tier_purity("T4_explicit", "templates/zimage/refine_T4.json", wd)
 
 
 def test_zimage_default_workflow_is_official_plus_lora_stack():
@@ -751,7 +733,7 @@ def test_load_niche_history_reads_prior_same_niche_manifests(tmp_path, monkeypat
     (base / "broken" / "manifest.json").write_text("{ not json")
 
     monkeypatch.setattr(A, "ROOT", tmp_path)
-    banned, avoid, count, overused = A._load_niche_history("bohemian_naturallight")
+    banned, avoid, count, overused, texts = A._load_niche_history("bohemian_naturallight")
     assert count == 2                       # two prior bohemian runs (goth excluded)
     # 3 prompts across the 2 runs: 1 opener each; head + TAIL signature each
     assert len(banned) == 3 and len(avoid) == 6
@@ -759,11 +741,16 @@ def test_load_niche_history_reads_prior_same_niche_manifests(tmp_path, monkeypat
     assert banned[0] == AD._opener("Warm honey light over X " * 6)
     assert avoid[0] == AD._signature("Warm honey light over X " * 6)
     assert avoid[1] == AD._tail_signature("Warm honey light over X " * 6)
+    # the FULL lowered prompts ride along (2026-08 whole-prompt history check)
+    assert texts == [("Warm honey light over X " * 6).lower(),
+                     ("Cool blue dusk over Y " * 6).lower(),
+                     ("Soft grey dawn over Z " * 6).lower()]
     # a never-run niche → empty seeds + zero offset (graceful)
-    assert A._load_niche_history("does_not_exist_niche") == ([], [], 0, [])
+    assert A._load_niche_history("does_not_exist_niche") == ([], [], 0, [], [])
     # recent_series cap limits how many prior runs feed the seeds
-    b2, a2, c2, _ = A._load_niche_history("bohemian_naturallight", recent_series=1)
+    b2, a2, c2, _, t2 = A._load_niche_history("bohemian_naturallight", recent_series=1)
     assert c2 == 2 and len(b2) == 2         # count = all runs; seeds = newest run only
+    assert len(t2) == 2                     # full texts obey the same recent window
 
 
 def test_gen_metadata_routes_by_backend_not_hardcoded_ollama(monkeypatch):
@@ -916,10 +903,11 @@ def test_audit_cli_scores_covers_against_sfw_contract(tmp_path, monkeypatch, cap
 
 
 def test_audit_detectors_recognize_current_prose():
-    """2026-06-23: the light-direction + micro-texture detector lists were widened
-    to match the prose the engine now writes (shaft/rim/dappled/filtered light;
-    damp/dewy/glistening skin) so craft-rich prompts stop being false-flagged —
-    while genuinely directionless / texture-thin prompts still flag."""
+    """2026-06-23: the light-direction detector list was widened to match the
+    prose the engine now writes (shaft/rim/dappled/filtered light) so craft-rich
+    prompts stop being false-flagged. 2026-08: the three stacked specificity
+    penalties were merged into ONE craft-anchor check (light-direction OR ≥2
+    materials; micro-texture dropped) — a prompt with NEITHER still costs −0.5."""
     from scripts.audit_prompts import score_prompt
     rich = [
         "She reclines as a single shaft of light falls across her bare skin, the "
@@ -929,14 +917,20 @@ def test_audit_detectors_recognize_current_prose():
     ]
     for txt in rich:
         _, issues = score_prompt(txt, "T3_artnude")
-        assert not any("NO_LIGHT_DIRECTION" in i for i in issues), txt
-        assert not any("THIN_MICRO_TEXTURE" in i for i in issues), txt
-    # a flat, directionless, texture-thin prompt still flags both
+        assert not any("NO_CRAFT_ANCHOR" in i for i in issues), txt
+    # a flat prompt with NEITHER a light direction NOR materials still gets −0.5
     flat = ("A nude woman stands in a room under soft even ambient glow with "
             "uniform illumination everywhere, calm and still.")
-    _, issues = score_prompt(flat, "T3_artnude")
-    assert any("NO_LIGHT_DIRECTION" in i for i in issues), issues
-    assert any("THIN_MICRO_TEXTURE" in i for i in issues), issues
+    score, issues = score_prompt(flat, "T3_artnude")
+    assert any("NO_CRAFT_ANCHOR" in i for i in issues), issues
+    # exactly ONE anchor penalty — the old per-class stack (−1.5 max) is gone
+    assert sum(1 for i in issues if "NO_CRAFT_ANCHOR" in i) == 1
+    # ONE anchor is enough: named light direction alone clears the penalty even
+    # with zero material nouns (the vocabulary-herding case the merge fixes)
+    lit_only = ("A nude woman stands as low light rakes from camera-left across "
+                "her bare skin, a catchlight in her eye, calm and still.")
+    _, issues2 = score_prompt(lit_only, "T3_artnude")
+    assert not any("NO_CRAFT_ANCHOR" in i for i in issues2), issues2
 
 
 def test_audit_surface_ornament_counts_as_material():
@@ -953,20 +947,21 @@ def test_audit_surface_ornament_counts_as_material():
 
 def test_audit_materials_recognize_concrete_nouns():
     """2026-06-23: _MATERIAL_NOUNS widened so concrete materials the engine writes
-    (azulejo/ivory/silver/lacquer/marabou…) earn specificity credit — a materially
-    rich prompt stops being false-flagged THIN_MATERIALS, while a genuinely
-    material-thin prompt still flags. Colour-words ('golden') are NOT credited."""
+    (azulejo/ivory/silver/lacquer/marabou…) earn specificity credit. 2026-08:
+    materials feed the merged craft-anchor check — ≥2 material nouns clear it
+    even with no named light direction, while a prompt with neither still flags.
+    Colour-words ('golden') are NOT credited."""
     from scripts.audit_prompts import _MATERIAL_NOUNS, score_prompt
     rich = ("She is curled on cool blue azulejo tiles, an ivory shawl slipping from "
             "one shoulder, silver filigree earrings catching the last light beside a "
             "black lacquer screen and a drift of marabou feathers.")
-    _, issues = score_prompt(rich + " She is fully nude, bare skin dewy in raking "
-                             "side-light.", "T3_artnude")
-    assert not any("THIN_MATERIALS" in i for i in issues), issues
-    # a genuinely material-thin prompt still flags (< 2 concrete nouns)
+    _, issues = score_prompt(rich + " She is fully nude, bare skin dewy and warm.",
+                             "T3_artnude")
+    assert not any("NO_CRAFT_ANCHOR" in i for i in issues), issues
+    # neither a light direction nor 2 concrete nouns → the anchor penalty fires
     _, thin = score_prompt("A nude woman stands in soft glow, calm and still, in an "
                            "empty pale void with nothing else around her.", "T3_artnude")
-    assert any("THIN_MATERIALS" in i for i in thin), thin
+    assert any("NO_CRAFT_ANCHOR" in i for i in thin), thin
     # colour-word 'golden' must NOT count as a material (would gut the check)
     assert "golden" not in _MATERIAL_NOUNS and "gold" not in _MATERIAL_NOUNS
 
@@ -1261,72 +1256,6 @@ def test_render_filename_sanitizes_slash_in_sublook_title(tmp_path, monkeypatch)
     assert (tmp_path / "base" / name).exists()
 
 
-@pytest.mark.parametrize("tier,expected", [
-    ("T4_explicit", "refine_T4.json"),     # explicit main → vagina-detailer variant
-    ("T3_artnude", "refine.json"),         # tasteful nude → base refine (tier purity)
-    ("T2_implied", "refine.json"),
-    ("T1_suggestive", "refine.json"),
-])
-def test_select_refine_template_is_tier_pure(tier, expected):
-    rp = {"refine_template": "templates/chroma/refine.json",
-          "refine_template_t4": "templates/chroma/refine_T4.json"}
-    assert A._select_refine_template(tier, rp).endswith(expected)
-
-
-def test_select_refine_template_falls_back_without_t4_key():
-    rp = {"refine_template": "templates/chroma/refine.json"}   # no _t4 configured
-    assert A._select_refine_template("T4_explicit", rp).endswith("refine.json")
-
-
-@pytest.mark.parametrize("tier,main_ext,cover_ext", [
-    ("T4_explicit", "refine_T4.json", "refine.json"),   # covers stay SFW even on a T4 run
-    ("T3_artnude", "refine.json", "refine.json"),
-    ("T2_implied", "refine.json", "refine.json"),
-    ("T1_suggestive", "refine.json", "refine.json"),
-])
-def test_refine_templates_for_keeps_covers_sfw(tier, main_ext, cover_ext):
-    """The whole staged routing decision: MAIN follows the tier, COVERS ALWAYS use
-    the base refine — so a public/teaser image is never genital-detailed, even when
-    the main set is T4 explicit."""
-    rp = {"refine_template": "templates/chroma/refine.json",
-          "refine_template_t4": "templates/chroma/refine_T4.json"}
-    main, cover = A._refine_templates_for(tier, rp)
-    assert main.endswith(main_ext)
-    assert cover.endswith(cover_ext)
-    # the cover template never carries a genital detailer, at any tier
-    assert A._template_has_genital_detailer(Path("config/comfyui_workflows"), cover) is False
-
-
-def test_tier_purity_guard_aborts_on_refine_template_override_leak():
-    """The staged guard: a --refine-template override that injects the T4 template
-    into a sub-T4 tier is caught (would abort); the same template at T4 is allowed;
-    the normal base refine at any tier passes."""
-    wd = Path("config/comfyui_workflows")
-    leaked = {"refine_template": "templates/chroma/refine_T4.json",   # CLI override leak
-              "refine_template_t4": "templates/chroma/refine_T4.json"}
-    main_t3, _ = A._refine_templates_for("T3_artnude", leaked)
-    assert A._violates_tier_purity("T3_artnude", main_t3, wd) is True       # ABORT
-    main_t4, _ = A._refine_templates_for("T4_explicit", leaked)
-    assert A._violates_tier_purity("T4_explicit", main_t4, wd) is False     # allowed at T4
-    # the normal (un-overridden) base refine never violates purity, at any tier
-    normal = {"refine_template": "templates/chroma/refine.json",
-              "refine_template_t4": "templates/chroma/refine_T4.json"}
-    for tier in ("T1_suggestive", "T3_artnude", "T4_explicit"):
-        m, _ = A._refine_templates_for(tier, normal)
-        assert A._violates_tier_purity(tier, m, wd) is False
-
-
-def test_genital_detailer_detection_drives_tier_purity_guard():
-    """Content-based (not filename) tier-purity signal: refine_T4 has a vagina
-    detailer, the base refine does not — so the staged guard aborts a sub-T4
-    render only when a T4 template leaks in (e.g. via --refine-template)."""
-    wd = Path("config/comfyui_workflows")
-    assert A._template_has_genital_detailer(wd, "templates/chroma/refine_T4.json") is True
-    assert A._template_has_genital_detailer(wd, "templates/chroma/refine.json") is False
-    assert A._template_has_genital_detailer(wd, None) is False              # no template
-    assert A._template_has_genital_detailer(wd, "templates/chroma/nope.json") is False  # missing
-
-
 def test_t4_explicit_reveal_rotation_only_at_t4(monkeypatch):
     """T4_explicit gets a rotated EXPLICIT REVEAL STYLE + grooming per image (so
     the set spans many tasteful reveals, not one centred splay); T3 and below get
@@ -1601,6 +1530,25 @@ def test_opener_ban_ignores_assigned_look_tokens():
     assert AD._too_similar(cand2, [], [], banned2) is not None
 
 
+def test_similarity_reject_salvages_instead_of_dropping(monkeypatch):
+    """2026-08 churn fix: when EVERY attempt trips the variety guard
+    (opener/3-gram similarity), the scene must ship a salvaged candidate
+    instead of being silently dropped — the old hard-drop path threw away
+    safety-clean generations and caused SERIES SHORTFALL."""
+    filler = " ".join(chr(97 + j % 26) + chr(98 + j % 25) for j in range(80))
+    monkeypatch.setattr(AD, "generate_one", lambda client, **kw: {
+        "prompt": filler, "orientation": "portrait", "shot_type": "medium",
+        "framing_rationale": ""})
+    monkeypatch.setattr(
+        AD, "_too_similar",
+        lambda *a, **k: "opener nearly identical to a banned opener")
+    rows = AD.generate_series(brief="b", tier="T3_artnude", count=1,
+                              model_tag="m", temperature=0.8,
+                              audit_gate=False, client=object())
+    assert len(rows) == 1, "scene must not be dropped over similarity rejects"
+    assert rows[0]["prompt"] == filler
+
+
 def test_compute_error_uses_infra_budget_not_attempts(monkeypatch):
     """2026-06-11 regression: LM Studio 'Compute error' storms must NOT
     consume the creative attempt budget — they retry on a separate infra
@@ -1765,3 +1713,159 @@ def test_cigarettes_banned_and_absent():
     assert not RX.search("a lighter shade of grey")
     nl = Path("config/niche_library.yaml").read_text().lower()
     assert "cigarette" not in nl and "ashtray" not in nl
+
+
+# ── Phase-4 diversity overhaul (2026-08) ───────────────────────────
+
+_PRIOR_FULL = (
+    "A woman stands at the edge of a tiled courtyard pool in the first "
+    "cool light of morning, her linen robe open at the shoulder, steam "
+    "lifting from the water behind her. She reclines onto a low cedar "
+    "bench beside a copper ewer, the raking light sliding along the "
+    "curve of her hip and pooling in the hollow of her collarbone, dust "
+    "drifting slow through the bright shaft above her. Her gaze drifts "
+    "past the lens toward the far arcade, calm and unhurried, one hand "
+    "resting flat on the warm wood. A short telephoto keeps her crisp "
+    "against the blurred colonnade, the morning holding its quiet in "
+    "warm early grain.")
+
+_MIDDLE_ECHO = (
+    "A woman waits in a walled garden at dusk. She reclines onto a low "
+    "cedar bench beside a copper ewer, the raking light sliding along "
+    "the curve of her hip and pooling in the hollow of her collarbone, "
+    "dust drifting slow through the bright shaft above her. Fresh notes: "
+    "jasmine on the wall, a clay lantern, cicadas in the heat.")
+
+
+def test_too_similar_rejects_full_prior_prompt_echo():
+    """4.1: a candidate that wholesale-echoes the MIDDLE of a prior-run prompt
+    trips the new full-prompt check at >=0.30 3-gram containment — while the
+    head/tail fragment seeds ALONE let the same candidate pass (the exact gap
+    the full-prompt history closes)."""
+    ref_fulls = [("prior-run prompt", AD._ngrams3(_PRIOR_FULL))]
+    reason = AD._too_similar(_MIDDLE_ECHO, [], [], [], ref_fulls=ref_fulls)
+    assert reason and "FULL prompt" in reason
+    # fragments alone (head + tail signatures, the pre-4.1 seeds) do NOT catch
+    # the middle echo — containment vs the 0.5 fragment bar stays far below it
+    frags = [(s[:36], AD._ngrams3(s))
+             for s in (AD._signature(_PRIOR_FULL), AD._tail_signature(_PRIOR_FULL))]
+    assert AD._too_similar(_MIDDLE_ECHO, [], frags, []) is None
+    # and a genuinely fresh prompt sails past the full-prompt refs too
+    fresh = ("A woman leans in the doorway of a snowbound cabin at blue hour, "
+             "wrapped in a rough wool blanket, lamplight from inside warming "
+             "one side of her face while the drifts glow cold behind her.")
+    assert AD._too_similar(fresh, [], [], [], ref_fulls=ref_fulls) is None
+
+
+def test_generate_series_enforces_seed_ref_texts(monkeypatch):
+    """4.1 wiring: generate_series builds full-prompt 3-gram refs from
+    seed_ref_texts and the mechanical guard re-rolls every echoing attempt
+    (shipping the banked candidate via the similarity-salvage rather than
+    dropping the scene); without seed_ref_texts the same candidate is accepted
+    on the first attempt."""
+    calls: list[int] = []
+
+    def rec(client, **kw):
+        calls.append(1)
+        return {"prompt": _MIDDLE_ECHO, "orientation": "portrait",
+                "shot_type": "medium", "framing_rationale": "r"}
+
+    monkeypatch.setattr(AD, "generate_one", rec)
+    rows = AD.generate_series(
+        brief="b", tier="T3_artnude", count=1, model_tag="m", temperature=0.8,
+        audit_gate=False, client=object(), max_attempts=2,
+        seed_ref_texts=[_PRIOR_FULL.lower()])
+    assert len(calls) == 2, "every attempt must similarity-reject vs history"
+    assert len(rows) == 1, "similarity-salvage still ships the scene"
+    calls.clear()
+    rows2 = AD.generate_series(
+        brief="b", tier="T3_artnude", count=1, model_tag="m", temperature=0.8,
+        audit_gate=False, client=object(), max_attempts=2)
+    assert len(calls) == 1 and len(rows2) == 1, \
+        "without history texts the first attempt is accepted"
+
+
+def test_generate_one_sub_look_seed_trims_mood_tail():
+    """4.3: a long sub_look (>=4 comma segments) loses its mood-adjective tail
+    in the user prompt and is framed as a SEED to reinterpret; a short sub_look
+    passes intact."""
+    four = ("sunlit atelier, raw canvas and turpentine, north light through "
+            "tall panes, serene and unhurried")
+    c = _RecordingClient()
+    AD.generate_one(c, brief="b", tier="T1_suggestive", sub_look=four, avoid=[],
+                    banned_openers=[], model_tag="m", temperature=0.8)
+    up = c.user_prompts[0]
+    assert "serene and unhurried" not in up          # mood tail trimmed
+    assert ("TARGET LOOK for THIS image: sunlit atelier, raw canvas and "
+            "turpentine, north light through tall panes") in up
+    assert "SEED to REINTERPRET" in up               # reinterpret instruction
+    # a 2-segment look is too short to trim — it passes through whole
+    c2 = _RecordingClient()
+    AD.generate_one(c2, brief="b", tier="T1_suggestive",
+                    sub_look="marble bath, warm steam", avoid=[],
+                    banned_openers=[], model_tag="m", temperature=0.8)
+    assert "TARGET LOOK for THIS image: marble bath, warm steam." in c2.user_prompts[0]
+
+
+def test_generate_one_caps_banned_opener_context(monkeypatch):
+    """4.6: only the MOST RECENT 20 banned openers are rendered into the
+    LLM-visible user prompt (a long history list taught the house template by
+    example); the full list still reaches the mechanical check unchanged."""
+    openers = [f"unique historic opener number {i} with words" for i in range(30)]
+    c = _RecordingClient()
+    AD.generate_one(c, brief="b", tier="T1_suggestive", sub_look="s — x", avoid=[],
+                    banned_openers=openers, model_tag="m", temperature=0.8)
+    up = c.user_prompts[0]
+    assert "opener number 29" in up and "opener number 10" in up   # newest 20 shown
+    assert "opener number 9 " not in up                            # older capped out
+
+
+def test_build_system_prompt_exemplar_window_rotates():
+    """4.2: exemplar_window=(start, 3) keeps only a wrapping 3-exemplar window
+    so different runs study different craft examples; the default (None) still
+    carries all 6, and the surrounding craft prose survives windowing."""
+    import re as _re
+    hdr = _re.compile(r"(?m)^\[([^\]]+)\]")
+    full = AD._build_system_prompt()
+    all6 = hdr.findall(full)
+    assert len(all6) == 6
+    w0 = AD._build_system_prompt(exemplar_window=(0, 3))
+    w3 = AD._build_system_prompt(exemplar_window=(3, 3))
+    w5 = AD._build_system_prompt(exemplar_window=(5, 3))
+    h0, h3, h5 = hdr.findall(w0), hdr.findall(w3), hdr.findall(w5)
+    assert len(h0) == len(h3) == len(h5) == 3
+    assert h0 != h3, "different offsets must show different exemplar subsets"
+    assert set(h0) | set(h3) == set(all6)            # disjoint halves cover all 6
+    assert h5 == [all6[5], all6[0], all6[1]]         # the window wraps
+    for w in (w0, w3, w5):
+        assert "ABSOLUTE SUBJECT RULE" in w and "FRAMING & COMPOSITION" in w
+        assert "Note how every exemplar" in w        # generic intro kept truthful
+        assert "Write at this level" in w            # closing prose intact
+    # the word band substitution still lands in a windowed prompt
+    assert "150-220 words" in AD._build_system_prompt((150, 220),
+                                                      exemplar_window=(1, 3))
+
+
+def test_generate_series_threads_exemplar_window(monkeypatch):
+    """4.2 wiring: generate_series keys the 3-wide exemplar window on
+    run_offset % 6 and threads it into every generate_one call."""
+    seen: list = []
+
+    def rec(client, **kw):
+        seen.append(kw.get("exemplar_window"))
+        n = len(seen)
+        filler = " ".join(chr(110 + n % 12) + chr(97 + j % 26) + chr(97 + (j // 26) % 26)
+                          for j in range(80))
+        return {"prompt": f"scene {filler}", "orientation": "portrait",
+                "shot_type": "medium", "framing_rationale": "r"}
+
+    monkeypatch.setattr(AD, "generate_one", rec)
+    AD.generate_series(brief="b", tier="T3_artnude", count=2, model_tag="m",
+                       temperature=0.8, audit_gate=False, client=object(),
+                       run_offset=2)
+    assert seen == [(2, 3), (2, 3)]
+    seen.clear()
+    AD.generate_series(brief="b", tier="T3_artnude", count=1, model_tag="m",
+                       temperature=0.8, audit_gate=False, client=object(),
+                       run_offset=9)
+    assert seen == [(3, 3)]                          # 9 % 6 == 3

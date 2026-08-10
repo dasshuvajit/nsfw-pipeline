@@ -1,8 +1,9 @@
-"""Resolve the staged render-pipeline config.
+"""Resolve the render-pipeline config.
 
-The staged pipeline (base -> refine -> manual 4K) is configured by a
-``render_pipeline:`` block in ``config/pipeline.yaml`` with an optional
-per-model override (``config/models/<id>.yaml::render_pipeline``) and
+The base-only render pipeline (zimage; the refine/4K/chroma stages were
+archived 2026-08 — see legacy/) is configured by a ``render_pipeline:``
+block in ``config/pipeline.yaml`` with an optional per-model override
+(``config/models/<id>.yaml::render_pipeline``) and
 optional CLI overrides. Precedence, highest first:
 
     CLI flags  >  per-model render_pipeline  >  global render_pipeline  >  DEFAULTS
@@ -19,17 +20,7 @@ from typing import Any
 # Hard defaults — used when a key is absent from every layer. Keep in sync
 # with the documented block in config/pipeline.yaml.
 DEFAULTS: dict[str, Any] = {
-    "base_template": "templates/chroma/base.json",
-    "refine_template": "templates/chroma/refine.json",
-    "refine_template_t4": "templates/chroma/refine_T4.json",
-    "upscale_template": "templates/sdxl/upscale_4k.json",
-    # (upscale_template_t4 removed 2026-06-10 — the 4K stage is tier-neutral;
-    #  the T4 variant had become byte-identical after the MPS detailer removal)
-    # Base-only by default (2026-06-21): the SDXL detailer refine — like 4K — is
-    # OPT-IN (art_series --refine). Keeps a series on a single resident model, no
-    # zimage↔SDXL swap thrash. enable_refine stays a real switch for when it's asked.
-    "enable_refine": False,
-    "target_4k_long_edge": 3840,
+    "base_template": "templates/zimage/base.json",
     "base_resolution": {
         "portrait": [896, 1152],     # ~3:4 (7:9) native ~1MP bucket
         "square": [1024, 1024],      # 1:1
@@ -40,8 +31,7 @@ DEFAULTS: dict[str, Any] = {
 }
 
 _SCALAR_KEYS = (
-    "base_template", "refine_template", "refine_template_t4", "upscale_template",
-    "enable_refine", "target_4k_long_edge",
+    "base_template",
 )
 
 

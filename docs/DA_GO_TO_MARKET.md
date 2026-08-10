@@ -67,6 +67,9 @@ volume + the subscription/Fanvue funnel is the business, not per-image margin.
 | **Per-persona Room (Subscription)** | monthly access to a persona's sets | mixed | **$5/mo** | **DEFERRED** until a persona demonstrably recurs and pulls favorites (gate: ≥10 paying subs or 1K watchers). archi444's model — but lunasilverlake's 5 dead tiers show what happens when tiers multiply before audience. |
 | **Bulk / DLC pack** | 50–100 images | T2/T3 | **$150–200** | Deferred until a 500+ item back-catalog exists; the micro-Exclusives lane builds it organically. |
 
+> **2026-08:** SFW covers are now OPT-IN via `--covers N` (default 0) — T3/T4
+> packages are gated-only unless covers are requested at run time.
+
 Rules: never price a single above ~$8 on DA. 2 subscription tiers at launch, not
 more (only 14% of DA's top sellers run 4+ tiers). Push depth + recurring, not ticket.
 

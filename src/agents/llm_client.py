@@ -82,9 +82,7 @@ class OllamaClient:
 
     The client is model-agnostic — every call to :meth:`generate` /
     :meth:`generate_json` / :meth:`unload_model` takes the Ollama tag
-    explicitly. The :class:`src.agents.llm_router.LLMRouter` resolves
-    role/family → tag at the engine boundary; this class is a pure
-    transport.
+    explicitly; this class is a pure transport.
 
     Parameters
     ----------
@@ -434,17 +432,6 @@ class OllamaClient:
             return resp.status_code == 200
         except requests.ConnectionError:
             return False
-
-    def list_models(self) -> list[str]:
-        """Return model names currently available on the Ollama server."""
-        try:
-            resp = requests.get(f"{self.base_url}/api/tags", timeout=10)
-            if resp.status_code != 200:
-                return []
-            data = resp.json()
-            return [m["name"] for m in data.get("models", [])]
-        except (requests.ConnectionError, KeyError):
-            return []
 
     def _generate_chat(
         self,

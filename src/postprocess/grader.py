@@ -5,9 +5,8 @@ a warm high-contrast colour grade, a gentle highlight bloom/halation, a soft
 vignette and fine grain. Pure CPU (Pillow + numpy), sub-second per frame, no GPU.
 
 Runs in ``art_series._package()`` AFTER render and BEFORE watermarking, on the
-public AND gated sets. For true-4K it must run AFTER the USDU upscale (in
-``upscale_folder``), never before — the diffusion upscaler would smear baked-in
-glow/grain.
+public AND gated sets. (If a diffusion upscale is ever reintroduced, grade
+AFTER it, never before — an upscaler smears baked-in glow/grain.)
 
 It AMPLIFIES light that already exists; it cannot manufacture directional light
 or composition — so it pairs with the cinematic prompting levers, it does not

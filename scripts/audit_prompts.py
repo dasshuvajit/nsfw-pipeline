@@ -36,9 +36,6 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-# Repo root
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-
 
 # ── Issue detectors ───────────────────────────────────────────────────
 
@@ -51,23 +48,15 @@ _PHOTOGRAPHER_REFS = (
 )
 
 
-# Split into primary SOURCES (mutually exclusive — two competing recipes is a
-# real collision) and MODIFIERS (rim/fill/flare/dappled legitimately layer on
-# one source; the system prompt itself teaches "a soft rim separating her from
-# the background"). Penalizing modifiers alongside sources false-flagged the
-# engine's best layered-light prose.
+# Primary lighting SOURCES only (mutually exclusive — two competing recipes
+# is a real collision). Modifiers (rim/fill/flare/dappled) legitimately layer
+# on one source, so they are not flagged.
 _LIGHTING_SOURCES = (
     "Rembrandt lighting", "golden hour", "butterfly lighting",
     "noir lighting", "split lighting", "overcast",
     "Caravaggio chiaroscuro", "Baroque Caravaggio", "fireplace",
     "single hard key", "window light", "neon", "Cinestill",
 )
-_LIGHTING_MODIFIERS = (
-    "low-key", "rim light", "soft fill", "volumetric golden",
-    "crepuscular", "dappled", "lens flare",
-)
-# Back-compat alias (callers/tests may import the old name).
-_LIGHTING_RECIPES = _LIGHTING_SOURCES + _LIGHTING_MODIFIERS
 
 
 _CAMERA_ANGLES = (
@@ -105,14 +94,22 @@ _T4_EXPLICIT_TOKENS = (
 _LOW_TIER_EXPLICIT_TOKENS = (        # never in T1/T2 prose
     "vulva", "labia", "her sex", "nipple", "areola",
 )
-# Overt-nudity ceiling for BOTH low tiers (2026-06-10): a pre-gate-v2 T2
-# prompt rendered fully nude and shipped in a PUBLIC package — T2 means
-# IMPLIED (strategic cover), so overt nudity tokens are a violation at T1
-# and T2 alike, not just T1.
-_LOW_TIER_NUDITY_TOKENS = ("topless", "fully nude", "entirely nude",
-                           "completely nude", "bare breast", "naked",
-                           "fully bare", "in the nude")
-_T1_NUDITY_TOKENS = _LOW_TIER_NUDITY_TOKENS    # back-compat alias
+# Canonical overt-nudity token list (2026-08 consolidation): the UNION of the
+# audit's former low-tier nudity ceiling and art_director's SFW-cover gate
+# list, so the two gates can never drift apart again. Substring-matched
+# against lowercased prose by BOTH consumers:
+#   * here — the T1/T2 overt-nudity ceiling (2026-06-10: a pre-gate-v2 T2
+#     prompt rendered fully nude and shipped in a PUBLIC package; T2 means
+#     IMPLIED, so overt nudity tokens are a violation at T1 and T2 alike);
+#   * art_director — the SFW cover/thumbnail gate (_ACTIVE_REQUIRE_SFW).
+# Safety rule: edits may only TIGHTEN (add tokens), never loosen.
+NUDITY_TOKENS = (
+    "nude", "naked", "topless",
+    "bare breast", "bare chest", "bare-chested", "bare body", "bare-skinned",
+    "exposed breast", "exposed chest", "areola", "nipple",
+    "fully bare", "fully nude", "entirely nude", "completely nude",
+    "in the nude", "undressed", "unclothed",
+)
 
 # Cliché-density ladder (2026-06 audit): house words measured saturating the
 # corpus — "luminous" 83% of prompts, camera-tail formula 93%, "velvety" 35%.
@@ -157,7 +154,10 @@ _BOOSTER_REGEXES = (
 
 # Specificity ladder (excellence-presence, not defect-absence): the audit found
 # 10.0 meant only "no defects". These reward the concrete optical/material
-# precision the house doctrine demands — absence now costs.
+# precision the house doctrine demands — absence now costs. 2026-08: the three
+# per-class penalties were merged into ONE craft-anchor check (light-direction
+# OR materials; micro-texture no longer scored — see score_prompt), so these
+# lists now feed a single anchor test rather than three stacked quotas.
 _LIGHT_DIRECTION_TOKENS = (
     "camera-left", "camera-right", "camera left", "camera right",
     "from behind", "from above", "from below", "from the left",
@@ -210,6 +210,9 @@ _MATERIAL_NOUNS = (
     "silver", "ivory", "azulejo", "tile", "wood", "clay", "crystal", "jade",
     "corduroy", "feather", "marabou", "lacquer",
 )
+# 2026-08: no longer scored by score_prompt (the micro-texture quota was the
+# most vocabulary-herding of the specificity penalties); the list is retained
+# as the house micro-texture reference (niche-content tests import it).
 _MICRO_TEXTURE_TOKENS = (
     "pores", "vellus", "freckle", "mole", "catchlight", "sheen",
     "grain", "goosebumps", "flush", "dew", "down at her", "fine down",
@@ -500,8 +503,11 @@ def score_prompt(
     Quality ladders:
     - ≥3 distinct cliché phrases: -0.5 each beyond the 2nd (cap -2)
     - freshness overlap vs context >0.15: -1.0; >0.30: -2.0
-    - no named light direction / <3 material nouns / <2 micro-texture
-      tokens: -0.5 each
+    - craft anchor missing (NEITHER a named light direction NOR ≥2 material
+      nouns): -0.5 — 2026-08: replaced the three stacked per-class penalties
+      (light / materials / micro-texture, -0.5 each); per-class stacking
+      herded all three whitelists' vocabulary into every prompt, and the
+      micro-texture quota (the worst herder) is dropped entirely
     """
     score = 10.0
     issues: list[str] = []
@@ -587,7 +593,7 @@ def score_prompt(
         if explicit_hits:
             score -= 3.0
             issues.append(f"LOW_TIER_EXPLICIT: {explicit_hits} in {tier}")
-        nudity_hits = [t for t in _LOW_TIER_NUDITY_TOKENS if t in text_lower]
+        nudity_hits = [t for t in NUDITY_TOKENS if t in text_lower]
         if nudity_hits:
             # T1 = clothed/lingerie; T2 = IMPLIED nudity (covered). Overt
             # nudity is a tier violation at both — these sets post PUBLIC.
@@ -637,22 +643,22 @@ def score_prompt(
         score -= 1.0
         issues.append(f"FAMILIAR_PHRASING: {overlap:.0%} 3-gram overlap with prior prompts")
 
-    # Specificity: named light direction, concrete materials, micro-texture.
-    if not any(t in text_lower for t in _LIGHT_DIRECTION_TOKENS):
-        score -= 0.5
-        issues.append("NO_LIGHT_DIRECTION: light has no named direction")
-    # Lowered 2026-06-17 (was >=3 materials / >=2 micro). The old quotas forced
-    # the LLM to stuff the same whitelisted nouns into every prompt → catalog
-    # sameness + a noun-pile reading. >=2 materials / >=1 micro still rewards
-    # concreteness over vague AI mush without dictating WHICH details.
+    # Specificity → ONE craft anchor (2026-08). History: quotas lowered
+    # 2026-06-17 (was >=3 materials / >=2 micro), lists widened 2026-06-23 —
+    # but the three stacked, INDEPENDENT −0.5 penalties (no light-direction /
+    # <2 material nouns / <1 micro-texture) still forced all three whitelists'
+    # words into every prompt: per-class stacking herded the vocabulary into
+    # the same catalog phrasing. Replaced with a single −0.5 "craft-anchor
+    # missing" penalty that fires only when the prompt has NEITHER a named
+    # light direction NOR >=2 concrete material nouns; the micro-texture
+    # requirement is dropped entirely (it was the most vocabulary-herding of
+    # the three). One anchor is enough to keep prose concrete.
+    has_light_dir = any(t in text_lower for t in _LIGHT_DIRECTION_TOKENS)
     n_materials = sum(1 for m in _MATERIAL_NOUNS if m in text_lower)
-    if n_materials < 2:
+    if not has_light_dir and n_materials < 2:
         score -= 0.5
-        issues.append(f"THIN_MATERIALS: only {n_materials} concrete material nouns")
-    n_micro = sum(1 for m in _MICRO_TEXTURE_TOKENS if m in text_lower)
-    if n_micro < 1:
-        score -= 0.5
-        issues.append(f"THIN_MICRO_TEXTURE: no micro-texture token")
+        issues.append(f"NO_CRAFT_ANCHOR: no named light direction and only "
+                      f"{n_materials} concrete material nouns")
 
     # Trailing period
     if not text.rstrip().endswith((".", "!", "?")):

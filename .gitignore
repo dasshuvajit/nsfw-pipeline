@@ -19,23 +19,12 @@ ENV/
 *.sqlite
 *.sqlite3
 
-# Generated outputs (do not commit images/sets)
-output/soft/*
-output/full/*
-output/art_series/
-output/wordband_ab/
-output/chroma_model_ab/
-output/ab_tests/
-output/overnight/
-# tier-split packaged series
-output/T1_suggestive/
-output/T2_implied/
-output/T3_artnude/
-output/T4_explicit/
-# smoke/scratch renders + A/B dirs (_staged_*, _v12_*, _ab_*, _gonzalomo_*)
-output/_*
-!output/soft/.gitkeep
-!output/full/.gitkeep
+# Generated outputs (do not commit images/sets). Catch-all: EVERYTHING under
+# output/ is generated (series runs, A/B dirs, smoke renders, ad-hoc upload
+# staging like DA_UPLOAD_*) — 2026-08: replaced the per-subdir enumeration,
+# which let unlisted ad-hoc dirs pollute git status. Files already tracked
+# under output/ (the pre-pivot T4_explicit series) stay tracked.
+output/*
 
 # Models (large binaries — fetched separately)
 models/*

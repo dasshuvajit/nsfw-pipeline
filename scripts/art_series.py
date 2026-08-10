@@ -3,9 +3,10 @@
 Generate → render → (manual) pick, with NONE of the structured
 vocab/composer machinery. Phase 1 calls the art-director prompt engine
 (scripts/art_director.py) for N rich, varied prompts; Phase 2 unloads the
-LLM and renders each through an external ComfyUI template (the v11 Chroma
-refiner by default), saving every candidate plus a manifest so a human
-can cherry-pick.
+LLM and renders each through an external ComfyUI template (zimage
+base-only — the SDXL refine / chroma / 4K stages were archived 2026-08,
+see legacy/), saving every candidate plus a manifest so a human can
+cherry-pick.
 
 The two phases are sequential (LLM never co-resident with ComfyUI). With
 --seeds K>1 each prompt is rendered K times for curation.
@@ -73,15 +74,13 @@ NICHE_CURSOR_FILE = ROOT / "output/art_series/.niche_cursor"
 USED_NICHES_FILE = ROOT / "output/art_series/.used_niches"
 
 # Valid --orientation choices. The actual base render resolution per orientation
-# comes from render_pipeline.base_resolution (config/pipeline.yaml); 4K is reached
-# only in the separate manual upscale stage (scripts/upscale_folder.py).
+# comes from render_pipeline.base_resolution (config/pipeline.yaml).
 ORIENTATIONS = ("portrait", "square", "landscape", "widescreen", "story")
 
-# ⚠️ INERT AT RENDER TIME (2026-06 Chroma R&D): the staged Chroma base runs
-# cfg=1.0 (the gonzaLomo flash-heun contract) AND routes this through
-# ConditioningZeroOut; the refine detailers run cfg=1 lcm/DMD. At cfg=1 the
+# ⚠️ INERT AT RENDER TIME (2026-06 Chroma R&D): the base render runs
+# cfg=1.0 AND routes this through ConditioningZeroOut. At cfg=1 the
 # negative branch is never evaluated — every token below does NOTHING in the
-# staged path. Safety/avoidance is carried ENTIRELY by positive prose + the
+# render path. Safety/avoidance is carried ENTIRELY by positive prose + the
 # art_director Pydantic gates + curation (which is the working reality).
 # Kept as interop metadata (recorded in the manifest). Do NOT "fix" by raising
 # cfg — that doubles base render time for marginal benefit; see
@@ -132,7 +131,11 @@ def _record_used_niche(used: list[str], niche_id: str) -> None:
 # Cross-series variety: how many prior series of the SAME niche feed the avoid
 # lists. 2026-06 audit: at depth 2 a niche's older runs were free to be echoed
 # (several niches have 4-5 runs); 4 runs ≈ ~32 fragments — still cheap context.
-NICHE_HISTORY_RECENT = 4
+# 2026-08 relax: 4 → 2. At depth 4 the accumulated opener/fragment bans (~32
+# fragments + ~30-50 banned openers) drove similarity-reject churn and scene
+# drops; depth 2 keeps back-to-back runs distinct while freeing the space.
+# (Full-prompt 3-gram history — the real fix — is the diversity-overhaul item.)
+NICHE_HISTORY_RECENT = 2
 
 # House words measured saturating the corpus ("luminous" 83% of prompts,
 # "velvety" 35%, "sultry" 34% — and RISING run over run). When a word appears
@@ -147,11 +150,11 @@ _HOUSE_WORD_WATCHLIST = (
 
 def _load_niche_history(
     niche_id: str, recent_series: int = NICHE_HISTORY_RECENT,
-) -> "tuple[list[str], list[str], int, list[str]]":
+) -> "tuple[list[str], list[str], int, list[str], list[str]]":
     """Cross-series memory from prior series of the SAME niche.
 
     Returns ``(banned_openers, avoid_signatures, prior_series_count,
-    overused_words)``:
+    overused_words, prior_texts)``:
     - banned_openers / avoid_signatures — first-8-words / first-40-words AND
       last-14-words of each prior prompt (most-recent ``recent_series`` runs),
       to seed the art_director anti-repetition lists so a new run DIFFERS from
@@ -161,6 +164,11 @@ def _load_niche_history(
       runs); drives the per-run rotation offset.
     - overused_words — watchlist words present in >40% of the recent prompts;
       the LLM gets a one-use-per-series budget for them.
+    - prior_texts — the FULL lowered prompts of the same recent window
+      (2026-08): the fragment seeds only guard heads/tails, so the MIDDLE of a
+      prior prompt could be echoed wholesale; generate_series 3-gram-checks
+      candidates against these whole prompts and feeds them into the
+      freshness-scoring context.
 
     Reads the existing per-series ``manifest.json`` files (the prompt store — no
     DB). Robust: skips malformed/partial manifests."""
@@ -190,7 +198,7 @@ def _load_niche_history(
         for w in _HOUSE_WORD_WATCHLIST:
             if sum(1 for t in texts if w in t) / len(texts) > 0.4:
                 overused.append(w)
-    return banned, avoid, prior_count, overused
+    return banned, avoid, prior_count, overused, texts
 
 
 def _load_global_openers(recent_runs: int = 3) -> list[str]:
@@ -371,6 +379,68 @@ def _comfyui_free(base_url: str, timeout: int = 30) -> bool:
         return False
 
 
+# ── ComfyUI self-heal ────────────────────────────────────────────────
+# Unattended overnight loops lose ~half their series when ComfyUI OOM-dies
+# (memory 2026-07-02: crashes after ~2 heavy series). Instead of aborting,
+# restart it in place: pkill any zombie, relaunch DETACHED under Homebrew
+# python3 (ComfyUI's venv lacks sqlalchemy — never use the venv python), and
+# poll until the API answers. Disabled via --no-comfy-selfheal.
+_SELFHEAL_LOG = Path("/tmp/comfy_selfheal.log")
+_SELFHEAL_MAX_PER_STAGE = 2       # a ComfyUI that keeps dying = real abort
+_SELFHEAL_BOOT_TIMEOUT_S = 90
+_SELFHEAL_POLL_S = 2
+
+
+def _comfyui_stats_up(base_url: str, timeout: float = 3.0) -> bool:
+    """True when the ComfyUI API answers /system_stats (a stricter liveness
+    probe than the bare GET in ``_comfyui_up`` — a half-booted server serves
+    the web page before the API is ready)."""
+    try:
+        import requests
+        return requests.get(f"{base_url.rstrip('/')}/system_stats",
+                            timeout=timeout).status_code == 200
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _ensure_comfyui(base_url: str, comfy_dir: "Path | None") -> bool:
+    """Probe ComfyUI and, if it is down, restart it in place. Returns True when
+    the server is up (already or after the restart).
+
+    ALL side effects (pkill / subprocess.Popen / sleeps / log file) live in
+    this ONE function so tests — and callers that must never heal — can
+    monkeypatch or skip it wholesale. ``comfy_dir`` is the ComfyUI install
+    root, derived by callers as the PARENT of pipeline.yaml's
+    ``comfyui.output_dir`` (the canonical path source — never hardcoded)."""
+    if _comfyui_stats_up(base_url):
+        return True
+    if comfy_dir is None or not Path(comfy_dir).is_dir():
+        print(f"  !! ComfyUI self-heal skipped — install dir not found: "
+              f"{comfy_dir}", file=sys.stderr, flush=True)
+        return False
+    print(f"  !! ComfyUI down — self-heal: restarting from {comfy_dir} "
+          f"(log: {_SELFHEAL_LOG})", flush=True)
+    subprocess.run(["pkill", "-9", "-f", "main.py"], check=False)
+    time.sleep(3)
+    with open(_SELFHEAL_LOG, "ab") as log:
+        # Homebrew python3 on PATH (NOT ComfyUI's venv — it lacks sqlalchemy);
+        # detached + nohup so the server outlives this run (unattended loops).
+        subprocess.Popen(
+            ["nohup", "python3", "main.py"], cwd=str(comfy_dir),
+            env={**os.environ, "PYTORCH_MPS_HIGH_WATERMARK_RATIO": "0.0"},
+            stdout=log, stderr=log, start_new_session=True)
+    deadline = time.time() + _SELFHEAL_BOOT_TIMEOUT_S
+    while time.time() < deadline:
+        if _comfyui_stats_up(base_url):
+            print("  !! ComfyUI self-heal OK — server is back up", flush=True)
+            return True
+        time.sleep(_SELFHEAL_POLL_S)
+    print(f"  !! ComfyUI self-heal FAILED — no answer within "
+          f"{_SELFHEAL_BOOT_TIMEOUT_S}s (see {_SELFHEAL_LOG})",
+          file=sys.stderr, flush=True)
+    return False
+
+
 # Circuit breaker: consecutive CONNECTIVITY failures (ComfyUI unreachable —
 # not per-image render failures) before a stage aborts the run loudly instead
 # of grinding through every remaining image/series producing nothing.
@@ -388,10 +458,10 @@ def _classify_conn_failure(exc: Exception) -> bool:
         exc, (RenderFailed, RenderTimeout))
 
 
-def _embed_parameters(png: Path, *, prompt: str, seed: int, steps: int = 14,
-                      sampler: str = "euler", scheduler: str = "beta",
+def _embed_parameters(png: Path, *, prompt: str, seed: int, steps: int = 8,
+                      sampler: str = "dpmpp_sde", scheduler: str = "beta",
                       cfg_scale: float = 1.0,
-                      model: str = "gonzalomo_chroma_v30") -> None:
+                      model: str = "z_image_turbo_bf16") -> None:
     """Add an A1111-interop ``parameters`` tEXt chunk so review/keeper PNGs are
     self-describing (prompt + seed + sampler — previously only the base PNGs
     carried metadata, and only as a ComfyUI graph with absolute paths).
@@ -419,11 +489,6 @@ def _embed_parameters(png: Path, *, prompt: str, seed: int, steps: int = 14,
 # Curation reject flags that drop a candidate from keeper contention
 # regardless of score (composition-fatal, not taste).
 _HARD_REJECT_FLAGS = {"multiple_faces", "no_face", "scorer_error"}
-
-# 4K-queue admission: composite quality_score floor for the ~10-min manual 4K
-# pass (calibrated on recent manifests: ~top-40% of keepers; 'blurry' etc.
-# flags disqualify regardless).
-FOURK_QUEUE_MIN_SCORE = 0.62
 
 
 def _curate(
@@ -575,8 +640,8 @@ def _next_persona_serial(name: str) -> int:
 # Anatomy guard (auto-retry): a single female has at most TWO hands, so the hand
 # detector counting >2 is a reliable EXTRA-LIMB signal a detailer CAN'T fix (it
 # refines every hand it finds). We reroll the base seed until the render is clean
-# (or retries run out). hand_yolov9c is the same model the refine detailer uses;
-# run on CPU so it never contends with ComfyUI's GPU. No bare-foot detector works,
+# (or retries run out). hand_yolov9c runs
+# on CPU so it never contends with ComfyUI's GPU. No bare-foot detector works,
 # so feet are not guarded — see [[reference_anatomy_detailer_limits]].
 _HAND_DETECTORS: dict = {}
 EXPECTED_MAX_HANDS = 2
@@ -625,9 +690,9 @@ def _render_stage_base(
     rp: dict | None = None, default_orientation: str = "portrait",
     anatomy_retries: int = 0, hand_detector_path: "str | None" = None,
     reroll_start: "int | None" = None, nsfw_lora_strength: float = 0.0,
-    random_seeds: bool = True,
+    random_seeds: bool = True, selfheal_comfy_dir: "Path | None" = None,
 ) -> list[dict]:
-    """Stage 1 (Chroma): base gen for every (prompt × seed) into dest_dir.
+    """Base render: one gen for every (prompt × seed) into dest_dir.
 
     Each prompt is rendered at ITS OWN orientation (the LLM chose it per prompt
     via art_director) → portrait/square/landscape variety instead of one fixed
@@ -635,14 +700,20 @@ def _render_stage_base(
     falls back to ``resolution`` / ``default_orientation`` when absent.
 
     Manifest images carry ``{base_path, seed}``; ``path`` (what curation +
-    packaging read) is set later by the refine stage. Chroma is loaded ONCE
-    by ComfyUI and stays resident across all base submissions — SDXL is not
-    touched here, so this whole batch runs without co-residing Chroma+SDXL
-    in VRAM (and the swap that caused).
+    packaging read) is set afterwards in main() (base-only pipeline: the base
+    render IS the review image). The base model is loaded ONCE by ComfyUI and
+    stays resident across all submissions.
 
     ``anatomy_retries`` > 0 enables the extra-limb guard: each base render is
     checked with the hand detector and rerolled (new seed) up to that many times
-    when >2 hands are found; the least-bad render is kept if all rerolls fail."""
+    when >2 hands are found; the least-bad render is kept if all rerolls fail.
+
+    ``selfheal_comfy_dir`` (the ComfyUI install root) enables the in-stage
+    self-heal: a CONNECTIVITY failure first attempts ``_ensure_comfyui`` —
+    a successful heal resets the circuit breaker (it does NOT count as a
+    strike) and the SAME image is retried once. At most
+    ``_SELFHEAL_MAX_PER_STAGE`` heal attempts per stage; None = heal off
+    (--no-comfy-selfheal) → the classic 3-strike breaker only."""
     dest_dir.mkdir(parents=True, exist_ok=True)
     hand_det = _hand_detector(hand_detector_path) if anatomy_retries > 0 else None
     # Reroll seeds live past the whole candidate span (callers pass a
@@ -650,6 +721,7 @@ def _render_stage_base(
     reroll_seed = (reroll_start if reroll_start is not None
                    else base_seed + len(rows) * seeds)
     conn_failures = 0          # circuit breaker — consecutive connectivity deaths
+    heals_used = 0             # self-heal budget for this stage
     manifest: list[dict] = []
     for idx, r in enumerate(rows):
         # filename-safe scene tag: a sub_look title can contain a slash/colon
@@ -677,30 +749,54 @@ def _render_stage_base(
                 else:
                     seed = reroll_seed
                     reroll_seed += 1
-                try:
-                    wf = builder.build_external(
-                        external_template=base_template, prompt_text=r["prompt"],
-                        negative_prompt=negative, resolution=res, seed=seed)
-                    # Tier-gate the Z-Image NSFW LoRA (only present in the default
-                    # zimage base) — full at T3/T4, OFF at T1/T2 + covers (anti-drift).
-                    if "lora_nsfw" in wf:
-                        wf["lora_nsfw"]["inputs"]["strength_model"] = nsfw_lora_strength
-                    images = client.render_single_with_retry(wf, timeout=_RENDER_TIMEOUT_S)
-                    outs = [im for im in images if im.type == "output"] or images
-                    name = f"{prefix}{idx + 1:02d}_{look}_s{seed}.png"
-                    dst = dest_dir / name
-                    shutil.copy(outs[-1].file_path, dst)
-                except Exception as exc:  # noqa: BLE001 — surface, continue
-                    if _classify_conn_failure(exc):
-                        conn_failures += 1
-                        if conn_failures >= COMFYUI_BREAKER_LIMIT:
-                            raise RuntimeError(
-                                f"ComfyUI unreachable ({conn_failures} consecutive "
-                                f"connectivity failures) — aborting the run instead "
-                                f"of grinding through empty renders. Restart ComfyUI "
-                                f"and re-run.") from exc
-                    print(f"  [base {idx + 1}/{len(rows)}] seed {seed} FAILED: {exc}",
-                          file=sys.stderr, flush=True)
+                dst = None
+                # Inner pass: at most 2 tries per (attempt, seed) — the second
+                # ONLY after a successful ComfyUI self-heal (retry the same image).
+                for conn_try in (0, 1):
+                    try:
+                        wf = builder.build_external(
+                            external_template=base_template, prompt_text=r["prompt"],
+                            negative_prompt=negative, resolution=res, seed=seed)
+                        # Tier-gate the Z-Image NSFW LoRA (only present in the default
+                        # zimage base) — full at T3/T4, OFF at T1/T2 + covers (anti-drift).
+                        if "lora_nsfw" in wf:
+                            wf["lora_nsfw"]["inputs"]["strength_model"] = nsfw_lora_strength
+                        images = client.render_single_with_retry(wf, timeout=_RENDER_TIMEOUT_S)
+                        outs = [im for im in images if im.type == "output"] or images
+                        name = f"{prefix}{idx + 1:02d}_{look}_s{seed}.png"
+                        dst = dest_dir / name
+                        shutil.copy(outs[-1].file_path, dst)
+                        break
+                    except Exception as exc:  # noqa: BLE001 — surface, continue
+                        dst = None
+                        if _classify_conn_failure(exc):
+                            # Self-heal FIRST (before the breaker counts a strike):
+                            # an unattended run's ComfyUI death is usually
+                            # recoverable — restart + retry the SAME image once.
+                            # A successful heal does NOT count toward the breaker.
+                            if (conn_try == 0 and selfheal_comfy_dir is not None
+                                    and heals_used < _SELFHEAL_MAX_PER_STAGE):
+                                heals_used += 1
+                                print(f"  !! ComfyUI connectivity failure — self-heal "
+                                      f"attempt {heals_used}/{_SELFHEAL_MAX_PER_STAGE} "
+                                      f"this stage", flush=True)
+                                if _ensure_comfyui(getattr(client, "base_url", ""),
+                                                   selfheal_comfy_dir):
+                                    conn_failures = 0   # healed strike doesn't count
+                                    print(f"  !! self-heal OK — retrying seed {seed}",
+                                          flush=True)
+                                    continue
+                            conn_failures += 1
+                            if conn_failures >= COMFYUI_BREAKER_LIMIT:
+                                raise RuntimeError(
+                                    f"ComfyUI unreachable ({conn_failures} consecutive "
+                                    f"connectivity failures) — aborting the run instead "
+                                    f"of grinding through empty renders. Restart ComfyUI "
+                                    f"and re-run.") from exc
+                        print(f"  [base {idx + 1}/{len(rows)}] seed {seed} FAILED: {exc}",
+                              file=sys.stderr, flush=True)
+                        break
+                if dst is None:
                     continue
                 conn_failures = 0
                 hands = _count_hands(hand_det, dst)
@@ -732,98 +828,6 @@ def _render_stage_base(
                           file=sys.stderr, flush=True)
         manifest.append(entry)
     return manifest
-
-
-def _select_refine_template(tier: str, rp: dict) -> str:
-    """Stage-2 refine template for a tier's MAIN images. T4_explicit gets the
-    variant with the vagina detailer (``refine_template_t4``); every lower tier
-    uses ``refine_template`` so a tasteful T3 nude never has its genitals detailed
-    (tier purity)."""
-    base = rp["refine_template"]
-    return rp.get("refine_template_t4", base) if tier == "T4_explicit" else base
-
-
-def _refine_templates_for(tier: str, rp: dict) -> "tuple[str, str]":
-    """``(main_template, cover_template)`` for the staged refine. MAIN follows the
-    tier (T4 → vagina-detailer variant); COVERS are always SFW so they ALWAYS use
-    the base refine — even on a T4 run — so a public/teaser image is never
-    genital-detailed. The whole routing decision lives here so the cover-purity
-    invariant is tested in one place."""
-    return _select_refine_template(tier, rp), rp["refine_template"]
-
-
-def _template_has_genital_detailer(workflow_dir: Path, template_rel: "str | None") -> bool:
-    """True if a workflow template contains a vagina/genital detailer node.
-    CONTENT-based (not filename-based) so a renamed template can't smuggle explicit
-    detailing past the tier-purity guard. Missing/unreadable template → False."""
-    if not template_rel:
-        return False
-    try:
-        wf = json.loads((workflow_dir / template_rel).read_text())
-    except Exception:  # noqa: BLE001 — absent/bad template → treat as clean
-        return False
-    for nid, nd in wf.items():
-        blob = (nid + " " + str(nd.get("inputs", {}).get("model_name", ""))).lower()
-        if "vagina" in blob:
-            return True
-    return False
-
-
-def _violates_tier_purity(tier: str, main_template: "str | None", workflow_dir: Path) -> bool:
-    """True if rendering would run a genital detailer outside T4_explicit — e.g. a
-    ``--refine-template`` override leaking the T4 template into a lower tier. The
-    staged render aborts when this is True."""
-    return tier != "T4_explicit" and _template_has_genital_detailer(workflow_dir, main_template)
-
-
-def _render_stage_refine(
-    manifest: list[dict], *, builder, client, refine_template: str,
-    dest_dir: Path, out_dir: Path,
-) -> None:
-    """Stage 2 (SDXL): refine each stage-1 base image into a review image.
-
-    Sets ``images[].path`` (== ``review_path``) to the review image so
-    curation + packaging operate on the finished non-4K images the human
-    picks from. SDXL DMD is loaded ONCE on the first refine submit and stays
-    resident for the rest of the batch (Chroma is no longer referenced) — the
-    swap win. On refine failure the base image is used as the review path so
-    a usable image is never silently dropped."""
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    conn_failures = 0          # circuit breaker — consecutive connectivity deaths
-    for entry in manifest:
-        for im in entry["images"]:
-            base_rel = im.get("base_path")
-            if not base_rel:
-                continue
-            base_abs = (out_dir / base_rel).resolve()
-            try:
-                wf = builder.build_image_stage(
-                    external_template=refine_template,
-                    image_path=str(base_abs), seed=im["seed"])
-                images = client.render_single_with_retry(wf, timeout=_RENDER_TIMEOUT_S)
-                outs = [i for i in images if i.type == "output"] or images
-                name = Path(base_rel).name  # mirror base filename under images/
-                dst = dest_dir / name
-                shutil.copy(outs[-1].file_path, dst)
-                im["path"] = str(dst.relative_to(out_dir))
-                im["review_path"] = im["path"]
-                conn_failures = 0
-                # Self-describing review/keeper PNG (A1111-interop chunk) —
-                # these are the files that get packaged and sold.
-                _embed_parameters(dst, prompt=entry["prompt"], seed=im["seed"])
-                print(f"  [refine] {name}", flush=True)
-            except Exception as exc:  # noqa: BLE001 — surface, fall back to base
-                if _classify_conn_failure(exc):
-                    conn_failures += 1
-                    if conn_failures >= COMFYUI_BREAKER_LIMIT:
-                        raise RuntimeError(
-                            f"ComfyUI unreachable ({conn_failures} consecutive "
-                            f"connectivity failures in refine) — aborting; every "
-                            f"image would silently 'fall back to base'.") from exc
-                im["path"] = base_rel  # base image is still a usable review image
-                im["review_path"] = base_rel
-                print(f"  [refine] {base_rel} FAILED ({exc}); using base as review",
-                      file=sys.stderr, flush=True)
 
 
 def _gen_metadata(selection, brief: str, tier: str, image_count: int,
@@ -993,7 +997,7 @@ def _nudity_hit(image_path: Path, detector_paths: "tuple | list") -> bool:
     drift put fully-nude frames in public packages on two consecutive nights
     despite clean prompts — prompt-side gates cannot see the RENDER, so the
     public folder gets a vision gate. PRIMARY: NudeNet (handles color AND
-    B&W). SECONDARY: the refine-stage nipple/vagina YOLOs. Conservative
+    B&W). SECONDARY: the nipple/vagina YOLOs. Conservative
     direction: a false positive merely quarantines to _tier_drift/ for the
     operator to restore. No detectors available → False (graceful)."""
     nd = _nudenet_detector()
@@ -1069,6 +1073,95 @@ def _tier_truth_advisory(image_path: Path) -> str:
                 f"verify by eye the top isn't open/sheer; NudeNet's covered-vs-"
                 f"exposed call is unreliable on draped or dim frames")
     return ""
+
+
+# ── T1/T2 drift auto-reroll ─────────────────────────────────────────
+# NudeNet-quarantined public frames were previously just DROPPED at packaging
+# (a 6-image funnel set could ship 3/6). For funnel tiers the drifted keepers
+# are re-rendered (fresh random seed, same prompt/resolution) BEFORE packaging
+# and swapped in when the replacement passes the SAME nudity screen. Budgets
+# keep a heavily-drifting niche from doubling render cost.
+_DRIFT_REROLL_MAX_PER_IMAGE = 2
+_DRIFT_REROLL_MAX_PER_SERIES = 4
+
+
+def _reroll_drifted(
+    manifest: list[dict], *, out_dir: Path, builder, client, base_template: str,
+    negative: str, rp: dict | None, default_orientation: str, tier: str,
+    nudity_detector_paths: "tuple | list" = (),
+) -> "tuple[int, int]":
+    """Re-render nudity-drifted funnel-tier keepers before packaging.
+
+    Runs ONLY for funnel tiers (tier not in ``_EXPLICIT_TIERS`` — at T3/T4 the
+    nudity IS the product). Each main keeper is screened with ``_nudity_hit``
+    (the same gate + confidence packaging applies); a hit triggers a re-render
+    of THAT prompt at its own resolution/orientation with a FRESH random seed.
+    The first replacement that passes the screen is swapped into the manifest
+    (the file lands in base/ with an ``_rr`` suffix; packaging then copies —
+    and harmlessly re-screens — the clean replacement). Limits:
+    ``_DRIFT_REROLL_MAX_PER_IMAGE`` attempts per drifted image and
+    ``_DRIFT_REROLL_MAX_PER_SERIES`` re-renders per series; anything still
+    drifted falls back to the packaging quarantine exactly as before.
+    Returns ``(replaced, still_drifted)`` and prints the summary line."""
+    if tier in _EXPLICIT_TIERS:
+        return (0, 0)
+    rerolls_used = 0
+    replaced = still_drifted = 0
+    for entry in manifest:
+        orientation = entry.get("orientation") or default_orientation
+        res = tuple(entry.get("resolution")
+                    or base_resolution_for(rp, orientation))
+        for im in entry["images"]:
+            if not im.get("keeper") or not im.get("path"):
+                continue
+            src = out_dir / im["path"]
+            if not src.exists() or not _nudity_hit(src, nudity_detector_paths):
+                continue
+            fixed = False
+            for attempt in range(_DRIFT_REROLL_MAX_PER_IMAGE):
+                if rerolls_used >= _DRIFT_REROLL_MAX_PER_SERIES:
+                    break
+                rerolls_used += 1
+                seed = random.randint(1, _SEED_MAX)
+                try:
+                    wf = builder.build_external(
+                        external_template=base_template,
+                        prompt_text=entry["prompt"], negative_prompt=negative,
+                        resolution=res, seed=seed)
+                    if "lora_nsfw" in wf:   # funnel tier — NSFW LoRA stays OFF
+                        wf["lora_nsfw"]["inputs"]["strength_model"] = 0.0
+                    images = client.render_single_with_retry(
+                        wf, timeout=_RENDER_TIMEOUT_S)
+                    outs = [i for i in images if i.type == "output"] or images
+                    dst = src.with_name(f"{src.stem}_rr_s{seed}.png")
+                    shutil.copy(outs[-1].file_path, dst)
+                except Exception as exc:  # noqa: BLE001 — reroll is best-effort
+                    print(f"  (drift reroll render failed for {src.name}: {exc})",
+                          file=sys.stderr, flush=True)
+                    continue
+                if _nudity_hit(dst, nudity_detector_paths):
+                    dst.unlink(missing_ok=True)
+                    print(f"  drift reroll: {src.name} attempt {attempt + 1} "
+                          f"still nude — rejected", file=sys.stderr, flush=True)
+                    continue
+                rel = str(dst.relative_to(out_dir))
+                print(f"  drift reroll: {src.name} -> {dst.name} (seed {seed}) "
+                      f"— replaced with a clean render", flush=True)
+                _embed_parameters(dst, prompt=entry["prompt"], seed=seed)
+                im["rerolled_from"] = im["path"]
+                im["path"] = im["base_path"] = im["review_path"] = rel
+                im["seed"] = seed
+                replaced += 1
+                fixed = True
+                break
+            if not fixed:
+                still_drifted += 1
+                print(f"  drift reroll: {src.name} NOT replaced "
+                      f"(budget/attempts exhausted) — packaging will quarantine "
+                      f"it to _tier_drift/", file=sys.stderr, flush=True)
+    print(f"  drift rerolls: {replaced} replaced, {still_drifted} still "
+          f"quarantined", flush=True)
+    return (replaced, still_drifted)
 
 
 # Per-family post-grade presets (2026-06-27 cinematic push): the finishing grade
@@ -1155,38 +1248,9 @@ def _package(
 
     cover_name = public_names[0] if public_names else None  # SFW by construction
 
-    # ── 4K selection rule (the manual 4K stage finally has criteria) ────
-    # keepers/ is NOT a shortlist (with --keep-top 1 every image becomes a
-    # keeper, including 'blurry'-flagged ones). 4k_queue/ = keepers that
-    # actually earn the ~10-min 4K pass: scored ≥ threshold AND flag-free.
-    # Operator vetoes by deleting files, then runs
-    #   python scripts/upscale_folder.py <run>/4k_queue
-    queue: list[Path] = []
-    for e in main_manifest:
-        for im in e["images"]:
-            if not im.get("keeper"):
-                continue
-            score = im.get("quality_score") or 0.0
-            try:
-                flags = set(json.loads(im.get("quality_flags") or "[]"))
-            except (ValueError, TypeError):
-                flags = set()
-            if score >= FOURK_QUEUE_MIN_SCORE and not flags:
-                p = out_dir / im["path"]
-                if p.exists():
-                    queue.append(p)
-    if queue:
-        qdir = out_dir / "4k_queue"
-        qdir.mkdir(exist_ok=True)
-        for p in queue:
-            shutil.copy(p, qdir / p.name)
-        print(f"  4k_queue: {len(queue)} image(s) earned the 4K pass "
-              f"(score ≥ {FOURK_QUEUE_MIN_SCORE}, no flags)", flush=True)
-
     # Cinematic post-grade (filmic colour/bloom/vignette) — the finishing layer
     # that adds the look Z-Image/Chroma under-render. Runs on public AND gated,
-    # AFTER render and BEFORE watermark (so branding sits on the graded frame); 4K
-    # is graded post-USDU in upscale_folder, never here (2026-06-18 R&D).
+    # AFTER render and BEFORE watermark (so branding sits on the graded frame).
     # Grayscale niches get a deterministic desaturation to TRUE black & white (the
     # model renders muted colour even when prompted 'monochrome') — this runs even
     # when the colour post-grade is disabled, so a B&W gallery is always B&W.
@@ -1280,9 +1344,6 @@ def _posting_checklist(meta: dict, is_explicit: bool) -> str:
         "",
         f"**Price:** {meta.get('price_by_tier', 'see DA_GO_TO_MARKET.md')}  ·  "
         f"**Groups:** {', '.join(meta.get('da_groups', []))}  ·  "
-        f"**4K-finish heroes:** review `4k_queue/` (auto-picked: score ≥ "
-        f"{FOURK_QUEUE_MIN_SCORE}, flag-free), delete any you veto, then "
-        f"`python scripts/upscale_folder.py <run>/4k_queue`  ·  "
         "**Per-image copy-paste:** `posting_templates/`",
         "",
         "## Hard rules (verified ToS, do not skip)",
@@ -1301,13 +1362,16 @@ def _posting_checklist(meta: dict, is_explicit: bool) -> str:
         "- [ ] Human-paced cadence (a few posts/day max); submit to relevant "
         "Groups (the main reach multiplier; DA feed is weak).",
         "",
-        f"## PUBLIC post (top-of-funnel) — {pub['count']} image(s) in `public/`",
-        f"- Cover: `{meta['cover_image']}`",
-        f"- Title: {pub['metadata'].get('title','')}",
-        f"- Description: {pub['metadata'].get('description','')}",
-        f"- Tags: {', '.join(pub['metadata'].get('tags', []))}",
-        "",
     ]
+    if pub["count"]:
+        lines += [
+            f"## PUBLIC post (top-of-funnel) — {pub['count']} image(s) in `public/`",
+            f"- Cover: `{meta['cover_image']}`",
+            f"- Title: {pub['metadata'].get('title','')}",
+            f"- Description: {pub['metadata'].get('description','')}",
+            f"- Tags: {', '.join(pub['metadata'].get('tags', []))}",
+            "",
+        ]
     advisories = pub.get("advisories") or {}
     if advisories:
         lines += [
@@ -1378,28 +1442,25 @@ def main() -> int:
     ap.add_argument("--base-template", default=None,
                     help="staged stage-1 base template (default: pipeline.yaml "
                     "render_pipeline.base_template)")
-    ap.add_argument("--refine-template", default=None,
-                    help="staged stage-2 refine template (default: pipeline.yaml "
-                    "render_pipeline.refine_template)")
-    ap.add_argument("--refine", action="store_true",
-                    help="OPT-IN: run the stage-2 SDXL detailer refine. Default is "
-                    "base-only (like 4K) — keeps a series on one resident model.")
-    ap.add_argument("--no-refine", action="store_true",
-                    help="(default) skip stage-2 refine; review images = raw base "
-                    "render. Kept for back-compat; base-only is now the default.")
     ap.add_argument("--no-postgrade", action="store_true",
                     help="skip the cinematic post-grade pass (pipeline.yaml postgrade)")
-    ap.add_argument("--engine", choices=["chroma", "zimage"], default="zimage",
-                    help="render engine: zimage (Z-Image Turbo — DEFAULT; official base "
-                         "+ flow-DPO + dopsd_white LoRA stack, dpmpp_sde) or chroma "
-                         "(gonzaLomo Chroma v30 — for B&W/painterly/period/fantasy niches). "
-                         "Swaps the base + refine + refine_T4 templates as a set; explicit "
-                         "--base-template / --refine-template still override.)")
+    ap.add_argument("--no-comfy-selfheal", action="store_true",
+                    help="disable the built-in ComfyUI self-heal (pre-flight + "
+                         "in-stage restart of a dead server); with this flag a "
+                         "dead ComfyUI aborts exactly as before")
+    ap.add_argument("--no-drift-reroll", action="store_true",
+                    help="disable the T1/T2 drift auto-reroll (re-rendering "
+                         "NudeNet-flagged public keepers before packaging); "
+                         "drifted frames are then only quarantined as before")
+    ap.add_argument("--engine", choices=["zimage"], default="zimage",
+                    help="render engine: zimage (Z-Image Turbo — the only engine; "
+                         "official base + flow-DPO LoRA stack, dpmpp_sde). "
+                         "chroma was pruned 2026-08 (weights deleted) — see legacy/. "
+                         "Explicit --base-template still overrides.")
     ap.add_argument("--hires", action="store_true",
                     help="Z-Image deep-shrink HIRES base (gonzaLomo v11: "
                          "PatchModelAddDownscale + higher per-orientation resolution) "
-                         "for max-detail hero renders. Forces --engine zimage; "
-                         "~2x slower on MPS. The SDXL detailer stage still applies.")
+                         "for max-detail hero renders. ~2x slower on MPS.")
     ap.add_argument("--model-tag", default=art_director.DEFAULT_LLM_TAG,
                     help="LLM tag for prompt generation; routed to its backend "
                          "(LM Studio / Ollama / MLX) by config/llm_models.yaml. "
@@ -1411,13 +1472,23 @@ def main() -> int:
                          "~150-word prose; do not exceed ~250)")
     ap.add_argument("--no-audit-gate", action="store_true",
                     help="disable the inline audit_prompts quality gate")
+    ap.add_argument("--max-attempts", type=int, default=3,
+                    help="LLM attempts per scene before keep-best ships "
+                    "(default 3; safety gates always apply)")
+    ap.add_argument("--audit-threshold", type=float,
+                    default=art_director.AUDIT_GATE_THRESHOLD_DEFAULT,
+                    help="quality-gate pass score (default "
+                    f"{art_director.AUDIT_GATE_THRESHOLD_DEFAULT}; keep-best "
+                    "ships the top attempt even below it)")
     ap.add_argument("--no-curate", action="store_true",
                     help="skip ImageScorer curation (keep every render)")
     ap.add_argument("--keep-top", type=int, default=1,
                     help="keepers per prompt after scoring (default 1)")
-    ap.add_argument("--covers", type=int, default=2,
-                    help="SFW cover/teaser prompts to render for explicit (T3/T4) "
-                    "runs — the public shopfront (default 2; 0 to skip)")
+    ap.add_argument("--covers", type=int, default=0,
+                    help="OPT-IN: SFW cover/teaser prompts to render for explicit "
+                    "(T3/T4) runs. Default 0 — packages contain ONLY tier-true "
+                    "content (user directive 2026-07: no SFW covers for any tier); "
+                    "pass N>0 to restore the old public-shopfront covers.")
     ap.add_argument("--no-package", action="store_true",
                     help="skip the publish-ready packaging step")
     ap.add_argument("--prompts-only", action="store_true",
@@ -1480,12 +1551,20 @@ def main() -> int:
     cfg = yaml.safe_load((ROOT / "config/pipeline.yaml").read_text())
     cu = cfg["comfyui"]
     workflow_dir = ROOT / cu.get("workflow_dir", "config/comfyui_workflows")
+    # ComfyUI install root — ALWAYS derived from comfyui.output_dir (the
+    # canonical path source; <root>/output → parent is the root). Used by the
+    # self-heal relaunch, the hand detector and the nudity-YOLO paths below.
+    comfy_root = Path(os.path.expanduser(cu["output_dir"])).parent
 
     # Pre-flight: a render run with a dead ComfyUI previously burned the whole
     # LLM phase (and consumed niche-cycle state) to produce zero images.
+    # Self-heal (default ON): try restarting the server first; abort only when
+    # the heal fails too (or --no-comfy-selfheal preserved the old behavior).
     if not args.prompts_only and not _comfyui_up(cu["base_url"]):
-        sys.exit(f"PRE-FLIGHT ABORT: ComfyUI unreachable at {cu['base_url']} — "
-                 f"start it (or use --prompts-only) and re-run.")
+        if args.no_comfy_selfheal or not _ensure_comfyui(cu["base_url"], comfy_root):
+            sys.exit(f"PRE-FLIGHT ABORT: ComfyUI unreachable at {cu['base_url']} — "
+                     f"start it (or use --prompts-only) and re-run.")
+        print("  (pre-flight: ComfyUI was down — self-healed)", flush=True)
     # Release ComfyUI's resident models (~32 GB) BEFORE Phase 1 loads the LLM, so
     # back-to-back series start with a clean slate and the LLM never OOM-kills
     # ComfyUI by stacking on top of the previous render's models (2026-06-15).
@@ -1494,48 +1573,24 @@ def main() -> int:
         print(f"  (pre-flight: ComfyUI memory {'freed' if freed else 'free request failed — proceeding'})",
               flush=True)
 
-    # Engine selection: a convenience that swaps the base + refine + refine_T4
-    # templates as a SET so --engine zimage carries its own detailer stage (incl.
-    # the T4 genital detailer). Explicit --base-template / --refine-template still
-    # win (None is ignored by resolve_render_pipeline, so chroma falls through to
-    # the pipeline.yaml defaults).
-    _ENGINE_TEMPLATES = {
-        "zimage": {
-            "base_template": "templates/zimage/base.json",
-            "refine_template": "templates/zimage/refine.json",
-            "refine_template_t4": "templates/zimage/refine_T4.json",
-        },
-    }
-    # --hires: gonzaLomo deep-shrink base at a higher per-orientation resolution
-    # (Z-Image only — deep-shrink is a Z-Image feature; ~2x slower on MPS).
+    # zimage is the ONLY engine (chroma pruned 2026-08 — see legacy/). The base
+    # template comes from pipeline.yaml render_pipeline.base_template; explicit
+    # --base-template wins, and --hires swaps in the deep-shrink base
+    # (gonzaLomo v11: higher per-orientation resolution; ~2x slower on MPS).
     _ZIMAGE_HIRES_BASE = "templates/zimage/base_hires.json"
     _HIRES_BASE_RESOLUTION = {"portrait": [1216, 1536], "square": [1344, 1344],
                               "landscape": [1536, 1216],
                               "widescreen": [1792, 1024], "story": [1024, 1792]}
-    if args.hires and args.engine != "zimage":
-        print("  (--hires forces --engine zimage: deep-shrink is a Z-Image feature)",
-              flush=True)
-        args.engine = "zimage"
-    eng = _ENGINE_TEMPLATES.get(args.engine, {})
     base_tmpl_cli = args.base_template or (
-        _ZIMAGE_HIRES_BASE if args.hires else eng.get("base_template"))
+        _ZIMAGE_HIRES_BASE if args.hires else None)
     rp_cli = {
         "base_template": base_tmpl_cli,
-        "refine_template": args.refine_template or eng.get("refine_template"),
-        "refine_template_t4": eng.get("refine_template_t4"),
     }
     if args.hires:
         rp_cli["base_resolution"] = _HIRES_BASE_RESOLUTION
-    # Refine is OPT-IN (base-only default). --refine turns it on; --no-refine is
-    # the (now-default) off state, kept for back-compat. --refine wins if both given.
-    if args.refine:
-        rp_cli["enable_refine"] = True
-    elif args.no_refine:
-        rp_cli["enable_refine"] = False
     rp = resolve_render_pipeline(cfg.get("render_pipeline"), None, rp_cli)
     # Base renders at the model's native resolution (render_pipeline.base_resolution
-    # — portrait 896×1152); true 4K is reached only in the separate manual upscale
-    # stage (scripts/upscale_folder.py).
+    # — portrait 896×1152).
     resolution = base_resolution_for(rp, args.orientation)
 
     # ── Resolve brief + sub-looks via the niche selector (unless --brief) ──
@@ -1615,8 +1670,7 @@ def main() -> int:
     out_dir = Path(args.out_dir) if args.out_dir else (
         ROOT / "output" / "art_series" / ts
     )
-    img_dir = out_dir / "images"
-    img_dir.mkdir(parents=True, exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     # ── Phase 1: ALL LLM work (prompts + SFW covers + metadata) ────────
     # Done in one LLM session so we unload exactly once before rendering
@@ -1636,8 +1690,10 @@ def main() -> int:
         _niche_id = ("brief-"
                      + re.sub(r"[^a-z0-9]+", "-", args.brief.lower()).strip("-")[:40])
     seed_banned, seed_avoid, prior_count, overused = [], [], 0, []
+    seed_texts: list[str] = []
     if _niche_id:
-        seed_banned, seed_avoid, prior_count, overused = _load_niche_history(_niche_id)
+        (seed_banned, seed_avoid, prior_count, overused,
+         seed_texts) = _load_niche_history(_niche_id)
         if prior_count:
             print(f"  (cross-series variety: run #{prior_count + 1} of '{_niche_id}'"
                   f" — steering away from {len(seed_avoid)} prior fragments"
@@ -1665,8 +1721,9 @@ def main() -> int:
         brief=brief, tier=args.tier, count=args.count, model_tag=args.model_tag,
         temperature=args.temperature, sub_looks=sub_looks, word_band=word_band,
         audit_gate=not args.no_audit_gate,
+        audit_threshold=args.audit_threshold, max_attempts=args.max_attempts,
         seed_avoid=seed_avoid, seed_banned_openers=seed_banned, run_offset=run_offset,
-        seed_overused=overused, locked_look=locked_look,
+        seed_overused=overused, seed_ref_texts=seed_texts, locked_look=locked_look,
         lock_wardrobe=(selection.niche.lock_wardrobe if selection else False),
         force_orientation=(args.force_orientation or ""),
         force_shot_type=(args.force_shot_type or ""),
@@ -1745,9 +1802,11 @@ def main() -> int:
             model_tag=args.model_tag, temperature=args.temperature,
             sub_looks=sub_looks, word_band=word_band,
             audit_gate=not args.no_audit_gate,
+            audit_threshold=args.audit_threshold, max_attempts=args.max_attempts,
             seed_avoid=cover_avoid, seed_banned_openers=cover_banned,
             run_offset=run_offset + args.count,
-            seed_overused=overused, locked_look=locked_look,
+            seed_overused=overused, seed_ref_texts=seed_texts,
+            locked_look=locked_look,
             require_sfw=True, native_framing_only=True,   # covers stay portrait/square/landscape
             extra_directive=art_director.SFW_COVER_DIRECTIVE,
         )
@@ -1757,10 +1816,13 @@ def main() -> int:
         print("\n=== Phase 1c (LLM): set metadata ===", flush=True)
         gated_meta = _gen_metadata(selection, brief, args.tier, args.count,
                                    args.model_tag)
+        # Public-set metadata only matters when covers exist; with zero covers
+        # (the default) the public/ dir is empty — reuse gated_meta and save
+        # one LLM call.
         public_meta = (
-            _gen_metadata(selection, brief, "T2_implied", max(n_covers, 1),
+            _gen_metadata(selection, brief, "T2_implied", n_covers,
                           args.model_tag)
-            if is_explicit else gated_meta
+            if (is_explicit and n_covers) else gated_meta
         )
 
     # ── unload LLM before rendering ────────────────────────────────────
@@ -1768,43 +1830,27 @@ def main() -> int:
     _unload_llm(args.model_tag)
 
     # ── Phase 2: render ────────────────────────────────────────────────
-    # Default = STAGED: base (Chroma) for ALL prompts, then refine (SDXL) for
-    # ALL base outputs → review images. The two model domains never co-reside
-    # (no swap). 4K is NEVER auto-run here — it is a manual keepers-only step
-    # via scripts/upscale_folder.py. Detailers + 4K live in the upscale stage
-    # (proven detail-after-upscale ordering), so the series render is
-    # tier-NEUTRAL.
+    # BASE-ONLY: one zimage base render per (prompt × seed); the base output
+    # IS the review image. (The SDXL refine / 4K stages were archived 2026-08
+    # — see legacy/.)
     builder = WorkflowBuilder(workflow_dir)
     client = ComfyUIClient(base_url=cu["base_url"], output_dir=cu["output_dir"])
     # Anatomy guard: the hand detector lives under the ComfyUI models dir
-    # (<comfyui_root>/models/ultralytics/bbox/hand_yolov9c.pt). output_dir is
-    # <comfyui_root>/output, so its parent is the root.
-    hand_det_path = str(Path(os.path.expanduser(cu["output_dir"])).parent
-                        / "models/ultralytics/bbox/hand_yolov9c.pt")
-    # Render-level tier-drift screen for PUBLIC-bound images (same detectors
-    # the refine detailers use; missing files → graceful no-op).
-    _ultra = Path(os.path.expanduser(cu["output_dir"])).parent / "models/ultralytics/bbox"
+    # (<comfyui_root>/models/ultralytics/bbox/hand_yolov9c.pt). comfy_root is
+    # the parent of comfyui.output_dir (derived at pre-flight above).
+    hand_det_path = str(comfy_root / "models/ultralytics/bbox/hand_yolov9c.pt")
+    # Render-level tier-drift screen for PUBLIC-bound images (nudity YOLO
+    # detectors; missing files → graceful no-op).
+    _ultra = comfy_root / "models/ultralytics/bbox"
     nudity_det_paths = tuple(str(_ultra / f) for f in
                              ("nipples_yolov8s.pt", "vagina-v3.2.pt"))
+    # In-stage self-heal (None = --no-comfy-selfheal → classic breaker only).
+    selfheal_dir = None if args.no_comfy_selfheal else comfy_root
     base_dir = out_dir / "base"
-    cover_dir = out_dir / "covers"
     cover_manifest: list[dict] = []
 
     base_tmpl = rp["base_template"]
-    # T4-ONLY: explicit main images get the refine variant with the vagina
-    # detailer; SFW covers (and T1/T2/T3) use the base refine so a tasteful
-    # nude (or a public teaser) never has its genitals detailed (tier purity).
-    refine_tmpl_main, refine_cover_tmpl = _refine_templates_for(args.tier, rp)
-    # Tier-purity guard (content-based): refuse to render explicit genital
-    # detailing below T4 — catches a --refine-template override that injects a
-    # T4 template into a lower tier. Covers always use the base refine (safe).
-    if _violates_tier_purity(args.tier, refine_tmpl_main, workflow_dir):
-        sys.exit(f"TIER-PURITY ABORT: refine template '{refine_tmpl_main}' has a "
-                 f"genital detailer but --tier {args.tier} (not T4_explicit). "
-                 f"Explicit detailing is T4-only.")
-    enable_refine = rp.get("enable_refine", True)
-    run_template = {"base": base_tmpl, "refine": refine_tmpl_main,
-                    "upscale": rp["upscale_template"]}
+    run_template = {"base": base_tmpl}
     print(f"\n=== Phase 2a (base, {args.engine}): {Path(base_tmpl).name} ===",
           flush=True)
     manifest = _render_stage_base(
@@ -1814,6 +1860,7 @@ def main() -> int:
         rp=rp, default_orientation=args.orientation,
         anatomy_retries=args.anatomy_retries, hand_detector_path=hand_det_path,
         reroll_start=main_reroll_start, random_seeds=random_seeds,
+        selfheal_comfy_dir=selfheal_dir,
         nsfw_lora_strength=(_NSFW_LORA_STRENGTH if args.tier in _EXPLICIT_TIERS else 0.0))
     if cover_rows:
         cover_manifest = _render_stage_base(
@@ -1824,25 +1871,19 @@ def main() -> int:
             rp=rp, default_orientation=args.orientation,
             anatomy_retries=args.anatomy_retries, hand_detector_path=hand_det_path,
             reroll_start=cover_reroll_start, random_seeds=random_seeds,
+            selfheal_comfy_dir=selfheal_dir,
             nsfw_lora_strength=0.0)   # covers are SFW T1
-    if enable_refine:
-        print(f"\n=== Phase 2b (refine, SDXL): {Path(refine_tmpl_main).name} "
-              f"→ review images ===", flush=True)
-        _render_stage_refine(manifest, builder=builder, client=client,
-                             refine_template=refine_tmpl_main, dest_dir=img_dir,
-                             out_dir=out_dir)
-        if cover_manifest:   # covers are SFW → always the base refine
-            _render_stage_refine(cover_manifest, builder=builder, client=client,
-                                 refine_template=refine_cover_tmpl, dest_dir=cover_dir,
-                                 out_dir=out_dir)
-    else:
-        print("\n=== Phase 2b skipped (--no-refine): review = raw base ===",
-              flush=True)
-        for m in (manifest, cover_manifest):
-            for e in m:
-                for im in e["images"]:
-                    im["path"] = im.get("base_path")
-                    im["review_path"] = im["path"]
+    # Review images = the raw base renders (base-only pipeline). Embed the
+    # A1111-interop parameters chunk so the PNGs that get packaged and sold
+    # are self-describing (prompt + seed + sampler).
+    for m in (manifest, cover_manifest):
+        for e in m:
+            for im in e["images"]:
+                im["path"] = im.get("base_path")
+                im["review_path"] = im["path"]
+                if im["path"]:
+                    _embed_parameters(out_dir / im["path"],
+                                      prompt=e["prompt"], seed=im["seed"])
 
     # ── Post-render checkpoint ──────────────────────────────────────────
     # Manifest commits RIGHT AFTER rendering: a crash in curation/packaging
@@ -1883,6 +1924,24 @@ def main() -> int:
             for e in m:
                 for im in e["images"]:
                     im["keeper"] = True
+
+    # ── Phase 3b: T1/T2 drift auto-reroll (before packaging) ────────────
+    # Re-render nudity-drifted funnel keepers while ComfyUI is still resident,
+    # so packaging quarantines only what two fresh seeds couldn't fix (sets
+    # previously shipped 3/6 when drift hit). _package lacks builder/client —
+    # the reroll runs HERE, where both are in scope, and mutates the manifest
+    # in place (the final _write_manifest below records the swaps).
+    if (not args.no_package and not args.no_drift_reroll
+            and args.tier not in _EXPLICIT_TIERS):
+        try:
+            _reroll_drifted(
+                manifest, out_dir=out_dir, builder=builder, client=client,
+                base_template=base_tmpl, negative=DEFAULT_NEGATIVE, rp=rp,
+                default_orientation=args.orientation, tier=args.tier,
+                nudity_detector_paths=nudity_det_paths)
+            _write_manifest()   # checkpoint the swaps before packaging
+        except Exception as exc:  # noqa: BLE001 — reroll is optional polish
+            print(f"  (drift reroll skipped: {exc})", file=sys.stderr, flush=True)
 
     # ── Phase 4: tier-split packaging (wrapped — every sibling phase is;
     # a packaging OSError previously killed the run post-render) ────────

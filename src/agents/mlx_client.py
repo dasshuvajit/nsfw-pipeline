@@ -350,21 +350,6 @@ class MlxClient:
         except requests.ConnectionError:
             return False
 
-    def list_models(self) -> list[str]:
-        """Return model identifiers the running mlx_lm.server exposes.
-
-        mlx_lm.server serves exactly one model per process, so this
-        always returns a 1-element list (or empty when unreachable).
-        """
-        try:
-            resp = requests.get(f"{self.base_url}/v1/models", timeout=10)
-            if resp.status_code != 200:
-                return []
-            data = resp.json()
-            return [m["id"] for m in data.get("data", [])]
-        except (requests.ConnectionError, KeyError):
-            return []
-
     # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------
